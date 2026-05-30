@@ -120,6 +120,20 @@ fun TesseraHubApp() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: "home"
 
+    val navigateAction: (String) -> Unit = { route ->
+        if (route == "home") {
+            navController.popBackStack(navController.graph.findStartDestination().id, inclusive = false)
+        } else {
+            navController.navigate(route) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+    }
+
     var isFabExpanded by remember { mutableStateOf(false) }
     var fabHoveredItem by remember { mutableStateOf<String?>(null) }
 
@@ -140,7 +154,7 @@ fun TesseraHubApp() {
         ) {
             NavHost(navController = navController, startDestination = "home", modifier = Modifier.fillMaxSize().padding(bottom = 120.dp)) {
                 composable("home") {
-                    HomeScreen()
+                    HomeScreen(onNavigate = navigateAction)
                 }
                 composable("finance") {
                     FinanceScreen(onHomeClick = { 
@@ -189,20 +203,6 @@ fun TesseraHubApp() {
                 }
             }
 
-            val navigateAction: (String) -> Unit = { route ->
-                if (route == "home") {
-                    navController.popBackStack(navController.graph.findStartDestination().id, inclusive = false)
-                } else {
-                    navController.navigate(route) {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                }
-            }
-
             Box(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = innerPadding.calculateBottomPadding())) {
                 BottomNavBar(
                     isExpanded = isFabExpanded,
@@ -223,90 +223,85 @@ fun TesseraHubApp() {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color(0xE6000000)) // Deep black translucent
+                        .background(Color(0xD9070909)) // Premium dark semi-translucent overlay
                         .clickable(
                             interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                             indication = null
                         ) { isFabExpanded = false }
                 ) {
-                    val bottomOffset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 40.dp
+                    val bottomOffset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 80.dp
                     Box(
-                        modifier = Modifier.fillMaxSize().padding(bottom = bottomOffset),
-                        contentAlignment = Alignment.BottomCenter
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = bottomOffset),
+                        contentAlignment = Alignment.Center
                     ) {
-                        val offsetHealth by animateDpAsState(if (isFabExpanded) (-100).dp else 0.dp, spring(dampingRatio = 0.6f, stiffness = 200f))
-                        val offsetGoals by animateDpAsState(if (isFabExpanded) (-140).dp else 0.dp, spring(dampingRatio = 0.6f, stiffness = 150f))
-                        val offsetPetz by animateDpAsState(if (isFabExpanded) (-100).dp else 0.dp, spring(dampingRatio = 0.6f, stiffness = 200f))
-                        
-                        val xOffsetHealth by animateDpAsState(if (isFabExpanded) (-80).dp else 0.dp, spring(dampingRatio = 0.6f, stiffness = 200f))
-                        val xOffsetPetz by animateDpAsState(if (isFabExpanded) 80.dp else 0.dp, spring(dampingRatio = 0.6f, stiffness = 200f))
-
-                        val alphaItems by androidx.compose.animation.core.animateFloatAsState(if (isFabExpanded) 1f else 0f, tween(200))
-                        val scaleItems by androidx.compose.animation.core.animateFloatAsState(if (isFabExpanded) 1f else 0.5f, spring(dampingRatio = 0.6f, stiffness = 200f))
-
-                        Box(contentAlignment = Alignment.Center, modifier = Modifier.offset(y = (-40).dp)) {
-                            // Health
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = xOffsetHealth, y = offsetHealth)
-                                    .scale(scaleItems)
-                                    .alpha(alphaItems)
-                                    .size(72.dp)
-                                    .background(Color(0xFF131817), CircleShape)
-                                    .border(1.dp, PrimaryTeal.copy(alpha = 0.3f), CircleShape)
-                                    .clickable { navigateAction("health"); isFabExpanded = false },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(Icons.Outlined.MonitorHeart, contentDescription = "Saúde", tint = PrimaryTeal, modifier = Modifier.size(28.dp))
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text("Saúde", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                                }
-                            }
-                            // Goals
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = 0.dp, y = offsetGoals)
-                                    .scale(scaleItems)
-                                    .alpha(alphaItems)
-                                    .size(72.dp)
-                                    .background(Color(0xFF131817), CircleShape)
-                                    .border(1.dp, PrimaryTeal.copy(alpha = 0.3f), CircleShape)
-                                    .clickable { navigateAction("goals"); isFabExpanded = false },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(Icons.Outlined.Flag, contentDescription = "Metas", tint = PrimaryTeal, modifier = Modifier.size(28.dp))
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text("Metas", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                                }
-                            }
-                            // Petz
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = xOffsetPetz, y = offsetPetz)
-                                    .scale(scaleItems)
-                                    .alpha(alphaItems)
-                                    .size(72.dp)
-                                    .background(Color(0xFF131817), CircleShape)
-                                    .border(1.dp, PrimaryTeal.copy(alpha = 0.3f), CircleShape)
-                                    .clickable { navigateAction("petz"); isFabExpanded = false },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(Icons.Outlined.Pets, contentDescription = "Petz", tint = PrimaryTeal, modifier = Modifier.size(28.dp))
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text("Petz", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                                }
-                            }
-
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            val titleAlpha by animateFloatAsState(if (isFabExpanded) 1f else 0f, tween(300))
                             Text(
                                 text = "O que você deseja ver?",
-                                color = Color.White.copy(alpha = alphaItems * 0.9f),
-                                fontSize = 16.sp,
+                                color = Color.White.copy(alpha = titleAlpha),
+                                fontSize = 24.sp,
                                 fontFamily = FontFamily.Serif,
-                                modifier = Modifier.offset(y = (-220).dp)
+                                fontWeight = FontWeight.Normal,
+                                textAlign = TextAlign.Center
                             )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Selecione um painel para navegar",
+                                color = Color.White.copy(alpha = titleAlpha * 0.5f),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Normal,
+                                textAlign = TextAlign.Center
+                            )
+                            
+                            Spacer(modifier = Modifier.height(36.dp))
+                            
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                val healthAlpha by animateFloatAsState(if (isFabExpanded) 1f else 0f, tween(350, delayMillis = 50))
+                                val healthOffset by animateDpAsState(if (isFabExpanded) 0.dp else 40.dp, spring(dampingRatio = 0.82f, stiffness = 180f))
+                                PremiumGlassCard(
+                                    title = "Saúde & Corpo",
+                                    subtitle = "Monitore seu sono, prontidão e batimentos",
+                                    icon = Icons.Outlined.MonitorHeart,
+                                    iconColor = PrimaryTeal,
+                                    alpha = healthAlpha,
+                                    offsetY = healthOffset,
+                                    onClick = { navigateAction("health"); isFabExpanded = false }
+                                )
+                                
+                                val goalsAlpha by animateFloatAsState(if (isFabExpanded) 1f else 0f, tween(350, delayMillis = 150))
+                                val goalsOffset by animateDpAsState(if (isFabExpanded) 0.dp else 40.dp, spring(dampingRatio = 0.82f, stiffness = 180f))
+                                PremiumGlassCard(
+                                    title = "Metas & Hábitos",
+                                    subtitle = "Acompanhe seus objetivos diários",
+                                    icon = Icons.Outlined.Flag,
+                                    iconColor = Color(0xFFF9A826), // Gold
+                                    alpha = goalsAlpha,
+                                    offsetY = goalsOffset,
+                                    onClick = { navigateAction("goals"); isFabExpanded = false }
+                                )
+                                
+                                val petzAlpha by animateFloatAsState(if (isFabExpanded) 1f else 0f, tween(350, delayMillis = 250))
+                                val petzOffset by animateDpAsState(if (isFabExpanded) 0.dp else 40.dp, spring(dampingRatio = 0.82f, stiffness = 180f))
+                                PremiumGlassCard(
+                                    title = "Marie & Churchill",
+                                    subtitle = "Gerencie a rotina e tarefas dos seus pets",
+                                    icon = Icons.Outlined.Pets,
+                                    iconColor = TertiaryPurple,
+                                    alpha = petzAlpha,
+                                    offsetY = petzOffset,
+                                    onClick = { navigateAction("petz"); isFabExpanded = false }
+                                )
+                            }
                         }
                     }
                 }
@@ -316,7 +311,7 @@ fun TesseraHubApp() {
 }
 
 @Composable
-fun HomeScreen() {
+fun HomeScreen(onNavigate: (String) -> Unit) {
     val context = LocalContext.current
     val tesseraDb = remember { TesseraDatabase.getDatabase(context) }
     val homeViewModel: HomeViewModel = viewModel(
@@ -334,6 +329,7 @@ fun HomeScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(Color(0xFF070909)) // Seamless solid black background
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -368,9 +364,9 @@ fun HomeScreen() {
                 Spacer(modifier = Modifier.height(24.dp))
                 TopHeader()
                 Spacer(modifier = Modifier.height(32.dp))
-                TopMetricsRow(netWorth)
+                TopMetricsRow(netWorth, onNavigate)
                 Spacer(modifier = Modifier.height(48.dp))
-                HeroMetric()
+                HeroMetric(onNavigate)
                 Spacer(modifier = Modifier.height(48.dp))
             }
         }
@@ -427,7 +423,7 @@ fun TopHeader() {
 }
 
 @Composable
-fun TopMetricsRow(netWorth: Double) {
+fun TopMetricsRow(netWorth: Double, onNavigate: (String) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -435,22 +431,23 @@ fun TopMetricsRow(netWorth: Double) {
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         val formattedWorth = if (netWorth >= 1000) "${(netWorth / 1000).toInt()}k" else netWorth.toInt().toString()
-        MetricItem(Icons.Outlined.AccountBalanceWallet, formattedWorth, "PATRIMÔNIO")
-        MetricItemWithProgress(Icons.Outlined.Bedtime, "82", "SAÚDE", PrimaryTeal, 0.82f)
-        MetricItem(Icons.Outlined.FavoriteBorder, "72", "FREQUÊNCIA")
-        MetricItemWithProgress(Icons.Outlined.MonitorWeight, "78", "CORPO", TertiaryPurple, 0.78f)
+        MetricItem(Icons.Outlined.AccountBalanceWallet, formattedWorth, "PATRIMÔNIO", onClick = { onNavigate("finance") })
+        MetricItemWithProgress(Icons.Outlined.Bedtime, "82", "SAÚDE", PrimaryTeal, 0.82f, onClick = { onNavigate("health") })
+        MetricItem(Icons.Outlined.FavoriteBorder, "72", "FREQUÊNCIA", onClick = { onNavigate("health") })
+        MetricItemWithProgress(Icons.Outlined.MonitorWeight, "78", "CORPO", TertiaryPurple, 0.78f, onClick = { onNavigate("health") })
     }
 }
 
 @Composable
-fun MetricItem(icon: ImageVector, value: String, label: String) {
+fun MetricItem(icon: ImageVector, value: String, label: String, onClick: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
                 .size(72.dp)
                 .clip(CircleShape)
                 .background(Color(0x0AFFFFFF))
-                .border(1.dp, Color(0x1AFFFFFF), CircleShape),
+                .border(1.dp, Color(0x1AFFFFFF), CircleShape)
+                .clickable { onClick() },
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -465,7 +462,7 @@ fun MetricItem(icon: ImageVector, value: String, label: String) {
 }
 
 @Composable
-fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, progressColor: Color, progress: Float) {
+fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, progressColor: Color, progress: Float, onClick: () -> Unit) {
     val animatedProgress by androidx.compose.animation.core.animateFloatAsState(
         targetValue = progress,
         animationSpec = tween(durationMillis = 1500, easing = androidx.compose.animation.core.FastOutSlowInEasing)
@@ -477,7 +474,8 @@ fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, prog
                 .size(72.dp)
                 .clip(CircleShape)
                 .background(Color(0x0AFFFFFF))
-                .border(1.dp, Color(0x1AFFFFFF), CircleShape),
+                .border(1.dp, Color(0x1AFFFFFF), CircleShape)
+                .clickable { onClick() },
             contentAlignment = Alignment.Center
         ) {
             Canvas(modifier = Modifier.fillMaxSize().padding(1.dp)) {
@@ -508,7 +506,7 @@ fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, prog
 }
 
 @Composable
-fun HeroMetric() {
+fun HeroMetric(onNavigate: (String) -> Unit) {
     val calendar = java.util.Calendar.getInstance()
     val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
     
@@ -538,7 +536,10 @@ fun HeroMetric() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 32.dp),
+            .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .clickable { onNavigate("goals") }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         BoxWithConstraints(
@@ -890,45 +891,134 @@ fun PetsCard(routines: List<PetRoutineEntity>) {
         }
         Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
         Spacer(modifier = Modifier.height(20.dp))
+
+        // Vacinas Section
+        Text(
+            text = "PRÓXIMAS VACINAS",
+            fontSize = 9.sp,
+            letterSpacing = 1.sp,
+            fontWeight = FontWeight.Bold,
+            color = PrimaryTeal,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
         
-        if (routines.isEmpty()) {
-            PetEvent(text = "Sem rotinas hoje", time = "--:--", color = Color.Gray, isPrimaryTime = false)
-        } else {
-            routines.forEachIndexed { index, routine ->
-                PetEvent(
-                    text = "${routine.petName}: ${routine.task}",
-                    time = routine.time,
-                    color = if (routine.isCompleted) PrimaryTeal else TertiaryPurple,
-                    isPrimaryTime = !routine.isCompleted
-                )
-                if (index < routines.size - 1) {
-                    Spacer(modifier = Modifier.height(20.dp))
-                }
-            }
-        }
+        PetMedicalEvent(
+            petName = "Marie",
+            title = "Vacina Antirrábica",
+            detail = "Importada V10 + Raiva",
+            date = "12/Jun",
+            status = "Agendada",
+            statusColor = PrimaryTeal
+        )
+        
+        Spacer(modifier = Modifier.height(20.dp))
+        Box(modifier = Modifier.fillMaxWidth().height(0.5.dp).background(Color(0x0DFFFFFF)))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Consultas Section
+        Text(
+            text = "CONSULTAS AGENDADAS",
+            fontSize = 9.sp,
+            letterSpacing = 1.sp,
+            fontWeight = FontWeight.Bold,
+            color = TertiaryPurple,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+
+        PetMedicalEvent(
+            petName = "Churchill",
+            title = "Check-up Geral",
+            detail = "Dra. Ana Silva - Clinic Vet",
+            date = "24/Jun",
+            status = "Confirmada",
+            statusColor = TertiaryPurple
+        )
     }
 }
 
 @Composable
-fun PetEvent(text: String, time: String, color: Color, isPrimaryTime: Boolean) {
+fun PetMedicalEvent(
+    petName: String,
+    title: String,
+    detail: String,
+    date: String,
+    status: String,
+    statusColor: Color
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(color)) // TODO inner shadow/blur if desired
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(text, color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
+        ) {
+            // Pet Name Badge
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(statusColor.copy(alpha = 0.12f))
+                    .border(0.5.dp, statusColor.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = petName.uppercase(),
+                    color = statusColor,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Column {
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = detail,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                    fontSize = 12.sp
+                )
+            }
         }
-        Text(
-            text = time,
-            color = if (isPrimaryTime) PrimaryTeal else MaterialTheme.colorScheme.onSurface,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold
-        )
+        
+        Column(
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = date,
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(statusColor.copy(alpha = 0.08f))
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = status.uppercase(),
+                    color = statusColor.copy(alpha = 0.8f),
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
+                )
+            }
+        }
     }
 }
+
 
 @Composable
 fun SystemCard(onChatClick: () -> Unit = {}) {
@@ -1001,48 +1091,57 @@ fun BottomNavBar(
     currentRoute: String = "home",
     onNavigate: (String) -> Unit = {}
 ) {
-    val density = LocalDensity.current
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 24.dp, vertical = 24.dp),
+            .padding(horizontal = 20.dp, vertical = 16.dp),
         contentAlignment = Alignment.BottomCenter
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(80.dp)
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(Color(0xE62A2F2E), Color(0xFA131817))
-                    ),
-                    shape = RoundedCornerShape(40.dp)
-                )
-                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(40.dp))
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            NavItem(Icons.Outlined.LightMode, "Hoje", currentRoute == "home") { onNavigate("home") }
-            NavItem(Icons.Outlined.AccountBalanceWallet, "Finanças", currentRoute == "finance") { onNavigate("finance") }
-            NavItem(Icons.Outlined.Storefront, "Mercado", currentRoute == "market") { onNavigate("market") }
-            
+            // Main Tabs Capsule
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(68.dp)
+                    .clip(RoundedCornerShape(34.dp))
+                    .then(GlassModifier)
+                    .border(1.dp, Color(0x2BFFFFFF), RoundedCornerShape(34.dp))
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                NavItem(Icons.Outlined.LightMode, "Hoje", currentRoute == "home") { onNavigate("home") }
+                NavItem(Icons.Outlined.AccountBalanceWallet, "Finanças", currentRoute == "finance") { onNavigate("finance") }
+                NavItem(Icons.Outlined.Storefront, "Mercado", currentRoute == "market") { onNavigate("market") }
+            }
+
+            // Detached Action (+) Button
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .background(if (isExpanded) PrimaryTeal else Color(0x1AFFFFFF), CircleShape)
-                    .border(1.dp, Color(0x33FFFFFF), CircleShape)
+                    .size(68.dp)
+                    .clip(CircleShape)
+                    .then(GlassModifier)
+                    .background(if (isExpanded) PrimaryTeal else Color.Transparent, CircleShape)
+                    .border(1.dp, if (isExpanded) PrimaryTeal.copy(alpha = 0.5f) else Color(0x2BFFFFFF), CircleShape)
                     .clickable { onExpandedChange(!isExpanded) },
                 contentAlignment = Alignment.Center
             ) {
-                val iconRotation by animateFloatAsState(if (isExpanded) 45f else 0f)
+                val iconRotation by animateFloatAsState(
+                    targetValue = if (isExpanded) 45f else 0f,
+                    animationSpec = tween(durationMillis = 300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                )
                 Icon(
                     Icons.Default.Add, 
                     contentDescription = "Add", 
                     tint = if (isExpanded) Color.Black else MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.scale(if (isExpanded) 1.2f else 1f).rotate(iconRotation)
+                    modifier = Modifier
+                        .size(24.dp)
+                        .rotate(iconRotation)
                 )
             }
         }
@@ -1094,6 +1193,76 @@ fun NavItem(icon: ImageVector, label: String, isActive: Boolean, onClick: () -> 
 }
 
 
+@Composable
+fun PremiumGlassCard(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    iconColor: Color,
+    alpha: Float,
+    offsetY: Dp,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .offset(y = offsetY)
+            .alpha(alpha)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .then(GlassModifier)
+            .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .padding(18.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(iconColor.copy(alpha = 0.1f))
+                    .border(1.dp, iconColor.copy(alpha = 0.25f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp
+                )
+            }
+            
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.3f),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TesseraChatSheet(onDismiss: () -> Unit, netWorth: Double, petRoutines: List<PetRoutineEntity>) {
@@ -1116,8 +1285,11 @@ fun TesseraChatSheet(onDismiss: () -> Unit, netWorth: Double, petRoutines: List<
         }
     }
 
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        sheetState = sheetState,
         containerColor = Color(0xFF0F1413),
         modifier = Modifier.fillMaxHeight(0.85f)
     ) {
@@ -1125,6 +1297,7 @@ fun TesseraChatSheet(onDismiss: () -> Unit, netWorth: Double, petRoutines: List<
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 20.dp, vertical = 8.dp)
+                .imePadding()
         ) {
             // Header
             Row(

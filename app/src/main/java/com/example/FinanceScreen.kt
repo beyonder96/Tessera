@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -495,87 +497,377 @@ fun AddTransactionDialog(
 ) {
     var title by remember { mutableStateOf("") }
     var valueStr by remember { mutableStateOf("") }
-    var isIncome by remember { mutableStateOf(false) }
+    var isIncome by remember { mutableStateOf(false) } // Default to SAÍDA (false)
+    var dateStr by remember { mutableStateOf("30/05/2026") }
+    var selectedCategory by remember { mutableStateOf("GERAL") }
+    var destinationAccount by remember { mutableStateOf("") }
+    var transactionConfig by remember { mutableStateOf("TRANSAÇÃO ÚNICA") }
     
+    val categories = listOf(
+        CategoryItem("GERAL", "📌"),
+        CategoryItem("SUPERMERCADO", "🛒"),
+        CategoryItem("RESERVA", "🏦"),
+        CategoryItem("MORADIA", "🏠"),
+        CategoryItem("ALIMENTAÇÃO", "🍔"),
+        CategoryItem("SAÚDE", "🩺"),
+        CategoryItem("LAZER", "🎉"),
+        CategoryItem("TRANSPORTE", "🚗"),
+        CategoryItem("EDUCAÇÃO", "📚"),
+        CategoryItem("ASSINATURAS", "📺")
+    )
+
     Dialog(onDismissRequest = onDismiss) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFF171D1C))
-                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color(0xFF070909)) // Sleek dark slate
+                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(24.dp))
                 .padding(24.dp)
         ) {
-            Column {
-                Text("Nova Transação", color = Color(0xFFDFE3E2), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+            ) {
+                // Header (Nova Transação)
+                Text(
+                    text = "NOVA TRANSAÇÃO",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
                 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(20.dp))
                 
+                // DESCRIÇÃO
+                Text(
+                    text = "DESCRIÇÃO",
+                    color = Color(0xFF879391),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
+                Spacer(modifier = Modifier.height(6.dp))
                 TextField(
                     value = title,
                     onValueChange = { title = it },
-                    placeholder = { Text("Nome (ex: Supermercado)", color = Color(0xFF879391)) },
+                    placeholder = { Text("Nome da transação", color = Color(0xFF55605E), fontSize = 14.sp) },
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color(0x1AFFFFFF),
-                        unfocusedContainerColor = Color(0x08FFFFFF),
-                        focusedTextColor = Color(0xFFDFE3E2),
-                        unfocusedTextColor = Color(0xFFDFE3E2),
+                        focusedContainerColor = Color(0xFF131817),
+                        unfocusedContainerColor = Color(0xFF131817),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent
                     ),
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp)
-                )
-                
-                Spacer(modifier = Modifier.height(12.dp))
-                
-                TextField(
-                    value = valueStr,
-                    onValueChange = { valueStr = it },
-                    placeholder = { Text("Valor (ex: 150.50)", color = Color(0xFF879391)) },
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color(0x1AFFFFFF),
-                        unfocusedContainerColor = Color(0x08FFFFFF),
-                        focusedTextColor = Color(0xFFDFE3E2),
-                        unfocusedTextColor = Color(0xFFDFE3E2),
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
                 )
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(
-                        checked = isIncome,
-                        onCheckedChange = { isIncome = it },
-                        colors = CheckboxDefaults.colors(checkedColor = Color(0xFF71D7CD), uncheckedColor = Color(0xFF879391))
-                    )
-                    Text("É uma entrada (receita)?", color = Color(0xFFDFE3E2))
+                // VALOR & DATA
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "VALOR (R$)",
+                            color = Color(0xFF879391),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        TextField(
+                            value = valueStr,
+                            onValueChange = { valueStr = it },
+                            placeholder = { Text("0,00", color = Color(0xFF55605E), fontSize = 14.sp) },
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFF131817),
+                                unfocusedContainerColor = Color(0xFF131817),
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            singleLine = true
+                        )
+                    }
+                    
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "DATA",
+                            color = Color(0xFF879391),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        TextField(
+                            value = dateStr,
+                            onValueChange = { dateStr = it },
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFF131817),
+                                unfocusedContainerColor = Color(0xFF131817),
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            ),
+                            trailingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.CalendarToday,
+                                    contentDescription = null,
+                                    tint = Color(0xFF879391),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            singleLine = true
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(20.dp))
+                
+                // TOGGLE ENTRADA / SAÍDA
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // ENTRADA
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isIncome) Color(0xFF2ECC71) else Color(0xFF131817))
+                            .clickable { isIncome = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "ENTRADA",
+                            color = if (isIncome) Color.White else Color(0xFF879391),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                    
+                    // SAÍDA
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (!isIncome) Color(0xFFFF2D55) else Color(0xFF131817))
+                            .clickable { isIncome = false },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "SAÍDA",
+                            color = if (!isIncome) Color.White else Color(0xFF879391),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
                 }
                 
                 Spacer(modifier = Modifier.height(24.dp))
                 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) {
-                        Text("Cancelar", color = Color(0xFF879391))
+                // CATEGORIA
+                Text(
+                    text = "CATEGORIA",
+                    color = Color(0xFF879391),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                
+                // Scrollable category row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    categories.forEach { cat ->
+                        val isSelected = selectedCategory == cat.name
+                        Box(
+                            modifier = Modifier
+                                .size(width = 86.dp, height = 64.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF131817))
+                                .border(
+                                    width = if (isSelected) 1.dp else 0.dp,
+                                    color = if (isSelected) Color.White else Color.Transparent,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .clickable { selectedCategory = cat.name },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(cat.emoji, fontSize = 20.sp)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = cat.name,
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) Color.White else Color(0xFF879391)
+                                )
+                            }
+                        }
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                // CONTA-DESTINO & CONFIGURAÇÃO
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "CONTA-DESTINO",
+                            color = Color(0xFF879391),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF131817))
+                                .clickable { /* dropdown */ }
+                                .padding(horizontal = 12.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (destinationAccount.isEmpty()) "Selecione..." else destinationAccount,
+                                    color = if (destinationAccount.isEmpty()) Color(0xFF55605E) else Color.White,
+                                    fontSize = 13.sp
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                    contentDescription = null,
+                                    tint = Color(0xFF879391),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                    
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "CONFIGURAÇÃO",
+                            color = Color(0xFF879391),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF131817))
+                                .clickable { /* config */ }
+                                .padding(horizontal = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Sync,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = transactionConfig,
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp
+                                )
+                            }
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(32.dp))
+                
+                // BOTTOM BUTTONS (CANCELAR / CONFIRMAR LANÇAMENTO)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // CANCELAR
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .weight(0.4f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33FFFFFF))
+                    ) {
+                        Text(
+                            text = "CANCELAR",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                    
+                    // CONFIRMAR LANÇAMENTO
                     Button(
                         onClick = {
-                            val v = valueStr.toDoubleOrNull() ?: 0.0
+                            val v = valueStr.replace(',', '.').toDoubleOrNull() ?: 0.0
                             if (title.isNotBlank() && v > 0) {
-                                onAdd(title, "Agora", v, isIncome, if (isIncome) "Salary" else "Market")
+                                onAdd(title, selectedCategory, v, isIncome, selectedCategory)
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF71D7CD), contentColor = Color.Black)
+                        modifier = Modifier
+                            .weight(0.6f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black)
                     ) {
-                        Text("Adicionar")
+                        Text(
+                            text = "CONFIRMAR LANÇAMENTO",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp
+                        )
                     }
                 }
             }
         }
     }
 }
+
+data class CategoryItem(val name: String, val emoji: String)
+
