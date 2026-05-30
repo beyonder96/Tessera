@@ -69,6 +69,10 @@ import com.example.data.TesseraRepository
 import com.example.viewmodel.TesseraViewModel
 import com.example.viewmodel.TesseraViewModelFactory
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import com.tesserahub.app.data.local.AppDatabase as TesseraDatabase
+import com.tesserahub.app.ui.viewmodel.HomeViewModel
+import com.tesserahub.app.data.local.entity.PetRoutineEntity
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -204,6 +208,19 @@ fun TesseraHubApp() {
 
 @Composable
 fun HomeScreen() {
+    val context = LocalContext.current
+    val tesseraDb = remember { TesseraDatabase.getDatabase(context) }
+    val homeViewModel: HomeViewModel = viewModel(
+        factory = HomeViewModel.Factory(tesseraDb.tesseraDao())
+    )
+
+    val netWorth by homeViewModel.totalNetWorth.collectAsState()
+    val petRoutines by homeViewModel.petRoutines.collectAsState()
+
+    LaunchedEffect(Unit) {
+        homeViewModel.seedDatabase()
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -241,14 +258,14 @@ fun HomeScreen() {
                 Spacer(modifier = Modifier.height(24.dp))
                 TopHeader()
                 Spacer(modifier = Modifier.height(32.dp))
-                TopMetricsRow()
+                TopMetricsRow(netWorth)
                 Spacer(modifier = Modifier.height(48.dp))
                 HeroMetric()
                 Spacer(modifier = Modifier.height(48.dp))
             }
         }
         
-        MainContent()
+        MainContent(netWorth, petRoutines)
         Spacer(modifier = Modifier.height(140.dp))
     }
 }
@@ -296,14 +313,15 @@ fun TopHeader() {
 }
 
 @Composable
-fun TopMetricsRow() {
+fun TopMetricsRow(netWorth: Double) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        MetricItem(Icons.Outlined.AccountBalanceWallet, "45k", "PATRIMÔNIO")
+        val formattedWorth = if (netWorth >= 1000) "${(netWorth / 1000).toInt()}k" else netWorth.toInt().toString()
+        MetricItem(Icons.Outlined.AccountBalanceWallet, formattedWorth, "PATRIMÔNIO")
         MetricItemWithProgress(Icons.Outlined.Bedtime, "82", "SAÚDE", PrimaryTeal, 0.82f)
         MetricItem(Icons.Outlined.FavoriteBorder, "72", "FREQUÊNCIA")
         MetricItemWithProgress(Icons.Outlined.MonitorWeight, "78", "CORPO", TertiaryPurple, 0.78f)
@@ -488,22 +506,22 @@ fun HeroMetric() {
 }
 
 @Composable
-fun MainContent() {
+fun MainContent(netWorth: Double, petRoutines: List<PetRoutineEntity>) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        FinanceCard()
+        FinanceCard(netWorth)
         MarketCard()
-        PetsCard()
+        PetsCard(petRoutines)
         SystemCard()
     }
 }
 
 @Composable
-fun FinanceCard() {
+fun FinanceCard(netWorth: Double) {
     Column(
         modifier = GlassModifier
             .fillMaxWidth()
@@ -530,14 +548,16 @@ fun FinanceCard() {
         }
         Spacer(modifier = Modifier.height(16.dp))
         Row(verticalAlignment = Alignment.Bottom) {
+            val wholePart = netWorth.toLong()
             Text(
-                text = "R$ 45.230",
+                text = "R$ ${String.format("%,d", wholePart).replace(',', '.')}",
                 fontFamily = FontFamily.Serif,
                 fontSize = 32.sp,
                 color = MaterialTheme.colorScheme.onSurface
             )
+            val decimalPart = ((netWorth - wholePart) * 100).toInt()
             Text(
-                text = ",00",
+                text = ",${String.format("%02d", decimalPart)}",
                 fontFamily = FontFamily.Serif,
                 fontSize = 18.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
@@ -648,7 +668,7 @@ fun MarketItem(text: String, isChecked: Boolean) {
 }
 
 @Composable
-fun PetsCard() {
+fun PetsCard(routines: List<PetRoutineEntity>) {
     Column(
         modifier = GlassModifier
             .fillMaxWidth()
@@ -676,9 +696,21 @@ fun PetsCard() {
         Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
         Spacer(modifier = Modifier.height(20.dp))
         
-        PetEvent(text = "Passeio concluído", time = "08:30", color = PrimaryTeal, isPrimaryTime = false)
-        Spacer(modifier = Modifier.height(20.dp))
-        PetEvent(text = "Próxima refeição", time = "18:00", color = TertiaryPurple, isPrimaryTime = true)
+        if (routines.isEmpty()) {
+            PetEvent(text = "Sem rotinas hoje", time = "--:--", color = Color.Gray, isPrimaryTime = false)
+        } else {
+            routines.forEachIndexed { index, routine ->
+                PetEvent(
+                    text = "${routine.petName}: ${routine.task}",
+                    time = routine.time,
+                    color = if (routine.isCompleted) PrimaryTeal else TertiaryPurple,
+                    isPrimaryTime = !routine.isCompleted
+                )
+                if (index < routines.size - 1) {
+                    Spacer(modifier = Modifier.height(20.dp))
+                }
+            }
+        }
     }
 }
 
