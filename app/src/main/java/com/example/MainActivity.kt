@@ -48,6 +48,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.PickVisualMediaRequest
 import android.net.Uri
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.pointerInput
@@ -61,6 +62,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.data.AppDatabase
+import com.example.data.TesseraRepository
+import com.example.viewmodel.TesseraViewModel
+import com.example.viewmodel.TesseraViewModelFactory
+import androidx.compose.runtime.LaunchedEffect
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -81,6 +89,15 @@ val GlassModifier = Modifier
 
 @Composable
 fun TesseraHubApp() {
+    val context = LocalContext.current
+    val database = remember { AppDatabase.getDatabase(context) }
+    val repository = remember { TesseraRepository(database.tesseraDao()) }
+    val viewModel: TesseraViewModel = viewModel(factory = TesseraViewModelFactory(repository))
+    
+    LaunchedEffect(Unit) {
+        viewModel.initializeDataIfNeeded()
+    }
+
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: "home"
@@ -89,10 +106,20 @@ fun TesseraHubApp() {
     var fabHoveredItem by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFF151E20), // Dark teal/slate top
+                        Color(0xFF070909)  // Pitch black bottom
+                    )
+                )
+            )
+        ) {
             NavHost(navController = navController, startDestination = "home", modifier = Modifier.fillMaxSize()) {
                 composable("home") {
                     HomeScreen()
@@ -104,12 +131,25 @@ fun TesseraHubApp() {
                             launchSingleTop = true
                             restoreState = true
                         }
-                    })
+                    }, viewModel = viewModel)
                 }
                 composable("market") {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Mercado", color = Color.White)
-                    }
+                    MarketScreen(onHomeClick = { 
+                        navController.navigate("home") {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }, viewModel = viewModel)
+                }
+                composable("petz") {
+                    PetzScreen(onHomeClick = { 
+                        navController.navigate("home") {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }, viewModel = viewModel)
                 }
             }
 
@@ -184,12 +224,11 @@ fun HomeScreen() {
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                Color(0x1A0F1414), // 10%
-                                Color(0x990F1414), // 60%
-                                Color(0xFF0F1414)  // 100%
-                            ),
-                            startY = 0f,
-                            endY = Float.POSITIVE_INFINITY
+                                Color(0x00070909), // 0%
+                                Color(0x99070909), // 60%
+                                Color(0xFF070909),  // 100%
+                                Color(0xFF070909)   // Extra padding
+                            )
                         )
                     )
             )
@@ -746,39 +785,45 @@ fun BottomNavBar(
                     .background(Color(0x1AFFFFFF), CircleShape)
                     .border(1.dp, Color(0x33FFFFFF), CircleShape)
                     .pointerInput(Unit) {
-                        awaitEachGesture {
-                            val down = awaitFirstDown()
-                            onExpandedChange(true)
-                            onHoveredItemChange(null)
-                            
-                            var currentHover: String? = null
-                            
-                            do {
-                                val event = awaitPointerEvent()
-                                val change = event.changes.firstOrNull()
-                                if (change != null) {
-                                    change.consume()
-                                    val positionOff = change.position - down.position
-                                    with(density) {
-                                        val hoverStates = listOf(
-                                            "Saúde" to Offset((-80).dp.toPx(), (-80).dp.toPx()),
-                                            "Petz" to Offset(0f, (-120).dp.toPx()),
-                                            "Metas" to Offset((80).dp.toPx(), (-80).dp.toPx())
-                                        )
-                                        currentHover = null
-                                        for ((name, targetPos) in hoverStates) {
-                                            if ((positionOff - targetPos).getDistance() < 40.dp.toPx()) {
-                                                currentHover = name
-                                            }
+                        var currentDragPos = Offset.Zero
+                        var currentHoverName: String? = null
+                        detectDragGestures(
+                            onDragStart = { 
+                                currentDragPos = Offset.Zero
+                                currentHoverName = null
+                                onExpandedChange(true)
+                                onHoveredItemChange(null)
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                currentDragPos += dragAmount
+                                with(density) {
+                                    val hoverStates = listOf(
+                                        "Saúde" to Offset((-80).dp.toPx(), (-80).dp.toPx()),
+                                        "Petz" to Offset(0f, (-120).dp.toPx()),
+                                        "Metas" to Offset((80).dp.toPx(), (-80).dp.toPx())
+                                    )
+                                    currentHoverName = null
+                                    for ((name, targetPos) in hoverStates) {
+                                        if ((currentDragPos - targetPos).getDistance() < 40.dp.toPx()) {
+                                            currentHoverName = name
                                         }
-                                        onHoveredItemChange(currentHover)
                                     }
+                                    onHoveredItemChange(currentHoverName)
                                 }
-                            } while (event.changes.any { it.pressed })
-                            
-                            onExpandedChange(false)
-                            onHoveredItemChange(null)
-                        }
+                            },
+                            onDragEnd = {
+                                if (currentHoverName == "Saúde" || currentHoverName == "Petz") {
+                                    onNavigate("petz")
+                                }
+                                onExpandedChange(false)
+                                onHoveredItemChange(null)
+                            },
+                            onDragCancel = {
+                                onExpandedChange(false)
+                                onHoveredItemChange(null)
+                            }
+                        )
                     },
                 contentAlignment = Alignment.Center
             ) {

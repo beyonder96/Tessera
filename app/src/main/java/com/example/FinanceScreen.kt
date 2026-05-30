@@ -26,12 +26,49 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
 import androidx.compose.foundation.shape.CircleShape
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.viewmodel.TesseraViewModel
+import com.example.data.Transaction
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.ui.window.Dialog
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FinanceScreen(onHomeClick: () -> Unit) {
+fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
+    val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
+    
+    val totalIncome = allTransactions.filter { it.isIncome }.sumOf { it.value }
+    val totalExpense = allTransactions.filter { !it.isIncome }.sumOf { it.value }
+    val balance = totalIncome - totalExpense
+    
+    var showAddDialog by remember { mutableStateOf(false) }
+    
+    if (showAddDialog) {
+        AddTransactionDialog(
+            onDismiss = { showAddDialog = false },
+            onAdd = { title, subtitle, value, isIncome, category ->
+                viewModel.addTransaction(title, subtitle, value, isIncome, category)
+                showAddDialog = false
+            }
+        )
+    }
+    
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showAddDialog = true },
+                containerColor = Color(0xFF71D7CD),
+                contentColor = Color.Black
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Adicionar transação")
+            }
+        },
         topBar = {
             TopAppBar(
                 title = {
@@ -53,8 +90,8 @@ fun FinanceScreen(onHomeClick: () -> Unit) {
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xCC0F1414),
-                    scrolledContainerColor = Color(0xCC0F1414),
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
                 )
             )
         }
@@ -69,7 +106,8 @@ fun FinanceScreen(onHomeClick: () -> Unit) {
             Spacer(modifier = Modifier.height(16.dp))
             
             Text(
-                text = "R$ 45.230,00",
+                // Use a proper locale for currency later, just formatting nicely
+                text = String.format("R$ %,.2f", balance),
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Bold,
                 fontSize = 48.sp,
@@ -82,11 +120,11 @@ fun FinanceScreen(onHomeClick: () -> Unit) {
             
             Spacer(modifier = Modifier.height(24.dp))
             
-            AccountsSection()
+            AccountsSection(totalIncome = totalIncome, totalExpense = totalExpense)
             
             Spacer(modifier = Modifier.height(24.dp))
             
-            RecentTransactionsSection()
+            RecentTransactionsSection(transactions = allTransactions)
             
             Spacer(modifier = Modifier.height(140.dp))
         }
@@ -223,10 +261,10 @@ fun EvolutionSection() {
 }
 
 @Composable
-fun AccountsSection() {
+fun AccountsSection(totalIncome: Double, totalExpense: Double) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
-            text = "Contas",
+            text = "Resumo",
             fontFamily = FontFamily.Serif,
             fontWeight = FontWeight.SemiBold,
             fontSize = 28.sp,
@@ -235,20 +273,20 @@ fun AccountsSection() {
         )
         
         AccountItem(
-            icon = Icons.Outlined.AccountBalance,
-            title = "Conta Corrente",
-            subtitle = "Banco Principal",
-            value = "R$ 12.450,00",
+            icon = Icons.Outlined.AccountBalanceWallet,
+            title = "Entradas",
+            subtitle = "Soma de todos os ganhos",
+            value = String.format("R$ %,.2f", totalIncome),
             iconColor = Color(0xFF71D7CD),
             iconBgColor = Color(0xFF262B2A)
         )
         
         AccountItem(
-            icon = Icons.AutoMirrored.Outlined.TrendingUp,
-            title = "Investimentos",
-            subtitle = "Corretora Alpha",
-            value = "R$ 32.780,00",
-            iconColor = Color(0xFFD7BAFF),
+            icon = Icons.Outlined.Payment,
+            title = "Saídas",
+            subtitle = "Soma de todos os gastos",
+            value = String.format("R$ %,.2f", totalExpense),
+            iconColor = Color(0xFFF9A8A8),
             iconBgColor = Color(0xFF262B2A)
         )
     }
@@ -320,7 +358,7 @@ fun AccountItem(
 }
 
 @Composable
-fun RecentTransactionsSection() {
+fun RecentTransactionsSection(transactions: List<Transaction>) {
     Column {
         Row(
             modifier = Modifier
@@ -355,39 +393,36 @@ fun RecentTransactionsSection() {
                 .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(8.dp))
         ) {
             Column {
-                TransactionItem(
-                    icon = Icons.Outlined.ShoppingCart,
-                    title = "Supermercado",
-                    subtitle = "Hoje, 14:30",
-                    value = "- R$ 450,00",
-                    iconColor = Color(0xFFBDC9C6),
-                    iconBgColor = Color(0xFF262B2A),
-                    valueColor = Color(0xFFDFE3E2)
-                )
+                if (transactions.isEmpty()) {
+                    Text("Sem transações", color = Color(0xFFBDC9C6), modifier = Modifier.padding(16.dp))
+                }
                 
-                Divider(color = Color(0x1A879391))
-                
-                TransactionItem(
-                    icon = Icons.Outlined.Restaurant,
-                    title = "Restaurante Lazer",
-                    subtitle = "Ontem, 20:15",
-                    value = "- R$ 120,50",
-                    iconColor = Color(0xFFBDC9C6),
-                    iconBgColor = Color(0xFF262B2A),
-                    valueColor = Color(0xFFDFE3E2)
-                )
-                
-                Divider(color = Color(0x1A879391))
-                
-                TransactionItem(
-                    icon = Icons.Outlined.Payments,
-                    title = "Salário",
-                    subtitle = "10 Jun, 09:00",
-                    value = "+ R$ 15.000,00",
-                    iconColor = Color(0xFF71D7CD),
-                    iconBgColor = Color(0x1A71D7CD),
-                    valueColor = Color(0xFF71D7CD)
-                )
+                val dateFormat = SimpleDateFormat("dd/MM, HH:mm", Locale.getDefault())
+                transactions.forEachIndexed { index, transaction ->
+                    val icon = when (transaction.category) {
+                        "Food" -> Icons.Outlined.Restaurant
+                        "Market" -> Icons.Outlined.ShoppingCart
+                        "Salary" -> Icons.Outlined.Payments
+                        else -> Icons.Outlined.AttachMoney
+                    }
+                    val isIncome = transaction.isIncome
+                    val dateFormatted = dateFormat.format(Date(transaction.timestamp))
+                    val valueFormatted = String.format("R$ %,.2f", transaction.value)
+                    
+                    TransactionItem(
+                        icon = icon,
+                        title = transaction.title,
+                        subtitle = dateFormatted,
+                        value = if (isIncome) "+ $valueFormatted" else "- $valueFormatted",
+                        iconColor = if (isIncome) Color(0xFF71D7CD) else Color(0xFFBDC9C6),
+                        iconBgColor = if (isIncome) Color(0x1A71D7CD) else Color(0xFF262B2A),
+                        valueColor = if (isIncome) Color(0xFF71D7CD) else Color(0xFFDFE3E2)
+                    )
+                    
+                    if (index < transactions.size - 1) {
+                        HorizontalDivider(color = Color(0x1A879391))
+                    }
+                }
             }
         }
     }
@@ -449,5 +484,98 @@ fun TransactionItem(
             fontSize = 16.sp,
             color = valueColor
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddTransactionDialog(
+    onDismiss: () -> Unit,
+    onAdd: (String, String, Double, Boolean, String) -> Unit
+) {
+    var title by remember { mutableStateOf("") }
+    var valueStr by remember { mutableStateOf("") }
+    var isIncome by remember { mutableStateOf(false) }
+    
+    Dialog(onDismissRequest = onDismiss) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFF171D1C))
+                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
+                .padding(24.dp)
+        ) {
+            Column {
+                Text("Nova Transação", color = Color(0xFFDFE3E2), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                TextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    placeholder = { Text("Nome (ex: Supermercado)", color = Color(0xFF879391)) },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color(0x1AFFFFFF),
+                        unfocusedContainerColor = Color(0x08FFFFFF),
+                        focusedTextColor = Color(0xFFDFE3E2),
+                        unfocusedTextColor = Color(0xFFDFE3E2),
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                TextField(
+                    value = valueStr,
+                    onValueChange = { valueStr = it },
+                    placeholder = { Text("Valor (ex: 150.50)", color = Color(0xFF879391)) },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color(0x1AFFFFFF),
+                        unfocusedContainerColor = Color(0x08FFFFFF),
+                        focusedTextColor = Color(0xFFDFE3E2),
+                        unfocusedTextColor = Color(0xFFDFE3E2),
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = isIncome,
+                        onCheckedChange = { isIncome = it },
+                        colors = CheckboxDefaults.colors(checkedColor = Color(0xFF71D7CD), uncheckedColor = Color(0xFF879391))
+                    )
+                    Text("É uma entrada (receita)?", color = Color(0xFFDFE3E2))
+                }
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancelar", color = Color(0xFF879391))
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            val v = valueStr.toDoubleOrNull() ?: 0.0
+                            if (title.isNotBlank() && v > 0) {
+                                onAdd(title, "Agora", v, isIncome, if (isIncome) "Salary" else "Market")
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF71D7CD), contentColor = Color.Black)
+                    ) {
+                        Text("Adicionar")
+                    }
+                }
+            }
+        }
     }
 }
