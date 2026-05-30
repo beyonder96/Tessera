@@ -667,13 +667,51 @@ fun HeroMetric(onNavigate: (String) -> Unit) {
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+data class ModuleConfig(val id: String, val name: String, var isVisible: Boolean, var order: Int)
+
 @Composable
 fun MainContent(netWorth: Double, petRoutines: List<PetRoutineEntity>, onChatClick: () -> Unit = {}) {
-    var showFinance by remember { mutableStateOf(true) }
-    var showMarket by remember { mutableStateOf(true) }
-    var showPets by remember { mutableStateOf(true) }
-    var showSystem by remember { mutableStateOf(true) }
+    val context = LocalContext.current
+    val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
     var showEditSheet by remember { mutableStateOf(false) }
+
+    val defaultModules = listOf(
+        ModuleConfig("finance", "Finanças", true, 0),
+        ModuleConfig("market", "Mercado", true, 1),
+        ModuleConfig("pets", "Pets", true, 2),
+        ModuleConfig("system", "Tessera AI / Sistema", true, 3),
+        ModuleConfig("health", "Saúde Rápida", false, 4),
+        ModuleConfig("goals", "Metas Diárias", false, 5)
+    )
+
+    var modules by remember {
+        mutableStateOf(
+            run {
+                val savedString = sharedPrefs.getString("modules_order", null)
+                if (savedString != null) {
+                    try {
+                        val parsed = savedString.split("|").mapNotNull { part ->
+                            val parts = part.split(",")
+                            if (parts.size == 4) {
+                                ModuleConfig(parts[0], parts[1], parts[2].toBoolean(), parts[3].toInt())
+                            } else null
+                        }
+                        if (parsed.isNotEmpty()) parsed.sortedBy { it.order } else defaultModules
+                    } catch (e: Exception) {
+                        defaultModules
+                    }
+                } else {
+                    defaultModules
+                }
+            }
+        )
+    }
+
+    fun saveModules(newModules: List<ModuleConfig>) {
+        modules = newModules
+        val str = newModules.joinToString("|") { "${it.id},${it.name},${it.isVisible},${it.order}" }
+        sharedPrefs.edit().putString("modules_order", str).apply()
+    }
 
     Column(
         modifier = Modifier
@@ -681,10 +719,16 @@ fun MainContent(netWorth: Double, petRoutines: List<PetRoutineEntity>, onChatCli
             .padding(horizontal = 24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        if (showFinance) FinanceCard(netWorth)
-        if (showMarket) MarketCard()
-        if (showPets) PetsCard(petRoutines)
-        if (showSystem) SystemCard(onChatClick = onChatClick)
+        modules.filter { it.isVisible }.sortedBy { it.order }.forEach { module ->
+            when (module.id) {
+                "finance" -> FinanceCard(netWorth)
+                "market" -> MarketCard()
+                "pets" -> PetsCard(petRoutines)
+                "system" -> SystemCard(onChatClick = onChatClick)
+                "health" -> HealthWidget()
+                "goals" -> GoalsWidget()
+            }
+        }
         
         OutlinedButton(
             onClick = { showEditSheet = true },
@@ -706,27 +750,135 @@ fun MainContent(netWorth: Double, petRoutines: List<PetRoutineEntity>, onChatCli
             Column(modifier = Modifier.padding(24.dp).padding(bottom = 32.dp)) {
                 Text("Editar Módulos", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                 Spacer(modifier = Modifier.height(24.dp))
-                ModuleToggle("Finanças", showFinance) { showFinance = it }
-                ModuleToggle("Mercado", showMarket) { showMarket = it }
-                ModuleToggle("Pets", showPets) { showPets = it }
-                ModuleToggle("Tessera AI / Sistema", showSystem) { showSystem = it }
+                
+                modules.sortedBy { it.order }.forEachIndexed { index, module ->
+                    ModuleToggleWithOrder(
+                        name = module.name,
+                        isVisible = module.isVisible,
+                        isFirst = index == 0,
+                        isLast = index == modules.size - 1,
+                        onToggle = { isChecked ->
+                            val newModules = modules.map { if (it.id == module.id) it.copy(isVisible = isChecked) else it }
+                            saveModules(newModules)
+                        },
+                        onMoveUp = {
+                            if (index > 0) {
+                                val newModules = modules.toMutableList()
+                                val temp = newModules[index]
+                                newModules[index] = newModules[index - 1]
+                                newModules[index - 1] = temp
+                                newModules.forEachIndexed { i, m -> m.order = i }
+                                saveModules(newModules)
+                            }
+                        },
+                        onMoveDown = {
+                            if (index < modules.size - 1) {
+                                val newModules = modules.toMutableList()
+                                val temp = newModules[index]
+                                newModules[index] = newModules[index + 1]
+                                newModules[index + 1] = temp
+                                newModules.forEachIndexed { i, m -> m.order = i }
+                                saveModules(newModules)
+                            }
+                        }
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun ModuleToggle(name: String, isVisible: Boolean, onToggle: (Boolean) -> Unit) {
+fun ModuleToggleWithOrder(
+    name: String, 
+    isVisible: Boolean, 
+    isFirst: Boolean,
+    isLast: Boolean,
+    onToggle: (Boolean) -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(name, fontSize = 16.sp, color = Color.White)
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+            Column {
+                IconButton(onClick = onMoveUp, enabled = !isFirst, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Subir", tint = if (isFirst) Color.Gray else Color.White)
+                }
+                IconButton(onClick = onMoveDown, enabled = !isLast, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Descer", tint = if (isLast) Color.Gray else Color.White)
+                }
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(name, fontSize = 16.sp, color = Color.White)
+        }
         Switch(
             checked = isVisible,
             onCheckedChange = onToggle,
             colors = SwitchDefaults.colors(checkedThumbColor = PrimaryTeal, checkedTrackColor = PrimaryTeal.copy(alpha = 0.5f))
+        )
+    }
+}
+
+@Composable
+fun HealthWidget() {
+    Column(modifier = GlassModifier.fillMaxWidth().padding(24.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
+        ) {
+            Text(
+                text = "SAÚDE RÁPIDA",
+                fontSize = 11.sp,
+                letterSpacing = 1.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Icon(Icons.Outlined.MonitorHeart, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+            Column {
+                Text("Peso Atual", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("75.2 kg", fontSize = 24.sp, fontFamily = FontFamily.Serif, color = Color.White)
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text("Sentimento", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Energizado", fontSize = 16.sp, color = PrimaryTeal, fontWeight = FontWeight.Medium)
+            }
+        }
+    }
+}
+
+@Composable
+fun GoalsWidget() {
+    Column(modifier = GlassModifier.fillMaxWidth().padding(24.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
+        ) {
+            Text(
+                text = "METAS DIÁRIAS",
+                fontSize = 11.sp,
+                letterSpacing = 1.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Icon(Icons.Outlined.Flag, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("3 de 5 concluídas hoje", fontSize = 14.sp, color = Color.White)
+        Spacer(modifier = Modifier.height(8.dp))
+        LinearProgressIndicator(
+            progress = { 0.6f },
+            modifier = Modifier.fillMaxWidth().height(4.dp),
+            color = PrimaryTeal,
+            trackColor = Color.DarkGray
         )
     }
 }
@@ -1286,8 +1438,8 @@ fun TesseraChatSheet(onDismiss: () -> Unit, netWorth: Double, petRoutines: List<
     var prompt by remember { mutableStateOf("") }
     
     // Model for chat messages
-    data class ChatMessage(val text: String, val isUser: Boolean)
-    var messages by remember { mutableStateOf(listOf(ChatMessage("Olá! Como posso ajudar você hoje?", false))) }
+    data class ChatMessage(val id: String, val text: String, val isUser: Boolean)
+    var messages by remember { mutableStateOf(listOf(ChatMessage("msg_0", "Olá! Como posso ajudar você hoje?", false))) }
     var isThinking by remember { mutableStateOf(false) }
 
     // Try to load model
@@ -1305,8 +1457,8 @@ fun TesseraChatSheet(onDismiss: () -> Unit, netWorth: Double, petRoutines: List<
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color(0xFF0F1413),
-        modifier = Modifier.fillMaxHeight(0.85f)
+        containerColor = Color(0xCC070909), // More translucent for glass effect
+        modifier = Modifier.fillMaxHeight(0.95f) // Taller sheet
     ) {
         Column(
             modifier = Modifier
@@ -1319,11 +1471,21 @@ fun TesseraChatSheet(onDismiss: () -> Unit, netWorth: Double, petRoutines: List<
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(bottom = 16.dp)
             ) {
-                Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(24.dp))
-                Spacer(modifier = Modifier.width(12.dp))
-                Text("Tessera AI", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                Box(
+                    modifier = Modifier.size(40.dp).clip(CircleShape).background(PrimaryTeal.copy(alpha=0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(24.dp))
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text("Tessera AI", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                    Text("Assistente Pessoal", fontSize = 12.sp, color = PrimaryTeal)
+                }
             }
-            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
+            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(
+                Brush.horizontalGradient(listOf(Color.Transparent, Color(0x33FFFFFF), Color.Transparent))
+            ))
             Spacer(modifier = Modifier.height(16.dp))
 
             // Chat Messages
@@ -1332,58 +1494,78 @@ fun TesseraChatSheet(onDismiss: () -> Unit, netWorth: Double, petRoutines: List<
                 contentPadding = PaddingValues(bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(messages.size) { index ->
+                items(messages.size, key = { messages[it].id }) { index ->
                     val message = messages[index]
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = androidx.compose.animation.slideInVertically(initialOffsetY = { it / 2 }) + fadeIn(),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(0.85f)
-                                .clip(RoundedCornerShape(
-                                    topStart = 16.dp, 
-                                    topEnd = 16.dp, 
-                                    bottomStart = if (message.isUser) 16.dp else 4.dp, 
-                                    bottomEnd = if (message.isUser) 4.dp else 16.dp
-                                ))
-                                .background(if (message.isUser) Color(0xFF233532) else Color(0xFF1A1F1E))
-                                .border(1.dp, if (message.isUser) PrimaryTeal.copy(alpha = 0.3f) else Color(0x1AFFFFFF), RoundedCornerShape(
-                                    topStart = 16.dp, topEnd = 16.dp, 
-                                    bottomStart = if (message.isUser) 16.dp else 4.dp, 
-                                    bottomEnd = if (message.isUser) 4.dp else 16.dp
-                                ))
-                                .padding(16.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start
                         ) {
-                            Text(
-                                text = message.text, 
-                                color = MaterialTheme.colorScheme.onSurface, 
-                                fontSize = 15.sp,
-                                lineHeight = 22.sp
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.85f)
+                                    .clip(RoundedCornerShape(
+                                        topStart = 20.dp, 
+                                        topEnd = 20.dp, 
+                                        bottomStart = if (message.isUser) 20.dp else 4.dp, 
+                                        bottomEnd = if (message.isUser) 4.dp else 20.dp
+                                    ))
+                                    .then(
+                                        if (message.isUser) {
+                                            Modifier.background(Brush.linearGradient(listOf(PrimaryTeal, Color(0xFF0A84FF))))
+                                        } else {
+                                            Modifier
+                                                .background(Color(0x1AFFFFFF))
+                                                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(
+                                                    topStart = 20.dp, topEnd = 20.dp, 
+                                                    bottomStart = 4.dp, bottomEnd = 20.dp
+                                                ))
+                                        }
+                                    )
+                                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                            ) {
+                                Text(
+                                    text = message.text, 
+                                    color = if (message.isUser) Color.Black else Color.White, 
+                                    fontSize = 15.sp,
+                                    lineHeight = 22.sp
+                                )
+                            }
                         }
                     }
                 }
                 
                 if (isThinking) {
                     item {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp))
-                                    .background(Color(0xFF1A1F1E))
-                                    .padding(16.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    val pulseAnim = androidx.compose.animation.core.rememberInfiniteTransition()
-                                    val alpha by pulseAnim.animateFloat(
-                                        initialValue = 0.4f, targetValue = 1f,
-                                        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
-                                            animation = tween(800, easing = androidx.compose.animation.core.FastOutLinearInEasing),
-                                            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = fadeIn() + scaleIn(initialScale = 0.8f)
+                        ) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(20.dp, 20.dp, 4.dp, 20.dp))
+                                        .background(Color(0x1AFFFFFF))
+                                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(20.dp, 20.dp, 4.dp, 20.dp))
+                                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        val pulseAnim = androidx.compose.animation.core.rememberInfiniteTransition()
+                                        val alpha by pulseAnim.animateFloat(
+                                            initialValue = 0.3f, targetValue = 1f,
+                                            animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                                                animation = tween(600, easing = androidx.compose.animation.core.FastOutLinearInEasing),
+                                                repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+                                            )
                                         )
-                                    )
-                                    Text("Processando", color = PrimaryTeal.copy(alpha = alpha), fontSize = 14.sp)
+                                        Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = PrimaryTeal.copy(alpha = alpha), modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Processando...", color = PrimaryTeal.copy(alpha = alpha), fontSize = 13.sp)
+                                    }
                                 }
                             }
                         }
@@ -1395,53 +1577,54 @@ fun TesseraChatSheet(onDismiss: () -> Unit, netWorth: Double, petRoutines: List<
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 24.dp, top = 8.dp),
+                    .padding(bottom = 24.dp, top = 8.dp)
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(Color(0x1AFFFFFF))
+                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(28.dp))
+                    .padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                OutlinedTextField(
-                    value = prompt,
-                    onValueChange = { prompt = it },
-                    placeholder = { Text("Escreva uma mensagem...", color = Color.Gray, fontSize = 14.sp) },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PrimaryTeal.copy(alpha = 0.5f),
-                        unfocusedBorderColor = Color(0x33FFFFFF),
-                        focusedContainerColor = Color(0x08FFFFFF),
-                        unfocusedContainerColor = Color(0x08FFFFFF),
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
-                    ),
-                    maxLines = 3
-                )
-                Spacer(modifier = Modifier.width(12.dp))
+                Box(modifier = Modifier.weight(1f)) {
+                    if (prompt.isEmpty()) {
+                        Text("Mensagem...", color = Color(0x80FFFFFF), fontSize = 15.sp)
+                    }
+                    androidx.compose.foundation.text.BasicTextField(
+                        value = prompt,
+                        onValueChange = { prompt = it },
+                        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 15.sp),
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 4,
+                        cursorBrush = androidx.compose.ui.graphics.SolidColor(PrimaryTeal)
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(44.dp)
                         .clip(CircleShape)
                         .background(if (prompt.isNotBlank() && !isThinking) PrimaryTeal else Color(0x33FFFFFF))
                         .clickable(enabled = prompt.isNotBlank() && !isThinking) {
                             val userText = prompt
                             prompt = ""
-                            messages = messages + ChatMessage(userText, true)
+                            val msgId = System.currentTimeMillis().toString()
+                            messages = messages + ChatMessage(msgId, userText, true)
                             isThinking = true
                             
                             coroutineScope.launch {
                                 if (llmManager != null) {
                                     val petsString = if (petRoutines.isEmpty()) "Sem tarefas de pets hoje." else petRoutines.joinToString("; ") { "${it.petName}: ${it.task} (${if(it.isCompleted) "Concluído" else "Pendente"})" }
                                     val hiddenContext = """
-                                        Você é a Tessera AI, uma assistente pessoal inteligente do app Tessera Hub. Responda de forma direta, gentil e em português.
-                                        Dados atuais do usuário:
+                                        Você é a Tessera AI, assistente do app Tessera Hub.
                                         - Nome: Kenned
                                         - Patrimônio: R$ ${String.format("%.2f", netWorth)}
                                         - Status dos Pets: $petsString
                                         Pergunta do usuário: "$userText"
                                     """.trimIndent()
                                     val response = llmManager.generateResponse(hiddenContext)
-                                    messages = messages + ChatMessage(response, false)
+                                    messages = messages + ChatMessage("resp_$msgId", response, false)
                                 } else {
                                     kotlinx.coroutines.delay(1500)
-                                    messages = messages + ChatMessage("Modo de demonstração: A IA local não pôde ser iniciada (o modelo não foi encontrado).", false)
+                                    messages = messages + ChatMessage("resp_$msgId", "A IA local não pôde ser iniciada.", false)
                                 }
                                 isThinking = false
                             }
@@ -1451,7 +1634,7 @@ fun TesseraChatSheet(onDismiss: () -> Unit, netWorth: Double, petRoutines: List<
                     Icon(
                         Icons.AutoMirrored.Filled.Send, 
                         contentDescription = "Enviar", 
-                        tint = if (prompt.isNotBlank() && !isThinking) Color.Black else Color.Gray,
+                        tint = if (prompt.isNotBlank() && !isThinking) Color.Black else Color.White.copy(alpha=0.5f),
                         modifier = Modifier.size(20.dp)
                     )
                 }
