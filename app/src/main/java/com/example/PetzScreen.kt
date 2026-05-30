@@ -174,7 +174,7 @@ fun PetzScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                     Icon(Icons.Default.Add, contentDescription = "Nova Rotina", tint = PrimaryTeal, modifier = Modifier.size(18.dp))
                 }
             }
-            HorizontalDivider(color = Color(0x1AFFFFFF), modifier = Modifier.padding(top = 8.dp, bottom = 24.dp))
+            HorizontalDivider(color = Color(0x1AFFFFFF), modifier = Modifier.padding(top = 16.dp, bottom = 24.dp))
             
             // Filtered routines
             val filteredEvents = petEvents.filter { it.petName == selectedPet }
@@ -680,77 +680,67 @@ fun HealthRecordCard(
     color: Color,
     onClick: () -> Unit
 ) {
-    Box(
-        modifier = Modifier
+    Column(
+        modifier = GlassCardModifier
             .fillMaxSize()
-            .clip(RoundedCornerShape(20.dp))
-            .background(Color(0x06FFFFFF))
-            .border(1.dp, Color(0x13FFFFFF), RoundedCornerShape(20.dp))
-            .then(GlassCardModifier)
             .clickable(onClick = onClick)
-            .padding(16.dp)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, color.copy(alpha = 0.12f)),
-                        startY = 60f
-                    )
-                )
-        )
-        
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.SpaceBetween
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = 0.15f))
+                    .border(1.dp, color.copy(alpha = 0.3f), CircleShape),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(color.copy(alpha = 0.1f))
-                        .border(1.dp, color.copy(alpha = 0.2f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(imageVector = icon, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
-                }
-                Text(
-                    text = label, 
-                    color = color, 
-                    fontSize = 11.sp, 
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.5.sp
-                )
+                Icon(imageVector = icon, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
             }
-            
-            Column {
-                Text(text = title, color = Color(0xFFBDC9C6), fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                text = label.uppercase(), 
+                color = color.copy(alpha = 0.8f), 
+                fontSize = 10.sp, 
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.5.sp,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = title, 
+                color = Color(0xFFBDC9C6), 
+                fontSize = 12.sp, 
+                fontWeight = FontWeight.Medium
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    text = value, 
+                    color = Color.White, 
+                    fontSize = 20.sp, 
+                    fontFamily = FontFamily.Serif, 
+                    fontWeight = FontWeight.SemiBold, 
+                    maxLines = 1,
+                    modifier = Modifier.alignByBaseline()
+                )
+                if (unit.isNotEmpty()) {
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = value, 
-                        color = Color.White, 
-                        fontSize = 24.sp, 
-                        fontFamily = FontFamily.Serif, 
+                        text = unit, 
+                        color = Color(0xFFBDC9C6), 
+                        fontSize = 12.sp, 
                         fontWeight = FontWeight.SemiBold, 
                         modifier = Modifier.alignByBaseline()
                     )
-                    if (unit.isNotEmpty()) {
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = unit, 
-                            color = Color(0xFFBDC9C6), 
-                            fontSize = 12.sp, 
-                            fontWeight = FontWeight.SemiBold, 
-                            modifier = Modifier.alignByBaseline()
-                        )
-                    }
                 }
             }
         }
@@ -891,23 +881,27 @@ fun AddRoutineDialog(
     var title by remember { mutableStateOf("") }
     var time by remember { mutableStateOf("") }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = "Nova Rotina para $selectedPet",
-                fontFamily = FontFamily.Serif,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White
-            )
-        },
-        text = {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color(0xFF0F1413))
+                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(24.dp))
+                .padding(24.dp)
+        ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
+                Text(
+                    text = "Nova Rotina para $selectedPet",
+                    fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 20.sp,
+                    color = Color.White
+                )
+
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
@@ -939,24 +933,31 @@ fun AddRoutineDialog(
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33FFFFFF))
+                    ) {
+                        Text("Cancelar")
+                    }
+
+                    Button(
+                        onClick = { if (title.isNotEmpty() && time.isNotEmpty()) onConfirm(title, time) },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal, contentColor = Color.Black)
+                    ) {
+                        Text("Confirmar", fontWeight = FontWeight.Bold)
+                    }
+                }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = { if (title.isNotEmpty() && time.isNotEmpty()) onConfirm(title, time) },
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal, contentColor = Color.Black)
-            ) {
-                Text("Confirmar", fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancelar", color = Color.White.copy(alpha = 0.6f))
-            }
-        },
-        containerColor = Color(0xFF0F1413),
-        shape = RoundedCornerShape(24.dp)
-    )
+        }
+    }
 }
 
 @Composable

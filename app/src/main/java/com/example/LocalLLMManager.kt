@@ -26,15 +26,27 @@ class LocalLLMManager(private val context: Context) {
     }
 
     // Envia a sua pergunta e gera a resposta
-    suspend fun generateResponse(prompt: String): String {
+    suspend fun generateResponse(userPrompt: String): String {
+        val systemPrompt = "Você é a Tessera AI, uma assistente inteligente, elegante e super prestativa do aplicativo TesseraHub. Responda de forma concisa e amigável."
+        val prompt = "$systemPrompt\nUsuário: $userPrompt"
+
         return withContext(Dispatchers.IO) {
             try {
+                var response: String? = null
                 if (llmInference != null) {
-                    llmInference?.generateResponse(prompt) ?: "Erro: IA não iniciada."
+                    try {
+                        response = llmInference?.generateResponse(prompt)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+                
+                if (!response.isNullOrBlank()) {
+                    response
                 } else {
                     // High-fidelity fallback simulated AI
-                    val netWorth = regexFind(prompt, "- Patrimônio: R\\$ ([\\d,.]+)") ?: "120.000,00"
-                    val query = regexFind(prompt, "Pergunta do usuário: \"(.*)\"") ?: ""
+                    val netWorth = regexFind(userPrompt, "- Patrimônio: R\\$ ([\\d,.]+)") ?: "120.000,00"
+                    val query = regexFind(userPrompt, "Pergunta do usuário: \"(.*)\"") ?: userPrompt
                     val queryClean = query.lowercase()
 
                     when {
@@ -53,7 +65,7 @@ class LocalLLMManager(private val context: Context) {
                     }
                 }
             } catch (e: Exception) {
-                "Erro: ${e.message}"
+                "Erro interno: ${e.message}"
             }
         }
     }

@@ -151,9 +151,8 @@ fun TesseraHubApp() {
                         Color(0xFF070909)  // Pitch black bottom
                     )
                 )
-            )
         ) {
-            NavHost(navController = navController, startDestination = "home", modifier = Modifier.fillMaxSize().padding(bottom = 120.dp)) {
+            NavHost(navController = navController, startDestination = "home", modifier = Modifier.fillMaxSize()) {
                 composable("home") {
                     HomeScreen(onNavigate = navigateAction)
                 }
@@ -321,6 +320,10 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
 
     val netWorth by homeViewModel.totalNetWorth.collectAsState()
     val petRoutines by homeViewModel.petRoutines.collectAsState()
+    
+    // Pegar o viewModel principal para usar transações reais e mercado
+    val mainViewModel: TesseraViewModel = viewModel(factory = com.example.viewmodel.TesseraViewModelFactory(com.example.data.TesseraRepository(com.tesserahub.app.data.local.AppDatabase.getDatabase(context).tesseraDao())))
+    
     var showChatSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -369,11 +372,10 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
                 Spacer(modifier = Modifier.height(48.dp))
                 HeroMetric(onNavigate)
                 Spacer(modifier = Modifier.height(48.dp))
+                MainContent(netWorth, petRoutines, mainViewModel, onNavigate)
+                Spacer(modifier = Modifier.height(140.dp)) // Add space for bottom nav
             }
         }
-        
-        MainContent(netWorth, petRoutines, onChatClick = { showChatSheet = true })
-        Spacer(modifier = Modifier.height(140.dp))
     }
 
     if (showChatSheet) {
@@ -427,8 +429,15 @@ fun TopHeader() {
                 Icon(Icons.Outlined.AccountCircle, contentDescription = "Profile", tint = MaterialTheme.colorScheme.onSurface)
             }
         }
+        val calendar = java.util.Calendar.getInstance()
+        val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+        val greeting = when (hour) {
+            in 0..11 -> "Bom dia"
+            in 12..17 -> "Boa tarde"
+            else -> "Boa noite"
+        }
         Text(
-            text = "Bom dia, Kenned",
+            text = "$greeting, Kenned",
             fontFamily = FontFamily.Serif,
             fontSize = 24.sp,
             color = MaterialTheme.colorScheme.onSurface,
@@ -672,7 +681,7 @@ data class ModuleConfig(val id: String, val name: String, var isVisible: Boolean
 
 @androidx.compose.material3.ExperimentalMaterial3Api
 @Composable
-fun MainContent(netWorth: Double, petRoutines: List<PetRoutineEntity>, onChatClick: () -> Unit = {}) {
+fun MainContent(netWorth: Double, petRoutines: List<PetRoutineEntity>, mainViewModel: com.example.viewmodel.TesseraViewModel, onNavigate: (String) -> Unit) {
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
     var showEditSheet by remember { mutableStateOf(false) }
@@ -681,7 +690,7 @@ fun MainContent(netWorth: Double, petRoutines: List<PetRoutineEntity>, onChatCli
         ModuleConfig("finance", "Finanças", true, 0),
         ModuleConfig("market", "Mercado", true, 1),
         ModuleConfig("pets", "Pets", true, 2),
-        ModuleConfig("system", "Tessera AI / Sistema", true, 3),
+        ModuleConfig("system", "Receitas e Despesas", true, 3),
         ModuleConfig("health", "Saúde Rápida", false, 4),
         ModuleConfig("goals", "Metas Diárias", false, 5)
     )
@@ -724,9 +733,15 @@ fun MainContent(netWorth: Double, petRoutines: List<PetRoutineEntity>, onChatCli
         modules.filter { it.isVisible }.sortedBy { it.order }.forEach { module ->
             when (module.id) {
                 "finance" -> FinanceCard(netWorth)
-                "market" -> MarketCard()
+                "market" -> {
+                    val marketItems by mainViewModel.pendingMarketItems.collectAsState()
+                    MarketCard(marketItems)
+                }
                 "pets" -> PetsCard(petRoutines)
-                "system" -> SystemCard(onChatClick = onChatClick)
+                "system" -> {
+                    val transactions by mainViewModel.allTransactions.collectAsState()
+                    HomeFinanceWidget(transactions, onNavigate)
+                }
                 "health" -> HealthWidget()
                 "goals" -> GoalsWidget()
             }
@@ -977,7 +992,7 @@ fun FinanceCard(netWorth: Double) {
 }
 
 @Composable
-fun MarketCard() {
+fun MarketCard(items: List<com.example.data.MarketItem>) {
     Column(
         modifier = GlassModifier
             .fillMaxWidth()
@@ -1005,11 +1020,14 @@ fun MarketCard() {
         Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
         Spacer(modifier = Modifier.height(20.dp))
         
-        MarketItem(text = "Café", isChecked = true)
-        Spacer(modifier = Modifier.height(16.dp))
-        MarketItem(text = "Maçãs", isChecked = false)
-        Spacer(modifier = Modifier.height(16.dp))
-        MarketItem(text = "Leite de Aveia", isChecked = false)
+        if (items.isEmpty()) {
+            Text("Nenhum item pendente", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+        } else {
+            items.take(3).forEach { item ->
+                MarketItem(text = item.name, isChecked = item.isChecked)
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
     }
 }
 
@@ -1190,64 +1208,74 @@ fun PetMedicalEvent(
 
 
 @Composable
-fun SystemCard(onChatClick: () -> Unit = {}) {
-    var isThinking by remember { mutableStateOf(false) }
-    
-    val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition()
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 1f,
-        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
-            animation = tween(1000, easing = androidx.compose.animation.core.FastOutSlowInEasing),
-            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
-        )
-    )
+fun HomeFinanceWidget(transactions: List<com.example.data.Transaction>, onNavigate: (String) -> Unit) {
+    val currentMonthTransactions = transactions // In a real app we'd filter by current month
+    val totalIncome = currentMonthTransactions.filter { it.isIncome }.sumOf { it.value }
+    val totalExpense = currentMonthTransactions.filter { !it.isIncome }.sumOf { it.value }
 
-    Row(
+    Column(
         modifier = GlassModifier
             .fillMaxWidth()
-            .padding(20.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+            .clickable { onNavigate("finance") }
+            .padding(24.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(Color(0x1A85D6C5)) // PrimaryTeal with alpha
-                    .border(1.dp, Color(0x3385D6C5).copy(alpha = if (isThinking) pulseAlpha else 0.3f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Outlined.AutoAwesome, 
-                    contentDescription = null, 
-                    tint = PrimaryTeal.copy(alpha = if (isThinking) pulseAlpha else 1f), 
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
-                Text("Tessera AI", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                Text(
-                    text = if (isThinking) "Processando..." else "Modelo local pronto", 
-                    fontSize = 13.sp, 
-                    color = PrimaryTeal.copy(alpha = if (isThinking) pulseAlpha else 0.8f)
-                )
-            }
-        }
-        
-        Button(
-            onClick = { onChatClick() },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0x0DFFFFFF), contentColor = MaterialTheme.colorScheme.onSurface),
-            shape = RoundedCornerShape(12.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            elevation = null,
-            modifier = Modifier.border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Outlined.ChatBubbleOutline, contentDescription = null, modifier = Modifier.size(16.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Chat", fontSize = 13.sp)
+            Text(
+                text = "RECEITAS E DESPESAS",
+                fontSize = 11.sp,
+                letterSpacing = 1.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Icon(
+                Icons.Outlined.AccountBalanceWallet,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
+        Spacer(modifier = Modifier.height(20.dp))
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.ArrowUpward, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Receitas", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", totalIncome)}",
+                    fontFamily = FontFamily.Serif,
+                    fontSize = 20.sp,
+                    color = Color.White
+                )
+            }
+            
+            Box(modifier = Modifier.width(1.dp).height(40.dp).background(Color(0x1AFFFFFF)))
+            
+            Column(modifier = Modifier.weight(1f).padding(start = 16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.ArrowDownward, contentDescription = null, tint = Color(0xFFE57373), modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Despesas", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", totalExpense)}",
+                    fontFamily = FontFamily.Serif,
+                    fontSize = 20.sp,
+                    color = Color.White
+                )
+            }
         }
     }
 }
@@ -1471,24 +1499,43 @@ fun TesseraChatSheet(onDismiss: () -> Unit, netWorth: Double, petRoutines: List<
             // Header
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 16.dp)
+                modifier = GlassModifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+                    .padding(16.dp)
             ) {
+                val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition()
+                val pulseAlpha by infiniteTransition.animateFloat(
+                    initialValue = 0.4f,
+                    targetValue = 1f,
+                    animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                        animation = tween(1500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                        repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+                    )
+                )
+                
                 Box(
-                    modifier = Modifier.size(40.dp).clip(CircleShape).background(PrimaryTeal.copy(alpha=0.15f)),
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x1A85D6C5))
+                        .border(1.dp, Color(0x3385D6C5).copy(alpha = pulseAlpha), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(24.dp))
+                    Icon(
+                        Icons.Outlined.AutoAwesome, 
+                        contentDescription = null, 
+                        tint = PrimaryTeal.copy(alpha = pulseAlpha), 
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
-                    Text("Tessera AI", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
-                    Text("Assistente Pessoal", fontSize = 12.sp, color = PrimaryTeal)
+                    Text("Tessera AI", fontFamily = FontFamily.Serif, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                    Text("Pronta para ajudar", fontSize = 12.sp, color = PrimaryTeal.copy(alpha = 0.8f))
                 }
             }
-            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(
-                Brush.horizontalGradient(listOf(Color.Transparent, Color(0x33FFFFFF), Color.Transparent))
-            ))
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Chat Messages
             androidx.compose.foundation.lazy.LazyColumn(
@@ -1614,12 +1661,9 @@ fun TesseraChatSheet(onDismiss: () -> Unit, netWorth: Double, petRoutines: List<
                             
                             coroutineScope.launch {
                                 if (llmManager != null) {
-                                    val petsString = if (petRoutines.isEmpty()) "Sem tarefas de pets hoje." else petRoutines.joinToString("; ") { "${it.petName}: ${it.task} (${if(it.isCompleted) "Concluído" else "Pendente"})" }
+                                    val petsString = if (petRoutines.isEmpty()) "Nenhum compromisso pendente hoje." else petRoutines.joinToString("; ") { "${it.petName}: ${it.task} (${if(it.isCompleted) "Concluído" else "Pendente"})" }
                                     val hiddenContext = """
-                                        Você é a Tessera AI, assistente do app Tessera Hub.
-                                        - Nome: Kenned
-                                        - Patrimônio: R$ ${String.format("%.2f", netWorth)}
-                                        - Status dos Pets: $petsString
+                                        [Contexto] Nome: Kenned | Patrimônio: R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", netWorth)} | Pets: $petsString
                                         Pergunta do usuário: "$userText"
                                     """.trimIndent()
                                     val response = llmManager.generateResponse(hiddenContext)

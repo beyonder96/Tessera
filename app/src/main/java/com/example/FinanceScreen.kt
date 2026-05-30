@@ -118,7 +118,7 @@ fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
             
             Spacer(modifier = Modifier.height(32.dp))
             
-            EvolutionSection()
+            EvolutionSection(allTransactions)
             
             Spacer(modifier = Modifier.height(24.dp))
             
@@ -134,7 +134,19 @@ fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
 }
 
 @Composable
-fun EvolutionSection() {
+fun EvolutionSection(transactions: List<Transaction>) {
+    var expandedPeriod by remember { mutableStateOf(false) }
+    var selectedPeriod by remember { mutableStateOf("Últimos 6 meses") }
+
+    val periods = listOf("Últimos 6 meses", "Últimos 30 dias", "Este Ano")
+
+    // Very basic mockup data generation based on actual transactions
+    // In a real scenario, this would aggregate `transactions` by the selected period
+    val isIncomeFilter = true // mock
+    val maxVal = if (transactions.isEmpty()) 1.0 else transactions.sumOf { it.value }
+    val barHeights = if (transactions.isEmpty()) listOf(0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f) else listOf(0.4f, 0.5f, 0.45f, 0.6f, 0.75f, 0.85f)
+    val lastMonthTotal = if (transactions.isEmpty()) 0.0 else transactions.filter { it.isIncome == isIncomeFilter }.sumOf { it.value }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -157,19 +169,39 @@ fun EvolutionSection() {
                     color = Color(0xFFDFE3E2)
                 )
                 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "Últimos 6 meses",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFFBDC9C6)
-                    )
-                    Icon(
-                        imageVector = Icons.Default.KeyboardArrowDown,
-                        contentDescription = "Selecionar período",
-                        tint = Color(0xFFBDC9C6),
-                        modifier = Modifier.size(20.dp)
-                    )
+                Box {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { expandedPeriod = true }
+                    ) {
+                        Text(
+                            text = selectedPeriod,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFFBDC9C6)
+                        )
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Selecionar período",
+                            tint = Color(0xFFBDC9C6),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = expandedPeriod,
+                        onDismissRequest = { expandedPeriod = false },
+                        modifier = Modifier.background(Color(0xFF131817))
+                    ) {
+                        periods.forEach { period ->
+                            DropdownMenuItem(
+                                text = { Text(period, color = Color.White) },
+                                onClick = {
+                                    selectedPeriod = period
+                                    expandedPeriod = false
+                                }
+                            )
+                        }
+                    }
                 }
             }
             
@@ -232,7 +264,7 @@ fun EvolutionSection() {
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "R$45k",
+                            text = "R$ ${String.format(Locale("pt", "BR"), "%.0f", lastMonthTotal)}",
                             color = Color(0xFF71D7CD),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold
@@ -502,6 +534,10 @@ fun AddTransactionDialog(
     var selectedCategory by remember { mutableStateOf("GERAL") }
     var destinationAccount by remember { mutableStateOf("") }
     var transactionConfig by remember { mutableStateOf("TRANSAÇÃO ÚNICA") }
+    var expandedDestination by remember { mutableStateOf(false) }
+    var expandedConfig by remember { mutableStateOf(false) }
+    val accounts = listOf("Nubank", "C6 Bank", "Banco do Brasil", "Itaú")
+    val configs = listOf("TRANSAÇÃO ÚNICA", "MENSAL", "SEMANAL", "ANUAL")
     
     val categories = listOf(
         CategoryItem("GERAL", "📌"),
@@ -752,7 +788,7 @@ fun AddTransactionDialog(
                                 .height(48.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(Color(0xFF131817))
-                                .clickable { /* dropdown */ }
+                                .clickable { expandedDestination = true }
                                 .padding(horizontal = 12.dp),
                             contentAlignment = Alignment.CenterStart
                         ) {
@@ -773,6 +809,18 @@ fun AddTransactionDialog(
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
+                            DropdownMenu(
+                                expanded = expandedDestination,
+                                onDismissRequest = { expandedDestination = false },
+                                modifier = Modifier.background(Color(0xFF1B2120))
+                            ) {
+                                accounts.forEach { account ->
+                                    DropdownMenuItem(
+                                        text = { Text(account, color = Color.White) },
+                                        onClick = { destinationAccount = account; expandedDestination = false }
+                                    )
+                                }
+                            }
                         }
                     }
                     
@@ -791,7 +839,7 @@ fun AddTransactionDialog(
                                 .height(48.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(Color(0xFF131817))
-                                .clickable { /* config */ }
+                                .clickable { expandedConfig = true }
                                 .padding(horizontal = 12.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -813,6 +861,18 @@ fun AddTransactionDialog(
                                     letterSpacing = 0.5.sp
                                 )
                             }
+                            DropdownMenu(
+                                expanded = expandedConfig,
+                                onDismissRequest = { expandedConfig = false },
+                                modifier = Modifier.background(Color(0xFF1B2120))
+                            ) {
+                                configs.forEach { config ->
+                                    DropdownMenuItem(
+                                        text = { Text(config, color = Color.White) },
+                                        onClick = { transactionConfig = config; expandedConfig = false }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -828,7 +888,7 @@ fun AddTransactionDialog(
                     OutlinedButton(
                         onClick = onDismiss,
                         modifier = Modifier
-                            .weight(0.4f)
+                            .weight(1f)
                             .height(48.dp),
                         shape = RoundedCornerShape(24.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
@@ -851,13 +911,16 @@ fun AddTransactionDialog(
                             }
                         },
                         modifier = Modifier
-                            .weight(0.6f)
+                            .weight(1f)
                             .height(48.dp),
                         shape = RoundedCornerShape(24.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF71D7CD),
+                            contentColor = Color.Black
+                        )
                     ) {
                         Text(
-                            text = "CONFIRMAR LANÇAMENTO",
+                            text = "CONFIRMAR",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 0.5.sp
