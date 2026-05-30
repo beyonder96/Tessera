@@ -669,6 +669,7 @@ fun HeroMetric(onNavigate: (String) -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 data class ModuleConfig(val id: String, val name: String, var isVisible: Boolean, var order: Int)
 
+@androidx.compose.material3.ExperimentalMaterial3Api
 @Composable
 fun MainContent(netWorth: Double, petRoutines: List<PetRoutineEntity>, onChatClick: () -> Unit = {}) {
     val context = LocalContext.current
