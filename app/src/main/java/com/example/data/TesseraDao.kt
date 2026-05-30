@@ -34,4 +34,10 @@ interface TesseraDao {
     
     @Insert
     suspend fun insertPetEvents(events: List<PetEvent>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPetEvent(event: PetEvent)
+
+    @Delete
+    suspend fun deletePetEvent(event: PetEvent)
 }

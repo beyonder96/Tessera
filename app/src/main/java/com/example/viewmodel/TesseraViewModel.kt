@@ -80,6 +80,20 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
             }
         }
     }
+
+    fun addPetEvent(petName: String, title: String, time: String) {
+        viewModelScope.launch {
+            repository.insertPetEvent(
+                PetEvent(petName = petName, title = title, time = time, isCompleted = false, isNext = false)
+            )
+        }
+    }
+
+    fun deletePetEvent(event: PetEvent) {
+        viewModelScope.launch {
+            repository.deletePetEvent(event)
+        }
+    }
 }
 
 class TesseraViewModelFactory(private val repository: TesseraRepository) : ViewModelProvider.Factory {

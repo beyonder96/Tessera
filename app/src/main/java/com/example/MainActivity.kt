@@ -382,10 +382,25 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
 
 @Composable
 fun TopHeader() {
+    val context = LocalContext.current
+    val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
     var profileUri by remember { mutableStateOf<Uri?>(null) }
+
+    LaunchedEffect(Unit) {
+        val savedUriStr = sharedPrefs.getString("user_profile_uri", null)
+        if (savedUriStr != null) {
+            try {
+                profileUri = Uri.parse(savedUriStr)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
             profileUri = uri
+            sharedPrefs.edit().putString("user_profile_uri", uri.toString()).apply()
         }
     }
     

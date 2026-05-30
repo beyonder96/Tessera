@@ -31,4 +31,12 @@ class TesseraRepository(private val dao: TesseraDao) {
     suspend fun insertPetEvents(events: List<PetEvent>) {
         dao.insertPetEvents(events)
     }
+
+    suspend fun insertPetEvent(event: PetEvent) {
+        dao.insertPetEvent(event)
+    }
+
+    suspend fun deletePetEvent(event: PetEvent) {
+        dao.deletePetEvent(event)
+    }
 }
