@@ -369,13 +369,213 @@ fun HomeScreen() {
                 Spacer(modifier = Modifier.height(32.dp))
                 TopMetricsRow(netWorth)
                 Spacer(modifier = Modifier.height(48.dp))
+                            restoreState = true
+                        }
+                    }, viewModel = viewModel)
+                }
+                composable("petz") {
+                    PetzScreen(onHomeClick = { 
+                        navController.navigate("home") {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }, viewModel = viewModel)
+                }
+            }
+
+            val navigateAction: (String) -> Unit = { route ->
+                if (route == "home") {
+                    navController.popBackStack(navController.graph.findStartDestination().id, inclusive = false)
+                } else {
+                    navController.navigate(route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            }
+
+            Box(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = innerPadding.calculateBottomPadding())) {
+                BottomNavBar(
+                    isExpanded = isFabExpanded,
+                    onExpandedChange = { isFabExpanded = it },
+                    onHoveredItemChange = { fabHoveredItem = it },
+                    currentRoute = currentRoute,
+                    onNavigate = navigateAction
+                )
+            }
+
+            // Overlay for FAB with elegant animations
+            AnimatedVisibility(
+                visible = isFabExpanded,
+                enter = fadeIn(tween(300)),
+                exit = fadeOut(tween(300)),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = innerPadding.calculateBottomPadding())
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xE6000000)) // Deep black translucent
+                        .clickable(
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                            indication = null
+                        ) { isFabExpanded = false }
+                ) {
+                    val bottomOffset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 40.dp
+                    Box(
+                        modifier = Modifier.fillMaxSize().padding(bottom = bottomOffset),
+                        contentAlignment = Alignment.BottomCenter
+                    ) {
+                        val offsetHealth by animateDpAsState(if (isFabExpanded) (-100).dp else 0.dp, spring(dampingRatio = 0.6f, stiffness = 200f))
+                        val offsetGoals by animateDpAsState(if (isFabExpanded) (-140).dp else 0.dp, spring(dampingRatio = 0.6f, stiffness = 150f))
+                        val offsetPetz by animateDpAsState(if (isFabExpanded) (-100).dp else 0.dp, spring(dampingRatio = 0.6f, stiffness = 200f))
+                        
+                        val xOffsetHealth by animateDpAsState(if (isFabExpanded) (-80).dp else 0.dp, spring(dampingRatio = 0.6f, stiffness = 200f))
+                        val xOffsetPetz by animateDpAsState(if (isFabExpanded) 80.dp else 0.dp, spring(dampingRatio = 0.6f, stiffness = 200f))
+
+                        val alphaItems by androidx.compose.animation.core.animateFloatAsState(if (isFabExpanded) 1f else 0f, tween(200))
+                        val scaleItems by androidx.compose.animation.core.animateFloatAsState(if (isFabExpanded) 1f else 0.5f, spring(dampingRatio = 0.6f, stiffness = 200f))
+
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.offset(y = (-40).dp)) {
+                            // Health
+                            Box(
+                                modifier = Modifier
+                                    .offset(x = xOffsetHealth, y = offsetHealth)
+                                    .scale(scaleItems)
+                                    .alpha(alphaItems)
+                                    .size(72.dp)
+                                    .background(Color(0xFF131817), CircleShape)
+                                    .border(1.dp, PrimaryTeal.copy(alpha = 0.3f), CircleShape)
+                                    .clickable { navigateAction("health"); isFabExpanded = false },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(Icons.Outlined.MonitorHeart, contentDescription = "Saúde", tint = PrimaryTeal, modifier = Modifier.size(28.dp))
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text("Saúde", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                }
+                            }
+                            // Goals
+                            Box(
+                                modifier = Modifier
+                                    .offset(x = 0.dp, y = offsetGoals)
+                                    .scale(scaleItems)
+                                    .alpha(alphaItems)
+                                    .size(72.dp)
+                                    .background(Color(0xFF131817), CircleShape)
+                                    .border(1.dp, PrimaryTeal.copy(alpha = 0.3f), CircleShape)
+                                    .clickable { navigateAction("goals"); isFabExpanded = false },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(Icons.Outlined.Flag, contentDescription = "Metas", tint = PrimaryTeal, modifier = Modifier.size(28.dp))
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text("Metas", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                }
+                            }
+                            // Petz
+                            Box(
+                                modifier = Modifier
+                                    .offset(x = xOffsetPetz, y = offsetPetz)
+                                    .scale(scaleItems)
+                                    .alpha(alphaItems)
+                                    .size(72.dp)
+                                    .background(Color(0xFF131817), CircleShape)
+                                    .border(1.dp, PrimaryTeal.copy(alpha = 0.3f), CircleShape)
+                                    .clickable { navigateAction("petz"); isFabExpanded = false },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(Icons.Outlined.Pets, contentDescription = "Petz", tint = PrimaryTeal, modifier = Modifier.size(28.dp))
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text("Petz", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                }
+                            }
+
+                            Text(
+                                text = "O que você deseja ver?",
+                                color = Color.White.copy(alpha = alphaItems * 0.9f),
+                                fontSize = 16.sp,
+                                fontFamily = FontFamily.Serif,
+                                modifier = Modifier.offset(y = (-220).dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HomeScreen() {
+    val context = LocalContext.current
+    val tesseraDb = remember { TesseraDatabase.getDatabase(context) }
+    val homeViewModel: HomeViewModel = viewModel(
+        factory = HomeViewModel.Factory(tesseraDb.tesseraDao())
+    )
+
+    val netWorth by homeViewModel.totalNetWorth.collectAsState()
+    val petRoutines by homeViewModel.petRoutines.collectAsState()
+    var showChatSheet by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        homeViewModel.seedDatabase()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            AsyncImage(
+                model = "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop",
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                alignment = Alignment.TopCenter,
+                modifier = Modifier.matchParentSize()
+            )
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color(0x00070909), // 0%
+                                Color(0x99070909), // 60%
+                                Color(0xFF070909),  // 100%
+                                Color(0xFF070909)   // Extra padding
+                            )
+                        )
+                    )
+            )
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Spacer(modifier = Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
+                Spacer(modifier = Modifier.height(24.dp))
+                TopHeader()
+                Spacer(modifier = Modifier.height(32.dp))
+                TopMetricsRow(netWorth)
+                Spacer(modifier = Modifier.height(48.dp))
                 HeroMetric()
                 Spacer(modifier = Modifier.height(48.dp))
             }
         }
         
-        MainContent(netWorth, petRoutines)
+        MainContent(netWorth, petRoutines, onChatClick = { showChatSheet = true })
         Spacer(modifier = Modifier.height(140.dp))
+    }
+
+    if (showChatSheet) {
+        TesseraChatSheet(onDismiss = { showChatSheet = false }, netWorth = netWorth, petRoutines = petRoutines)
     }
 }
 
@@ -461,6 +661,11 @@ fun MetricItem(icon: ImageVector, value: String, label: String) {
 
 @Composable
 fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, progressColor: Color, progress: Float) {
+    val animatedProgress by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(durationMillis = 1500, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+    )
+
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
@@ -481,7 +686,7 @@ fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, prog
                 drawArc(
                     color = progressColor,
                     startAngle = -90f,
-                    sweepAngle = 360f * progress,
+                    sweepAngle = 360f * animatedProgress,
                     useCenter = false,
                     style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
                 )
@@ -499,6 +704,32 @@ fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, prog
 
 @Composable
 fun HeroMetric() {
+    val calendar = java.util.Calendar.getInstance()
+    val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+    
+    // Determine dynamic content based on time of day
+    val isMorning = hour in 5..11
+    val isAfternoon = hour in 12..17
+    
+    val title = if (isMorning) "PRONTIDÃO" else if (isAfternoon) "ATIVIDADE" else "RELAXAMENTO"
+    val value = if (isMorning) "85" else if (isAfternoon) "6.4k" else "1h"
+    val subtitle = if (isMorning) "Bom dia" else if (isAfternoon) "Progresso da tarde" else "Boa noite"
+    val subtext = if (isMorning) "O seu corpo recuperou bem durante a noite.\nPronto para o dia!" 
+                  else if (isAfternoon) "Você está no caminho certo para atingir a meta diária." 
+                  else "Hora de desacelerar. Prepare-se para uma boa noite de sono."
+    val icon = if (isMorning) Icons.Outlined.WbSunny else if (isAfternoon) Icons.Outlined.DirectionsWalk else Icons.Outlined.Bedtime
+    val progressValue = if (isMorning) 0.85f else if (isAfternoon) 0.64f else 0.3f
+    val progressColor = if (isMorning) Color(0xFFF9A826) else if (isAfternoon) PrimaryTeal else TertiaryPurple
+
+    // Start-up animation for the arc
+    var animationStarted by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { animationStarted = true }
+    
+    val animatedProgress by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (animationStarted) progressValue else 0f,
+        animationSpec = tween(durationMillis = 1500, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+    )
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -532,9 +763,9 @@ fun HeroMetric() {
                 )
                 // Progress arc
                 drawArc(
-                    color = PrimaryTeal,
+                    color = progressColor,
                     startAngle = startAngle,
-                    sweepAngle = sweepAngle * 0.75f,
+                    sweepAngle = sweepAngle * animatedProgress,
                     useCenter = false,
                     style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
                     size = arcRectSize,
@@ -554,7 +785,7 @@ fun HeroMetric() {
                 }
             }
 
-            // Top center fire icon in thin circle
+            // Top center icon in thin circle
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -565,7 +796,7 @@ fun HeroMetric() {
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    Icons.Outlined.LocalFireDepartment,
+                    icon,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(12.dp)
@@ -578,14 +809,14 @@ fun HeroMetric() {
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "PASSOS",
+                    text = title,
                     fontSize = 10.sp,
                     letterSpacing = 2.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "5.203",
+                    text = value,
                     fontFamily = FontFamily.Serif,
                     fontSize = 62.sp,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -597,7 +828,7 @@ fun HeroMetric() {
         
         Spacer(modifier = Modifier.height(32.dp))
         Text(
-            text = "Progresso do dia",
+            text = subtitle,
             fontFamily = FontFamily.Serif,
             fontSize = 30.sp,
             color = MaterialTheme.colorScheme.onSurface,
@@ -605,7 +836,7 @@ fun HeroMetric() {
         )
         Spacer(modifier = Modifier.height(12.dp))
         Text(
-            text = "A sua meta diária está na média, quase lá!\nContinue assim.",
+            text = subtext,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
             fontSize = 15.sp,
@@ -616,7 +847,7 @@ fun HeroMetric() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainContent(netWorth: Double, petRoutines: List<PetRoutineEntity>) {
+fun MainContent(netWorth: Double, petRoutines: List<PetRoutineEntity>, onChatClick: () -> Unit = {}) {
     var showFinance by remember { mutableStateOf(true) }
     var showMarket by remember { mutableStateOf(true) }
     var showPets by remember { mutableStateOf(true) }
@@ -632,7 +863,7 @@ fun MainContent(netWorth: Double, petRoutines: List<PetRoutineEntity>) {
         if (showFinance) FinanceCard(netWorth)
         if (showMarket) MarketCard()
         if (showPets) PetsCard(petRoutines)
-        if (showSystem) SystemCard()
+        if (showSystem) SystemCard(onChatClick = onChatClick)
         
         OutlinedButton(
             onClick = { showEditSheet = true },
@@ -895,7 +1126,7 @@ fun PetEvent(text: String, time: String, color: Color, isPrimaryTime: Boolean) {
 }
 
 @Composable
-fun SystemCard() {
+fun SystemCard(onChatClick: () -> Unit = {}) {
     var isThinking by remember { mutableStateOf(false) }
     
     val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition()
@@ -943,7 +1174,7 @@ fun SystemCard() {
         }
         
         Button(
-            onClick = { isThinking = !isThinking },
+            onClick = { onChatClick() },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0x0DFFFFFF), contentColor = MaterialTheme.colorScheme.onSurface),
             shape = RoundedCornerShape(12.dp),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
@@ -1057,42 +1288,180 @@ fun NavItem(icon: ImageVector, label: String, isActive: Boolean, onClick: () -> 
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AIChatTest() {
+fun TesseraChatSheet(onDismiss: () -> Unit, netWorth: Double, petRoutines: List<PetRoutineEntity>) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var prompt by remember { mutableStateOf("") }
-    var resposta by remember { mutableStateOf("A aguardar pergunta...") }
     
-    // Caminho da pasta Downloads no Android (confirma se o nome do ficheiro .bin é igual a este)
+    // Model for chat messages
+    data class ChatMessage(val text: String, val isUser: Boolean)
+    var messages by remember { mutableStateOf(listOf(ChatMessage("Olá! Como posso ajudar você hoje?", false))) }
+    var isThinking by remember { mutableStateOf(false) }
+
+    // Try to load model
     val modelPath = "/storage/emulated/0/Download/gemma-2b-it-cpu-int4.bin"
-    
     val llmManager = remember { 
-        LocalLLMManager(context).apply { startInference(modelPath) } 
+        try {
+            LocalLLMManager(context).apply { startInference(modelPath) } 
+        } catch (e: Exception) {
+            null
+        }
     }
 
-    Column(modifier = Modifier.padding(16.dp)) {
-        Text("IA Offline", style = MaterialTheme.typography.headlineMedium)
-        
-        OutlinedTextField(
-            value = prompt,
-            onValueChange = { prompt = it },
-            label = { Text("Escreve a tua pergunta") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        
-        Button(
-            onClick = {
-                resposta = "A pensar..."
-                coroutineScope.launch {
-                    resposta = llmManager.generateResponse(prompt)
-                }
-            },
-            modifier = Modifier.padding(top = 8.dp)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF0F1413),
+        modifier = Modifier.fillMaxHeight(0.85f)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp, vertical = 8.dp)
         ) {
-            Text("Enviar")
+            // Header
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 16.dp)
+            ) {
+                Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(24.dp))
+                Spacer(modifier = Modifier.width(12.dp))
+                Text("Tessera AI", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+            }
+            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Chat Messages
+            androidx.compose.foundation.lazy.LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                items(messages.size) { index ->
+                    val message = messages[index]
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(0.85f)
+                                .clip(RoundedCornerShape(
+                                    topStart = 16.dp, 
+                                    topEnd = 16.dp, 
+                                    bottomStart = if (message.isUser) 16.dp else 4.dp, 
+                                    bottomEnd = if (message.isUser) 4.dp else 16.dp
+                                ))
+                                .background(if (message.isUser) Color(0xFF233532) else Color(0xFF1A1F1E))
+                                .border(1.dp, if (message.isUser) PrimaryTeal.copy(alpha = 0.3f) else Color(0x1AFFFFFF), RoundedCornerShape(
+                                    topStart = 16.dp, topEnd = 16.dp, 
+                                    bottomStart = if (message.isUser) 16.dp else 4.dp, 
+                                    bottomEnd = if (message.isUser) 4.dp else 16.dp
+                                ))
+                                .padding(16.dp)
+                        ) {
+                            Text(
+                                text = message.text, 
+                                color = MaterialTheme.colorScheme.onSurface, 
+                                fontSize = 15.sp,
+                                lineHeight = 22.sp
+                            )
+                        }
+                    }
+                }
+                
+                if (isThinking) {
+                    item {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp))
+                                    .background(Color(0xFF1A1F1E))
+                                    .padding(16.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    val pulseAnim = androidx.compose.animation.core.rememberInfiniteTransition()
+                                    val alpha by pulseAnim.animateFloat(
+                                        initialValue = 0.4f, targetValue = 1f,
+                                        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                                            animation = tween(800, easing = androidx.compose.animation.core.FastOutLinearInEasing),
+                                            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+                                        )
+                                    )
+                                    Text("Processando", color = PrimaryTeal.copy(alpha = alpha), fontSize = 14.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Input Area
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp, top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = prompt,
+                    onValueChange = { prompt = it },
+                    placeholder = { Text("Escreva uma mensagem...", color = Color.Gray, fontSize = 14.sp) },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PrimaryTeal.copy(alpha = 0.5f),
+                        unfocusedBorderColor = Color(0x33FFFFFF),
+                        focusedContainerColor = Color(0x08FFFFFF),
+                        unfocusedContainerColor = Color(0x08FFFFFF),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    maxLines = 3
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(if (prompt.isNotBlank() && !isThinking) PrimaryTeal else Color(0x33FFFFFF))
+                        .clickable(enabled = prompt.isNotBlank() && !isThinking) {
+                            val userText = prompt
+                            prompt = ""
+                            messages = messages + ChatMessage(userText, true)
+                            isThinking = true
+                            
+                            coroutineScope.launch {
+                                if (llmManager != null) {
+                                    val petsString = if (petRoutines.isEmpty()) "Sem tarefas de pets hoje." else petRoutines.joinToString("; ") { "${it.petName}: ${it.task} (${if(it.isCompleted) "Concluído" else "Pendente"})" }
+                                    val hiddenContext = """
+                                        Você é a Tessera AI, uma assistente pessoal inteligente do app Tessera Hub. Responda de forma direta, gentil e em português.
+                                        Dados atuais do usuário:
+                                        - Nome: Kenned
+                                        - Patrimônio: R$ ${String.format("%.2f", netWorth)}
+                                        - Status dos Pets: $petsString
+                                        Pergunta do usuário: "$userText"
+                                    """.trimIndent()
+                                    val response = llmManager.generateResponse(hiddenContext)
+                                    messages = messages + ChatMessage(response, false)
+                                } else {
+                                    kotlinx.coroutines.delay(1500)
+                                    messages = messages + ChatMessage("Modo de demonstração: A IA local não pôde ser iniciada (o modelo não foi encontrado).", false)
+                                }
+                                isThinking = false
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Send, 
+                        contentDescription = "Enviar", 
+                        tint = if (prompt.isNotBlank() && !isThinking) Color.Black else Color.Gray,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
         }
-        
-        Text(text = resposta, modifier = Modifier.padding(top = 16.dp))
     }
 }
