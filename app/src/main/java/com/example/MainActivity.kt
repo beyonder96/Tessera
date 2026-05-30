@@ -1,6 +1,5 @@
-package com.example
-
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+package com.example
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
