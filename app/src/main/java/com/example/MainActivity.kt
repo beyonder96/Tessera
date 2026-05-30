@@ -82,6 +82,10 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.components.OuraCircularProgress
 
@@ -183,63 +187,125 @@ fun TesseraHubApp() {
                 }
             }
 
+            val navigateAction: (String) -> Unit = { route ->
+                if (route == "home") {
+                    navController.popBackStack(navController.graph.findStartDestination().id, inclusive = false)
+                } else {
+                    navController.navigate(route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            }
+
             Box(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = innerPadding.calculateBottomPadding())) {
                 BottomNavBar(
                     isExpanded = isFabExpanded,
                     onExpandedChange = { isFabExpanded = it },
                     onHoveredItemChange = { fabHoveredItem = it },
                     currentRoute = currentRoute,
-                    onNavigate = { route ->
-                        navController.navigate(route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
+                    onNavigate = navigateAction
                 )
             }
 
+            // Overlay for FAB with elegant animations
             AnimatedVisibility(
                 visible = isFabExpanded,
-                enter = fadeIn(tween(200)),
-                exit = fadeOut(tween(200)),
+                enter = fadeIn(tween(300)),
+                exit = fadeOut(tween(300)),
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = innerPadding.calculateBottomPadding())
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color(0xCC000000))
-                        .clickable { isFabExpanded = false } // Close on click outside
-                )
-
-                val bottomOffset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 64.dp
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.BottomCenter
+                        .background(Color(0xE6000000)) // Deep black translucent
+                        .clickable(
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                            indication = null
+                        ) { isFabExpanded = false }
                 ) {
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(bottom = bottomOffset)) {
-                        PopupOverlayItem(
-                            "Saúde", Icons.Outlined.MonitorHeart, (-80).dp, (-80).dp, 
-                            onClick = { navController.navigate("health"); isFabExpanded = false }
-                        )
-                        PopupOverlayItem(
-                            "Metas", Icons.Outlined.Flag, 0.dp, (-110).dp, 
-                            onClick = { navController.navigate("goals"); isFabExpanded = false }
-                        )
-                        PopupOverlayItem(
-                            "Petz", Icons.Outlined.Pets, 80.dp, (-80).dp, 
-                            onClick = { navController.navigate("petz"); isFabExpanded = false }
-                        )
+                    val bottomOffset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 40.dp
+                    Box(
+                        modifier = Modifier.fillMaxSize().padding(bottom = bottomOffset),
+                        contentAlignment = Alignment.BottomCenter
+                    ) {
+                        val offsetHealth by animateDpAsState(if (isFabExpanded) (-100).dp else 0.dp, spring(dampingRatio = 0.6f, stiffness = 200f))
+                        val offsetGoals by animateDpAsState(if (isFabExpanded) (-140).dp else 0.dp, spring(dampingRatio = 0.6f, stiffness = 150f))
+                        val offsetPetz by animateDpAsState(if (isFabExpanded) (-100).dp else 0.dp, spring(dampingRatio = 0.6f, stiffness = 200f))
                         
-                        Text(
-                            text = "Selecione uma opção",
-                            color = Color.White.copy(alpha = 0.9f),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.offset(y = (-180).dp)
-                        )
+                        val xOffsetHealth by animateDpAsState(if (isFabExpanded) (-80).dp else 0.dp, spring(dampingRatio = 0.6f, stiffness = 200f))
+                        val xOffsetPetz by animateDpAsState(if (isFabExpanded) 80.dp else 0.dp, spring(dampingRatio = 0.6f, stiffness = 200f))
+
+                        val alphaItems by androidx.compose.animation.core.animateFloatAsState(if (isFabExpanded) 1f else 0f, tween(200))
+                        val scaleItems by androidx.compose.animation.core.animateFloatAsState(if (isFabExpanded) 1f else 0.5f, spring(dampingRatio = 0.6f, stiffness = 200f))
+
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.offset(y = (-40).dp)) {
+                            // Health
+                            Box(
+                                modifier = Modifier
+                                    .offset(x = xOffsetHealth, y = offsetHealth)
+                                    .scale(scaleItems)
+                                    .alpha(alphaItems)
+                                    .size(72.dp)
+                                    .background(Color(0xFF131817), CircleShape)
+                                    .border(1.dp, PrimaryTeal.copy(alpha = 0.3f), CircleShape)
+                                    .clickable { navigateAction("health"); isFabExpanded = false },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(Icons.Outlined.MonitorHeart, contentDescription = "Saúde", tint = PrimaryTeal, modifier = Modifier.size(28.dp))
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text("Saúde", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                }
+                            }
+                            // Goals
+                            Box(
+                                modifier = Modifier
+                                    .offset(x = 0.dp, y = offsetGoals)
+                                    .scale(scaleItems)
+                                    .alpha(alphaItems)
+                                    .size(72.dp)
+                                    .background(Color(0xFF131817), CircleShape)
+                                    .border(1.dp, PrimaryTeal.copy(alpha = 0.3f), CircleShape)
+                                    .clickable { navigateAction("goals"); isFabExpanded = false },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(Icons.Outlined.Flag, contentDescription = "Metas", tint = PrimaryTeal, modifier = Modifier.size(28.dp))
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text("Metas", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                }
+                            }
+                            // Petz
+                            Box(
+                                modifier = Modifier
+                                    .offset(x = xOffsetPetz, y = offsetPetz)
+                                    .scale(scaleItems)
+                                    .alpha(alphaItems)
+                                    .size(72.dp)
+                                    .background(Color(0xFF131817), CircleShape)
+                                    .border(1.dp, PrimaryTeal.copy(alpha = 0.3f), CircleShape)
+                                    .clickable { navigateAction("petz"); isFabExpanded = false },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(Icons.Outlined.Pets, contentDescription = "Petz", tint = PrimaryTeal, modifier = Modifier.size(28.dp))
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text("Petz", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                }
+                            }
+
+                            Text(
+                                text = "O que você deseja ver?",
+                                color = Color.White.copy(alpha = alphaItems * 0.9f),
+                                fontSize = 16.sp,
+                                fontFamily = FontFamily.Serif,
+                                modifier = Modifier.offset(y = (-220).dp)
+                            )
+                        }
                     }
                 }
             }
@@ -828,15 +894,17 @@ fun PetEvent(text: String, time: String, color: Color, isPrimaryTime: Boolean) {
 
 @Composable
 fun SystemCard() {
-    val context = LocalContext.current
-    val exportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/octet-stream")
-    ) { uri ->
-        uri?.let { 
-            BackupHelper.exportDatabase(context, it)
-            Toast.makeText(context, "Backup exportado com sucesso!", Toast.LENGTH_SHORT).show()
-        }
-    }
+    var isThinking by remember { mutableStateOf(false) }
+    
+    val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition()
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = tween(1000, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+        )
+    )
 
     Row(
         modifier = GlassModifier
@@ -851,27 +919,38 @@ fun SystemCard() {
                     .size(40.dp)
                     .clip(CircleShape)
                     .background(Color(0x1A85D6C5)) // PrimaryTeal with alpha
-                    .border(1.dp, Color(0x3385D6C5), CircleShape),
+                    .border(1.dp, Color(0x3385D6C5).copy(alpha = if (isThinking) pulseAlpha else 0.3f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Outlined.GraphicEq, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
+                Icon(
+                    Icons.Outlined.AutoAwesome, 
+                    contentDescription = null, 
+                    tint = PrimaryTeal.copy(alpha = if (isThinking) pulseAlpha else 1f), 
+                    modifier = Modifier.size(20.dp)
+                )
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column {
                 Text("Tessera AI", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                Text("Modelo local ativo...", fontSize = 13.sp, color = PrimaryTeal.copy(alpha = 0.8f))
+                Text(
+                    text = if (isThinking) "Processando..." else "Modelo local pronto", 
+                    fontSize = 13.sp, 
+                    color = PrimaryTeal.copy(alpha = if (isThinking) pulseAlpha else 0.8f)
+                )
             }
         }
         
         Button(
-            onClick = { exportLauncher.launch("tessera_backup_${System.currentTimeMillis()}.db") },
+            onClick = { isThinking = !isThinking },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0x0DFFFFFF), contentColor = MaterialTheme.colorScheme.onSurface),
             shape = RoundedCornerShape(12.dp),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             elevation = null,
             modifier = Modifier.border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(12.dp))
         ) {
-            Text("Backup", fontSize = 13.sp)
+            Icon(Icons.Outlined.ChatBubbleOutline, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Chat", fontSize = 13.sp)
         }
     }
 }
@@ -973,5 +1052,45 @@ fun NavItem(icon: ImageVector, label: String, isActive: Boolean, onClick: () -> 
             fontSize = 11.sp,
             color = if (isActive) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
         )
+    }
+}
+
+@Composable
+fun AIChatTest() {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var prompt by remember { mutableStateOf("") }
+    var resposta by remember { mutableStateOf("A aguardar pergunta...") }
+    
+    // Caminho da pasta Downloads no Android (confirma se o nome do ficheiro .bin é igual a este)
+    val modelPath = "/storage/emulated/0/Download/gemma-2b-it-cpu-int4.bin"
+    
+    val llmManager = remember { 
+        LocalLLMManager(context).apply { startInference(modelPath) } 
+    }
+
+    Column(modifier = Modifier.padding(16.dp)) {
+        Text("IA Offline", style = MaterialTheme.typography.headlineMedium)
+        
+        OutlinedTextField(
+            value = prompt,
+            onValueChange = { prompt = it },
+            label = { Text("Escreve a tua pergunta") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        
+        Button(
+            onClick = {
+                resposta = "A pensar..."
+                coroutineScope.launch {
+                    resposta = llmManager.generateResponse(prompt)
+                }
+            },
+            modifier = Modifier.padding(top = 8.dp)
+        ) {
+            Text("Enviar")
+        }
+        
+        Text(text = resposta, modifier = Modifier.padding(top = 16.dp))
     }
 }
