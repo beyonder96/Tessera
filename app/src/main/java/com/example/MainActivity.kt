@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.rotate
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -88,10 +89,16 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-val GlassModifier = Modifier
-    .clip(RoundedCornerShape(24.dp))
-    .background(Color(0x661E2322)) // ~40% opacity SurfaceGlass
-    .border(1.dp, Color(0x0FFFFFFF), RoundedCornerShape(24.dp))
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.core.tween
+import com.example.ui.components.PremiumGlassModifier
+import com.example.ui.components.OuraCircularProgress
+
+val GlassModifier = PremiumGlassModifier
 
 @Composable
 fun TesseraHubApp() {
@@ -126,7 +133,7 @@ fun TesseraHubApp() {
                 )
             )
         ) {
-            NavHost(navController = navController, startDestination = "home", modifier = Modifier.fillMaxSize()) {
+            NavHost(navController = navController, startDestination = "home", modifier = Modifier.fillMaxSize().padding(bottom = 120.dp)) {
                 composable("home") {
                     HomeScreen()
                 }
@@ -138,6 +145,24 @@ fun TesseraHubApp() {
                             restoreState = true
                         }
                     }, viewModel = viewModel)
+                }
+                composable("health") {
+                    HealthScreen(onHomeClick = { 
+                        navController.navigate("home") {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    })
+                }
+                composable("goals") {
+                    GoalsScreen(onHomeClick = { 
+                        navController.navigate("home") {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    })
                 }
                 composable("market") {
                     MarketScreen(onHomeClick = { 
@@ -177,11 +202,17 @@ fun TesseraHubApp() {
                 )
             }
 
-            if (isFabExpanded) {
+            AnimatedVisibility(
+                visible = isFabExpanded,
+                enter = fadeIn(tween(200)),
+                exit = fadeOut(tween(200)),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = innerPadding.calculateBottomPadding())
+            ) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.7f))
+                        .background(Color(0xCC000000))
+                        .clickable { isFabExpanded = false } // Close on click outside
                 )
 
                 val bottomOffset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 64.dp
@@ -190,12 +221,21 @@ fun TesseraHubApp() {
                     contentAlignment = Alignment.BottomCenter
                 ) {
                     Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(bottom = bottomOffset)) {
-                        PopupOverlayItem("Saúde", Icons.Outlined.MonitorHeart, (-80).dp, (-80).dp, fabHoveredItem == "Saúde")
-                        PopupOverlayItem("Petz", Icons.Outlined.Pets, 0.dp, (-120).dp, fabHoveredItem == "Petz")
-                        PopupOverlayItem("Metas", Icons.Outlined.Flag, 80.dp, (-80).dp, fabHoveredItem == "Metas")
+                        PopupOverlayItem(
+                            "Saúde", Icons.Outlined.MonitorHeart, (-80).dp, (-80).dp, 
+                            onClick = { navController.navigate("health"); isFabExpanded = false }
+                        )
+                        PopupOverlayItem(
+                            "Metas", Icons.Outlined.Flag, 0.dp, (-110).dp, 
+                            onClick = { navController.navigate("goals"); isFabExpanded = false }
+                        )
+                        PopupOverlayItem(
+                            "Petz", Icons.Outlined.Pets, 80.dp, (-80).dp, 
+                            onClick = { navController.navigate("petz"); isFabExpanded = false }
+                        )
                         
                         Text(
-                            text = "Arraste para selecionar e solte",
+                            text = "Selecione uma opção",
                             color = Color.White.copy(alpha = 0.9f),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -507,18 +547,68 @@ fun HeroMetric() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainContent(netWorth: Double, petRoutines: List<PetRoutineEntity>) {
+    var showFinance by remember { mutableStateOf(true) }
+    var showMarket by remember { mutableStateOf(true) }
+    var showPets by remember { mutableStateOf(true) }
+    var showSystem by remember { mutableStateOf(true) }
+    var showEditSheet by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        FinanceCard(netWorth)
-        MarketCard()
-        PetsCard(petRoutines)
-        SystemCard()
+        if (showFinance) FinanceCard(netWorth)
+        if (showMarket) MarketCard()
+        if (showPets) PetsCard(petRoutines)
+        if (showSystem) SystemCard()
+        
+        OutlinedButton(
+            onClick = { showEditSheet = true },
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33FFFFFF))
+        ) {
+            Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Editar Módulos")
+        }
+    }
+
+    if (showEditSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showEditSheet = false },
+            containerColor = Color(0xFF131817)
+        ) {
+            Column(modifier = Modifier.padding(24.dp).padding(bottom = 32.dp)) {
+                Text("Editar Módulos", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                Spacer(modifier = Modifier.height(24.dp))
+                ModuleToggle("Finanças", showFinance) { showFinance = it }
+                ModuleToggle("Mercado", showMarket) { showMarket = it }
+                ModuleToggle("Pets", showPets) { showPets = it }
+                ModuleToggle("Tessera AI / Sistema", showSystem) { showSystem = it }
+            }
+        }
+    }
+}
+
+@Composable
+fun ModuleToggle(name: String, isVisible: Boolean, onToggle: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(name, fontSize = 16.sp, color = Color.White)
+        Switch(
+            checked = isVisible,
+            onCheckedChange = onToggle,
+            colors = SwitchDefaults.colors(checkedThumbColor = PrimaryTeal, checkedTrackColor = PrimaryTeal.copy(alpha = 0.5f))
+        )
     }
 }
 
@@ -761,16 +851,16 @@ fun SystemCard() {
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(Color(0x1AE9C349)) // SecondaryGold
-                    .border(1.dp, Color(0x33E9C349), CircleShape),
+                    .background(Color(0x1A85D6C5)) // PrimaryTeal with alpha
+                    .border(1.dp, Color(0x3385D6C5), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Outlined.Mic, contentDescription = null, tint = SecondaryGold, modifier = Modifier.size(20.dp))
+                Icon(Icons.Outlined.GraphicEq, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column {
-                Text("Gemma 2B Ativo", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                Text("Sistema local escutando...", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+                Text("Tessera AI", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                Text("Modelo local ativo...", fontSize = 13.sp, color = PrimaryTeal.copy(alpha = 0.8f))
             }
         }
         
@@ -826,74 +916,37 @@ fun BottomNavBar(
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .background(Color(0x1AFFFFFF), CircleShape)
+                    .background(if (isExpanded) PrimaryTeal else Color(0x1AFFFFFF), CircleShape)
                     .border(1.dp, Color(0x33FFFFFF), CircleShape)
-                    .pointerInput(Unit) {
-                        var currentDragPos = Offset.Zero
-                        var currentHoverName: String? = null
-                        detectDragGestures(
-                            onDragStart = { 
-                                currentDragPos = Offset.Zero
-                                currentHoverName = null
-                                onExpandedChange(true)
-                                onHoveredItemChange(null)
-                            },
-                            onDrag = { change, dragAmount ->
-                                change.consume()
-                                currentDragPos += dragAmount
-                                with(density) {
-                                    val hoverStates = listOf(
-                                        "Saúde" to Offset((-80).dp.toPx(), (-80).dp.toPx()),
-                                        "Petz" to Offset(0f, (-120).dp.toPx()),
-                                        "Metas" to Offset((80).dp.toPx(), (-80).dp.toPx())
-                                    )
-                                    currentHoverName = null
-                                    for ((name, targetPos) in hoverStates) {
-                                        if ((currentDragPos - targetPos).getDistance() < 40.dp.toPx()) {
-                                            currentHoverName = name
-                                        }
-                                    }
-                                    onHoveredItemChange(currentHoverName)
-                                }
-                            },
-                            onDragEnd = {
-                                if (currentHoverName == "Saúde" || currentHoverName == "Petz") {
-                                    onNavigate("petz")
-                                }
-                                onExpandedChange(false)
-                                onHoveredItemChange(null)
-                            },
-                            onDragCancel = {
-                                onExpandedChange(false)
-                                onHoveredItemChange(null)
-                            }
-                        )
-                    },
+                    .clickable { onExpandedChange(!isExpanded) },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add", tint = MaterialTheme.colorScheme.onSurface)
+                val iconRotation by animateFloatAsState(if (isExpanded) 45f else 0f)
+                Icon(
+                    Icons.Default.Add, 
+                    contentDescription = "Add", 
+                    tint = if (isExpanded) Color.Black else MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.scale(if (isExpanded) 1.2f else 1f).rotate(iconRotation)
+                )
             }
         }
     }
 }
 
 @Composable
-fun PopupOverlayItem(name: String, icon: ImageVector, offsetX: Dp, offsetY: Dp, isHovered: Boolean) {
-    val scale = if (isHovered) 1.2f else 1f
-    val bgColor = if (isHovered) PrimaryTeal else Color(0xCC1E2322)
-    
+fun PopupOverlayItem(name: String, icon: ImageVector, offsetX: Dp, offsetY: Dp, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .offset(x = offsetX, y = offsetY)
             .size(56.dp)
-            .scale(scale)
-            .background(bgColor, CircleShape)
-            .border(1.dp, Color(0x33FFFFFF), CircleShape),
+            .background(Color(0xCC1E2322), CircleShape)
+            .border(1.dp, Color(0x33FFFFFF), CircleShape)
+            .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(icon, contentDescription = name, tint = Color.White, modifier = Modifier.size(24.dp))
-            Text(name, color = Color.White, fontSize = 10.sp)
+            Icon(icon, contentDescription = name, tint = PrimaryTeal, modifier = Modifier.size(24.dp))
+            Text(name, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
