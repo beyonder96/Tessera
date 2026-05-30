@@ -73,6 +73,8 @@ import androidx.compose.runtime.collectAsState
 import com.tesserahub.app.data.local.AppDatabase as TesseraDatabase
 import com.tesserahub.app.ui.viewmodel.HomeViewModel
 import com.tesserahub.app.data.local.entity.PetRoutineEntity
+import com.tesserahub.app.utils.BackupHelper
+import android.widget.Toast
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -737,6 +739,16 @@ fun PetEvent(text: String, time: String, color: Color, isPrimaryTime: Boolean) {
 
 @Composable
 fun SystemCard() {
+    val context = LocalContext.current
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri ->
+        uri?.let { 
+            BackupHelper.exportDatabase(context, it)
+            Toast.makeText(context, "Backup exportado com sucesso!", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     Row(
         modifier = GlassModifier
             .fillMaxWidth()
@@ -763,7 +775,7 @@ fun SystemCard() {
         }
         
         Button(
-            onClick = { },
+            onClick = { exportLauncher.launch("tessera_backup_${System.currentTimeMillis()}.db") },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0x0DFFFFFF), contentColor = MaterialTheme.colorScheme.onSurface),
             shape = RoundedCornerShape(12.dp),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
