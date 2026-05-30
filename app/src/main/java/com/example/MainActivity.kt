@@ -76,6 +76,14 @@ import com.tesserahub.app.ui.viewmodel.HomeViewModel
 import com.tesserahub.app.data.local.entity.PetRoutineEntity
 import com.tesserahub.app.utils.BackupHelper
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.core.tween
+import com.example.ui.components.PremiumGlassModifier
+import com.example.ui.components.OuraCircularProgress
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -88,15 +96,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.core.tween
-import com.example.ui.components.PremiumGlassModifier
-import com.example.ui.components.OuraCircularProgress
 
 val GlassModifier = PremiumGlassModifier
 
