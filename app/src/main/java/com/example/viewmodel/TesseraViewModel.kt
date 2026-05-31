@@ -9,6 +9,8 @@ import com.example.data.MarketItem
 import com.example.data.PetEvent
 import com.example.data.TesseraRepository
 import com.example.data.Transaction
+import com.example.data.Habit
+import com.example.data.PurchaseGoal
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -24,6 +26,12 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val boughtMarketItems: StateFlow<List<MarketItem>> = repository.boughtMarketItems
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allHabits: StateFlow<List<Habit>> = repository.allHabits
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allPurchaseGoals: StateFlow<List<PurchaseGoal>> = repository.allPurchaseGoals
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allPetEvents: StateFlow<List<PetEvent>> = repository.allPetEvents
@@ -210,6 +218,19 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
                 repository.insertTransaction(Transaction(title = "Assinatura Netflix", subtitle = "Mensalidade", value = 55.90, isIncome = false, timestamp = System.currentTimeMillis() - 86400000 * 1, category = "Lazer", accountOrCardName = "Inter Black"))
                 repository.insertTransaction(Transaction(title = "Jantar Premium", subtitle = "Restaurante", value = 380.00, isIncome = false, timestamp = System.currentTimeMillis() - 3600000 * 4, category = "Alimentação", accountOrCardName = "C6 Carbon"))
             }
+
+            val habits = repository.allHabits.first()
+            if (habits.isEmpty()) {
+                repository.insertHabit(Habit(name = "Hidratação (3L)", isCompleted = false, streak = 12, iconName = "WaterDrop", colorHex = "#71D7CD", orderIndex = 0))
+                repository.insertHabit(Habit(name = "Leitura Profunda", isCompleted = false, streak = 5, iconName = "MenuBook", colorHex = "#F9A826", orderIndex = 1))
+                repository.insertHabit(Habit(name = "Mindfulness", isCompleted = true, streak = 21, iconName = "SelfImprovement", colorHex = "#D7B4F3", orderIndex = 2))
+            }
+
+            val goals = repository.allPurchaseGoals.first()
+            if (goals.isEmpty()) {
+                repository.insertPurchaseGoal(PurchaseGoal(title = "MacBook Pro M3", targetValue = 24000.00, currentValue = 15000.00, imageUrl = "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=800&auto=format&fit=crop", deadlineTimestamp = System.currentTimeMillis() + 86400000L * 90, colorHex = "#71D7CD"))
+                repository.insertPurchaseGoal(PurchaseGoal(title = "Viagem Kyoto", targetValue = 35000.00, currentValue = 8000.00, imageUrl = "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=800&auto=format&fit=crop", deadlineTimestamp = System.currentTimeMillis() + 86400000L * 180, colorHex = "#F9A826"))
+            }
         }
     }
 
@@ -224,6 +245,33 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
     fun deletePetEvent(event: PetEvent) {
         viewModelScope.launch {
             repository.deletePetEvent(event)
+        }
+    }
+
+    fun toggleHabitCompleted(habit: Habit) {
+        viewModelScope.launch {
+            val newCompleted = !habit.isCompleted
+            val newStreak = if (newCompleted) habit.streak + 1 else maxOf(0, habit.streak - 1)
+            repository.updateHabit(habit.copy(isCompleted = newCompleted, streak = newStreak))
+        }
+    }
+
+    fun addHabit(name: String, iconName: String, colorHex: String) {
+        viewModelScope.launch {
+            val count = repository.allHabits.first().size
+            repository.insertHabit(Habit(name = name, isCompleted = false, streak = 0, iconName = iconName, colorHex = colorHex, orderIndex = count))
+        }
+    }
+
+    fun addPurchaseGoal(title: String, target: Double, current: Double, imageUrl: String, deadline: Long, colorHex: String) {
+        viewModelScope.launch {
+            repository.insertPurchaseGoal(PurchaseGoal(title = title, targetValue = target, currentValue = current, imageUrl = imageUrl, deadlineTimestamp = deadline, colorHex = colorHex))
+        }
+    }
+
+    fun updatePurchaseGoalProgress(goal: PurchaseGoal, addedValue: Double) {
+        viewModelScope.launch {
+            repository.updatePurchaseGoal(goal.copy(currentValue = goal.currentValue + addedValue))
         }
     }
 }

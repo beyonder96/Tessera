@@ -62,4 +62,31 @@ class TesseraRepository(private val dao: TesseraDao) {
     suspend fun deleteCreditCard(card: CreditCard) {
         dao.deleteCreditCard(card)
     }
+
+    val allHabits: Flow<List<Habit>> = dao.getAllHabits()
+    val allPurchaseGoals: Flow<List<PurchaseGoal>> = dao.getAllPurchaseGoals()
+
+    suspend fun insertHabit(habit: Habit) {
+        dao.insertHabit(habit)
+    }
+
+    suspend fun updateHabit(habit: Habit) {
+        dao.updateHabit(habit)
+    }
+
+    suspend fun deleteHabit(habit: Habit) {
+        dao.deleteHabit(habit)
+    }
+
+    suspend fun insertPurchaseGoal(goal: PurchaseGoal) {
+        dao.insertPurchaseGoal(goal)
+    }
+
+    suspend fun updatePurchaseGoal(goal: PurchaseGoal) {
+        dao.updatePurchaseGoal(goal)
+    }
+
+    suspend fun deletePurchaseGoal(goal: PurchaseGoal) {
+        dao.deletePurchaseGoal(goal)
+    }
 }

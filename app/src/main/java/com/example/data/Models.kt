@@ -57,3 +57,25 @@ data class CreditCard(
     val colorHex: String,
     val holderName: String
 )
+
+@Entity(tableName = "habits")
+data class Habit(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val name: String,
+    val isCompleted: Boolean,
+    val streak: Int,
+    val iconName: String, // Store icon name e.g. "WaterDrop"
+    val colorHex: String,
+    val orderIndex: Int
+)
+
+@Entity(tableName = "purchase_goals")
+data class PurchaseGoal(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val title: String,
+    val targetValue: Double,
+    val currentValue: Double,
+    val imageUrl: String,
+    val deadlineTimestamp: Long,
+    val colorHex: String
+)

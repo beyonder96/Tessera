@@ -63,4 +63,30 @@ interface TesseraDao {
 
     @Delete
     suspend fun deleteCreditCard(card: CreditCard)
+
+    // Habits
+    @Query("SELECT * FROM habits ORDER BY orderIndex ASC")
+    fun getAllHabits(): Flow<List<Habit>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertHabit(habit: Habit)
+
+    @Update
+    suspend fun updateHabit(habit: Habit)
+
+    @Delete
+    suspend fun deleteHabit(habit: Habit)
+
+    // Purchase Goals
+    @Query("SELECT * FROM purchase_goals ORDER BY deadlineTimestamp ASC")
+    fun getAllPurchaseGoals(): Flow<List<PurchaseGoal>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPurchaseGoal(goal: PurchaseGoal)
+
+    @Update
+    suspend fun updatePurchaseGoal(goal: PurchaseGoal)
+
+    @Delete
+    suspend fun deletePurchaseGoal(goal: PurchaseGoal)
 }

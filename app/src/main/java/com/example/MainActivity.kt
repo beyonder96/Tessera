@@ -192,7 +192,7 @@ fun TesseraHubApp() {
                             launchSingleTop = true
                             restoreState = true
                         }
-                    })
+                    }, viewModel = viewModel)
                 }
                 composable("market") {
                     MarketScreen(onHomeClick = { 
@@ -552,7 +552,8 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
                         translationY = metricsTranslation
                     }
             ) {
-                TopMetricsRow(realPatrimony, realBalance, realIncome, realExpense, onNavigate)
+                val habits by mainViewModel.allHabits.collectAsState(initial = emptyList<com.example.data.Habit>())
+                TopMetricsRow(realPatrimony, realBalance, realIncome, realExpense, habits, onNavigate)
             }
             
             Spacer(modifier = Modifier.height(48.dp))
@@ -567,7 +568,8 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
                         translationY = heroTranslation
                     }
             ) {
-                HeroMetric(onNavigate)
+                val habits by mainViewModel.allHabits.collectAsState(initial = emptyList<com.example.data.Habit>())
+                HeroMetric(habits, onNavigate)
             }
             
             Spacer(modifier = Modifier.height(48.dp))
@@ -919,7 +921,7 @@ fun TopHeader(onOpenSettings: () -> Unit) {
 }
 
 @Composable
-fun TopMetricsRow(patrimony: Double, netWorth: Double, totalIncome: Double, totalExpense: Double, onNavigate: (String) -> Unit) {
+fun TopMetricsRow(patrimony: Double, netWorth: Double, totalIncome: Double, totalExpense: Double, habits: List<com.example.data.Habit>, onNavigate: (String) -> Unit) {
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
     
@@ -939,34 +941,6 @@ fun TopMetricsRow(patrimony: Double, netWorth: Double, totalIncome: Double, tota
             kotlinx.coroutines.delay(5 * 60 * 1000L)
             healthIndex = (healthIndex + 1) % 2
         }
-    }
-
-    // Widget 3 (Metas)
-    var selectedGoal by remember { mutableStateOf(sharedPrefs.getString("selected_goal_type", "Atividade") ?: "Atividade") }
-    var showGoalDialog by remember { mutableStateOf(false) }
-    
-    if (showGoalDialog) {
-        AlertDialog(
-            onDismissRequest = { showGoalDialog = false },
-            title = { Text("Selecione a Meta", fontFamily = FontFamily.Serif, color = MaterialTheme.colorScheme.onSurface) },
-            text = {
-                Column {
-                    listOf("Atividade", "Tarefas Pendentes", "Ritual Diário").forEach { goal ->
-                        TextButton(onClick = { 
-                            selectedGoal = goal
-                            sharedPrefs.edit().putString("selected_goal_type", goal).apply()
-                            showGoalDialog = false 
-                        }) {
-                            Text(goal, color = MaterialTheme.colorScheme.onSurface)
-                        }
-                    }
-                }
-            },
-            confirmButton = {},
-            containerColor = SurfaceVariantDark,
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
-            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 
     // Widget 4 (Apartamento)
@@ -1026,21 +1000,20 @@ fun TopMetricsRow(patrimony: Double, netWorth: Double, totalIncome: Double, tota
                 }
             }
 
-            // Widget 3 (Metas)
+            // Widget 3 (Metas - Hábitos Diários)
             Box(modifier = Modifier.width(76.dp)) {
-                Crossfade(targetState = selectedGoal, animationSpec = tween(500)) { goal ->
-                    val valIdx = when(goal) {
-                        "Tarefas Pendentes" -> "3"
-                        "Ritual Diário" -> "1"
-                        else -> "72"
-                    }
-                    val iconIdx = when(goal) {
-                        "Tarefas Pendentes" -> Icons.AutoMirrored.Outlined.Assignment
-                        "Ritual Diário" -> Icons.Outlined.SelfImprovement
-                        else -> Icons.AutoMirrored.Outlined.DirectionsRun
-                    }
-                    MetricItem(iconIdx, valIdx, if (goal == "Tarefas Pendentes") "TAREFAS" else goal.uppercase(), onClick = { showGoalDialog = true })
-                }
+                val completedHabits = habits.count { it.isCompleted }
+                val totalHabits = habits.size
+                val habitProgress = if (totalHabits > 0) completedHabits.toFloat() / totalHabits else 0f
+                
+                MetricItemWithProgress(
+                    icon = Icons.Outlined.SelfImprovement,
+                    value = "$completedHabits/$totalHabits",
+                    label = "HÁBITOS",
+                    progressColor = Color(0xFF71D7CD),
+                    progress = habitProgress,
+                    onClick = { onNavigate("goals") }
+                )
             }
 
             // Widget 4 (Apartamento)
@@ -1149,7 +1122,7 @@ fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, prog
 }
 
 @Composable
-fun HeroMetric(onNavigate: (String) -> Unit) {
+fun HeroMetric(habits: List<com.example.data.Habit>, onNavigate: (String) -> Unit) {
     val calendar = java.util.Calendar.getInstance()
     val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
     
@@ -1157,14 +1130,19 @@ fun HeroMetric(onNavigate: (String) -> Unit) {
     val isMorning = hour in 5..11
     val isAfternoon = hour in 12..17
     
+    val completedHabits = habits.count { it.isCompleted }
+    val totalHabits = habits.size
+    val habitScore = if (totalHabits > 0) ((completedHabits.toFloat() / totalHabits) * 100).toInt() else 85
+    val habitProgressValue = if (totalHabits > 0) completedHabits.toFloat() / totalHabits else 0.85f
+
     val title = if (isMorning) "PRONTIDÃO" else if (isAfternoon) "ATIVIDADE" else "RELAXAMENTO"
-    val value = if (isMorning) "85" else if (isAfternoon) "6.4k" else "1h"
+    val value = if (isMorning) "$habitScore" else if (isAfternoon) "6.4k" else "1h"
     val subtitle = if (isMorning) "Bom dia" else if (isAfternoon) "Progresso da tarde" else "Boa noite"
-    val subtext = if (isMorning) "O seu corpo recuperou bem durante a noite.\nPronto para o dia!" 
+    val subtext = if (isMorning) "Você completou $completedHabits de $totalHabits hábitos diários!\nÓtimo progresso." 
                   else if (isAfternoon) "Você está no caminho certo para atingir a meta diária." 
                   else "Hora de desacelerar. Prepare-se para uma boa noite de sono."
     val icon = if (isMorning) Icons.Outlined.WbSunny else if (isAfternoon) Icons.Outlined.DirectionsWalk else Icons.Outlined.Bedtime
-    val progressValue = if (isMorning) 0.85f else if (isAfternoon) 0.64f else 0.3f
+    val progressValue = if (isMorning) habitProgressValue else if (isAfternoon) 0.64f else 0.3f
     val progressColor = if (isMorning) Color(0xFFF9A826) else if (isAfternoon) PrimaryTeal else TertiaryPurple
 
     // Start-up animation for the arc
