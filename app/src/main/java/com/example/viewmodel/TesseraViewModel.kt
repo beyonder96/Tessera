@@ -3,12 +3,15 @@ package com.example.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.data.BankAccount
+import com.example.data.CreditCard
 import com.example.data.MarketItem
 import com.example.data.PetEvent
 import com.example.data.TesseraRepository
 import com.example.data.Transaction
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -26,7 +29,13 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
     val allPetEvents: StateFlow<List<PetEvent>> = repository.allPetEvents
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun addTransaction(title: String, subtitle: String, value: Double, isIncome: Boolean, category: String) {
+    val allBankAccounts: StateFlow<List<BankAccount>> = repository.allBankAccounts
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allCreditCards: StateFlow<List<CreditCard>> = repository.allCreditCards
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun addTransaction(title: String, subtitle: String, value: Double, isIncome: Boolean, category: String, accountOrCardName: String = "") {
         viewModelScope.launch {
             repository.insertTransaction(
                 Transaction(
@@ -35,9 +44,94 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
                     value = value,
                     isIncome = isIncome,
                     timestamp = System.currentTimeMillis(),
-                    category = category
+                    category = category,
+                    accountOrCardName = accountOrCardName
                 )
             )
+            if (accountOrCardName.isNotEmpty()) {
+                adjustBalances(accountOrCardName, value, isIncome)
+            }
+        }
+    }
+
+    fun updateTransaction(oldTransaction: Transaction, newTransaction: Transaction) {
+        viewModelScope.launch {
+            if (oldTransaction.accountOrCardName.isNotEmpty()) {
+                rollbackBalances(oldTransaction.accountOrCardName, oldTransaction.value, oldTransaction.isIncome)
+            }
+            repository.insertTransaction(newTransaction)
+            if (newTransaction.accountOrCardName.isNotEmpty()) {
+                adjustBalances(newTransaction.accountOrCardName, newTransaction.value, newTransaction.isIncome)
+            }
+        }
+    }
+
+    fun deleteTransaction(transaction: Transaction) {
+        viewModelScope.launch {
+            if (transaction.accountOrCardName.isNotEmpty()) {
+                rollbackBalances(transaction.accountOrCardName, transaction.value, transaction.isIncome)
+            }
+            repository.deleteTransaction(transaction)
+        }
+    }
+
+    private fun adjustBalances(name: String, value: Double, isIncome: Boolean) {
+        viewModelScope.launch {
+            val accounts = repository.allBankAccounts.first()
+            val matchingAccount = accounts.find { it.name == name }
+            if (matchingAccount != null) {
+                val newBalance = if (isIncome) matchingAccount.balance + value else matchingAccount.balance - value
+                repository.insertBankAccount(matchingAccount.copy(balance = newBalance))
+                return@launch
+            }
+            val cards = repository.allCreditCards.first()
+            val matchingCard = cards.find { it.name == name }
+            if (matchingCard != null) {
+                val newUsedLimit = if (isIncome) (matchingCard.usedLimit - value).coerceAtLeast(0.0) else matchingCard.usedLimit + value
+                repository.insertCreditCard(matchingCard.copy(usedLimit = newUsedLimit))
+            }
+        }
+    }
+
+    private fun rollbackBalances(name: String, value: Double, isIncome: Boolean) {
+        viewModelScope.launch {
+            val accounts = repository.allBankAccounts.first()
+            val matchingAccount = accounts.find { it.name == name }
+            if (matchingAccount != null) {
+                val newBalance = if (isIncome) matchingAccount.balance - value else matchingAccount.balance + value
+                repository.insertBankAccount(matchingAccount.copy(balance = newBalance))
+                return@launch
+            }
+            val cards = repository.allCreditCards.first()
+            val matchingCard = cards.find { it.name == name }
+            if (matchingCard != null) {
+                val newUsedLimit = if (isIncome) matchingCard.usedLimit + value else (matchingCard.usedLimit - value).coerceAtLeast(0.0)
+                repository.insertCreditCard(matchingCard.copy(usedLimit = newUsedLimit))
+            }
+        }
+    }
+
+    fun addBankAccount(name: String, balance: Double, type: String, colorHex: String, id: Int = 0) {
+        viewModelScope.launch {
+            repository.insertBankAccount(BankAccount(id = id, name = name, balance = balance, type = type, colorHex = colorHex))
+        }
+    }
+
+    fun deleteBankAccount(account: BankAccount) {
+        viewModelScope.launch {
+            repository.deleteBankAccount(account)
+        }
+    }
+
+    fun addCreditCard(name: String, limit: Double, usedLimit: Double, numberLastFour: String, colorHex: String, holderName: String, id: Int = 0) {
+        viewModelScope.launch {
+            repository.insertCreditCard(CreditCard(id = id, name = name, limit = limit, usedLimit = usedLimit, numberLastFour = numberLastFour, colorHex = colorHex, holderName = holderName))
+        }
+    }
+
+    fun deleteCreditCard(card: CreditCard) {
+        viewModelScope.launch {
+            repository.deleteCreditCard(card)
         }
     }
 
@@ -67,7 +161,6 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
         }
     }
     
-    // Initial data population if needed
     fun initializeDataIfNeeded() {
         viewModelScope.launch {
             val count = repository.getPetEventsCount()
@@ -77,6 +170,29 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
                     PetEvent(petName = "Marie", title = "Alimentação", time = "12:00", isCompleted = false, isNext = true),
                     PetEvent(petName = "Churchill", title = "Medicamento", time = "18:00", isCompleted = false, isNext = false)
                 ))
+            }
+
+            val accounts = repository.allBankAccounts.first()
+            if (accounts.isEmpty()) {
+                repository.insertBankAccount(BankAccount(name = "Nubank", balance = 12450.80, type = "Corrente", colorHex = "#8A05BE"))
+                repository.insertBankAccount(BankAccount(name = "Itaú Uniclass", balance = 45200.00, type = "Corrente", colorHex = "#FF8C00"))
+                repository.insertBankAccount(BankAccount(name = "XP Investimentos", balance = 150000.00, type = "Investimento", colorHex = "#E6C619"))
+            }
+
+            val cards = repository.allCreditCards.first()
+            if (cards.isEmpty()) {
+                repository.insertCreditCard(CreditCard(name = "Inter Black", limit = 50000.00, usedLimit = 12400.00, numberLastFour = "8899", colorHex = "#FF7A00", holderName = "KENNETH S. O."))
+                repository.insertCreditCard(CreditCard(name = "Nubank Ultravioleta", limit = 30000.00, usedLimit = 4560.20, numberLastFour = "1234", colorHex = "#8A05BE", holderName = "KENNETH S. O."))
+                repository.insertCreditCard(CreditCard(name = "C6 Carbon", limit = 80000.00, usedLimit = 25100.50, numberLastFour = "7766", colorHex = "#1C1C1C", holderName = "KENNETH S. O."))
+            }
+
+            val txs = repository.allTransactions.first()
+            if (txs.isEmpty()) {
+                repository.insertTransaction(Transaction(title = "Salário Mensal", subtitle = "Depósito Recebido", value = 18500.00, isIncome = true, timestamp = System.currentTimeMillis() - 86400000 * 5, category = "Salário", accountOrCardName = "XP Investimentos"))
+                repository.insertTransaction(Transaction(title = "Mercado Municipal", subtitle = "Compras da semana", value = 450.20, isIncome = false, timestamp = System.currentTimeMillis() - 86400000 * 3, category = "Alimentação", accountOrCardName = "Nubank"))
+                repository.insertTransaction(Transaction(title = "Posto Ipiranga", subtitle = "Combustível", value = 220.00, isIncome = false, timestamp = System.currentTimeMillis() - 86400000 * 2, category = "Transporte", accountOrCardName = "Nubank Ultravioleta"))
+                repository.insertTransaction(Transaction(title = "Assinatura Netflix", subtitle = "Mensalidade", value = 55.90, isIncome = false, timestamp = System.currentTimeMillis() - 86400000 * 1, category = "Lazer", accountOrCardName = "Inter Black"))
+                repository.insertTransaction(Transaction(title = "Jantar Premium", subtitle = "Restaurante", value = 380.00, isIncome = false, timestamp = System.currentTimeMillis() - 3600000 * 4, category = "Alimentação", accountOrCardName = "C6 Carbon"))
             }
         }
     }

@@ -12,6 +12,10 @@ class TesseraRepository(private val dao: TesseraDao) {
         dao.insertTransaction(transaction)
     }
 
+    suspend fun deleteTransaction(transaction: Transaction) {
+        dao.deleteTransaction(transaction)
+    }
+
     suspend fun insertMarketItem(item: MarketItem) {
         dao.insertMarketItem(item)
     }
@@ -38,5 +42,24 @@ class TesseraRepository(private val dao: TesseraDao) {
 
     suspend fun deletePetEvent(event: PetEvent) {
         dao.deletePetEvent(event)
+    }
+
+    val allBankAccounts: Flow<List<BankAccount>> = dao.getAllBankAccounts()
+    val allCreditCards: Flow<List<CreditCard>> = dao.getAllCreditCards()
+
+    suspend fun insertBankAccount(account: BankAccount) {
+        dao.insertBankAccount(account)
+    }
+
+    suspend fun deleteBankAccount(account: BankAccount) {
+        dao.deleteBankAccount(account)
+    }
+
+    suspend fun insertCreditCard(card: CreditCard) {
+        dao.insertCreditCard(card)
+    }
+
+    suspend fun deleteCreditCard(card: CreditCard) {
+        dao.deleteCreditCard(card)
     }
 }

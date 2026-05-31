@@ -384,9 +384,11 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
     
     val mainViewModel: TesseraViewModel = viewModel(factory = com.example.viewmodel.TesseraViewModelFactory(com.example.data.TesseraRepository(com.example.data.AppDatabase.getDatabase(context).tesseraDao())))
     val transactions by mainViewModel.allTransactions.collectAsState()
+    val bankAccounts by mainViewModel.allBankAccounts.collectAsState()
     val realIncome = remember(transactions) { transactions.filter { it.isIncome }.sumOf { it.value } }
     val realExpense = remember(transactions) { transactions.filter { !it.isIncome }.sumOf { it.value } }
     val realBalance = realIncome - realExpense
+    val realPatrimony = remember(bankAccounts) { bankAccounts.sumOf { it.balance } }
     
     var showChatSheet by remember { mutableStateOf(false) }
 
@@ -495,8 +497,7 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
             contentScale = ContentScale.Crop,
             alignment = Alignment.TopCenter,
             modifier = Modifier
-                .fillMaxWidth()
-                .height(460.dp)
+                .fillMaxSize()
                 .graphicsLayer {
                     translationY = -parallaxOffset
                     scaleX = depthZoom
@@ -505,18 +506,18 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
         )
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(460.dp)
+                .fillMaxSize()
                 .graphicsLayer {
                     translationY = -parallaxOffset
                 }
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0x00070909),
-                            Color(0x22070909),
-                            Color(0x88070909),
-                            Color(0xFF070909)
+                        colorStops = arrayOf(
+                            0.0f to Color(0x00070909),
+                            0.15f to Color(0x11070909),
+                            0.45f to Color(0xAA070909),
+                            0.70f to Color(0xFF070909),
+                            1.0f to Color(0xFF070909)
                         )
                     )
                 )
@@ -556,7 +557,7 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
                         translationY = metricsTranslation
                     }
             ) {
-                TopMetricsRow(realBalance, realIncome, realExpense, onNavigate)
+                TopMetricsRow(realPatrimony, realBalance, realIncome, realExpense, onNavigate)
             }
             
             Spacer(modifier = Modifier.height(48.dp))
@@ -923,7 +924,7 @@ fun TopHeader(onOpenSettings: () -> Unit) {
 }
 
 @Composable
-fun TopMetricsRow(netWorth: Double, totalIncome: Double, totalExpense: Double, onNavigate: (String) -> Unit) {
+fun TopMetricsRow(patrimony: Double, netWorth: Double, totalIncome: Double, totalExpense: Double, onNavigate: (String) -> Unit) {
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
     
@@ -932,7 +933,7 @@ fun TopMetricsRow(netWorth: Double, totalIncome: Double, totalExpense: Double, o
     LaunchedEffect(Unit) {
         while(true) {
             kotlinx.coroutines.delay(5 * 60 * 1000L)
-            financeIndex = (financeIndex + 1) % 3
+            financeIndex = (financeIndex + 1) % 4
         }
     }
 
@@ -996,18 +997,21 @@ fun TopMetricsRow(netWorth: Double, totalIncome: Double, totalExpense: Double, o
             Box(modifier = Modifier.width(76.dp)) {
                 Crossfade(targetState = financeIndex, animationSpec = tween(500)) { idx ->
                     val valIdx = when(idx) {
-                        0 -> netWorth
-                        1 -> totalIncome
+                        0 -> patrimony
+                        1 -> netWorth
+                        2 -> totalIncome
                         else -> totalExpense
                     }
                     val labelIdx = when(idx) {
-                        0 -> "SALDO"
-                        1 -> "RECEITAS"
+                        0 -> "PATRIMÔNIO"
+                        1 -> "SALDO"
+                        2 -> "RECEITAS"
                         else -> "DESPESAS"
                     }
                     val iconIdx = when(idx) {
-                        0 -> Icons.Outlined.AccountBalanceWallet
-                        1 -> Icons.Outlined.ArrowUpward
+                        0 -> Icons.Outlined.AccountBalance
+                        1 -> Icons.Outlined.AccountBalanceWallet
+                        2 -> Icons.Outlined.ArrowUpward
                         else -> Icons.Outlined.ArrowDownward
                     }
                     val formattedIdx = if (valIdx >= 1000) "${(valIdx / 1000).toInt()}k" else valIdx.toInt().toString()
@@ -3199,5 +3203,4 @@ fun TesseraChatSheet(onDismiss: () -> Unit, netWorth: Double, petRoutines: List<
             titleContentColor = Color.White
         )
     }
-}
 }

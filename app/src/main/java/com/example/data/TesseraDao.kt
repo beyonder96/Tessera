@@ -11,6 +11,9 @@ interface TesseraDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTransaction(transaction: Transaction)
 
+    @Delete
+    suspend fun deleteTransaction(transaction: Transaction)
+
     @Query("SELECT * FROM market_items WHERE isBought = 0 ORDER BY orderIndex ASC")
     fun getPendingMarketItems(): Flow<List<MarketItem>>
 
@@ -40,4 +43,24 @@ interface TesseraDao {
 
     @Delete
     suspend fun deletePetEvent(event: PetEvent)
+
+    // Bank Account Queries
+    @Query("SELECT * FROM bank_accounts ORDER BY id ASC")
+    fun getAllBankAccounts(): Flow<List<BankAccount>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBankAccount(account: BankAccount)
+
+    @Delete
+    suspend fun deleteBankAccount(account: BankAccount)
+
+    // Credit Card Queries
+    @Query("SELECT * FROM credit_cards ORDER BY id ASC")
+    fun getAllCreditCards(): Flow<List<CreditCard>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCreditCard(card: CreditCard)
+
+    @Delete
+    suspend fun deleteCreditCard(card: CreditCard)
 }
