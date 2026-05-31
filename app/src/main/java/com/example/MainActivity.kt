@@ -949,6 +949,7 @@ fun MainContent(netWorth: Double, petRoutines: List<PetRoutineEntity>, mainViewM
                 "goals" -> GoalsWidget(onNavigate)
             }
         }
+        }
         
         OutlinedButton(
             onClick = { showEditSheet = true },
