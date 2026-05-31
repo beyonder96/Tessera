@@ -21,7 +21,11 @@ data class MarketItem(
     val name: String,
     val isChecked: Boolean,
     val isBought: Boolean,
-    val orderIndex: Int
+    val orderIndex: Int,
+    val quantity: Double = 1.0,
+    val unit: String = "un",
+    val price: Double = 0.0,
+    val category: String = "Geral"
 )
 
 @Entity(tableName = "pet_events")

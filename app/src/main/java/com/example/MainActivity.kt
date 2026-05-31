@@ -161,7 +161,9 @@ fun TesseraHubApp() {
                 )
             )
         ) {
-            NavHost(navController = navController, startDestination = "home", modifier = Modifier.fillMaxSize()) {
+            val contentBlur by animateDpAsState(if (isFabExpanded) 32.dp else 0.dp, tween(300))
+            Box(modifier = Modifier.fillMaxSize().blur(contentBlur)) {
+                NavHost(navController = navController, startDestination = "home", modifier = Modifier.fillMaxSize()) {
                 composable("home") {
                     HomeScreen(onNavigate = navigateAction)
                 }
@@ -244,6 +246,7 @@ fun TesseraHubApp() {
                     onNavigate = navigateAction
                 )
             }
+            } // Fecha o Box do blur
 
             // Overlay for FAB with elegant animations
             AnimatedVisibility(
@@ -255,7 +258,7 @@ fun TesseraHubApp() {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color(0xD9070909)) // Premium dark semi-translucent overlay
+                        .background(Color(0x99000000)) // Mais transparência para ver o blur do fundo
                         .clickable(
                             interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                             indication = null
@@ -294,57 +297,57 @@ fun TesseraHubApp() {
                             
                             Spacer(modifier = Modifier.height(36.dp))
                             
+                            val itemsAlpha by animateFloatAsState(if (isFabExpanded) 1f else 0f, tween(400, delayMillis = 50))
+                            val itemsOffset by animateDpAsState(if (isFabExpanded) 0.dp else 60.dp, spring(dampingRatio = 0.8f, stiffness = 150f))
+                            
                             Column(
                                 verticalArrangement = Arrangement.spacedBy(16.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                val healthAlpha by animateFloatAsState(if (isFabExpanded) 1f else 0f, tween(350, delayMillis = 50))
-                                val healthOffset by animateDpAsState(if (isFabExpanded) 0.dp else 40.dp, spring(dampingRatio = 0.82f, stiffness = 180f))
-                                PremiumGlassCard(
-                                    title = "Saúde & Corpo",
-                                    subtitle = "Monitore seu sono, prontidão e batimentos",
-                                    icon = Icons.Outlined.MonitorHeart,
-                                    iconColor = PrimaryTeal,
-                                    alpha = healthAlpha,
-                                    offsetY = healthOffset,
-                                    onClick = { navigateAction("health"); isFabExpanded = false }
-                                )
-                                
-                                val goalsAlpha by animateFloatAsState(if (isFabExpanded) 1f else 0f, tween(350, delayMillis = 150))
-                                val goalsOffset by animateDpAsState(if (isFabExpanded) 0.dp else 40.dp, spring(dampingRatio = 0.82f, stiffness = 180f))
-                                PremiumGlassCard(
-                                    title = "Metas & Hábitos",
-                                    subtitle = "Acompanhe seus objetivos diários",
-                                    icon = Icons.Outlined.Flag,
-                                    iconColor = Color(0xFFF9A826), // Gold
-                                    alpha = goalsAlpha,
-                                    offsetY = goalsOffset,
-                                    onClick = { navigateAction("goals"); isFabExpanded = false }
-                                )
-                                
-                                val petzAlpha by animateFloatAsState(if (isFabExpanded) 1f else 0f, tween(350, delayMillis = 250))
-                                val petzOffset by animateDpAsState(if (isFabExpanded) 0.dp else 40.dp, spring(dampingRatio = 0.82f, stiffness = 180f))
-                                PremiumGlassCard(
-                                    title = "Petz",
-                                    subtitle = "Gerencie a rotina e tarefas dos seus pets",
-                                    icon = Icons.Outlined.Pets,
-                                    iconColor = TertiaryPurple,
-                                    alpha = petzAlpha,
-                                    offsetY = petzOffset,
-                                    onClick = { navigateAction("petz"); isFabExpanded = false }
-                                )
-                                
-                                val aptAlpha by animateFloatAsState(if (isFabExpanded) 1f else 0f, tween(350, delayMillis = 350))
-                                val aptOffset by animateDpAsState(if (isFabExpanded) 0.dp else 40.dp, spring(dampingRatio = 0.82f, stiffness = 180f))
-                                PremiumGlassCard(
-                                    title = "Apartamento",
-                                    subtitle = "Evolução de obra em andamento",
-                                    icon = Icons.Outlined.Construction,
-                                    iconColor = SecondaryGold,
-                                    alpha = aptAlpha,
-                                    offsetY = aptOffset,
-                                    onClick = { navigateAction("apartment"); isFabExpanded = false }
-                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        PremiumGridTile(
+                                            title = "Saúde\n& Corpo",
+                                            icon = Icons.Outlined.MonitorHeart,
+                                            iconColor = PrimaryTeal,
+                                            alpha = itemsAlpha,
+                                            offsetY = itemsOffset,
+                                            onClick = { navigateAction("health"); isFabExpanded = false }
+                                        )
+                                    }
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        PremiumGridTile(
+                                            title = "Metas\n& Hábitos",
+                                            icon = Icons.Outlined.Flag,
+                                            iconColor = Color(0xFFF9A826),
+                                            alpha = itemsAlpha,
+                                            offsetY = itemsOffset,
+                                            onClick = { navigateAction("goals"); isFabExpanded = false }
+                                        )
+                                    }
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        PremiumGridTile(
+                                            title = "Meu\nApartamento",
+                                            icon = Icons.Outlined.Construction,
+                                            iconColor = SecondaryGold,
+                                            alpha = itemsAlpha,
+                                            offsetY = itemsOffset,
+                                            onClick = { navigateAction("apartment"); isFabExpanded = false }
+                                        )
+                                    }
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        PremiumGridTile(
+                                            title = "Meus\nPetz",
+                                            icon = Icons.Outlined.Pets,
+                                            iconColor = TertiaryPurple,
+                                            alpha = itemsAlpha,
+                                            offsetY = itemsOffset,
+                                            onClick = { navigateAction("petz"); isFabExpanded = false }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -498,18 +501,10 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
             alignment = Alignment.TopCenter,
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer {
-                    translationY = -parallaxOffset
-                    scaleX = depthZoom
-                    scaleY = depthZoom
-                }
         )
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer {
-                    translationY = -parallaxOffset
-                }
                 .background(
                     Brush.verticalGradient(
                         colorStops = arrayOf(
@@ -2369,7 +2364,7 @@ fun HomeFinanceWidget(transactions: List<com.example.data.Transaction>, onNaviga
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", balance)}",
+                text = "R$ ${String.format(java.util.Locale("pt", "BR"), "%,.2f", balance)}",
                 fontFamily = FontFamily.Serif,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Normal,
@@ -2391,7 +2386,7 @@ fun HomeFinanceWidget(transactions: List<com.example.data.Transaction>, onNaviga
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", totalIncome)}",
+                    text = "R$ ${String.format(java.util.Locale("pt", "BR"), "%,.2f", totalIncome)}",
                     fontFamily = FontFamily.Serif,
                     fontSize = 18.sp,
                     color = Color.White
@@ -2408,7 +2403,7 @@ fun HomeFinanceWidget(transactions: List<com.example.data.Transaction>, onNaviga
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", totalExpense)}",
+                    text = "R$ ${String.format(java.util.Locale("pt", "BR"), "%,.2f", totalExpense)}",
                     fontFamily = FontFamily.Serif,
                     fontSize = 18.sp,
                     color = Color.White
@@ -2541,12 +2536,12 @@ fun AISummaryWidget(
                                 if (balance >= 0) {
                                     append("Saldo positivo de ")
                                     pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = PrimaryTeal))
-                                    append("R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", balance)}")
+                                    append("R$ ${String.format(java.util.Locale("pt", "BR"), "%,.2f", balance)}")
                                     pop()
                                 } else {
                                     append("Saldo negativo de ")
                                     pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color(0xFFE57373)))
-                                    append("R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", Math.abs(balance))}")
+                                    append("R$ ${String.format(java.util.Locale("pt", "BR"), "%,.2f", Math.abs(balance))}")
                                     pop()
                                 }
                             },
@@ -2834,6 +2829,58 @@ fun PremiumGlassCard(
                 contentDescription = null,
                 tint = Color.White.copy(alpha = 0.3f),
                 modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+
+@Composable
+fun PremiumGridTile(
+    title: String,
+    icon: ImageVector,
+    iconColor: Color,
+    alpha: Float,
+    offsetY: Dp,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .offset(y = offsetY)
+            .alpha(alpha)
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(28.dp))
+            .then(GlassModifier)
+            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(28.dp))
+            .clickable(onClick = onClick)
+            .padding(20.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.Start
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(iconColor.copy(alpha = 0.15f))
+                    .border(1.dp, iconColor.copy(alpha = 0.3f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Text(
+                text = title,
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                lineHeight = 22.sp
             )
         }
     }

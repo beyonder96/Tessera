@@ -311,7 +311,7 @@ fun BalanceHeaderSection(
         val displayValue = when {
             activeCard != null -> activeCard.usedLimit
             activeAccount != null -> activeAccount.balance
-            else -> balance
+            else -> checkingBalance + savingsBalance + investmentBalance
         }
 
         Text(
@@ -353,7 +353,7 @@ fun BalanceHeaderSection(
                     Column {
                         Text("Corrente", fontSize = 9.sp, color = Color(0x99BDC9C6), fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text(String.format(Locale("pt", "BR"), "R$ %,.0f", checkingBalance), fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                        Text(String.format(Locale("pt", "BR"), "R$ %,.2f", checkingBalance), fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
                 // Poupança
@@ -368,7 +368,7 @@ fun BalanceHeaderSection(
                     Column {
                         Text("Poupança", fontSize = 9.sp, color = Color(0x99BDC9C6), fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text(String.format(Locale("pt", "BR"), "R$ %,.0f", savingsBalance), fontSize = 11.sp, color = Color(0xFF71D7CD), fontWeight = FontWeight.Bold)
+                        Text(String.format(Locale("pt", "BR"), "R$ %,.2f", savingsBalance), fontSize = 11.sp, color = Color(0xFF71D7CD), fontWeight = FontWeight.Bold)
                     }
                 }
                 // Investimento
@@ -383,7 +383,7 @@ fun BalanceHeaderSection(
                     Column {
                         Text("Investimento", fontSize = 9.sp, color = Color(0x99BDC9C6), fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text(String.format(Locale("pt", "BR"), "R$ %,.0f", investmentBalance), fontSize = 11.sp, color = Color(0xFFEAB308), fontWeight = FontWeight.Bold)
+                        Text(String.format(Locale("pt", "BR"), "R$ %,.2f", investmentBalance), fontSize = 11.sp, color = Color(0xFFEAB308), fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -522,7 +522,7 @@ fun CreditCardsCarousel(
                                     fontWeight = FontWeight.Medium
                                 )
                                 Text(
-                                    text = String.format(Locale("pt", "BR"), "Disp: R$ %,.0f", card.limit - card.usedLimit),
+                                    text = String.format(Locale("pt", "BR"), "Disp: R$ %,.2f", card.limit - card.usedLimit),
                                     fontSize = 11.sp,
                                     color = Color.White,
                                     fontWeight = FontWeight.SemiBold
@@ -708,12 +708,12 @@ fun FinancialScoreRing(score: Int, income: Double, expense: Double) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("RECEITAS", fontSize = 10.sp, color = Color(0x99BDC9C6), letterSpacing = 1.sp)
-                    Text(String.format(Locale("pt", "BR"), "R$ %,.0f", income), fontWeight = FontWeight.SemiBold, color = Color(0xFF71D7CD))
+                    Text(String.format(Locale("pt", "BR"), "R$ %,.2f", income), fontWeight = FontWeight.SemiBold, color = Color(0xFF71D7CD))
                 }
                 HorizontalDivider(modifier = Modifier.height(30.dp).width(1.dp), color = Color(0x33FFFFFF))
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("DESPESAS", fontSize = 10.sp, color = Color(0x99BDC9C6), letterSpacing = 1.sp)
-                    Text(String.format(Locale("pt", "BR"), "R$ %,.0f", expense), fontWeight = FontWeight.SemiBold, color = Color(0xFFEF4444))
+                    Text(String.format(Locale("pt", "BR"), "R$ %,.2f", expense), fontWeight = FontWeight.SemiBold, color = Color(0xFFEF4444))
                 }
             }
         }
@@ -1516,7 +1516,7 @@ fun ManageAccountsAndCardsDialog(
                                         }
                                     }
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(String.format(Locale("pt", "BR"), "R$ %,.0f", card.limit), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                        Text(String.format(Locale("pt", "BR"), "R$ %,.2f", card.limit), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                         Spacer(modifier = Modifier.width(12.dp))
                                         // Edit Credit Card Button
                                         IconButton(

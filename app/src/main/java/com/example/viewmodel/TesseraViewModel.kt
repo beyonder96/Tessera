@@ -135,10 +135,10 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
         }
     }
 
-    fun addMarketItem(name: String) {
+    fun addMarketItem(name: String, category: String = "Geral", price: Double = 0.0, quantity: Double = 1.0, unit: String = "un") {
         viewModelScope.launch {
             repository.insertMarketItem(
-                MarketItem(name = name, isChecked = false, isBought = false, orderIndex = 0)
+                MarketItem(name = name, isChecked = false, isBought = false, orderIndex = 0, category = category, price = price, quantity = quantity, unit = unit)
             )
         }
     }
@@ -149,9 +149,25 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
         }
     }
 
+    fun updateMarketItemDetails(item: MarketItem, price: Double, quantity: Double, unit: String) {
+        viewModelScope.launch {
+            repository.updateMarketItem(item.copy(price = price, quantity = quantity, unit = unit))
+        }
+    }
+
     fun markMarketItemBought(item: MarketItem) {
         viewModelScope.launch {
             repository.updateMarketItem(item.copy(isBought = true, isChecked = false))
+        }
+    }
+
+    fun checkoutCart() {
+        viewModelScope.launch {
+            val pending = repository.pendingMarketItems.first()
+            val inCart = pending.filter { it.isChecked }
+            inCart.forEach { item ->
+                repository.updateMarketItem(item.copy(isBought = true, isChecked = false))
+            }
         }
     }
 
