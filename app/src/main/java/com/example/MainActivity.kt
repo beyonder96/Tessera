@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -53,6 +54,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.PickVisualMediaRequest
 import android.net.Uri
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -351,6 +354,21 @@ fun TesseraHubApp() {
     }
 }
 
+fun getDatabaseSizeInKB(context: android.content.Context): String {
+    return try {
+        val dbFile = context.getDatabasePath("tessera_database.db")
+        if (dbFile.exists()) {
+            val bytes = dbFile.length()
+            val kb = bytes / 1024.0
+            String.format(java.util.Locale.US, "%.1f KB", kb)
+        } else {
+            "0 KB"
+        }
+    } catch (e: Exception) {
+        "Indisponível"
+    }
+}
+
 @Composable
 fun HomeScreen(onNavigate: (String) -> Unit) {
     val context = LocalContext.current
@@ -372,65 +390,423 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
     
     var showChatSheet by remember { mutableStateOf(false) }
 
+    val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
+    var backgroundUri by remember {
+        mutableStateOf(
+            sharedPrefs.getString("home_background_uri", "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop")
+            ?: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"
+        )
+    }
+    var showSettingsDialog by remember { mutableStateOf(false) }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val bgFile = java.io.File(context.filesDir, "custom_home_background.jpg")
+                    bgFile.outputStream().use { outputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                    val localUri = Uri.fromFile(bgFile)
+                    backgroundUri = localUri.toString()
+                    sharedPrefs.edit().putString("home_background_uri", localUri.toString()).apply()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                backgroundUri = uri.toString()
+                sharedPrefs.edit().putString("home_background_uri", uri.toString()).apply()
+            }
+        }
+    }
+
+    val exportDatabaseLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri ->
+        if (uri != null) {
+            try {
+                val dbFile = context.getDatabasePath("tessera_database.db")
+                if (dbFile.exists()) {
+                    context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                        java.io.FileInputStream(dbFile).use { inputStream ->
+                            inputStream.copyTo(outputStream)
+                        }
+                    }
+                    Toast.makeText(context, "Backup exportado com sucesso!", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(context, "Banco de dados não encontrado para exportar.", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(context, "Falha ao exportar backup: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    val importDatabaseLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val dbFile = context.getDatabasePath("tessera_database.db")
+                    dbFile.outputStream().use { outputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                    Toast.makeText(context, "Backup restaurado! Por favor, reinicie o aplicativo.", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(context, "Falha ao restaurar backup: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    val scrollState = rememberScrollState()
+
     LaunchedEffect(Unit) {
         homeViewModel.seedDatabase()
     }
 
-    Column(
+    val parallaxOffset = scrollState.value * 0.2f
+    val depthZoom = (1f + (scrollState.value * 0.00003f)).coerceIn(1.0f, 1.05f)
+    
+    val headerAlpha = (1f - (scrollState.value / 250f)).coerceIn(0f, 1f)
+    val headerScale = (1f - (scrollState.value / 1200f)).coerceIn(0.85f, 1f)
+    val headerTranslation = -scrollState.value * 0.15f
+    
+    val metricsAlpha = (1f - (scrollState.value / 400f)).coerceIn(0f, 1f)
+    val metricsScale = (1f - (scrollState.value / 1500f)).coerceIn(0.9f, 1f)
+    val metricsTranslation = -scrollState.value * 0.1f
+
+    val heroAlpha = (1f - (scrollState.value / 550f)).coerceIn(0f, 1f)
+    val heroScale = (1f - (scrollState.value / 2000f)).coerceIn(0.92f, 1f)
+    val heroTranslation = -scrollState.value * 0.08f
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF070909)) // Seamless solid black background
-            .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .background(Color(0xFF070909))
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            AsyncImage(
-                model = "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop",
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                alignment = Alignment.TopCenter,
-                modifier = Modifier.matchParentSize()
-            )
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color(0x00070909), // 0%
-                                Color(0x99070909), // 60%
-                                Color(0xFF070909),  // 100%
-                                Color(0xFF070909)   // Extra padding
-                            )
+        AsyncImage(
+            model = backgroundUri,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            alignment = Alignment.TopCenter,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(460.dp)
+                .graphicsLayer {
+                    translationY = -parallaxOffset
+                    scaleX = depthZoom
+                    scaleY = depthZoom
+                }
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(460.dp)
+                .graphicsLayer {
+                    translationY = -parallaxOffset
+                }
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0x00070909),
+                            Color(0x22070909),
+                            Color(0x88070909),
+                            Color(0xFF070909)
                         )
                     )
-            )
+                )
+        )
 
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(modifier = Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        alpha = headerAlpha
+                        scaleX = headerScale
+                        scaleY = headerScale
+                        translationY = headerTranslation
+                    }
             ) {
-                Spacer(modifier = Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
-                Spacer(modifier = Modifier.height(24.dp))
-                TopHeader()
-                Spacer(modifier = Modifier.height(32.dp))
-                TopMetricsRow(realBalance, realIncome, realExpense, onNavigate)
-                Spacer(modifier = Modifier.height(48.dp))
-                HeroMetric(onNavigate)
-                Spacer(modifier = Modifier.height(48.dp))
-                MainContent(netWorth, petRoutines, mainViewModel, onNavigate)
-                Spacer(modifier = Modifier.height(140.dp)) // Add space for bottom nav
+                TopHeader(onOpenSettings = { showSettingsDialog = true })
             }
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        alpha = metricsAlpha
+                        scaleX = metricsScale
+                        scaleY = metricsScale
+                        translationY = metricsTranslation
+                    }
+            ) {
+                TopMetricsRow(realBalance, realIncome, realExpense, onNavigate)
+            }
+            
+            Spacer(modifier = Modifier.height(48.dp))
+            
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        alpha = heroAlpha
+                        scaleX = heroScale
+                        scaleY = heroScale
+                        translationY = heroTranslation
+                    }
+            ) {
+                HeroMetric(onNavigate)
+            }
+            
+            Spacer(modifier = Modifier.height(48.dp))
+            MainContent(netWorth, petRoutines, mainViewModel, onNavigate)
+            Spacer(modifier = Modifier.height(140.dp))
         }
     }
 
     if (showChatSheet) {
         TesseraChatSheet(onDismiss = { showChatSheet = false }, netWorth = netWorth, petRoutines = petRoutines)
     }
+
+    if (showSettingsDialog) {
+        AlertDialog(
+            onDismissRequest = { showSettingsDialog = false },
+            title = {
+                Text(
+                    text = "Configurações",
+                    fontFamily = FontFamily.Serif,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = "PERSONALIZAÇÃO DE FUNDO",
+                        fontSize = 10.sp,
+                        letterSpacing = 1.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = PrimaryTeal
+                    )
+                    
+                    Text(
+                        text = "Temas Disponíveis",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        val presets = listOf(
+                            Pair("Montanha", "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"),
+                            Pair("Aurora", "https://images.unsplash.com/photo-1531366936337-7c912a4589a7?q=80&w=800&auto=format&fit=crop"),
+                            Pair("Nebulosa", "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=800&auto=format&fit=crop"),
+                            Pair("Veludo", "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop"),
+                            Pair("Estrelado", "https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?q=80&w=800&auto=format&fit=crop")
+                        )
+                        
+                        items(presets.size) { index ->
+                            val (name, url) = presets[index]
+                            val isSelected = backgroundUri == url
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier
+                                    .width(76.dp)
+                                    .clickable {
+                                        backgroundUri = url
+                                        sharedPrefs.edit().putString("home_background_uri", url).apply()
+                                    }
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(60.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .border(
+                                            width = if (isSelected) 2.dp else 1.dp,
+                                            color = if (isSelected) PrimaryTeal else Color(0x33FFFFFF),
+                                            shape = RoundedCornerShape(12.dp)
+                                        )
+                                ) {
+                                    AsyncImage(
+                                        model = url,
+                                        contentDescription = name,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = name,
+                                    fontSize = 11.sp,
+                                    color = if (isSelected) PrimaryTeal else MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.PhotoLibrary,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = Color.Black
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Galeria", color = Color.Black, fontSize = 12.sp)
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                val defaultUrl = "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"
+                                backgroundUri = defaultUrl
+                                sharedPrefs.edit().putString("home_background_uri", defaultUrl).apply()
+                            },
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33FFFFFF)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Padrão", color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "GERENCIAMENTO DE BACKUP & BANCO",
+                        fontSize = 10.sp,
+                        letterSpacing = 1.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = SecondaryGold
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0x0AFFFFFF))
+                            .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(12.dp))
+                            .padding(12.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Banco Local:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Conectado 🟢", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PrimaryTeal)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Tamanho do Banco:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(getDatabaseSizeInKB(context), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Transações Salvas:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("${transactions.size}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Rotinas de Pets:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("${petRoutines.size}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                        }
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = {
+                                exportDatabaseLauncher.launch("tessera_backup.db")
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = SecondaryGold),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.CloudUpload,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = Color.Black
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Exportar Banco de Dados", color = Color.Black, fontSize = 12.sp)
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                importDatabaseLauncher.launch(arrayOf("*/*"))
+                            },
+                            border = androidx.compose.foundation.BorderStroke(1.dp, SecondaryGold.copy(alpha = 0.5f)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.CloudDownload,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = SecondaryGold
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Restaurar Banco de Dados", color = SecondaryGold, fontSize = 12.sp)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSettingsDialog = false }) {
+                    Text("Fechar", color = PrimaryTeal)
+                }
+            },
+            containerColor = SurfaceVariantDark,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
 }
 
 @Composable
-fun TopHeader() {
+fun TopHeader(onOpenSettings: () -> Unit) {
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
     var profileUri by remember { mutableStateOf<Uri?>(null) }
@@ -448,8 +824,22 @@ fun TopHeader() {
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
-            profileUri = uri
-            sharedPrefs.edit().putString("user_profile_uri", uri.toString()).apply()
+            try {
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val profileFile = java.io.File(context.filesDir, "user_profile_photo.jpg")
+                    profileFile.outputStream().use { outputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                    val localUri = Uri.fromFile(profileFile)
+                    profileUri = localUri
+                    sharedPrefs.edit().putString("user_profile_uri", localUri.toString()).apply()
+                    Toast.makeText(context, "Foto de perfil salva com sucesso!", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                profileUri = uri
+                sharedPrefs.edit().putString("user_profile_uri", uri.toString()).apply()
+            }
         }
     }
     
@@ -462,43 +852,72 @@ fun TopHeader() {
         visible = isHeaderVisible,
         enter = fadeIn(tween(800)) + slideInVertically(initialOffsetY = { -30 }, animationSpec = tween(800, easing = FastOutSlowInEasing))
     ) {
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = 24.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            IconButton(
-                onClick = { 
-                    launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                },
-                modifier = Modifier.align(Alignment.CenterStart)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                if (profileUri != null) {
-                    AsyncImage(
-                        model = profileUri,
-                        contentDescription = "Profile",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.size(32.dp).clip(CircleShape)
-                    )
-                } else {
-                    Icon(Icons.Outlined.AccountCircle, contentDescription = "Profile", tint = MaterialTheme.colorScheme.onSurface)
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x0AFFFFFF))
+                        .border(1.dp, Color(0x1AFFFFFF), CircleShape)
+                        .clickable {
+                            launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (profileUri != null) {
+                        AsyncImage(
+                            model = profileUri,
+                            contentDescription = "Profile",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize().clip(CircleShape)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Outlined.AccountCircle,
+                            contentDescription = "Profile",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
+
+                val calendar = java.util.Calendar.getInstance()
+                val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+                val greeting = when (hour) {
+                    in 0..11 -> "Bom dia"
+                    in 12..17 -> "Boa tarde"
+                    else -> "Boa noite"
+                }
+                Text(
+                    text = "$greeting, Kenned",
+                    fontFamily = FontFamily.Serif,
+                    fontSize = 20.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Normal
+                )
             }
-            val calendar = java.util.Calendar.getInstance()
-            val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
-            val greeting = when (hour) {
-                in 0..11 -> "Bom dia"
-                in 12..17 -> "Boa tarde"
-                else -> "Boa noite"
+
+            IconButton(
+                onClick = onOpenSettings,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Settings,
+                    contentDescription = "Configurações",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(24.dp)
+                )
             }
-            Text(
-                text = "$greeting, Kenned",
-                fontFamily = FontFamily.Serif,
-                fontSize = 24.sp,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Normal,
-                modifier = Modifier.align(Alignment.Center)
-            )
         }
     }
 }
@@ -638,8 +1057,24 @@ fun MetricItem(icon: ImageVector, value: String, label: String, onClick: () -> U
             modifier = Modifier
                 .size(72.dp)
                 .clip(CircleShape)
-                .background(Color(0x0AFFFFFF))
-                .border(1.dp, Color(0x1AFFFFFF), CircleShape)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0x24FFFFFF), // Reflective top gloss
+                            Color(0x05FFFFFF)  // Frosted clear base
+                        )
+                    )
+                )
+                .border(
+                    width = 1.dp,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0x40FFFFFF), // Bright top edge bevel shine
+                            Color(0x0AFFFFFF)  // Faded bottom edge
+                        )
+                    ),
+                    shape = CircleShape
+                )
                 .clickable { onClick() },
             contentAlignment = Alignment.Center
         ) {
@@ -666,8 +1101,24 @@ fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, prog
             modifier = Modifier
                 .size(72.dp)
                 .clip(CircleShape)
-                .background(Color(0x0AFFFFFF))
-                .border(1.dp, Color(0x1AFFFFFF), CircleShape)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0x24FFFFFF),
+                            Color(0x05FFFFFF)
+                        )
+                    )
+                )
+                .border(
+                    width = 1.dp,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0x40FFFFFF),
+                            Color(0x0AFFFFFF)
+                        )
+                    ),
+                    shape = CircleShape
+                )
                 .clickable { onClick() },
             contentAlignment = Alignment.Center
         ) {
@@ -931,7 +1382,7 @@ fun MainContent(netWorth: Double, petRoutines: List<PetRoutineEntity>, mainViewM
                     }
                     "market" -> {
                         val marketItems by mainViewModel.pendingMarketItems.collectAsState()
-                        MarketCard(marketItems)
+                        MarketCard(marketItems, onNavigate)
                     }
                     "pets" -> PetsCard(petRoutines, onNavigate)
                     "system" -> {
@@ -1287,6 +1738,7 @@ fun MedItem(name: String, time: String, isChecked: Boolean, onCheckedChange: (Bo
             )
         }
     }
+}
 
 @Composable
 fun GoalsWidget(onNavigate: (String) -> Unit) {
@@ -1500,60 +1952,213 @@ fun FinanceCard(netWorth: Double) {
 }
 
 @Composable
-fun MarketCard(items: List<com.example.data.MarketItem>) {
+fun MarketCard(items: List<com.example.data.MarketItem>, onNavigate: (String) -> Unit) {
+    val totalItems = items.size
+    val completedItems = items.count { it.isChecked }
+    val pendingItems = items.count { !it.isChecked }
+    
+    val completionProgress = if (totalItems > 0) completedItems.toFloat() / totalItems.toFloat() else 0f
+    
     Column(
         modifier = GlassModifier
             .fillMaxWidth()
+            .clickable { onNavigate("market") }
             .padding(24.dp)
     ) {
+        // HEADER ROW
         Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "MERCADO",
-                fontSize = 11.sp,
-                letterSpacing = 1.5.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Icon(
-                Icons.Outlined.ShoppingCart,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                modifier = Modifier.size(18.dp)
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(PrimaryTeal.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.ShoppingCart,
+                        contentDescription = null,
+                        tint = PrimaryTeal,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = "MERCADO",
+                    fontSize = 12.sp,
+                    letterSpacing = 1.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            
+            // Completion Badge
+            if (totalItems > 0) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(PrimaryTeal.copy(alpha = 0.15f))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        text = "$completedItems/$totalItems CONCLUÍDOS",
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = PrimaryTeal,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+            }
         }
-        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
-        Spacer(modifier = Modifier.height(20.dp))
         
-        if (items.isEmpty()) {
-            Text("Nenhum item pendente", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        if (totalItems == 0) {
+            // GORGEOUS EMPTY STATE
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.CheckCircle,
+                    contentDescription = null,
+                    tint = PrimaryTeal,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .alpha(0.8f)
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "Tudo Comprado! Despensa Cheia",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Sua lista está 100% em dia. Toque para ver ou adicionar.",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
         } else {
-            items.take(3).forEach { item ->
-                MarketItem(text = item.name, isChecked = item.isChecked)
-                Spacer(modifier = Modifier.height(16.dp))
+            // LIVE PROGRESS BAR
+            Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (pendingItems > 0) "$pendingItems itens pendentes de compra" else "Todos os itens marcados!",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "${(completionProgress * 100).toInt()}%",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = PrimaryTeal
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = { completionProgress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(CircleShape),
+                    color = PrimaryTeal,
+                    trackColor = Color(0x1AFFFFFF)
+                )
+            }
+            
+            // REDESIGNED SHOPPING CAPSULES
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items.take(3).forEach { item ->
+                    MarketCardItemRow(item = item)
+                }
+            }
+            
+            // QUICK VIEW PILL FOOTER
+            if (totalItems > 3) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0x0AFFFFFF))
+                        .border(1.dp, Color(0x0DFFFFFF), RoundedCornerShape(10.dp))
+                        .padding(vertical = 8.dp, horizontal = 12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "+ ${totalItems - 3} mais itens na sua lista",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ArrowForward,
+                            contentDescription = null,
+                            tint = PrimaryTeal,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-fun MarketItem(text: String, isChecked: Boolean) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+fun MarketCardItemRow(item: com.example.data.MarketItem) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0x05FFFFFF))
+            .border(1.dp, Color(0x12FFFFFF), RoundedCornerShape(12.dp))
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Outlined.ShoppingBag,
+                contentDescription = null,
+                tint = if (item.isChecked) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else PrimaryTeal,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = item.name,
+                color = if (item.isChecked) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else Color.White,
+                textDecoration = if (item.isChecked) TextDecoration.LineThrough else TextDecoration.None,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        
         Icon(
-            if (isChecked) Icons.Outlined.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
+            imageVector = if (item.isChecked) Icons.Outlined.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
             contentDescription = null,
-            tint = if (isChecked) PrimaryTeal else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-            modifier = Modifier.size(20.dp)
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = text,
-            color = if (isChecked) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface,
-            textDecoration = if (isChecked) TextDecoration.LineThrough else TextDecoration.None,
-            fontSize = 16.sp
+            tint = if (item.isChecked) PrimaryTeal else Color(0x33FFFFFF),
+            modifier = Modifier.size(18.dp)
         )
     }
 }
@@ -1817,114 +2422,165 @@ fun AISummaryWidget(
     pendingMarketCount: Int,
     onNavigate: (String) -> Unit
 ) {
-    val currentMonthTransactions = transactions // In a real app we'd filter by current month
-    val totalIncome = currentMonthTransactions.filter { it.isIncome }.sumOf { it.value }
-    val totalExpense = currentMonthTransactions.filter { !it.isIncome }.sumOf { it.value }
-    val balance = totalIncome - totalExpense
-
-    val completedPetRoutines = petRoutines.count { it.isCompleted }
-    val totalPetRoutines = petRoutines.size
-
-    Column(
-        modifier = GlassModifier
-            .fillMaxWidth()
-            .clickable { onNavigate("home") }
-            .padding(24.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Outlined.AutoAwesome,
-                    contentDescription = null,
-                    tint = PrimaryTeal,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "RESUMO DO SISTEMA",
-                    fontSize = 11.sp,
-                    letterSpacing = 1.5.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-            Text(
-                text = "Tessera AI",
-                fontSize = 10.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = PrimaryTeal.copy(alpha = 0.8f)
-            )
+    var isExpanded by remember { mutableStateOf(false) }
+    
+    androidx.compose.animation.AnimatedContent(
+        targetState = isExpanded,
+        transitionSpec = {
+            fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
         }
-        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "Olá Kenned! Aqui está o panorama do seu ecossistema hoje:",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Color.White
-        )
-        
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            // Finance Bullet
-            Row(verticalAlignment = Alignment.Top) {
-                Text("💰 ", fontSize = 14.sp)
-                Text(
-                    text = buildAnnotatedString {
-                        append("Finanças: ")
-                        if (balance >= 0) {
-                            append("Saldo positivo de ")
-                            pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = PrimaryTeal))
-                            append("R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", balance)}")
-                            pop()
-                        } else {
-                            append("Saldo negativo de ")
-                            pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color(0xFFE57373)))
-                            append("R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", Math.abs(balance))}")
-                            pop()
-                        }
-                    },
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+    ) { expanded ->
+        if (!expanded) {
+            Row(
+                modifier = GlassModifier
+                    .fillMaxWidth()
+                    .clickable { isExpanded = true }
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Outlined.AutoAwesome,
+                        contentDescription = "Tessera AI",
+                        tint = PrimaryTeal,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "RESUMO TESSERA AI",
+                        fontSize = 11.sp,
+                        letterSpacing = 1.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Outlined.KeyboardArrowDown,
+                    contentDescription = "Expandir",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
                 )
             }
+        } else {
+            val currentMonthTransactions = transactions
+            val totalIncome = currentMonthTransactions.filter { it.isIncome }.sumOf { it.value }
+            val totalExpense = currentMonthTransactions.filter { !it.isIncome }.sumOf { it.value }
+            val balance = totalIncome - totalExpense
 
-            // Pets Bullet
-            Row(verticalAlignment = Alignment.Top) {
-                Text("🐾 ", fontSize = 14.sp)
-                Text(
-                    text = buildAnnotatedString {
-                        append("Pets: ")
-                        pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color.White))
-                        append("$completedPetRoutines de $totalPetRoutines")
-                        pop()
-                        append(" tarefas concluídas para Marie & Churchill.")
-                    },
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            val completedPetRoutines = petRoutines.count { it.isCompleted }
+            val totalPetRoutines = petRoutines.size
 
-            // Market Bullet
-            Row(verticalAlignment = Alignment.Top) {
-                Text("🛒 ", fontSize = 14.sp)
+            Column(
+                modifier = GlassModifier
+                    .fillMaxWidth()
+                    .clickable { isExpanded = false }
+                    .padding(24.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Outlined.AutoAwesome,
+                            contentDescription = null,
+                            tint = PrimaryTeal,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "RESUMO DO SISTEMA",
+                            fontSize = 11.sp,
+                            letterSpacing = 1.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "Tessera AI",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = PrimaryTeal.copy(alpha = 0.8f)
+                        )
+                        Icon(
+                            imageVector = Icons.Outlined.KeyboardArrowUp,
+                            contentDescription = "Recolher",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
+                Spacer(modifier = Modifier.height(16.dp))
+
                 Text(
-                    text = buildAnnotatedString {
-                        append("Mercado: ")
-                        pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color.White))
-                        append("$pendingMarketCount")
-                        pop()
-                        append(" itens pendentes na sua lista de compras.")
-                    },
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "Olá Kenned! Aqui está o panorama do seu ecossistema hoje:",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
                 )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Text("💰 ", fontSize = 14.sp)
+                        Text(
+                            text = buildAnnotatedString {
+                                append("Finanças: ")
+                                if (balance >= 0) {
+                                    append("Saldo positivo de ")
+                                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = PrimaryTeal))
+                                    append("R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", balance)}")
+                                    pop()
+                                } else {
+                                    append("Saldo negativo de ")
+                                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color(0xFFE57373)))
+                                    append("R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", Math.abs(balance))}")
+                                    pop()
+                                }
+                            },
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Row(verticalAlignment = Alignment.Top) {
+                        Text("🐾 ", fontSize = 14.sp)
+                        Text(
+                            text = buildAnnotatedString {
+                                append("Pets: ")
+                                pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color.White))
+                                append("$completedPetRoutines de $totalPetRoutines")
+                                pop()
+                                append(" tarefas concluídas para Marie & Churchill.")
+                            },
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Row(verticalAlignment = Alignment.Top) {
+                        Text("🛒 ", fontSize = 14.sp)
+                        Text(
+                            text = buildAnnotatedString {
+                                append("Mercado: ")
+                                pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color.White))
+                                append("$pendingMarketCount")
+                                pop()
+                                append(" itens pendentes na sua lista de compras.")
+                            },
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         }
     }
@@ -2191,6 +2847,7 @@ fun TesseraChatSheet(onDismiss: () -> Unit, netWorth: Double, petRoutines: List<
     data class ChatMessage(val id: String, val text: String, val isUser: Boolean)
     var messages by remember { mutableStateOf(listOf(ChatMessage("msg_0", "Olá! Como posso ajudar você hoje?", false))) }
     var isThinking by remember { mutableStateOf(false) }
+    var showHelpDialog by remember { mutableStateOf(false) }
 
     // Try to load model
     val modelPath = "/storage/emulated/0/Download/gemma-2b-it-cpu-int4.bin"
@@ -2251,8 +2908,45 @@ fun TesseraChatSheet(onDismiss: () -> Unit, netWorth: Double, petRoutines: List<
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
-                    Text("Tessera AI", fontFamily = FontFamily.Serif, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
-                    Text("Pronta para ajudar", fontSize = 12.sp, color = PrimaryTeal.copy(alpha = 0.8f))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Tessera AI", fontFamily = FontFamily.Serif, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        
+                        val isLocalActive = llmManager?.isLocalActive == true
+                        val badgeColor = if (isLocalActive) Color(0xFF34C759) else Color(0xFFFF9500)
+                        val badgeText = if (isLocalActive) "Gemma 2B Local" else "Simulada (Offline)"
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(badgeColor.copy(alpha = 0.15f))
+                                .border(1.dp, badgeColor.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                                .clickable { showHelpDialog = true }
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(badgeColor)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = badgeText,
+                                    fontSize = 10.sp,
+                                    color = badgeColor,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                    Text(
+                        text = if (llmManager?.isLocalActive == true) "IA executando localmente no seu dispositivo" else "Clique no badge para ativar o Gemma 2B",
+                        fontSize = 12.sp,
+                        color = if (llmManager?.isLocalActive == true) PrimaryTeal.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.5f),
+                        modifier = Modifier.clickable { if (llmManager?.isLocalActive != true) showHelpDialog = true }
+                    )
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -2407,4 +3101,103 @@ fun TesseraChatSheet(onDismiss: () -> Unit, netWorth: Double, petRoutines: List<
             }
         }
     }
+
+    if (showHelpDialog) {
+        AlertDialog(
+            onDismissRequest = { showHelpDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.Info, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Configurar Gemma 2B Local",
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        fontSize = 18.sp
+                    )
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Para usar o modelo Gemma 2B da Google 100% offline e privado no seu dispositivo, siga os passos abaixo:",
+                        fontSize = 13.sp,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                    
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "1. Baixe o modelo Gemma 2B para MediaPipe (.bin).",
+                            fontSize = 13.sp,
+                            color = Color.White.copy(alpha = 0.9f),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "2. Com um gerenciador de arquivos no seu celular, copie o arquivo .bin para a pasta privada do TesseraHub:",
+                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0x1AFFFFFF))
+                                .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(8.dp))
+                                .padding(8.dp)
+                        ) {
+                            Text(
+                                text = "Android/data/com.example/files/",
+                                fontSize = 11.sp,
+                                color = PrimaryTeal,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                        Text(
+                            text = "3. Renomeie o arquivo exatamente para:",
+                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0x1AFFFFFF))
+                                .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(8.dp))
+                                .padding(8.dp)
+                        ) {
+                            Text(
+                                text = "gemma-2b-it-cpu-int4.bin",
+                                fontSize = 11.sp,
+                                color = PrimaryTeal,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                    
+                    Text(
+                        text = "Nota: Devido às regras de Scoped Storage do Android 11+, aplicativos não conseguem acessar diretamente a pasta 'Downloads' padrão do seu sistema. Por isso, a cópia manual para a pasta interna é necessária.",
+                        fontSize = 11.sp,
+                        color = Color.White.copy(alpha = 0.5f),
+                        lineHeight = 15.sp
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { showHelpDialog = false },
+                    colors = ButtonDefaults.textButtonColors(contentColor = PrimaryTeal)
+                ) {
+                    Text("Entendido", fontWeight = FontWeight.Bold)
+                }
+            },
+            containerColor = Color(0xFF15191A),
+            textContentColor = Color.White,
+            titleContentColor = Color.White
+        )
+    }
+}
 }

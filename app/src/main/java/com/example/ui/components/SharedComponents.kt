@@ -18,17 +18,34 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
 
-// Shared GlassModifier for premium cards
+// Shared GlassModifier for premium cards (Liquid Glass)
 val PremiumGlassModifier = Modifier
-    .clip(RoundedCornerShape(32.dp))
-    .background(SurfaceGlass)
-    .border(1.dp, BorderGlass, RoundedCornerShape(32.dp))
+    .clip(RoundedCornerShape(28.dp))
+    .background(
+        Brush.verticalGradient(
+            colors = listOf(
+                Color(0x2BFFFFFF), // Glossy top glare
+                Color(0x06FFFFFF)  // Highly translucent base
+            )
+        )
+    )
+    .border(
+        width = 1.dp,
+        brush = Brush.verticalGradient(
+            colors = listOf(
+                Color(0x59FFFFFF), // Light catching bevel highlight at top
+                Color(0x08FFFFFF)  // Soft blend edge at bottom
+            )
+        ),
+        shape = RoundedCornerShape(28.dp)
+    )
 
 @Composable
 fun OuraCircularProgress(

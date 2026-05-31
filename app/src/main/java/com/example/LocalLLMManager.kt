@@ -9,20 +9,48 @@ import java.io.File
 class LocalLLMManager(private val context: Context) {
     private var llmInference: LlmInference? = null
 
-    // Prepara a IA carregando o arquivo do modelo
-    fun startInference(modelPath: String) {
-        val file = File(modelPath)
-        if (!file.exists()) {
-            println("Erro: Modelo não encontrado.")
+    // Verifica se o modelo local foi carregado com sucesso
+    val isLocalActive: Boolean
+        get() = llmInference != null
+
+    // Prepara a IA buscando o modelo em diversas pastas candidatas
+    fun startInference(preferredPath: String) {
+        val candidatePaths = listOf(
+            preferredPath,
+            File(context.getExternalFilesDir(null), "gemma-2b-it-cpu-int4.bin").absolutePath,
+            File(context.getExternalFilesDir(null), "gemma-2b-it.bin").absolutePath,
+            File(context.getExternalFilesDir(null), "gemma-2b-it-gpu-int4.bin").absolutePath,
+            File(context.filesDir, "gemma-2b-it-cpu-int4.bin").absolutePath,
+            "/storage/emulated/0/Download/gemma-2b-it-cpu-int4.bin",
+            "/storage/emulated/0/Download/gemma-2b-it.bin"
+        )
+
+        var foundPath: String? = null
+        for (path in candidatePaths) {
+            val file = File(path)
+            if (file.exists() && file.canRead()) {
+                foundPath = path
+                break
+            }
+        }
+
+        if (foundPath == null) {
+            println("Tessera AI: Nenhum modelo local encontrado nos locais padrão. Utilizando simulador.")
             return
         }
 
-        val options = LlmInference.LlmInferenceOptions.builder()
-            .setModelPath(modelPath)
-            .setMaxTokens(1024)
-            .build()
+        try {
+            val options = LlmInference.LlmInferenceOptions.builder()
+                .setModelPath(foundPath)
+                .setMaxTokens(1024)
+                .build()
 
-        llmInference = LlmInference.createFromOptions(context, options)
+            llmInference = LlmInference.createFromOptions(context, options)
+            println("Tessera AI: Modelo carregado com sucesso a partir de: $foundPath")
+        } catch (e: Exception) {
+            e.printStackTrace()
+            llmInference = null
+        }
     }
 
     // Envia a sua pergunta e gera a resposta
