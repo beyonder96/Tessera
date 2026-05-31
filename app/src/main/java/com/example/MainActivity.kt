@@ -21,9 +21,12 @@ import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -34,6 +37,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.remember
@@ -151,6 +156,7 @@ fun TesseraHubApp() {
                         Color(0xFF070909)  // Pitch black bottom
                     )
                 )
+            )
         ) {
             NavHost(navController = navController, startDestination = "home", modifier = Modifier.fillMaxSize()) {
                 composable("home") {
@@ -201,9 +207,32 @@ fun TesseraHubApp() {
                         }
                     }, viewModel = viewModel)
                 }
+                composable("apartment") {
+                    ApartmentScreen(onHomeClick = { 
+                        navController.navigate("home") {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    })
+                }
             }
 
-            Box(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = innerPadding.calculateBottomPadding())) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color(0xD9070909), // Soft vignette fading in
+                                Color(0xFF070909)  // Deep rich black base matching HomeScreen background
+                            )
+                        )
+                    )
+                    .padding(bottom = innerPadding.calculateBottomPadding())
+            ) {
                 BottomNavBar(
                     isExpanded = isFabExpanded,
                     onExpandedChange = { isFabExpanded = it },
@@ -293,13 +322,25 @@ fun TesseraHubApp() {
                                 val petzAlpha by animateFloatAsState(if (isFabExpanded) 1f else 0f, tween(350, delayMillis = 250))
                                 val petzOffset by animateDpAsState(if (isFabExpanded) 0.dp else 40.dp, spring(dampingRatio = 0.82f, stiffness = 180f))
                                 PremiumGlassCard(
-                                    title = "Marie & Churchill",
+                                    title = "Petz",
                                     subtitle = "Gerencie a rotina e tarefas dos seus pets",
                                     icon = Icons.Outlined.Pets,
                                     iconColor = TertiaryPurple,
                                     alpha = petzAlpha,
                                     offsetY = petzOffset,
                                     onClick = { navigateAction("petz"); isFabExpanded = false }
+                                )
+                                
+                                val aptAlpha by animateFloatAsState(if (isFabExpanded) 1f else 0f, tween(350, delayMillis = 350))
+                                val aptOffset by animateDpAsState(if (isFabExpanded) 0.dp else 40.dp, spring(dampingRatio = 0.82f, stiffness = 180f))
+                                PremiumGlassCard(
+                                    title = "Apartamento",
+                                    subtitle = "Evolução de obra em andamento",
+                                    icon = Icons.Outlined.Construction,
+                                    iconColor = SecondaryGold,
+                                    alpha = aptAlpha,
+                                    offsetY = aptOffset,
+                                    onClick = { navigateAction("apartment"); isFabExpanded = false }
                                 )
                             }
                         }
@@ -319,10 +360,15 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
     )
 
     val netWorth by homeViewModel.totalNetWorth.collectAsState()
+    val totalIncome by homeViewModel.totalIncome.collectAsState()
+    val totalExpense by homeViewModel.totalExpense.collectAsState()
     val petRoutines by homeViewModel.petRoutines.collectAsState()
     
-    // Pegar o viewModel principal para usar transações reais e mercado
-    val mainViewModel: TesseraViewModel = viewModel(factory = com.example.viewmodel.TesseraViewModelFactory(com.example.data.TesseraRepository(com.tesserahub.app.data.local.AppDatabase.getDatabase(context).tesseraDao())))
+    val mainViewModel: TesseraViewModel = viewModel(factory = com.example.viewmodel.TesseraViewModelFactory(com.example.data.TesseraRepository(com.example.data.AppDatabase.getDatabase(context).tesseraDao())))
+    val transactions by mainViewModel.allTransactions.collectAsState()
+    val realIncome = remember(transactions) { transactions.filter { it.isIncome }.sumOf { it.value } }
+    val realExpense = remember(transactions) { transactions.filter { !it.isIncome }.sumOf { it.value } }
+    val realBalance = realIncome - realExpense
     
     var showChatSheet by remember { mutableStateOf(false) }
 
@@ -368,7 +414,7 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
                 Spacer(modifier = Modifier.height(24.dp))
                 TopHeader()
                 Spacer(modifier = Modifier.height(32.dp))
-                TopMetricsRow(netWorth, onNavigate)
+                TopMetricsRow(realBalance, realIncome, realExpense, onNavigate)
                 Spacer(modifier = Modifier.height(48.dp))
                 HeroMetric(onNavigate)
                 Spacer(modifier = Modifier.height(48.dp))
@@ -407,59 +453,181 @@ fun TopHeader() {
         }
     }
     
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp)
+    var isHeaderVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        isHeaderVisible = true
+    }
+
+    AnimatedVisibility(
+        visible = isHeaderVisible,
+        enter = fadeIn(tween(800)) + slideInVertically(initialOffsetY = { -30 }, animationSpec = tween(800, easing = FastOutSlowInEasing))
     ) {
-        IconButton(
-            onClick = { 
-                launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            },
-            modifier = Modifier.align(Alignment.CenterStart)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
         ) {
-            if (profileUri != null) {
-                AsyncImage(
-                    model = profileUri,
-                    contentDescription = "Profile",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(32.dp).clip(CircleShape)
-                )
-            } else {
-                Icon(Icons.Outlined.AccountCircle, contentDescription = "Profile", tint = MaterialTheme.colorScheme.onSurface)
+            IconButton(
+                onClick = { 
+                    launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                },
+                modifier = Modifier.align(Alignment.CenterStart)
+            ) {
+                if (profileUri != null) {
+                    AsyncImage(
+                        model = profileUri,
+                        contentDescription = "Profile",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(32.dp).clip(CircleShape)
+                    )
+                } else {
+                    Icon(Icons.Outlined.AccountCircle, contentDescription = "Profile", tint = MaterialTheme.colorScheme.onSurface)
+                }
             }
+            val calendar = java.util.Calendar.getInstance()
+            val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+            val greeting = when (hour) {
+                in 0..11 -> "Bom dia"
+                in 12..17 -> "Boa tarde"
+                else -> "Boa noite"
+            }
+            Text(
+                text = "$greeting, Kenned",
+                fontFamily = FontFamily.Serif,
+                fontSize = 24.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Normal,
+                modifier = Modifier.align(Alignment.Center)
+            )
         }
-        val calendar = java.util.Calendar.getInstance()
-        val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
-        val greeting = when (hour) {
-            in 0..11 -> "Bom dia"
-            in 12..17 -> "Boa tarde"
-            else -> "Boa noite"
-        }
-        Text(
-            text = "$greeting, Kenned",
-            fontFamily = FontFamily.Serif,
-            fontSize = 24.sp,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.Normal,
-            modifier = Modifier.align(Alignment.Center)
-        )
     }
 }
 
 @Composable
-fun TopMetricsRow(netWorth: Double, onNavigate: (String) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly
+fun TopMetricsRow(netWorth: Double, totalIncome: Double, totalExpense: Double, onNavigate: (String) -> Unit) {
+    val context = LocalContext.current
+    val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
+    
+    // Widget 1 (Financeiro)
+    var financeIndex by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        while(true) {
+            kotlinx.coroutines.delay(5 * 60 * 1000L)
+            financeIndex = (financeIndex + 1) % 3
+        }
+    }
+
+    // Widget 2 (Saúde)
+    var healthIndex by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        while(true) {
+            kotlinx.coroutines.delay(5 * 60 * 1000L)
+            healthIndex = (healthIndex + 1) % 2
+        }
+    }
+
+    // Widget 3 (Metas)
+    var selectedGoal by remember { mutableStateOf(sharedPrefs.getString("selected_goal_type", "Atividade") ?: "Atividade") }
+    var showGoalDialog by remember { mutableStateOf(false) }
+    
+    if (showGoalDialog) {
+        AlertDialog(
+            onDismissRequest = { showGoalDialog = false },
+            title = { Text("Selecione a Meta", fontFamily = FontFamily.Serif, color = MaterialTheme.colorScheme.onSurface) },
+            text = {
+                Column {
+                    listOf("Atividade", "Tarefas Pendentes", "Ritual Diário").forEach { goal ->
+                        TextButton(onClick = { 
+                            selectedGoal = goal
+                            sharedPrefs.edit().putString("selected_goal_type", goal).apply()
+                            showGoalDialog = false 
+                        }) {
+                            Text(goal, color = MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            containerColor = SurfaceVariantDark,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+
+    // Widget 4 (Apartamento)
+    val aptProgress = sharedPrefs.getFloat("apartment_progress", 0f)
+
+    var isRowVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(100L)
+        isRowVisible = true
+    }
+
+    AnimatedVisibility(
+        visible = isRowVisible,
+        enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { 40 }, animationSpec = tween(600, easing = FastOutSlowInEasing))
     ) {
-        val formattedWorth = if (netWorth >= 1000) "${(netWorth / 1000).toInt()}k" else netWorth.toInt().toString()
-        MetricItem(Icons.Outlined.AccountBalanceWallet, formattedWorth, "PATRIMÔNIO", onClick = { onNavigate("finance") })
-        MetricItemWithProgress(Icons.Outlined.Bedtime, "82", "SAÚDE", PrimaryTeal, 0.82f, onClick = { onNavigate("health") })
-        MetricItem(Icons.Outlined.FavoriteBorder, "72", "FREQUÊNCIA", onClick = { onNavigate("health") })
-        MetricItemWithProgress(Icons.Outlined.MonitorWeight, "78", "CORPO", TertiaryPurple, 0.78f, onClick = { onNavigate("health") })
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            // Widget 1 (Financeiro) with smooth crossfade rotation!
+            Box(modifier = Modifier.width(76.dp)) {
+                Crossfade(targetState = financeIndex, animationSpec = tween(500)) { idx ->
+                    val valIdx = when(idx) {
+                        0 -> netWorth
+                        1 -> totalIncome
+                        else -> totalExpense
+                    }
+                    val labelIdx = when(idx) {
+                        0 -> "SALDO"
+                        1 -> "RECEITAS"
+                        else -> "DESPESAS"
+                    }
+                    val iconIdx = when(idx) {
+                        0 -> Icons.Outlined.AccountBalanceWallet
+                        1 -> Icons.Outlined.ArrowUpward
+                        else -> Icons.Outlined.ArrowDownward
+                    }
+                    val formattedIdx = if (valIdx >= 1000) "${(valIdx / 1000).toInt()}k" else valIdx.toInt().toString()
+                    MetricItem(iconIdx, formattedIdx, labelIdx, onClick = { onNavigate("finance") })
+                }
+            }
+
+            // Widget 2 (Saúde) with smooth crossfade rotation!
+            Box(modifier = Modifier.width(76.dp)) {
+                Crossfade(targetState = healthIndex, animationSpec = tween(500)) { idx ->
+                    val iconIdx = if (idx == 0) Icons.Outlined.Bedtime else Icons.Outlined.MonitorWeight
+                    val valIdx = if (idx == 0) "8.2h" else "75.2"
+                    val labelIdx = if (idx == 0) "SONO" else "PESO"
+                    val progressIdx = if (idx == 0) 0.82f else 0.75f
+                    val colorIdx = if (idx == 0) PrimaryTeal else TertiaryPurple
+                    MetricItemWithProgress(iconIdx, valIdx, labelIdx, colorIdx, progressIdx, onClick = { onNavigate("health") })
+                }
+            }
+
+            // Widget 3 (Metas)
+            Box(modifier = Modifier.width(76.dp)) {
+                Crossfade(targetState = selectedGoal, animationSpec = tween(500)) { goal ->
+                    val valIdx = when(goal) {
+                        "Tarefas Pendentes" -> "3"
+                        "Ritual Diário" -> "1"
+                        else -> "72"
+                    }
+                    val iconIdx = when(goal) {
+                        "Tarefas Pendentes" -> Icons.AutoMirrored.Outlined.Assignment
+                        "Ritual Diário" -> Icons.Outlined.SelfImprovement
+                        else -> Icons.AutoMirrored.Outlined.DirectionsRun
+                    }
+                    MetricItem(iconIdx, valIdx, if (goal == "Tarefas Pendentes") "TAREFAS" else goal.uppercase(), onClick = { showGoalDialog = true })
+                }
+            }
+
+            // Widget 4 (Apartamento)
+            MetricItemWithProgress(Icons.Outlined.Construction, "${(aptProgress * 100).toInt()}%", "OBRA", SecondaryGold, aptProgress, onClick = { onNavigate("apartment") })
+        }
     }
 }
 
@@ -558,121 +726,132 @@ fun HeroMetric(onNavigate: (String) -> Unit) {
         animationSpec = tween(durationMillis = 1500, easing = androidx.compose.animation.core.FastOutSlowInEasing)
     )
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .clickable { onNavigate("goals") }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+    var isHeroVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(200L)
+        isHeroVisible = true
+    }
+
+    AnimatedVisibility(
+        visible = isHeroVisible,
+        enter = fadeIn(tween(800)) + scaleIn(initialScale = 0.95f, animationSpec = tween(800, easing = FastOutSlowInEasing))
     ) {
-        BoxWithConstraints(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(180.dp),
-            contentAlignment = Alignment.BottomCenter
+                .padding(horizontal = 16.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .clickable { onNavigate("goals") }
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            val topOfArcY = 180.dp - (maxWidth / 2)
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                val topOfArcY = 180.dp - (maxWidth / 2)
 
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val strokeWidth = 3.dp.toPx()
-                val startAngle = 155f
-                val sweepAngle = 230f
-                val arcRectSize = Size(size.width, size.width)
-                val topLeft = Offset(0f, size.height - size.width / 2)
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val strokeWidth = 3.dp.toPx()
+                    val startAngle = 155f
+                    val sweepAngle = 230f
+                    val arcRectSize = Size(size.width, size.width)
+                    val topLeft = Offset(0f, size.height - size.width / 2)
 
-                // Background arc
-                drawArc(
-                    color = Color(0x33DFE3E2),
-                    startAngle = startAngle,
-                    sweepAngle = sweepAngle,
-                    useCenter = false,
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
-                    size = arcRectSize,
-                    topLeft = topLeft
-                )
-                // Progress arc
-                drawArc(
-                    color = progressColor,
-                    startAngle = startAngle,
-                    sweepAngle = sweepAngle * animatedProgress,
-                    useCenter = false,
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
-                    size = arcRectSize,
-                    topLeft = topLeft
-                )
+                    // Background arc
+                    drawArc(
+                        color = Color(0x33DFE3E2),
+                        startAngle = startAngle,
+                        sweepAngle = sweepAngle,
+                        useCenter = false,
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+                        size = arcRectSize,
+                        topLeft = topLeft
+                    )
+                    // Progress arc
+                    drawArc(
+                        color = progressColor,
+                        startAngle = startAngle,
+                        sweepAngle = sweepAngle * animatedProgress,
+                        useCenter = false,
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+                        size = arcRectSize,
+                        topLeft = topLeft
+                    )
 
-                val centerVector = Offset(size.width / 2, size.height)
-                val radius = size.width / 2
+                    val centerVector = Offset(size.width / 2, size.height)
+                    val radius = size.width / 2
 
-                // Dots
-                val angles = listOf(155f, 212.5f, 270f, 327.5f, 25f)
-                for (angle in angles) {
-                    val angleRad = Math.toRadians(angle.toDouble())
-                    val x = centerVector.x + radius * Math.cos(angleRad).toFloat()
-                    val y = centerVector.y + radius * Math.sin(angleRad).toFloat()
-                    drawCircle(color = Color(0xFFDFE3E2), radius = 2.dp.toPx(), center = Offset(x, y))
+                    // Dots
+                    val angles = listOf(155f, 212.5f, 270f, 327.5f, 25f)
+                    for (angle in angles) {
+                        val angleRad = Math.toRadians(angle.toDouble())
+                        val x = centerVector.x + radius * Math.cos(angleRad).toFloat()
+                        val y = centerVector.y + radius * Math.sin(angleRad).toFloat()
+                        drawCircle(color = Color(0xFFDFE3E2), radius = 2.dp.toPx(), center = Offset(x, y))
+                    }
+                }
+
+                // Top center icon in thin circle
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .offset(y = topOfArcY - 12.dp) // carefully centered on the arc
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x1AFFFFFF)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(bottom = 24.dp)
+                ) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = title,
+                        fontSize = 10.sp,
+                        letterSpacing = 2.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = value,
+                        fontFamily = FontFamily.Serif,
+                        fontSize = 62.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Normal,
+                        lineHeight = 72.sp
+                    )
                 }
             }
-
-            // Top center icon in thin circle
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .offset(y = topOfArcY - 12.dp) // carefully centered on the arc
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .background(Color(0x1AFFFFFF)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(12.dp)
-                )
-            }
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(bottom = 24.dp)
-            ) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = title,
-                    fontSize = 10.sp,
-                    letterSpacing = 2.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = value,
-                    fontFamily = FontFamily.Serif,
-                    fontSize = 62.sp,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Normal,
-                    lineHeight = 72.sp
-                )
-            }
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            Text(
+                text = subtitle,
+                fontFamily = FontFamily.Serif,
+                fontSize = 30.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Normal
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = subtext,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                fontSize = 15.sp,
+                lineHeight = 22.sp
+            )
         }
-        
-        Spacer(modifier = Modifier.height(32.dp))
-        Text(
-            text = subtitle,
-            fontFamily = FontFamily.Serif,
-            fontSize = 30.sp,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.Normal
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = subtext,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-            fontSize = 15.sp,
-            lineHeight = 22.sp
-        )
     }
 }
 
@@ -689,8 +868,8 @@ fun MainContent(netWorth: Double, petRoutines: List<PetRoutineEntity>, mainViewM
     val defaultModules = listOf(
         ModuleConfig("finance", "Finanças", true, 0),
         ModuleConfig("market", "Mercado", true, 1),
-        ModuleConfig("pets", "Pets", true, 2),
-        ModuleConfig("system", "Receitas e Despesas", true, 3),
+        ModuleConfig("pets", "Petz", true, 2),
+        ModuleConfig("system", "Resumo", true, 3),
         ModuleConfig("health", "Saúde Rápida", false, 4),
         ModuleConfig("goals", "Metas Diárias", false, 5)
     )
@@ -730,20 +909,44 @@ fun MainContent(netWorth: Double, petRoutines: List<PetRoutineEntity>, mainViewM
             .padding(horizontal = 24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        modules.filter { it.isVisible }.sortedBy { it.order }.forEach { module ->
-            when (module.id) {
-                "finance" -> FinanceCard(netWorth)
-                "market" -> {
-                    val marketItems by mainViewModel.pendingMarketItems.collectAsState()
-                    MarketCard(marketItems)
-                }
-                "pets" -> PetsCard(petRoutines)
-                "system" -> {
-                    val transactions by mainViewModel.allTransactions.collectAsState()
-                    HomeFinanceWidget(transactions, onNavigate)
-                }
+        val visibleModules = remember { modules.filter { it.isVisible }.sortedBy { it.order } }
+        visibleModules.forEachIndexed { index, module ->
+            var isVisible by remember { mutableStateOf(false) }
+            LaunchedEffect(module.id) {
+                kotlinx.coroutines.delay(index * 120L)
+                isVisible = true
+            }
+            AnimatedVisibility(
+                visible = isVisible,
+                enter = fadeIn(animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)) + 
+                        slideInVertically(
+                            initialOffsetY = { 60 },
+                            animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
+                        )
+            ) {
+                when (module.id) {
+                    "finance" -> {
+                        val transactions by mainViewModel.allTransactions.collectAsState()
+                        HomeFinanceWidget(transactions, onNavigate)
+                    }
+                    "market" -> {
+                        val marketItems by mainViewModel.pendingMarketItems.collectAsState()
+                        MarketCard(marketItems)
+                    }
+                    "pets" -> PetsCard(petRoutines, onNavigate)
+                    "system" -> {
+                        val transactions by mainViewModel.allTransactions.collectAsState()
+                        val marketItems by mainViewModel.pendingMarketItems.collectAsState()
+                        AISummaryWidget(
+                            netWorth = netWorth,
+                            transactions = transactions,
+                            petRoutines = petRoutines,
+                            pendingMarketCount = marketItems.size,
+                            onNavigate = onNavigate
+                        )
+                    }
                 "health" -> HealthWidget()
-                "goals" -> GoalsWidget()
+                "goals" -> GoalsWidget(onNavigate)
             }
         }
         
@@ -842,61 +1045,365 @@ fun ModuleToggleWithOrder(
 
 @Composable
 fun HealthWidget() {
+    val context = LocalContext.current
+    val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
+    val todayDate = remember {
+        java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+    }
+
+    // Reset daily check
+    var userFeeling by remember { mutableStateOf("") }
+    var isVitaminDChecked by remember { mutableStateOf(false) }
+    var isOmega3Checked by remember { mutableStateOf(false) }
+    var isMelatoninChecked by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val savedFeelingDate = sharedPrefs.getString("feeling_date", "")
+        if (savedFeelingDate == todayDate) {
+            userFeeling = sharedPrefs.getString("user_feeling", "") ?: ""
+        } else {
+            sharedPrefs.edit().putString("feeling_date", todayDate).putString("user_feeling", "").apply()
+            userFeeling = ""
+        }
+
+        val savedMedsDate = sharedPrefs.getString("meds_date", "")
+        if (savedMedsDate == todayDate) {
+            isVitaminDChecked = sharedPrefs.getBoolean("med_vitamind_taken", false)
+            isOmega3Checked = sharedPrefs.getBoolean("med_omega3_taken", false)
+            isMelatoninChecked = sharedPrefs.getBoolean("med_melatonin_taken", false)
+        } else {
+            sharedPrefs.edit()
+                .putString("meds_date", todayDate)
+                .putBoolean("med_vitamind_taken", false)
+                .putBoolean("med_omega3_taken", false)
+                .putBoolean("med_melatonin_taken", false)
+                .apply()
+            isVitaminDChecked = false
+            isOmega3Checked = false
+            isMelatoninChecked = false
+        }
+    }
+
+    var showFeelingDialog by remember { mutableStateOf(false) }
+
+    val feelings = listOf(
+        Triple("⚡", "Energizado", PrimaryTeal),
+        Triple("😌", "Calmo", SecondaryGold),
+        Triple("😴", "Cansado", TertiaryPurple),
+        Triple("🧘", "Focado", Color(0xFF64B5F6)), // Light Blue
+        Triple("😰", "Estressado", Color(0xFFE57373)) // Light Red
+    )
+
+    if (showFeelingDialog) {
+        AlertDialog(
+            onDismissRequest = { showFeelingDialog = false },
+            title = { Text("Como você está hoje?", fontFamily = FontFamily.Serif, color = MaterialTheme.colorScheme.onSurface) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    feelings.forEach { (emoji, label, color) ->
+                        TextButton(
+                            onClick = {
+                                userFeeling = "$emoji $label"
+                                sharedPrefs.edit().putString("user_feeling", userFeeling).apply()
+                                showFeelingDialog = false
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Start,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(emoji, fontSize = 20.sp)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(label, fontSize = 16.sp, color = color, fontWeight = FontWeight.Medium)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            containerColor = SurfaceVariantDark,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+
     Column(modifier = GlassModifier.fillMaxWidth().padding(24.dp)) {
+        // Header
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = "SAÚDE RÁPIDA",
                 fontSize = 11.sp,
                 letterSpacing = 1.5.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Icon(Icons.Outlined.MonitorHeart, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
+            Icon(
+                Icons.Outlined.MonitorHeart,
+                contentDescription = null,
+                tint = PrimaryTeal,
+                modifier = Modifier.size(18.dp)
+            )
         }
-        Spacer(modifier = Modifier.height(16.dp))
-        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-            Column {
-                Text("Peso Atual", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("75.2 kg", fontSize = 24.sp, fontFamily = FontFamily.Serif, color = Color.White)
+
+        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Left column: Medications checklist
+            Column(modifier = Modifier.weight(1.3f)) {
+                Text(
+                    text = "PRÓXIMAS MEDICAÇÕES",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    letterSpacing = 1.sp
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                MedItem("Vitamina D", "08:00", isVitaminDChecked) { checked ->
+                    isVitaminDChecked = checked
+                    sharedPrefs.edit().putBoolean("med_vitamind_taken", checked).apply()
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                MedItem("Omega 3", "12:00", isOmega3Checked) { checked ->
+                    isOmega3Checked = checked
+                    sharedPrefs.edit().putBoolean("med_omega3_taken", checked).apply()
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                MedItem("Melatonina", "21:30", isMelatoninChecked) { checked ->
+                    isMelatoninChecked = checked
+                    sharedPrefs.edit().putBoolean("med_melatonin_taken", checked).apply()
+                }
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Text("Sentimento", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("Energizado", fontSize = 16.sp, color = PrimaryTeal, fontWeight = FontWeight.Medium)
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Right column: How I am feeling
+            Column(
+                modifier = Modifier.weight(0.9f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "COMO ESTOU ME SENTINDO",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    letterSpacing = 0.5.sp,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (userFeeling.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x0AFFFFFF))
+                            .border(1.dp, Color(0x33FFFFFF), CircleShape)
+                            .clickable { showFeelingDialog = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Outlined.Add,
+                            contentDescription = "Adicionar Sentimento",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                } else {
+                    val matchingFeeling = feelings.firstOrNull { userFeeling.contains(it.second) }
+                    val feelingColor = matchingFeeling?.third ?: PrimaryTeal
+                    
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.clickable { showFeelingDialog = true }
+                    ) {
+                        Text(
+                            text = userFeeling.substringBefore(" "),
+                            fontSize = 32.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = userFeeling.substringAfter(" "),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = feelingColor
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-fun GoalsWidget() {
-    Column(modifier = GlassModifier.fillMaxWidth().padding(24.dp)) {
+fun MedItem(name: String, time: String, isChecked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!isChecked) },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(18.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(if (isChecked) PrimaryTeal else Color(0x1AFFFFFF))
+                .border(1.dp, if (isChecked) PrimaryTeal else Color(0x33FFFFFF), RoundedCornerShape(4.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isChecked) {
+                Icon(
+                    Icons.Default.Check,
+                    contentDescription = null,
+                    tint = Color.Black,
+                    modifier = Modifier.size(12.dp)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Column {
+            Text(
+                text = name,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = if (isChecked) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f) else Color.White,
+                style = if (isChecked) androidx.compose.ui.text.TextStyle(textDecoration = TextDecoration.LineThrough) else androidx.compose.ui.text.TextStyle.Default
+            )
+            Text(
+                text = time,
+                fontSize = 9.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            )
+        }
+    }
+
+@Composable
+fun GoalsWidget(onNavigate: (String) -> Unit) {
+    val context = LocalContext.current
+    val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
+    
+    val hydrationChecked = sharedPrefs.getBoolean("goal_hydration_checked", false)
+    val readingChecked = sharedPrefs.getBoolean("goal_reading_checked", false)
+    val mindfulnessChecked = sharedPrefs.getBoolean("goal_mindfulness_checked", true)
+
+    val completedRituais = (if (hydrationChecked) 1 else 0) + 
+                           (if (readingChecked) 1 else 0) + 
+                           (if (mindfulnessChecked) 1 else 0)
+    
+    val completedAtividades = 1 // Passos e Calorias não concluídos, Tempo Ativo concluído (45/30)
+    val totalCompleted = completedAtividades + completedRituais
+    val totalGoals = 6
+    val progress = totalCompleted.toFloat() / totalGoals.toFloat()
+
+    Column(
+        modifier = GlassModifier
+            .fillMaxWidth()
+            .clickable { onNavigate("goals") }
+            .padding(24.dp)
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = "METAS DIÁRIAS",
                 fontSize = 11.sp,
                 letterSpacing = 1.5.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Icon(Icons.Outlined.Flag, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
         }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("3 de 5 concluídas hoje", fontSize = 14.sp, color = Color.White)
-        Spacer(modifier = Modifier.height(8.dp))
-        LinearProgressIndicator(
-            progress = { 0.6f },
-            modifier = Modifier.fillMaxWidth().height(4.dp),
-            color = PrimaryTeal,
-            trackColor = Color.DarkGray
-        )
+        
+        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
+        Spacer(modifier = Modifier.height(20.dp))
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "$totalCompleted de $totalGoals concluídas hoje",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape),
+                    color = PrimaryTeal,
+                    trackColor = Color(0x1AFFFFFF)
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(20.dp))
+        
+        // Summaries of activities and rituals
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Atividades
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Outlined.DirectionsRun,
+                    contentDescription = null,
+                    tint = SecondaryGold,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Atividades: ",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "$completedAtividades de 3 concluídas",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+            }
+
+            // Rituais
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Outlined.Spa,
+                    contentDescription = null,
+                    tint = PrimaryTeal,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Rituais Diários: ",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "$completedRituais de 3 concluídos",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+            }
+        }
     }
 }
 
@@ -1051,10 +1558,11 @@ fun MarketItem(text: String, isChecked: Boolean) {
 }
 
 @Composable
-fun PetsCard(routines: List<PetRoutineEntity>) {
+fun PetsCard(routines: List<PetRoutineEntity>, onNavigate: (String) -> Unit) {
     Column(
         modifier = GlassModifier
             .fillMaxWidth()
+            .clickable { onNavigate("petz") }
             .padding(24.dp)
     ) {
         Row(
@@ -1063,10 +1571,10 @@ fun PetsCard(routines: List<PetRoutineEntity>) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "MARIE & CHURCHILL",
+                text = "PETZ",
                 fontSize = 11.sp,
                 letterSpacing = 1.5.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Icon(
@@ -1212,6 +1720,7 @@ fun HomeFinanceWidget(transactions: List<com.example.data.Transaction>, onNaviga
     val currentMonthTransactions = transactions // In a real app we'd filter by current month
     val totalIncome = currentMonthTransactions.filter { it.isIncome }.sumOf { it.value }
     val totalExpense = currentMonthTransactions.filter { !it.isIncome }.sumOf { it.value }
+    val balance = totalIncome - totalExpense
 
     Column(
         modifier = GlassModifier
@@ -1225,7 +1734,7 @@ fun HomeFinanceWidget(transactions: List<com.example.data.Transaction>, onNaviga
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "RECEITAS E DESPESAS",
+                text = "FINANÇAS E FLUXO",
                 fontSize = 11.sp,
                 letterSpacing = 1.5.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -1239,6 +1748,25 @@ fun HomeFinanceWidget(transactions: List<com.example.data.Transaction>, onNaviga
             )
         }
         Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Balance Section
+        Column(horizontalAlignment = Alignment.Start) {
+            Text(
+                text = "Saldo Geral",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", balance)}",
+                fontFamily = FontFamily.Serif,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Normal,
+                color = if (balance >= 0) PrimaryTeal else Color(0xFFE57373)
+            )
+        }
+
         Spacer(modifier = Modifier.height(20.dp))
         
         Row(
@@ -1255,7 +1783,7 @@ fun HomeFinanceWidget(transactions: List<com.example.data.Transaction>, onNaviga
                 Text(
                     text = "R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", totalIncome)}",
                     fontFamily = FontFamily.Serif,
-                    fontSize = 20.sp,
+                    fontSize = 18.sp,
                     color = Color.White
                 )
             }
@@ -1272,8 +1800,129 @@ fun HomeFinanceWidget(transactions: List<com.example.data.Transaction>, onNaviga
                 Text(
                     text = "R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", totalExpense)}",
                     fontFamily = FontFamily.Serif,
-                    fontSize = 20.sp,
+                    fontSize = 18.sp,
                     color = Color.White
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AISummaryWidget(
+    netWorth: Double,
+    transactions: List<com.example.data.Transaction>,
+    petRoutines: List<PetRoutineEntity>,
+    pendingMarketCount: Int,
+    onNavigate: (String) -> Unit
+) {
+    val currentMonthTransactions = transactions // In a real app we'd filter by current month
+    val totalIncome = currentMonthTransactions.filter { it.isIncome }.sumOf { it.value }
+    val totalExpense = currentMonthTransactions.filter { !it.isIncome }.sumOf { it.value }
+    val balance = totalIncome - totalExpense
+
+    val completedPetRoutines = petRoutines.count { it.isCompleted }
+    val totalPetRoutines = petRoutines.size
+
+    Column(
+        modifier = GlassModifier
+            .fillMaxWidth()
+            .clickable { onNavigate("home") }
+            .padding(24.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Outlined.AutoAwesome,
+                    contentDescription = null,
+                    tint = PrimaryTeal,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "RESUMO DO SISTEMA",
+                    fontSize = 11.sp,
+                    letterSpacing = 1.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            Text(
+                text = "Tessera AI",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = PrimaryTeal.copy(alpha = 0.8f)
+            )
+        }
+        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "Olá Kenned! Aqui está o panorama do seu ecossistema hoje:",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White
+        )
+        
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Finance Bullet
+            Row(verticalAlignment = Alignment.Top) {
+                Text("💰 ", fontSize = 14.sp)
+                Text(
+                    text = buildAnnotatedString {
+                        append("Finanças: ")
+                        if (balance >= 0) {
+                            append("Saldo positivo de ")
+                            pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = PrimaryTeal))
+                            append("R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", balance)}")
+                            pop()
+                        } else {
+                            append("Saldo negativo de ")
+                            pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color(0xFFE57373)))
+                            append("R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", Math.abs(balance))}")
+                            pop()
+                        }
+                    },
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Pets Bullet
+            Row(verticalAlignment = Alignment.Top) {
+                Text("🐾 ", fontSize = 14.sp)
+                Text(
+                    text = buildAnnotatedString {
+                        append("Pets: ")
+                        pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color.White))
+                        append("$completedPetRoutines de $totalPetRoutines")
+                        pop()
+                        append(" tarefas concluídas para Marie & Churchill.")
+                    },
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Market Bullet
+            Row(verticalAlignment = Alignment.Top) {
+                Text("🛒 ", fontSize = 14.sp)
+                Text(
+                    text = buildAnnotatedString {
+                        append("Mercado: ")
+                        pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color.White))
+                        append("$pendingMarketCount")
+                        pop()
+                        append(" itens pendentes na sua lista de compras.")
+                    },
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -1300,46 +1949,116 @@ fun BottomNavBar(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Main Tabs Capsule
-            Row(
+            // Main Tabs Capsule Container with ambient glow
+            Box(
                 modifier = Modifier
                     .weight(1f)
                     .height(68.dp)
-                    .clip(RoundedCornerShape(34.dp))
-                    .then(GlassModifier)
-                    .border(1.dp, Color(0x2BFFFFFF), RoundedCornerShape(34.dp))
-                    .padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
             ) {
-                NavItem(Icons.Outlined.LightMode, "Hoje", currentRoute == "home") { onNavigate("home") }
-                NavItem(Icons.Outlined.AccountBalanceWallet, "Finanças", currentRoute == "finance") { onNavigate("finance") }
-                NavItem(Icons.Outlined.Storefront, "Mercado", currentRoute == "market") { onNavigate("market") }
+                // Ambient Glow (Soft blurred shadow for elegant contrast)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 6.dp, vertical = 3.dp)
+                        .blur(10.dp)
+                        .background(Color(0x7F000000), RoundedCornerShape(34.dp))
+                )
+                
+                // Actual Capsule
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(34.dp))
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color(0xD9222625), // 85% opacity sleek top slate
+                                    Color(0xFA121414)  // 98% opacity rich deep slate
+                                )
+                            )
+                        )
+                        .border(
+                            width = 1.dp,
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color(0x40FFFFFF), // Premium glossy top highlight
+                                    Color(0x10FFFFFF)  // Faint bottom edge
+                                )
+                            ),
+                            shape = RoundedCornerShape(34.dp)
+                        )
+                        .padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    NavItem(Icons.Outlined.LightMode, "Hoje", currentRoute == "home") { onNavigate("home") }
+                    NavItem(Icons.Outlined.AccountBalanceWallet, "Finanças", currentRoute == "finance") { onNavigate("finance") }
+                    NavItem(Icons.Outlined.Storefront, "Mercado", currentRoute == "market") { onNavigate("market") }
+                }
             }
 
-            // Detached Action (+) Button
+            // Detached Action (+) Button Container with ambient glow
             Box(
-                modifier = Modifier
-                    .size(68.dp)
-                    .clip(CircleShape)
-                    .then(GlassModifier)
-                    .background(if (isExpanded) PrimaryTeal else Color.Transparent, CircleShape)
-                    .border(1.dp, if (isExpanded) PrimaryTeal.copy(alpha = 0.5f) else Color(0x2BFFFFFF), CircleShape)
-                    .clickable { onExpandedChange(!isExpanded) },
-                contentAlignment = Alignment.Center
+                modifier = Modifier.size(68.dp)
             ) {
-                val iconRotation by animateFloatAsState(
-                    targetValue = if (isExpanded) 45f else 0f,
-                    animationSpec = tween(durationMillis = 300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
-                )
-                Icon(
-                    Icons.Default.Add, 
-                    contentDescription = "Add", 
-                    tint = if (isExpanded) Color.Black else MaterialTheme.colorScheme.onSurface,
+                // Ambient Glow (Soft blurred shadow/glow for elegant contrast)
+                Box(
                     modifier = Modifier
-                        .size(24.dp)
-                        .rotate(iconRotation)
+                        .fillMaxSize()
+                        .padding(3.dp)
+                        .blur(10.dp)
+                        .background(
+                            if (isExpanded) PrimaryTeal.copy(alpha = 0.4f) else Color(0x7F000000),
+                            CircleShape
+                        )
                 )
+
+                // Actual Button
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .background(
+                            if (isExpanded) {
+                                Brush.verticalGradient(
+                                    colors = listOf(PrimaryTeal, PrimaryTeal.copy(alpha = 0.8f))
+                                )
+                            } else {
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color(0xD9222625),
+                                        Color(0xFA121414)
+                                    )
+                                )
+                            }
+                        )
+                        .border(
+                            width = 1.dp,
+                            brush = Brush.verticalGradient(
+                                colors = if (isExpanded) {
+                                    listOf(Color.White.copy(alpha = 0.6f), Color.White.copy(alpha = 0.2f))
+                                } else {
+                                    listOf(Color(0x40FFFFFF), Color(0x10FFFFFF))
+                                }
+                            ),
+                            shape = CircleShape
+                        )
+                        .clickable { onExpandedChange(!isExpanded) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    val iconRotation by animateFloatAsState(
+                        targetValue = if (isExpanded) 45f else 0f,
+                        animationSpec = tween(durationMillis = 300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                    )
+                    Icon(
+                        Icons.Default.Add, 
+                        contentDescription = "Add", 
+                        tint = if (isExpanded) Color.Black else MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .size(24.dp)
+                            .rotate(iconRotation)
+                    )
+                }
             }
         }
     }

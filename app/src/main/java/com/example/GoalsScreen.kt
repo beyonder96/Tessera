@@ -167,9 +167,12 @@ fun GoalsScreen(onHomeClick: () -> Unit) {
                     .fillMaxWidth()
                     .padding(vertical = 8.dp)
             ) {
-                var hydrationChecked by remember { mutableStateOf(false) }
-                var readingChecked by remember { mutableStateOf(false) }
-                var mindfulnessChecked by remember { mutableStateOf(true) }
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
+                
+                var hydrationChecked by remember { mutableStateOf(sharedPrefs.getBoolean("goal_hydration_checked", false)) }
+                var readingChecked by remember { mutableStateOf(sharedPrefs.getBoolean("goal_reading_checked", false)) }
+                var mindfulnessChecked by remember { mutableStateOf(sharedPrefs.getBoolean("goal_mindfulness_checked", true)) }
                 
                 RitualItem(
                     title = "Hidratação",
@@ -177,7 +180,10 @@ fun GoalsScreen(onHomeClick: () -> Unit) {
                     icon = Icons.Outlined.WaterDrop,
                     iconColor = PrimaryTeal,
                     isChecked = hydrationChecked,
-                    onToggle = { hydrationChecked = !hydrationChecked }
+                    onToggle = { 
+                        hydrationChecked = !hydrationChecked 
+                        sharedPrefs.edit().putBoolean("goal_hydration_checked", hydrationChecked).apply()
+                    }
                 )
                 HorizontalDivider(color = Color(0x1AFFFFFF), modifier = Modifier.padding(horizontal = 24.dp))
                 RitualItem(
@@ -186,7 +192,10 @@ fun GoalsScreen(onHomeClick: () -> Unit) {
                     icon = Icons.Outlined.MenuBook,
                     iconColor = SecondaryGold,
                     isChecked = readingChecked,
-                    onToggle = { readingChecked = !readingChecked }
+                    onToggle = { 
+                        readingChecked = !readingChecked 
+                        sharedPrefs.edit().putBoolean("goal_reading_checked", readingChecked).apply()
+                    }
                 )
                 HorizontalDivider(color = Color(0x1AFFFFFF), modifier = Modifier.padding(horizontal = 24.dp))
                 RitualItem(
@@ -195,7 +204,10 @@ fun GoalsScreen(onHomeClick: () -> Unit) {
                     icon = Icons.Outlined.SelfImprovement,
                     iconColor = TertiaryPurple,
                     isChecked = mindfulnessChecked,
-                    onToggle = { mindfulnessChecked = !mindfulnessChecked }
+                    onToggle = { 
+                        mindfulnessChecked = !mindfulnessChecked 
+                        sharedPrefs.edit().putBoolean("goal_mindfulness_checked", mindfulnessChecked).apply()
+                    }
                 )
             }
             

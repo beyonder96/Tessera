@@ -21,6 +21,13 @@ class HomeViewModel(private val dao: TesseraDao) : ViewModel() {
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
+    val totalIncome: StateFlow<Double> = dao.getAllFinances()
+        .map { finances -> finances.filter { it.type == "INCOME" }.sumOf { it.amount } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+
+    val totalExpense: StateFlow<Double> = dao.getAllFinances()
+        .map { finances -> finances.filter { it.type == "EXPENSE" }.sumOf { it.amount } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
     // Escuta a rotina dos pets
     val petRoutines: StateFlow<List<PetRoutineEntity>> = dao.getPetRoutines()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
