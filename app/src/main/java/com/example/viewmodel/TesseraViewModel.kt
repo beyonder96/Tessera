@@ -11,6 +11,10 @@ import com.example.data.TesseraRepository
 import com.example.data.Transaction
 import com.example.data.Habit
 import com.example.data.PurchaseGoal
+import com.example.data.HealthProfile
+import com.example.data.Medication
+import com.example.data.WeightRecord
+import com.example.data.SleepRecord
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -41,6 +45,18 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allCreditCards: StateFlow<List<CreditCard>> = repository.allCreditCards
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val healthProfile: StateFlow<HealthProfile?> = repository.healthProfile
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val allMedications: StateFlow<List<Medication>> = repository.allMedications
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allWeightRecords: StateFlow<List<WeightRecord>> = repository.allWeightRecords
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allSleepRecords: StateFlow<List<SleepRecord>> = repository.allSleepRecords
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun addTransaction(title: String, subtitle: String, value: Double, isIncome: Boolean, category: String, accountOrCardName: String = "") {
@@ -263,6 +279,18 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
         }
     }
 
+    fun updateHabit(habit: Habit) {
+        viewModelScope.launch {
+            repository.updateHabit(habit)
+        }
+    }
+
+    fun deleteHabit(habit: Habit) {
+        viewModelScope.launch {
+            repository.deleteHabit(habit)
+        }
+    }
+
     fun addPurchaseGoal(title: String, target: Double, current: Double, imageUrl: String, deadline: Long, colorHex: String) {
         viewModelScope.launch {
             repository.insertPurchaseGoal(PurchaseGoal(title = title, targetValue = target, currentValue = current, imageUrl = imageUrl, deadlineTimestamp = deadline, colorHex = colorHex))
@@ -272,6 +300,60 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
     fun updatePurchaseGoalProgress(goal: PurchaseGoal, addedValue: Double) {
         viewModelScope.launch {
             repository.updatePurchaseGoal(goal.copy(currentValue = goal.currentValue + addedValue))
+        }
+    }
+
+    fun updatePurchaseGoal(goal: PurchaseGoal) {
+        viewModelScope.launch {
+            repository.updatePurchaseGoal(goal)
+        }
+    }
+
+    fun deletePurchaseGoal(goal: PurchaseGoal) {
+        viewModelScope.launch {
+            repository.deletePurchaseGoal(goal)
+        }
+    }
+
+    // Health Methods
+    fun updateHealthProfile(heightCm: Double, targetWeightKg: Double, isHealthConnectEnabled: Boolean) {
+        viewModelScope.launch {
+            val current = repository.healthProfile.first() ?: HealthProfile()
+            repository.insertHealthProfile(current.copy(heightCm = heightCm, targetWeightKg = targetWeightKg, isHealthConnectEnabled = isHealthConnectEnabled))
+        }
+    }
+
+    fun addMedication(name: String, time: String, dosage: String, colorHex: String) {
+        viewModelScope.launch {
+            repository.insertMedication(Medication(name = name, time = time, isTaken = false, dosage = dosage, colorHex = colorHex))
+        }
+    }
+
+    fun toggleMedicationTaken(medication: Medication) {
+        viewModelScope.launch {
+            repository.updateMedication(medication.copy(isTaken = !medication.isTaken))
+        }
+    }
+
+    fun deleteMedication(medication: Medication) {
+        viewModelScope.launch {
+            repository.deleteMedication(medication)
+        }
+    }
+
+    fun addManualWeightRecord(weightKg: Double) {
+        viewModelScope.launch {
+            repository.insertWeightRecord(WeightRecord(weightKg = weightKg, timestamp = System.currentTimeMillis(), source = "manual"))
+        }
+    }
+
+    fun syncHealthConnectData(weights: List<WeightRecord>, sleeps: List<SleepRecord>) {
+        viewModelScope.launch {
+            repository.clearHealthConnectWeightRecords()
+            weights.forEach { repository.insertWeightRecord(it) }
+
+            repository.clearHealthConnectSleepRecords()
+            sleeps.forEach { repository.insertSleepRecord(it) }
         }
     }
 }

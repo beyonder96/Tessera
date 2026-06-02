@@ -42,6 +42,9 @@ fun GoalsScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
     val purchaseGoals by viewModel.allPurchaseGoals.collectAsStateWithLifecycle()
 
     var showAddPurchaseGoalDialog by remember { mutableStateOf(false) }
+    var showAddHabitDialog by remember { mutableStateOf(false) }
+    var habitToEdit by remember { mutableStateOf<Habit?>(null) }
+    var goalToEdit by remember { mutableStateOf<PurchaseGoal?>(null) }
 
     Scaffold(
         containerColor = Color(0xFF070909), // Oura deep black
@@ -67,8 +70,31 @@ fun GoalsScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showAddPurchaseGoalDialog = true }) {
-                        Icon(Icons.Outlined.Add, contentDescription = "Add Goal", tint = Color(0xFFBDC9C6))
+                    var showMenu by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Outlined.Add, contentDescription = "Adicionar", tint = Color(0xFFBDC9C6))
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false },
+                            modifier = Modifier.background(Color(0xFF141918))
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Novo Hábito", color = Color.White) },
+                                onClick = {
+                                    showMenu = false
+                                    showAddHabitDialog = true
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Nova Meta de Compra", color = Color.White) },
+                                onClick = {
+                                    showMenu = false
+                                    showAddPurchaseGoalDialog = true
+                                }
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -97,8 +123,12 @@ fun GoalsScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                     Text("Nenhum hábito configurado.", color = Color(0xFF5E6D6A), modifier = Modifier.padding(vertical = 16.dp))
                 }
             } else {
-                items(habits, key = { it.id }) { habit ->
-                    HabitCard(habit = habit, onToggle = { viewModel.toggleHabitCompleted(habit) })
+                items(habits, key = { "habit_${it.id}" }) { habit ->
+                    HabitCard(
+                        habit = habit, 
+                        onToggle = { viewModel.toggleHabitCompleted(habit) },
+                        onEditClick = { habitToEdit = habit }
+                    )
                     Spacer(modifier = Modifier.height(12.dp))
                 }
             }
@@ -115,10 +145,11 @@ fun GoalsScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                     Text("Nenhuma meta de compra configurada.", color = Color(0xFF5E6D6A), modifier = Modifier.padding(vertical = 16.dp))
                 }
             } else {
-                items(purchaseGoals, key = { it.id }) { goal ->
+                items(purchaseGoals, key = { "goal_${it.id}" }) { goal ->
                     PurchaseGoalCard(
                         goal = goal, 
-                        onAddFunds = { amount -> viewModel.updatePurchaseGoalProgress(goal, amount) }
+                        onAddFunds = { amount -> viewModel.updatePurchaseGoalProgress(goal, amount) },
+                        onEditClick = { goalToEdit = goal }
                     )
                     Spacer(modifier = Modifier.height(24.dp))
                 }
@@ -132,6 +163,46 @@ fun GoalsScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
             onSave = { title, target, current, url, deadline, color -> 
                 viewModel.addPurchaseGoal(title, target, current, url, deadline, color)
                 showAddPurchaseGoalDialog = false
+            }
+        )
+    }
+
+    if (showAddHabitDialog) {
+        AddHabitDialog(
+            onDismiss = { showAddHabitDialog = false },
+            onSave = { name, iconName, colorHex ->
+                viewModel.addHabit(name, iconName, colorHex)
+                showAddHabitDialog = false
+            }
+        )
+    }
+
+    if (habitToEdit != null) {
+        EditHabitDialog(
+            habit = habitToEdit!!,
+            onDismiss = { habitToEdit = null },
+            onSave = { updatedHabit ->
+                viewModel.updateHabit(updatedHabit)
+                habitToEdit = null
+            },
+            onDelete = { habitToDelete ->
+                viewModel.deleteHabit(habitToDelete)
+                habitToEdit = null
+            }
+        )
+    }
+
+    if (goalToEdit != null) {
+        EditPurchaseGoalDialog(
+            goal = goalToEdit!!,
+            onDismiss = { goalToEdit = null },
+            onSave = { updatedGoal ->
+                viewModel.updatePurchaseGoal(updatedGoal)
+                goalToEdit = null
+            },
+            onDelete = { goalToDelete ->
+                viewModel.deletePurchaseGoal(goalToDelete)
+                goalToEdit = null
             }
         )
     }
@@ -156,7 +227,7 @@ fun SectionHeader(title: String, icon: ImageVector) {
 }
 
 @Composable
-fun HabitCard(habit: Habit, onToggle: () -> Unit) {
+fun HabitCard(habit: Habit, onToggle: () -> Unit, onEditClick: () -> Unit) {
     val icon = when (habit.iconName) {
         "WaterDrop" -> Icons.Outlined.WaterDrop
         "MenuBook" -> Icons.Outlined.MenuBook
@@ -177,7 +248,10 @@ fun HabitCard(habit: Habit, onToggle: () -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Box(
                 modifier = Modifier
                     .size(48.dp)
@@ -204,57 +278,81 @@ fun HabitCard(habit: Habit, onToggle: () -> Unit) {
             }
         }
         
-        // Animated Checkbox
-        Box(
-            modifier = Modifier
-                .size(28.dp)
-                .clip(CircleShape)
-                .border(2.dp, if (habit.isCompleted) color else Color(0xFF3D4947), CircleShape)
-                .background(if (habit.isCompleted) color else Color.Transparent),
-            contentAlignment = Alignment.Center
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            androidx.compose.animation.AnimatedVisibility(
-                visible = habit.isCompleted,
-                enter = scaleIn(tween(300)),
-                exit = scaleOut(tween(300))
+            IconButton(onClick = onEditClick) {
+                Icon(Icons.Outlined.Edit, contentDescription = "Editar", tint = Color(0xFF81928F), modifier = Modifier.size(20.dp))
+            }
+            
+            // Animated Checkbox
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .border(2.dp, if (habit.isCompleted) color else Color(0xFF3D4947), CircleShape)
+                    .background(if (habit.isCompleted) color else Color.Transparent),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFF070909), modifier = Modifier.size(16.dp))
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = habit.isCompleted,
+                    enter = scaleIn(tween(300)),
+                    exit = scaleOut(tween(300))
+                ) {
+                    Icon(Icons.Filled.Check, contentDescription = null, tint = Color.Black, modifier = Modifier.size(16.dp))
+                }
             }
         }
     }
 }
 
 @Composable
-fun PurchaseGoalCard(goal: PurchaseGoal, onAddFunds: (Double) -> Unit) {
-    val progress = if (goal.targetValue > 0) (goal.currentValue / goal.targetValue).toFloat() else 0f
+fun PurchaseGoalCard(goal: PurchaseGoal, onAddFunds: (Double) -> Unit, onEditClick: () -> Unit) {
+    val progress = (goal.currentValue / goal.targetValue).coerceIn(0.0, 1.0)
     val color = try { Color(android.graphics.Color.parseColor(goal.colorHex)) } catch (e: Exception) { Color(0xFFF9A826) }
-    
     var showAddFunds by remember { mutableStateOf(false) }
     var fundsAmount by remember { mutableStateOf("") }
 
-    Column(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
             .then(PremiumGlassModifier)
-            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(24.dp))
+            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
-        // Image Header
-        Box(modifier = Modifier.fillMaxWidth().height(160.dp)) {
+        Box {
+            // Image Placeholder
             AsyncImage(
                 model = goal.imageUrl,
-                contentDescription = goal.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                contentDescription = null,
+                modifier = Modifier.fillMaxWidth().height(180.dp),
+                contentScale = ContentScale.Crop
             )
-            // Gradient Overlay
-            Box(modifier = Modifier.fillMaxSize().background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0x33000000), Color(0xCC070909))
-                )
-            ))
             
-            // Top Right Percentage
+            // Gradient Overlay
+            Box(modifier = Modifier.fillMaxWidth().height(180.dp).background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xFF070909)))))
+
+            // Edit button
+            IconButton(
+                onClick = onEditClick,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(16.dp)
+                    .size(36.dp)
+                    .background(Color(0x4D000000), CircleShape)
+                    .border(1.dp, Color(0x33FFFFFF), CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Edit,
+                    contentDescription = "Editar Meta",
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+            
+            // Percentage Badge
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -298,7 +396,7 @@ fun PurchaseGoalCard(goal: PurchaseGoal, onAddFunds: (Double) -> Unit) {
             Spacer(modifier = Modifier.height(16.dp))
             
             // Progress Bar
-            val animatedProgress by animateFloatAsState(targetValue = progress, animationSpec = tween(1500, easing = FastOutSlowInEasing))
+            val animatedProgress by animateFloatAsState(targetValue = progress.toFloat(), animationSpec = tween(1500, easing = FastOutSlowInEasing))
             Box(modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape).background(Color(0x1AFFFFFF))) {
                 Box(modifier = Modifier.fillMaxWidth(animatedProgress).height(6.dp).clip(CircleShape).background(color))
             }
@@ -391,6 +489,244 @@ fun AddPurchaseGoalDialog(
                 onSave(title, t, 0.0, defaultUrl, System.currentTimeMillis() + 86400000L * 30, "#F9A826")
             }) {
                 Text("Salvar", color = Color(0xFFF9A826))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar", color = Color(0xFF81928F)) }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddHabitDialog(
+    onDismiss: () -> Unit,
+    onSave: (name: String, iconName: String, colorHex: String) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var selectedIcon by remember { mutableStateOf("WaterDrop") }
+    var selectedColor by remember { mutableStateOf("#71D7CD") }
+
+    val icons = listOf(
+        "WaterDrop" to Icons.Outlined.WaterDrop,
+        "MenuBook" to Icons.Outlined.MenuBook,
+        "SelfImprovement" to Icons.Outlined.SelfImprovement,
+        "TaskAlt" to Icons.Outlined.TaskAlt
+    )
+    val colors = listOf("#71D7CD", "#F9A826", "#D7B4F3", "#FF6B6B", "#4D96FF")
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF141918),
+        title = { Text("Novo Hábito / Ritual", color = Color(0xFFDFE3E2)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                OutlinedTextField(
+                    value = name, onValueChange = { name = it }, label = { Text("Nome do Hábito", color = Color(0xFF81928F)) },
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947)), singleLine = true
+                )
+                
+                // Icon Selector
+                Column {
+                    Text("Selecione um Ícone", color = Color(0xFF81928F), fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        icons.forEach { (iconName, iconVector) ->
+                            val isSelected = selectedIcon == iconName
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isSelected) Color(0x33FFFFFF) else Color(0x0AFFFFFF))
+                                    .border(1.dp, if (isSelected) Color(0xFF71D7CD) else Color.Transparent, CircleShape)
+                                    .clickable { selectedIcon = iconName },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(iconVector, contentDescription = null, tint = if (isSelected) Color(0xFF71D7CD) else Color(0xFF81928F))
+                            }
+                        }
+                    }
+                }
+
+                // Color Selector
+                Column {
+                    Text("Selecione uma Cor", color = Color(0xFF81928F), fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        colors.forEach { hex ->
+                            val isSelected = selectedColor == hex
+                            val c = try { Color(android.graphics.Color.parseColor(hex)) } catch (e: Exception) { Color.Gray }
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(c)
+                                    .border(2.dp, if (isSelected) Color.White else Color.Transparent, CircleShape)
+                                    .clickable { selectedColor = hex }
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { if (name.isNotBlank()) onSave(name, selectedIcon, selectedColor) },
+                enabled = name.isNotBlank()
+            ) {
+                Text("Salvar", color = Color(0xFF71D7CD))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar", color = Color(0xFF81928F)) }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditHabitDialog(
+    habit: Habit,
+    onDismiss: () -> Unit,
+    onSave: (Habit) -> Unit,
+    onDelete: (Habit) -> Unit
+) {
+    var name by remember { mutableStateOf(habit.name) }
+    var selectedIcon by remember { mutableStateOf(habit.iconName) }
+    var selectedColor by remember { mutableStateOf(habit.colorHex) }
+
+    val icons = listOf(
+        "WaterDrop" to Icons.Outlined.WaterDrop,
+        "MenuBook" to Icons.Outlined.MenuBook,
+        "SelfImprovement" to Icons.Outlined.SelfImprovement,
+        "TaskAlt" to Icons.Outlined.TaskAlt
+    )
+    val colors = listOf("#71D7CD", "#F9A826", "#D7B4F3", "#FF6B6B", "#4D96FF")
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF141918),
+        title = { Text("Editar Hábito", color = Color(0xFFDFE3E2)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                OutlinedTextField(
+                    value = name, onValueChange = { name = it }, label = { Text("Nome do Hábito", color = Color(0xFF81928F)) },
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947)), singleLine = true
+                )
+                
+                // Icon Selector
+                Column {
+                    Text("Selecione um Ícone", color = Color(0xFF81928F), fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        icons.forEach { (iconName, iconVector) ->
+                            val isSelected = selectedIcon == iconName
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isSelected) Color(0x33FFFFFF) else Color(0x0AFFFFFF))
+                                    .border(1.dp, if (isSelected) Color(0xFF71D7CD) else Color.Transparent, CircleShape)
+                                    .clickable { selectedIcon = iconName },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(iconVector, contentDescription = null, tint = if (isSelected) Color(0xFF71D7CD) else Color(0xFF81928F))
+                            }
+                        }
+                    }
+                }
+
+                // Color Selector
+                Column {
+                    Text("Selecione uma Cor", color = Color(0xFF81928F), fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        colors.forEach { hex ->
+                            val isSelected = selectedColor == hex
+                            val c = try { Color(android.graphics.Color.parseColor(hex)) } catch (e: Exception) { Color.Gray }
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(c)
+                                    .border(2.dp, if (isSelected) Color.White else Color.Transparent, CircleShape)
+                                    .clickable { selectedColor = hex }
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = { onDelete(habit) }) {
+                    Text("Excluir", color = Color(0xFFFF5252))
+                }
+                TextButton(
+                    onClick = { if (name.isNotBlank()) onSave(habit.copy(name = name, iconName = selectedIcon, colorHex = selectedColor)) },
+                    enabled = name.isNotBlank()
+                ) {
+                    Text("Salvar", color = Color(0xFF71D7CD))
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar", color = Color(0xFF81928F)) }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditPurchaseGoalDialog(
+    goal: PurchaseGoal,
+    onDismiss: () -> Unit,
+    onSave: (PurchaseGoal) -> Unit,
+    onDelete: (PurchaseGoal) -> Unit
+) {
+    var title by remember { mutableStateOf(goal.title) }
+    var target by remember { mutableStateOf(goal.targetValue.toString()) }
+    var current by remember { mutableStateOf(goal.currentValue.toString()) }
+    var url by remember { mutableStateOf(goal.imageUrl) }
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF141918),
+        title = { Text("Editar Meta de Compra", color = Color(0xFFDFE3E2)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = title, onValueChange = { title = it }, label = { Text("O que você deseja comprar?", color = Color(0xFF81928F)) },
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947)), singleLine = true
+                )
+                OutlinedTextField(
+                    value = target, onValueChange = { target = it }, label = { Text("Valor Alvo (R$)", color = Color(0xFF81928F)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947)), singleLine = true
+                )
+                OutlinedTextField(
+                    value = current, onValueChange = { current = it }, label = { Text("Valor Atual Salvo (R$)", color = Color(0xFF81928F)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947)), singleLine = true
+                )
+                OutlinedTextField(
+                    value = url, onValueChange = { url = it }, label = { Text("URL da Imagem", color = Color(0xFF81928F)) },
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947)), singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = { onDelete(goal) }) {
+                    Text("Excluir", color = Color(0xFFFF5252))
+                }
+                TextButton(onClick = {
+                    val t = target.replace(",", ".").toDoubleOrNull() ?: goal.targetValue
+                    val c = current.replace(",", ".").toDoubleOrNull() ?: goal.currentValue
+                    onSave(goal.copy(title = title, targetValue = t, currentValue = c, imageUrl = url))
+                }) {
+                    Text("Salvar", color = Color(0xFFF9A826))
+                }
             }
         },
         dismissButton = {

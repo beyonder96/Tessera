@@ -89,4 +89,44 @@ interface TesseraDao {
 
     @Delete
     suspend fun deletePurchaseGoal(goal: PurchaseGoal)
+
+    // Health Profile
+    @Query("SELECT * FROM health_profile WHERE id = 1")
+    fun getHealthProfile(): Flow<HealthProfile?>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertHealthProfile(profile: HealthProfile)
+
+    // Medications
+    @Query("SELECT * FROM medications ORDER BY time ASC")
+    fun getAllMedications(): Flow<List<Medication>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMedication(medication: Medication)
+
+    @Update
+    suspend fun updateMedication(medication: Medication)
+
+    @Delete
+    suspend fun deleteMedication(medication: Medication)
+
+    // Weight Records
+    @Query("SELECT * FROM weight_records ORDER BY timestamp ASC")
+    fun getAllWeightRecords(): Flow<List<WeightRecord>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertWeightRecord(record: WeightRecord)
+
+    @Query("DELETE FROM weight_records WHERE source = 'Health Connect'")
+    suspend fun clearHealthConnectWeightRecords()
+
+    // Sleep Records
+    @Query("SELECT * FROM sleep_records ORDER BY endTime DESC")
+    fun getAllSleepRecords(): Flow<List<SleepRecord>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSleepRecord(record: SleepRecord)
+
+    @Query("DELETE FROM sleep_records WHERE source = 'Health Connect'")
+    suspend fun clearHealthConnectSleepRecords()
 }

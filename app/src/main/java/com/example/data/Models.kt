@@ -79,3 +79,38 @@ data class PurchaseGoal(
     val deadlineTimestamp: Long,
     val colorHex: String
 )
+
+@Entity(tableName = "health_profile")
+data class HealthProfile(
+    @PrimaryKey val id: Int = 1, // Single row profile
+    val heightCm: Double = 0.0,
+    val targetWeightKg: Double = 0.0,
+    val isHealthConnectEnabled: Boolean = false
+)
+
+@Entity(tableName = "medications")
+data class Medication(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val name: String,
+    val time: String,
+    val isTaken: Boolean,
+    val dosage: String,
+    val colorHex: String
+)
+
+@Entity(tableName = "weight_records")
+data class WeightRecord(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val weightKg: Double,
+    val timestamp: Long,
+    val source: String // e.g., "manual", "Health Connect"
+)
+
+@Entity(tableName = "sleep_records")
+data class SleepRecord(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val startTime: Long,
+    val endTime: Long,
+    val durationHours: Double,
+    val source: String // e.g., "manual", "Health Connect"
+)

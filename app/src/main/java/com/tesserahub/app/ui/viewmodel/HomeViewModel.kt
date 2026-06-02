@@ -32,21 +32,7 @@ class HomeViewModel(private val dao: TesseraDao) : ViewModel() {
     val petRoutines: StateFlow<List<PetRoutineEntity>> = dao.getPetRoutines()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Adicionar dados de teste se o banco estiver vazio
-    fun seedDatabase() {
-        viewModelScope.launch {
-            // Nota: Em um app real, verificaríamos se o banco está vazio primeiro
-            dao.insertFinance(
-                FinanceEntity(description = "Saldo Inicial", amount = 45230.0, type = "INCOME", timestamp = System.currentTimeMillis())
-            )
-            dao.insertPetRoutine(
-                PetRoutineEntity(petName = "Marie", task = "Passeio Matinal", time = "08:30 AM", isCompleted = true)
-            )
-            dao.insertPetRoutine(
-                PetRoutineEntity(petName = "Churchill", task = "Refeição", time = "06:00 PM", isCompleted = false)
-            )
-        }
-    }
+
 
     // Adicionar transação de teste
     fun addTestFinance() {

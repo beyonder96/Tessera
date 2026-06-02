@@ -89,4 +89,21 @@ class TesseraRepository(private val dao: TesseraDao) {
     suspend fun deletePurchaseGoal(goal: PurchaseGoal) {
         dao.deletePurchaseGoal(goal)
     }
+
+    // Health
+    val healthProfile: Flow<HealthProfile?> = dao.getHealthProfile()
+    val allMedications: Flow<List<Medication>> = dao.getAllMedications()
+    val allWeightRecords: Flow<List<WeightRecord>> = dao.getAllWeightRecords()
+    val allSleepRecords: Flow<List<SleepRecord>> = dao.getAllSleepRecords()
+
+    suspend fun insertHealthProfile(profile: HealthProfile) = dao.insertHealthProfile(profile)
+    suspend fun insertMedication(medication: Medication) = dao.insertMedication(medication)
+    suspend fun updateMedication(medication: Medication) = dao.updateMedication(medication)
+    suspend fun deleteMedication(medication: Medication) = dao.deleteMedication(medication)
+    
+    suspend fun insertWeightRecord(record: WeightRecord) = dao.insertWeightRecord(record)
+    suspend fun clearHealthConnectWeightRecords() = dao.clearHealthConnectWeightRecords()
+    
+    suspend fun insertSleepRecord(record: SleepRecord) = dao.insertSleepRecord(record)
+    suspend fun clearHealthConnectSleepRecords() = dao.clearHealthConnectSleepRecords()
 }

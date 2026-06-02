@@ -761,9 +761,22 @@ fun EditPetDialog(
     var age by remember { mutableStateOf(currentAge) }
     var photoString by remember { mutableStateOf(currentPhoto) }
 
+    val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
-            photoString = uri.toString()
+            try {
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val fileName = "pet_photo_${petName.lowercase()}_${System.currentTimeMillis()}.jpg"
+                    val profileFile = java.io.File(context.filesDir, fileName)
+                    profileFile.outputStream().use { outputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                    val localUri = Uri.fromFile(profileFile)
+                    photoString = localUri.toString()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 

@@ -100,7 +100,11 @@ import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.components.OuraCircularProgress
 import androidx.compose.ui.draw.alpha
 
-class MainActivity : ComponentActivity() {
+import androidx.fragment.app.FragmentActivity
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
+
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -117,6 +121,16 @@ val GlassModifier = PremiumGlassModifier
 @Composable
 fun TesseraHubApp() {
     val context = LocalContext.current
+    val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
+    var isBiometricEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("biometric_enabled", false)) }
+    var isUnlocked by remember { mutableStateOf(!isBiometricEnabled) }
+
+    if (!isUnlocked) {
+        LockScreen(onUnlocked = { isUnlocked = true })
+        return
+    }
+
+
     val database = remember { AppDatabase.getDatabase(context) }
     val repository = remember { TesseraRepository(database.tesseraDao()) }
     val viewModel: TesseraViewModel = viewModel(factory = TesseraViewModelFactory(repository))
@@ -167,6 +181,11 @@ fun TesseraHubApp() {
                 composable("home") {
                     HomeScreen(onNavigate = navigateAction)
                 }
+                composable("settings") {
+                    SettingsScreen(viewModel = viewModel, onBack = { 
+                        navController.popBackStack()
+                    })
+                }
                 composable("finance") {
                     FinanceScreen(onHomeClick = { 
                         navController.navigate("home") {
@@ -177,7 +196,7 @@ fun TesseraHubApp() {
                     }, viewModel = viewModel)
                 }
                 composable("health") {
-                    HealthScreen(onHomeClick = { 
+                    HealthScreen(viewModel = viewModel, onHomeClick = { 
                         navController.navigate("home") {
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                             launchSingleTop = true
@@ -383,9 +402,13 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
     val netWorth by homeViewModel.totalNetWorth.collectAsState()
     val totalIncome by homeViewModel.totalIncome.collectAsState()
     val totalExpense by homeViewModel.totalExpense.collectAsState()
-    val petRoutines by homeViewModel.petRoutines.collectAsState()
     
     val mainViewModel: TesseraViewModel = viewModel(factory = com.example.viewmodel.TesseraViewModelFactory(com.example.data.TesseraRepository(com.example.data.AppDatabase.getDatabase(context).tesseraDao())))
+    val petEvents by mainViewModel.allPetEvents.collectAsState(initial = emptyList())
+    
+    val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
+    var isBiometricEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("biometric_enabled", false)) }
+    
     val transactions by mainViewModel.allTransactions.collectAsState()
     val bankAccounts by mainViewModel.allBankAccounts.collectAsState()
     val realIncome = remember(transactions) { transactions.filter { it.isIncome }.sumOf { it.value } }
@@ -395,83 +418,17 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
     
     var showChatSheet by remember { mutableStateOf(false) }
 
-    val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
     var backgroundUri by remember {
         mutableStateOf(
             sharedPrefs.getString("home_background_uri", "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop")
             ?: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"
         )
     }
-    var showSettingsDialog by remember { mutableStateOf(false) }
-
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        if (uri != null) {
-            try {
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    val bgFile = java.io.File(context.filesDir, "custom_home_background.jpg")
-                    bgFile.outputStream().use { outputStream ->
-                        inputStream.copyTo(outputStream)
-                    }
-                    val localUri = Uri.fromFile(bgFile)
-                    backgroundUri = localUri.toString()
-                    sharedPrefs.edit().putString("home_background_uri", localUri.toString()).apply()
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                backgroundUri = uri.toString()
-                sharedPrefs.edit().putString("home_background_uri", uri.toString()).apply()
-            }
-        }
-    }
-
-    val exportDatabaseLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/octet-stream")
-    ) { uri ->
-        if (uri != null) {
-            try {
-                val dbFile = context.getDatabasePath("tessera_database.db")
-                if (dbFile.exists()) {
-                    context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                        java.io.FileInputStream(dbFile).use { inputStream ->
-                            inputStream.copyTo(outputStream)
-                        }
-                    }
-                    Toast.makeText(context, "Backup exportado com sucesso!", Toast.LENGTH_LONG).show()
-                } else {
-                    Toast.makeText(context, "Banco de dados não encontrado para exportar.", Toast.LENGTH_LONG).show()
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                Toast.makeText(context, "Falha ao exportar backup: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-
-    val importDatabaseLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri != null) {
-            try {
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    val dbFile = context.getDatabasePath("tessera_database.db")
-                    dbFile.outputStream().use { outputStream ->
-                        inputStream.copyTo(outputStream)
-                    }
-                    Toast.makeText(context, "Backup restaurado! Por favor, reinicie o aplicativo.", Toast.LENGTH_LONG).show()
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                Toast.makeText(context, "Falha ao restaurar backup: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
-            }
-        }
-    }
 
     val scrollState = rememberScrollState()
 
     LaunchedEffect(Unit) {
-        homeViewModel.seedDatabase()
+        // removed seedDatabase
     }
 
     val parallaxOffset = scrollState.value * 0.2f
@@ -537,7 +494,7 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
                         translationY = headerTranslation
                     }
             ) {
-                TopHeader(onOpenSettings = { showSettingsDialog = true })
+                TopHeader(onOpenSettings = { onNavigate("settings") })
             }
             
             Spacer(modifier = Modifier.height(32.dp))
@@ -573,233 +530,13 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
             }
             
             Spacer(modifier = Modifier.height(48.dp))
-            MainContent(netWorth, petRoutines, mainViewModel, onNavigate)
+            MainContent(netWorth, petEvents, mainViewModel, onNavigate)
             Spacer(modifier = Modifier.height(140.dp))
         }
     }
 
     if (showChatSheet) {
-        TesseraChatSheet(onDismiss = { showChatSheet = false }, netWorth = netWorth, petRoutines = petRoutines)
-    }
-
-    if (showSettingsDialog) {
-        AlertDialog(
-            onDismissRequest = { showSettingsDialog = false },
-            title = {
-                Text(
-                    text = "Configurações",
-                    fontFamily = FontFamily.Serif,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Text(
-                        text = "PERSONALIZAÇÃO DE FUNDO",
-                        fontSize = 10.sp,
-                        letterSpacing = 1.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = PrimaryTeal
-                    )
-                    
-                    Text(
-                        text = "Temas Disponíveis",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        val presets = listOf(
-                            Pair("Montanha", "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"),
-                            Pair("Aurora", "https://images.unsplash.com/photo-1531366936337-7c912a4589a7?q=80&w=800&auto=format&fit=crop"),
-                            Pair("Nebulosa", "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=800&auto=format&fit=crop"),
-                            Pair("Veludo", "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop"),
-                            Pair("Estrelado", "https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?q=80&w=800&auto=format&fit=crop")
-                        )
-                        
-                        items(presets.size) { index ->
-                            val (name, url) = presets[index]
-                            val isSelected = backgroundUri == url
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier
-                                    .width(76.dp)
-                                    .clickable {
-                                        backgroundUri = url
-                                        sharedPrefs.edit().putString("home_background_uri", url).apply()
-                                    }
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(60.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .border(
-                                            width = if (isSelected) 2.dp else 1.dp,
-                                            color = if (isSelected) PrimaryTeal else Color(0x33FFFFFF),
-                                            shape = RoundedCornerShape(12.dp)
-                                        )
-                                ) {
-                                    AsyncImage(
-                                        model = url,
-                                        contentDescription = name,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = name,
-                                    fontSize = 11.sp,
-                                    color = if (isSelected) PrimaryTeal else MaterialTheme.colorScheme.onSurface,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                )
-                            }
-                        }
-                    }
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.PhotoLibrary,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = Color.Black
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Galeria", color = Color.Black, fontSize = 12.sp)
-                        }
-
-                        OutlinedButton(
-                            onClick = {
-                                val defaultUrl = "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"
-                                backgroundUri = defaultUrl
-                                sharedPrefs.edit().putString("home_background_uri", defaultUrl).apply()
-                            },
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33FFFFFF)),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Padrão", color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "GERENCIAMENTO DE BACKUP & BANCO",
-                        fontSize = 10.sp,
-                        letterSpacing = 1.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = SecondaryGold
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0x0AFFFFFF))
-                            .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(12.dp))
-                            .padding(12.dp)
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Banco Local:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("Conectado 🟢", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PrimaryTeal)
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Tamanho do Banco:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(getDatabaseSizeInKB(context), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Transações Salvas:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("${transactions.size}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Rotinas de Pets:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("${petRoutines.size}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                            }
-                        }
-                    }
-
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            onClick = {
-                                exportDatabaseLauncher.launch("tessera_backup.db")
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = SecondaryGold),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.CloudUpload,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = Color.Black
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Exportar Banco de Dados", color = Color.Black, fontSize = 12.sp)
-                        }
-
-                        OutlinedButton(
-                            onClick = {
-                                importDatabaseLauncher.launch(arrayOf("*/*"))
-                            },
-                            border = androidx.compose.foundation.BorderStroke(1.dp, SecondaryGold.copy(alpha = 0.5f)),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.CloudDownload,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = SecondaryGold
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Restaurar Banco de Dados", color = SecondaryGold, fontSize = 12.sp)
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showSettingsDialog = false }) {
-                    Text("Fechar", color = PrimaryTeal)
-                }
-            },
-            containerColor = SurfaceVariantDark,
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
-            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        TesseraChatSheet(onDismiss = { showChatSheet = false }, netWorth = netWorth, petEvents = petEvents)
     }
 }
 
@@ -1288,7 +1025,7 @@ data class ModuleConfig(val id: String, val name: String, var isVisible: Boolean
 
 @androidx.compose.material3.ExperimentalMaterial3Api
 @Composable
-fun MainContent(netWorth: Double, petRoutines: List<PetRoutineEntity>, mainViewModel: com.example.viewmodel.TesseraViewModel, onNavigate: (String) -> Unit) {
+fun MainContent(netWorth: Double, petEvents: List<com.example.data.PetEvent>, mainViewModel: com.example.viewmodel.TesseraViewModel, onNavigate: (String) -> Unit) {
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
     var showEditSheet by remember { mutableStateOf(false) }
@@ -1361,20 +1098,32 @@ fun MainContent(netWorth: Double, petRoutines: List<PetRoutineEntity>, mainViewM
                         val marketItems by mainViewModel.pendingMarketItems.collectAsState()
                         MarketCard(marketItems, onNavigate)
                     }
-                    "pets" -> PetsCard(petRoutines, onNavigate)
+                    "pets" -> PetsCard(petEvents, onNavigate)
                     "system" -> {
                         val transactions by mainViewModel.allTransactions.collectAsState()
                         val marketItems by mainViewModel.pendingMarketItems.collectAsState()
                         AISummaryWidget(
                             netWorth = netWorth,
                             transactions = transactions,
-                            petRoutines = petRoutines,
+                            petEvents = petEvents,
                             pendingMarketCount = marketItems.size,
                             onNavigate = onNavigate
                         )
                     }
-                "health" -> HealthWidget()
-                "goals" -> GoalsWidget(onNavigate)
+                "health" -> {
+                    val medications by mainViewModel.allMedications.collectAsState()
+                    HealthWidget(medications = medications, onToggleMedication = { med -> mainViewModel.toggleMedicationTaken(med) })
+                }
+                "goals" -> {
+                    val habits by mainViewModel.allHabits.collectAsState(initial = emptyList())
+                    val purchaseGoals by mainViewModel.allPurchaseGoals.collectAsState(initial = emptyList())
+                    GoalsWidget(
+                        habits = habits,
+                        purchaseGoals = purchaseGoals,
+                        onToggleHabit = { habit -> mainViewModel.toggleHabitCompleted(habit) },
+                        onNavigate = onNavigate
+                    )
+                }
             }
         }
         }
@@ -1473,18 +1222,17 @@ fun ModuleToggleWithOrder(
 }
 
 @Composable
-fun HealthWidget() {
+fun HealthWidget(
+    medications: List<com.example.data.Medication>,
+    onToggleMedication: (com.example.data.Medication) -> Unit
+) {
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
     val todayDate = remember {
         java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
     }
 
-    // Reset daily check
     var userFeeling by remember { mutableStateOf("") }
-    var isVitaminDChecked by remember { mutableStateOf(false) }
-    var isOmega3Checked by remember { mutableStateOf(false) }
-    var isMelatoninChecked by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val savedFeelingDate = sharedPrefs.getString("feeling_date", "")
@@ -1493,23 +1241,6 @@ fun HealthWidget() {
         } else {
             sharedPrefs.edit().putString("feeling_date", todayDate).putString("user_feeling", "").apply()
             userFeeling = ""
-        }
-
-        val savedMedsDate = sharedPrefs.getString("meds_date", "")
-        if (savedMedsDate == todayDate) {
-            isVitaminDChecked = sharedPrefs.getBoolean("med_vitamind_taken", false)
-            isOmega3Checked = sharedPrefs.getBoolean("med_omega3_taken", false)
-            isMelatoninChecked = sharedPrefs.getBoolean("med_melatonin_taken", false)
-        } else {
-            sharedPrefs.edit()
-                .putString("meds_date", todayDate)
-                .putBoolean("med_vitamind_taken", false)
-                .putBoolean("med_omega3_taken", false)
-                .putBoolean("med_melatonin_taken", false)
-                .apply()
-            isVitaminDChecked = false
-            isOmega3Checked = false
-            isMelatoninChecked = false
         }
     }
 
@@ -1598,19 +1329,18 @@ fun HealthWidget() {
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
-                MedItem("Vitamina D", "08:00", isVitaminDChecked) { checked ->
-                    isVitaminDChecked = checked
-                    sharedPrefs.edit().putBoolean("med_vitamind_taken", checked).apply()
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                MedItem("Omega 3", "12:00", isOmega3Checked) { checked ->
-                    isOmega3Checked = checked
-                    sharedPrefs.edit().putBoolean("med_omega3_taken", checked).apply()
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                MedItem("Melatonina", "21:30", isMelatoninChecked) { checked ->
-                    isMelatoninChecked = checked
-                    sharedPrefs.edit().putBoolean("med_melatonin_taken", checked).apply()
+                if (medications.isEmpty()) {
+                    Text("Nenhuma medicação agendada.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                } else {
+                    medications.take(3).forEach { med ->
+                        MedItem(med.name, med.time, med.isTaken) { _ ->
+                            onToggleMedication(med)
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                    if (medications.size > 3) {
+                        Text("+ ${medications.size - 3} mais", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
+                    }
                 }
             }
 
@@ -1718,22 +1448,21 @@ fun MedItem(name: String, time: String, isChecked: Boolean, onCheckedChange: (Bo
 }
 
 @Composable
-fun GoalsWidget(onNavigate: (String) -> Unit) {
-    val context = LocalContext.current
-    val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
+fun GoalsWidget(
+    habits: List<com.example.data.Habit>,
+    purchaseGoals: List<com.example.data.PurchaseGoal>,
+    onToggleHabit: (com.example.data.Habit) -> Unit,
+    onNavigate: (String) -> Unit
+) {
+    val completedRituais = habits.count { it.isCompleted }
+    val totalRituais = habits.size
     
-    val hydrationChecked = sharedPrefs.getBoolean("goal_hydration_checked", false)
-    val readingChecked = sharedPrefs.getBoolean("goal_reading_checked", false)
-    val mindfulnessChecked = sharedPrefs.getBoolean("goal_mindfulness_checked", true)
-
-    val completedRituais = (if (hydrationChecked) 1 else 0) + 
-                           (if (readingChecked) 1 else 0) + 
-                           (if (mindfulnessChecked) 1 else 0)
+    val completedMetas = purchaseGoals.count { it.currentValue >= it.targetValue }
+    val totalMetas = purchaseGoals.size
     
-    val completedAtividades = 1 // Passos e Calorias não concluídos, Tempo Ativo concluído (45/30)
-    val totalCompleted = completedAtividades + completedRituais
-    val totalGoals = 6
-    val progress = totalCompleted.toFloat() / totalGoals.toFloat()
+    val totalCompleted = completedMetas + completedRituais
+    val totalGoals = totalMetas + totalRituais
+    val progress = if (totalGoals > 0) totalCompleted.toFloat() / totalGoals.toFloat() else 0f
 
     Column(
         modifier = GlassModifier
@@ -1780,58 +1509,154 @@ fun GoalsWidget(onNavigate: (String) -> Unit) {
             }
         }
         
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(24.dp))
         
         // Summaries of activities and rituals
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            // Atividades
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            // Metas de Compra (Lista de Desejos)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    Icons.AutoMirrored.Outlined.DirectionsRun,
+                    Icons.Outlined.StarBorder,
                     contentDescription = null,
                     tint = SecondaryGold,
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Atividades: ",
+                    text = "Lista de Desejos: ",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "$completedAtividades de 3 concluídas",
+                    text = "$completedMetas de $totalMetas concluídos",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White
                 )
             }
 
-            // Rituais
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Outlined.Spa,
-                    contentDescription = null,
-                    tint = PrimaryTeal,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Rituais Diários: ",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "$completedRituais de 3 concluídos",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White
-                )
+            // Rituais Header and checklist
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Outlined.Spa,
+                            contentDescription = null,
+                            tint = PrimaryTeal,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Rituais Diários: ",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "$completedRituais de $totalRituais concluídos",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                    }
+                    
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        contentDescription = "Ver tudo",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                if (habits.isEmpty()) {
+                    Text(
+                        text = "Nenhum ritual configurado para hoje.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(start = 24.dp, top = 4.dp)
+                    )
+                } else {
+                    // Render a compact list of habits with direct interactive checkboxes
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+                    ) {
+                        habits.forEach { habit ->
+                            val icon = when (habit.iconName) {
+                                "WaterDrop" -> Icons.Outlined.WaterDrop
+                                "MenuBook" -> Icons.Outlined.MenuBook
+                                "SelfImprovement" -> Icons.Outlined.SelfImprovement
+                                else -> Icons.Outlined.TaskAlt
+                            }
+                            val color = try { Color(android.graphics.Color.parseColor(habit.colorHex)) } catch (e: Exception) { Color(0xFF71D7CD) }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0x0AFFFFFF))
+                                    .border(1.dp, if (habit.isCompleted) color.copy(alpha = 0.2f) else Color(0x0AFFFFFF), RoundedCornerShape(12.dp))
+                                    .clickable { onToggleHabit(habit) }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(28.dp)
+                                            .clip(CircleShape)
+                                            .background(if (habit.isCompleted) color.copy(alpha = 0.15f) else Color(0x05FFFFFF)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            icon,
+                                            contentDescription = null,
+                                            tint = if (habit.isCompleted) color else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = habit.name,
+                                        fontSize = 13.sp,
+                                        color = if (habit.isCompleted) Color(0xFFDFE3E2) else Color(0xFFBDC9C6),
+                                        fontWeight = if (habit.isCompleted) FontWeight.Medium else FontWeight.Normal,
+                                        style = if (habit.isCompleted) androidx.compose.ui.text.TextStyle(textDecoration = TextDecoration.LineThrough) else androidx.compose.ui.text.TextStyle.Default
+                                    )
+                                }
+
+                                // Mini Checkbox
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(CircleShape)
+                                        .border(1.5.dp, if (habit.isCompleted) color else Color(0xFF3D4947), CircleShape)
+                                        .background(if (habit.isCompleted) color else Color.Transparent),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (habit.isCompleted) {
+                                        Icon(
+                                            Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = Color.Black,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -2141,7 +1966,7 @@ fun MarketCardItemRow(item: com.example.data.MarketItem) {
 }
 
 @Composable
-fun PetsCard(routines: List<PetRoutineEntity>, onNavigate: (String) -> Unit) {
+fun PetsCard(routines: List<com.example.data.PetEvent>, onNavigate: (String) -> Unit) {
     Column(
         modifier = GlassModifier
             .fillMaxWidth()
@@ -2395,7 +2220,7 @@ fun HomeFinanceWidget(transactions: List<com.example.data.Transaction>, onNaviga
 fun AISummaryWidget(
     netWorth: Double,
     transactions: List<com.example.data.Transaction>,
-    petRoutines: List<PetRoutineEntity>,
+    petEvents: List<com.example.data.PetEvent>,
     pendingMarketCount: Int,
     onNavigate: (String) -> Unit
 ) {
@@ -2445,8 +2270,8 @@ fun AISummaryWidget(
             val totalExpense = currentMonthTransactions.filter { !it.isIncome }.sumOf { it.value }
             val balance = totalIncome - totalExpense
 
-            val completedPetRoutines = petRoutines.count { it.isCompleted }
-            val totalPetRoutines = petRoutines.size
+            val completedPetRoutines = petEvents.count { it.isCompleted }
+            val totalPetRoutines = petEvents.size
 
             Column(
                 modifier = GlassModifier
@@ -2864,10 +2689,9 @@ fun PremiumGridTile(
     }
 }
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TesseraChatSheet(onDismiss: () -> Unit, netWorth: Double, petRoutines: List<PetRoutineEntity>) {
+fun TesseraChatSheet(onDismiss: () -> Unit, netWorth: Double, petEvents: List<com.example.data.PetEvent>) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var prompt by remember { mutableStateOf("") }
@@ -3104,7 +2928,7 @@ fun TesseraChatSheet(onDismiss: () -> Unit, netWorth: Double, petRoutines: List<
                             
                             coroutineScope.launch {
                                 if (llmManager != null) {
-                                    val petsString = if (petRoutines.isEmpty()) "Nenhum compromisso pendente hoje." else petRoutines.joinToString("; ") { "${it.petName}: ${it.task} (${if(it.isCompleted) "Concluído" else "Pendente"})" }
+                                    val petsString = if (petEvents.isEmpty()) "Nenhum compromisso pendente hoje." else petEvents.joinToString("; ") { "${it.petName}: ${it.title} (${if(it.isCompleted) "Concluído" else "Pendente"})" }
                                     val hiddenContext = """
                                         [Contexto] Nome: Kenned | Patrimônio: R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", netWorth)} | Pets: $petsString
                                         Pergunta do usuário: "$userText"
@@ -3229,3 +3053,93 @@ fun TesseraChatSheet(onDismiss: () -> Unit, netWorth: Double, petRoutines: List<
         )
     }
 }
+
+@Composable
+fun LockScreen(onUnlocked: () -> Unit) {
+    val context = LocalContext.current
+    var hasError by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val executor = ContextCompat.getMainExecutor(context)
+        val biometricPrompt = BiometricPrompt(
+            context as androidx.fragment.app.FragmentActivity,
+            executor,
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    super.onAuthenticationError(errorCode, errString)
+                    hasError = true
+                }
+
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    super.onAuthenticationSucceeded(result)
+                    onUnlocked()
+                }
+
+                override fun onAuthenticationFailed() {
+                    super.onAuthenticationFailed()
+                    hasError = true
+                }
+            }
+        )
+
+        val promptInfo = BiometricPrompt.PromptInfo.Builder()
+            .setTitle("Desbloquear TesseraHub")
+            .setSubtitle("Use sua biometria para acessar o app")
+            .setNegativeButtonText("Cancelar")
+            .build()
+
+        biometricPrompt.authenticate(promptInfo)
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF070909)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Outlined.Fingerprint,
+                contentDescription = "Biometria",
+                tint = PrimaryTeal,
+                modifier = Modifier.size(80.dp)
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = "TesseraHub Bloqueado",
+                fontFamily = FontFamily.Serif,
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            if (hasError) {
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedButton(
+                    onClick = {
+                        val executor = ContextCompat.getMainExecutor(context)
+                        val biometricPrompt = BiometricPrompt(
+                            context as androidx.fragment.app.FragmentActivity,
+                            executor,
+                            object : BiometricPrompt.AuthenticationCallback() {
+                                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                                    super.onAuthenticationSucceeded(result)
+                                    onUnlocked()
+                                }
+                            }
+                        )
+                        val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                            .setTitle("Desbloquear TesseraHub")
+                            .setNegativeButtonText("Cancelar")
+                            .build()
+                        biometricPrompt.authenticate(promptInfo)
+                    },
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryTeal),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, PrimaryTeal)
+                ) {
+                    Text("Tentar Novamente")
+                }
+            }
+        }
+    }
+}
+
