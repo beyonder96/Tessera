@@ -5,7 +5,8 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -42,6 +43,7 @@ import com.example.data.PetEvent
 import com.example.ui.theme.PrimaryTeal
 import com.example.ui.theme.TertiaryPurple
 import com.example.ui.components.PremiumGlassModifier
+import com.example.ui.components.bounceClick
 
 val GlassCardModifier = PremiumGlassModifier
 
@@ -192,64 +194,66 @@ fun PetzScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
             )
             HorizontalDivider(color = Color(0x1AFFFFFF), modifier = Modifier.padding(top = 8.dp, bottom = 24.dp))
             
-            val themeColor = if (selectedPet == "Marie") TertiaryPurple else PrimaryTeal
-            val activeVaccine = if (selectedPet == "Marie") marieVaccine else churchillVaccine
-            val activeVaccineDate = if (selectedPet == "Marie") marieVaccineDate else churchillVaccineDate
-            val activeWeight = if (selectedPet == "Marie") marieWeight else churchillWeight
-            val activeAppointment = if (selectedPet == "Marie") marieAppointment else churchillAppointment
-            val activeAppointmentDate = if (selectedPet == "Marie") churchillAppointmentDate else churchillAppointmentDate
-            val activeNotes = if (selectedPet == "Marie") marieNotes else churchillNotes
+            Crossfade(targetState = selectedPet, label = "PetHealthCrossfade", animationSpec = tween(500)) { pet ->
+                val themeColor = if (pet == "Marie") TertiaryPurple else PrimaryTeal
+                val activeVaccine = if (pet == "Marie") marieVaccine else churchillVaccine
+                val activeVaccineDate = if (pet == "Marie") marieVaccineDate else churchillVaccineDate
+                val activeWeight = if (pet == "Marie") marieWeight else churchillWeight
+                val activeAppointment = if (pet == "Marie") marieAppointment else churchillAppointment
+                val activeAppointmentDate = if (pet == "Marie") marieAppointmentDate else churchillAppointmentDate
+                val activeNotes = if (pet == "Marie") marieNotes else churchillNotes
 
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Box(modifier = Modifier.weight(1f).aspectRatio(1f)) {
-                        HealthRecordCard(
-                            icon = Icons.Outlined.Vaccines,
-                            label = activeVaccine,
-                            title = "Última Vacina",
-                            value = activeVaccineDate,
-                            color = themeColor,
-                            onClick = { healthCardToEdit = "vaccine" }
-                        )
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Box(modifier = Modifier.weight(1f).aspectRatio(1f)) {
+                            HealthRecordCard(
+                                icon = Icons.Outlined.Vaccines,
+                                label = activeVaccine,
+                                title = "Última Vacina",
+                                value = activeVaccineDate,
+                                color = themeColor,
+                                onClick = { healthCardToEdit = "vaccine" }
+                            )
+                        }
+                        Box(modifier = Modifier.weight(1f).aspectRatio(1f)) {
+                            HealthRecordCard(
+                                icon = Icons.Outlined.Scale,
+                                label = pet,
+                                title = "Peso Registrado",
+                                value = activeWeight,
+                                unit = "kg",
+                                color = themeColor,
+                                onClick = { healthCardToEdit = "weight" }
+                            )
+                        }
                     }
-                    Box(modifier = Modifier.weight(1f).aspectRatio(1f)) {
-                        HealthRecordCard(
-                            icon = Icons.Outlined.Scale,
-                            label = selectedPet,
-                            title = "Peso Registrado",
-                            value = activeWeight,
-                            unit = "kg",
-                            color = themeColor,
-                            onClick = { healthCardToEdit = "weight" }
-                        )
-                    }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Box(modifier = Modifier.weight(1f).aspectRatio(1f)) {
-                        HealthRecordCard(
-                            icon = Icons.Outlined.CalendarMonth,
-                            label = activeAppointment,
-                            title = "Consulta Vet",
-                            value = activeAppointmentDate,
-                            color = themeColor,
-                            onClick = { healthCardToEdit = "appointment" }
-                        )
-                    }
-                    Box(modifier = Modifier.weight(1f).aspectRatio(1f)) {
-                        HealthRecordCard(
-                            icon = Icons.Outlined.Assignment,
-                            label = "Observações",
-                            title = "Dieta / Alergias",
-                            value = activeNotes,
-                            color = themeColor,
-                            onClick = { healthCardToEdit = "notes" }
-                        )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Box(modifier = Modifier.weight(1f).aspectRatio(1f)) {
+                            HealthRecordCard(
+                                icon = Icons.Outlined.CalendarMonth,
+                                label = activeAppointment,
+                                title = "Consulta Vet",
+                                value = activeAppointmentDate,
+                                color = themeColor,
+                                onClick = { healthCardToEdit = "appointment" }
+                            )
+                        }
+                        Box(modifier = Modifier.weight(1f).aspectRatio(1f)) {
+                            HealthRecordCard(
+                                icon = Icons.Outlined.Assignment,
+                                label = "Observações",
+                                title = "Dieta / Alergias",
+                                value = activeNotes,
+                                color = themeColor,
+                                onClick = { healthCardToEdit = "notes" }
+                            )
+                        }
                     }
                 }
             }
@@ -419,7 +423,7 @@ fun PetProfileCard(
                 color = if (isSelected) primaryColor else Color(0x1AFFFFFF),
                 shape = RoundedCornerShape(20.dp)
             )
-            .clickable(onClick = onClick)
+            .bounceClick(onClick = onClick)
     ) {
         Box(
             modifier = Modifier
@@ -683,7 +687,7 @@ fun HealthRecordCard(
     Column(
         modifier = GlassCardModifier
             .fillMaxSize()
-            .clickable(onClick = onClick)
+            .bounceClick(onClick = onClick)
             .padding(16.dp),
         verticalArrangement = Arrangement.SpaceBetween
     ) {

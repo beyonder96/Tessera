@@ -19,3 +19,40 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+# Room
+-keep class * extends androidx.room.RoomDatabase
+-keep @androidx.room.Entity class *
+-keepclassmembers class * {
+    @androidx.room.Query <methods>;
+    @androidx.room.Insert <methods>;
+    @androidx.room.Delete <methods>;
+    @androidx.room.Update <methods>;
+}
+
+# Retrofit
+-keepattributes Signature
+-keepattributes Exceptions
+-keepclasseswithmembers class * {
+    @retrofit2.http.* <methods>;
+}
+
+# Moshi
+-keep class com.example.data.** { *; }
+
+# Data classes
+-keep class com.example.data.** { *; }
+-keepclassmembers class com.example.data.** {
+    <fields>;
+    <init>(...);
+    <methods>;
+}
+
+# Coroutines
+-keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
+-keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+-keepclassmembernames class kotlinx.** {
+    volatile <fields>;
+}
+
+# Jetpack Glance
+-keep class androidx.glance.** { *; }

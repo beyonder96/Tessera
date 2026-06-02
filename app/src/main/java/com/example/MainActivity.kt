@@ -73,6 +73,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.compose.ui.platform.LocalContext
+import com.example.ui.components.bounceClick
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.data.AppDatabase
 import com.example.data.TesseraRepository
@@ -1467,7 +1468,7 @@ fun GoalsWidget(
     Column(
         modifier = GlassModifier
             .fillMaxWidth()
-            .clickable { onNavigate("goals") }
+            .bounceClick { onNavigate("goals") }
             .padding(24.dp)
     ) {
         Row(
@@ -1764,7 +1765,7 @@ fun MarketCard(items: List<com.example.data.MarketItem>, onNavigate: (String) ->
     Column(
         modifier = GlassModifier
             .fillMaxWidth()
-            .clickable { onNavigate("market") }
+            .bounceClick { onNavigate("market") }
             .padding(24.dp)
     ) {
         // HEADER ROW
@@ -1970,7 +1971,7 @@ fun PetsCard(routines: List<com.example.data.PetEvent>, onNavigate: (String) -> 
     Column(
         modifier = GlassModifier
             .fillMaxWidth()
-            .clickable { onNavigate("petz") }
+            .bounceClick { onNavigate("petz") }
             .padding(24.dp)
     ) {
         Row(
@@ -2133,7 +2134,7 @@ fun HomeFinanceWidget(transactions: List<com.example.data.Transaction>, onNaviga
     Column(
         modifier = GlassModifier
             .fillMaxWidth()
-            .clickable { onNavigate("finance") }
+            .bounceClick { onNavigate("finance") }
             .padding(24.dp)
     ) {
         Row(
