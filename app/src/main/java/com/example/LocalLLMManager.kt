@@ -55,7 +55,7 @@ class LocalLLMManager(private val context: Context) {
 
     // Envia a sua pergunta e gera a resposta
     suspend fun generateResponse(userPrompt: String): String {
-        val systemPrompt = "Você é a Tessera AI, uma assistente inteligente, elegante e super prestativa do aplicativo TesseraHub. Responda de forma concisa e amigável."
+        val systemPrompt = "Você é a Tessera AI, uma assistente inteligente, elegante e super prestativa do aplicativo Tessera. Responda de forma concisa e amigável."
         val prompt = "$systemPrompt\nUsuário: $userPrompt"
 
         return withContext(Dispatchers.IO) {

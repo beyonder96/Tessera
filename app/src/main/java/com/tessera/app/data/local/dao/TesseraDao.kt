@@ -1,7 +1,7 @@
-package com.tesserahub.app.data.local.dao
+package com.tessera.app.data.local.dao
 
 import androidx.room.*
-import com.tesserahub.app.data.local.entity.*
+import com.tessera.app.data.local.entity.*
 import kotlinx.coroutines.flow.Flow
 
 @Dao

@@ -22,14 +22,14 @@ class ExampleRobolectricTest {
     fun `read string from context`() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val appName = context.getString(R.string.app_name)
-        assertEquals("Tessera Hub", appName)
+        assertEquals("Tessera", appName)
     }
 
     @Test
     fun `render app`() {
         composeTestRule.setContent {
             MyApplicationTheme {
-                TesseraHubApp()
+                TesseraApp()
             }
         }
         composeTestRule.waitForIdle()

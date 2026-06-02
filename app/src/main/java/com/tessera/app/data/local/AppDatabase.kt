@@ -1,11 +1,11 @@
-package com.tesserahub.app.data.local
+package com.tessera.app.data.local
 
 import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import com.tesserahub.app.data.local.entity.*
-import com.tesserahub.app.data.local.dao.TesseraDao
+import com.tessera.app.data.local.entity.*
+import com.tessera.app.data.local.dao.TesseraDao
 
 @Database(
     entities = [

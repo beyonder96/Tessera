@@ -318,7 +318,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
             item {
                 Spacer(modifier = Modifier.height(40.dp))
                 Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("TESSERA HUB", fontFamily = FontFamily.Serif, fontSize = 14.sp, color = Color.White.copy(alpha=0.3f), letterSpacing = 3.sp)
+                    Text("TESSERA", fontFamily = FontFamily.Serif, fontSize = 14.sp, color = Color.White.copy(alpha=0.3f), letterSpacing = 3.sp)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("v1.0.0 Alpha", fontSize = 11.sp, color = Color.White.copy(alpha=0.2f))
                 }

@@ -81,10 +81,10 @@ import com.example.viewmodel.TesseraViewModel
 import com.example.viewmodel.TesseraViewModelFactory
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import com.tesserahub.app.data.local.AppDatabase as TesseraDatabase
-import com.tesserahub.app.ui.viewmodel.HomeViewModel
-import com.tesserahub.app.data.local.entity.PetRoutineEntity
-import com.tesserahub.app.utils.BackupHelper
+import com.tessera.app.data.local.AppDatabase as TesseraDatabase
+import com.tessera.app.ui.viewmodel.HomeViewModel
+import com.tessera.app.data.local.entity.PetRoutineEntity
+import com.tessera.app.utils.BackupHelper
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -111,7 +111,7 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme {
-                TesseraHubApp()
+                TesseraApp()
             }
         }
     }
@@ -120,7 +120,7 @@ class MainActivity : FragmentActivity() {
 val GlassModifier = PremiumGlassModifier
 
 @Composable
-fun TesseraHubApp() {
+fun TesseraApp() {
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
     var isBiometricEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("biometric_enabled", false)) }
@@ -2991,7 +2991,7 @@ fun TesseraChatSheet(onDismiss: () -> Unit, netWorth: Double, petEvents: List<co
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "2. Com um gerenciador de arquivos no seu celular, copie o arquivo .bin para a pasta privada do TesseraHub:",
+                            text = "2. Com um gerenciador de arquivos no seu celular, copie o arquivo .bin para a pasta privada do Tessera:",
                             fontSize = 12.sp,
                             color = Color.White.copy(alpha = 0.8f)
                         )
@@ -3084,7 +3084,7 @@ fun LockScreen(onUnlocked: () -> Unit) {
         )
 
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Desbloquear TesseraHub")
+            .setTitle("Desbloquear Tessera")
             .setSubtitle("Use sua biometria para acessar o app")
             .setNegativeButtonText("Cancelar")
             .build()
@@ -3107,7 +3107,7 @@ fun LockScreen(onUnlocked: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = "TesseraHub Bloqueado",
+                text = "Tessera Bloqueado",
                 fontFamily = FontFamily.Serif,
                 color = Color.White,
                 fontSize = 20.sp,
@@ -3129,7 +3129,7 @@ fun LockScreen(onUnlocked: () -> Unit) {
                             }
                         )
                         val promptInfo = BiometricPrompt.PromptInfo.Builder()
-                            .setTitle("Desbloquear TesseraHub")
+                            .setTitle("Desbloquear Tessera")
                             .setNegativeButtonText("Cancelar")
                             .build()
                         biometricPrompt.authenticate(promptInfo)

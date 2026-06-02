@@ -1,11 +1,11 @@
-package com.tesserahub.app.ui.viewmodel
+package com.tessera.app.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.tesserahub.app.data.local.dao.TesseraDao
-import com.tesserahub.app.data.local.entity.FinanceEntity
-import com.tesserahub.app.data.local.entity.PetRoutineEntity
+import com.tessera.app.data.local.dao.TesseraDao
+import com.tessera.app.data.local.entity.FinanceEntity
+import com.tessera.app.data.local.entity.PetRoutineEntity
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map

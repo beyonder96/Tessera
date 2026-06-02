@@ -55,7 +55,7 @@ fun WidgetContent(context: Context, habits: List<Habit>, medications: List<Medic
         horizontalAlignment = Alignment.Start
     ) {
         Text(
-            text = "TESSERA HUB",
+            text = "TESSERA",
             style = TextStyle(
                 color = androidx.glance.color.ColorProvider(day = Color(0xFFD4AF37), night = Color(0xFFD4AF37)),
                 fontSize = 10.sp,

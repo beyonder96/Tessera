@@ -1,4 +1,4 @@
-package com.tesserahub.app.utils
+package com.tessera.app.utils
 
 import android.content.Context
 import android.net.Uri

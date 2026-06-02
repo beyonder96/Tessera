@@ -11,7 +11,7 @@ android {
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "com.aistudio.tesserahub.xtrkna"
+    applicationId = "com.aistudio.tessera.xtrkna"
     minSdk = 26
     targetSdk = 36
     versionCode = 1
