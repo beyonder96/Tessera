@@ -79,6 +79,8 @@ import com.example.data.AppDatabase
 import com.example.data.TesseraRepository
 import com.example.viewmodel.TesseraViewModel
 import com.example.viewmodel.TesseraViewModelFactory
+import com.example.viewmodel.PetViewModel
+import com.example.viewmodel.PetViewModelFactory
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import com.tessera.app.data.local.AppDatabase as TesseraDatabase
@@ -135,20 +137,46 @@ fun TesseraApp() {
     val database = remember { AppDatabase.getDatabase(context) }
     val repository = remember { TesseraRepository(database.tesseraDao()) }
     val viewModel: TesseraViewModel = viewModel(factory = TesseraViewModelFactory(repository))
+    val petViewModel: PetViewModel = viewModel(factory = PetViewModelFactory(repository))
     
     LaunchedEffect(Unit) {
         viewModel.initializeDataIfNeeded()
     }
 
     val navController = rememberNavController()
+    val activity = context as? android.app.Activity
+    val startRoute = remember(activity) { activity?.intent?.getStringExtra("route") }
+    LaunchedEffect(startRoute) {
+        if (startRoute != null) {
+            navController.navigate(startRoute) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
+            }
+            activity?.intent?.removeExtra("route")
+        }
+    }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: "home"
 
     val navigateAction: (String) -> Unit = { route ->
-        if (route == "home") {
+        val targetRoute = when (route) {
+            "chronos" -> {
+                viewModel.selectedGoalsTab = 1
+                "goals"
+            }
+            "focus" -> {
+                viewModel.selectedGoalsTab = 2
+                "goals"
+            }
+            else -> route
+        }
+        if (targetRoute == "home") {
             navController.popBackStack(navController.graph.findStartDestination().id, inclusive = false)
         } else {
-            navController.navigate(route) {
+            navController.navigate(targetRoute) {
                 popUpTo(navController.graph.findStartDestination().id) {
                     saveState = true
                 }
@@ -224,13 +252,17 @@ fun TesseraApp() {
                     }, viewModel = viewModel)
                 }
                 composable("petz") {
-                    PetzScreen(onHomeClick = { 
-                        navController.navigate("home") {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }, viewModel = viewModel)
+                    PetzScreen(
+                        onHomeClick = { 
+                            navController.navigate("home") {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        viewModel = viewModel,
+                        petViewModel = petViewModel
+                    )
                 }
                 composable("apartment") {
                     ApartmentScreen(onHomeClick = { 
@@ -240,6 +272,13 @@ fun TesseraApp() {
                             restoreState = true
                         }
                     })
+                }
+                composable("daily") {
+                    DailyScreen(
+                        viewModel = viewModel,
+                        onBack = { navController.popBackStack() },
+                        onNavigate = navigateAction
+                    )
                 }
             }
 
@@ -511,10 +550,41 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
                     }
             ) {
                 val habits by mainViewModel.allHabits.collectAsState(initial = emptyList<com.example.data.Habit>())
-                TopMetricsRow(realPatrimony, realBalance, realIncome, realExpense, habits, onNavigate)
+                val weightRecords by mainViewModel.allWeightRecords.collectAsState(initial = emptyList())
+                val stepsRecords by mainViewModel.allStepsRecords.collectAsState(initial = emptyList())
+
+                val latestWeight = weightRecords.lastOrNull()?.weightKg ?: 75.2
+                val todayStart = java.util.Calendar.getInstance().apply {
+                    set(java.util.Calendar.HOUR_OF_DAY, 0)
+                    set(java.util.Calendar.MINUTE, 0)
+                    set(java.util.Calendar.SECOND, 0)
+                    set(java.util.Calendar.MILLISECOND, 0)
+                }.timeInMillis
+                val todayEnd = java.util.Calendar.getInstance().apply {
+                    set(java.util.Calendar.HOUR_OF_DAY, 23)
+                    set(java.util.Calendar.MINUTE, 59)
+                    set(java.util.Calendar.SECOND, 59)
+                    set(java.util.Calendar.MILLISECOND, 999)
+                }.timeInMillis
+                val todaySteps = stepsRecords.filter { it.startTime >= todayStart && it.endTime <= todayEnd }.sumOf { it.count }
+
+                TopMetricsRow(
+                    patrimony = realPatrimony,
+                    netWorth = realBalance,
+                    totalIncome = realIncome,
+                    totalExpense = realExpense,
+                    habits = habits,
+                    latestWeight = latestWeight,
+                    todaySteps = todaySteps,
+                    onNavigate = onNavigate
+                )
             }
             
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            DailyBriefWidget(onClick = { onNavigate("daily") })
+            
+            Spacer(modifier = Modifier.height(32.dp))
             
             Box(
                 modifier = Modifier
@@ -659,7 +729,16 @@ fun TopHeader(onOpenSettings: () -> Unit) {
 }
 
 @Composable
-fun TopMetricsRow(patrimony: Double, netWorth: Double, totalIncome: Double, totalExpense: Double, habits: List<com.example.data.Habit>, onNavigate: (String) -> Unit) {
+fun TopMetricsRow(
+    patrimony: Double,
+    netWorth: Double,
+    totalIncome: Double,
+    totalExpense: Double,
+    habits: List<com.example.data.Habit>,
+    latestWeight: Double,
+    todaySteps: Long,
+    onNavigate: (String) -> Unit
+) {
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
     
@@ -677,7 +756,7 @@ fun TopMetricsRow(patrimony: Double, netWorth: Double, totalIncome: Double, tota
     LaunchedEffect(Unit) {
         while(true) {
             kotlinx.coroutines.delay(5 * 60 * 1000L)
-            healthIndex = (healthIndex + 1) % 2
+            healthIndex = (healthIndex + 1) % 3
         }
     }
 
@@ -702,7 +781,7 @@ fun TopMetricsRow(patrimony: Double, netWorth: Double, totalIncome: Double, tota
         ) {
             // Widget 1 (Financeiro) with smooth crossfade rotation!
             Box(modifier = Modifier.width(76.dp)) {
-                Crossfade(targetState = financeIndex, animationSpec = tween(500)) { idx ->
+                Crossfade(targetState = financeIndex, animationSpec = tween(500), label = "FinanceRotation") { idx ->
                     val valIdx = when(idx) {
                         0 -> patrimony
                         1 -> netWorth
@@ -728,29 +807,80 @@ fun TopMetricsRow(patrimony: Double, netWorth: Double, totalIncome: Double, tota
 
             // Widget 2 (Saúde) with smooth crossfade rotation!
             Box(modifier = Modifier.width(76.dp)) {
-                Crossfade(targetState = healthIndex, animationSpec = tween(500)) { idx ->
-                    val iconIdx = if (idx == 0) Icons.Outlined.Bedtime else Icons.Outlined.MonitorWeight
-                    val valIdx = if (idx == 0) "8.2h" else "75.2"
-                    val labelIdx = if (idx == 0) "SONO" else "PESO"
-                    val progressIdx = if (idx == 0) 0.82f else 0.75f
-                    val colorIdx = if (idx == 0) PrimaryTeal else TertiaryPurple
+                Crossfade(targetState = healthIndex, animationSpec = tween(500), label = "HealthRotation") { idx ->
+                    val iconIdx = when (idx) {
+                        0 -> Icons.Outlined.Bedtime
+                        1 -> Icons.Outlined.MonitorWeight
+                        else -> Icons.Outlined.DirectionsWalk
+                    }
+                    val valIdx = when (idx) {
+                        0 -> "8.2h"
+                        1 -> String.format(java.util.Locale("pt", "BR"), "%.1f", latestWeight)
+                        else -> todaySteps.toString()
+                    }
+                    val labelIdx = when (idx) {
+                        0 -> "SONO"
+                        1 -> "PESO"
+                        else -> "PASSOS"
+                    }
+                    val progressIdx = when (idx) {
+                        0 -> 0.82f
+                        1 -> (latestWeight / 120.0f).toFloat().coerceIn(0f, 1f)
+                        else -> (todaySteps.toFloat() / 10000f).coerceIn(0f, 1f)
+                    }
+                    val colorIdx = when (idx) {
+                        0 -> PrimaryTeal
+                        1 -> TertiaryPurple
+                        else -> Color(0xFF4D96FF)
+                    }
                     MetricItemWithProgress(iconIdx, valIdx, labelIdx, colorIdx, progressIdx, onClick = { onNavigate("health") })
                 }
             }
 
-            // Widget 3 (Metas - Hábitos Diários)
+            // Widget 3 (Contexto / Momento)
             Box(modifier = Modifier.width(76.dp)) {
-                val completedHabits = habits.count { it.isCompleted }
-                val totalHabits = habits.size
-                val habitProgress = if (totalHabits > 0) completedHabits.toFloat() / totalHabits else 0f
+                val calendar = java.util.Calendar.getInstance()
+                val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+                val contextIcon = when (hour) {
+                    in 5..11 -> Icons.Outlined.WbSunny
+                    in 12..17 -> Icons.Outlined.WorkOutline
+                    in 18..22 -> Icons.Outlined.Nightlight
+                    else -> Icons.Outlined.Bedtime
+                }
+                val contextValue = when (hour) {
+                    in 5..11 -> "Café"
+                    in 12..17 -> "Foco"
+                    in 18..22 -> "Relax"
+                    else -> "Dormir"
+                }
+                val contextLabel = when (hour) {
+                    in 5..11 -> "MATINAL"
+                    in 12..17 -> "PRODUTIVO"
+                    in 18..22 -> "MOMENTO"
+                    else -> "CONTEXTO"
+                }
+                val contextProgress = when (hour) {
+                    in 5..11 -> 0.25f
+                    in 12..17 -> 0.60f
+                    in 18..22 -> 0.85f
+                    else -> 1.0f
+                }
+                val contextColor = when (hour) {
+                    in 5..11 -> Color(0xFFF9A826)
+                    in 12..17 -> Color(0xFF4D96FF)
+                    in 18..22 -> Color(0xFFD7B4F3)
+                    else -> Color(0xFF71D7CD)
+                }
                 
                 MetricItemWithProgress(
-                    icon = Icons.Outlined.SelfImprovement,
-                    value = "$completedHabits/$totalHabits",
-                    label = "HÁBITOS",
-                    progressColor = Color(0xFF71D7CD),
-                    progress = habitProgress,
-                    onClick = { onNavigate("goals") }
+                    icon = contextIcon,
+                    value = contextValue,
+                    label = contextLabel,
+                    progressColor = contextColor,
+                    progress = contextProgress,
+                    onClick = { 
+                        Toast.makeText(context, "Modo $contextLabel: $contextValue", Toast.LENGTH_SHORT).show()
+                    }
                 )
             }
 
@@ -1035,9 +1165,8 @@ fun MainContent(netWorth: Double, petEvents: List<com.example.data.PetEvent>, ma
         ModuleConfig("finance", "Finanças", true, 0),
         ModuleConfig("market", "Mercado", true, 1),
         ModuleConfig("pets", "Petz", true, 2),
-        ModuleConfig("system", "Resumo", true, 3),
-        ModuleConfig("health", "Saúde Rápida", false, 4),
-        ModuleConfig("goals", "Metas Diárias", false, 5)
+        ModuleConfig("health", "Saúde", false, 3),
+        ModuleConfig("goals", "Metas Diárias", false, 4)
     )
 
     var modules by remember {
@@ -1049,10 +1178,16 @@ fun MainContent(netWorth: Double, petEvents: List<com.example.data.PetEvent>, ma
                         val parsed = savedString.split("|").mapNotNull { part ->
                             val parts = part.split(",")
                             if (parts.size == 4) {
-                                ModuleConfig(parts[0], parts[1], parts[2].toBoolean(), parts[3].toInt())
+                                if (parts[0] == "system") null
+                                else {
+                                    val name = if (parts[0] == "health") "Saúde" else parts[1]
+                                    ModuleConfig(parts[0], name, parts[2].toBoolean(), parts[3].toInt())
+                                }
                             } else null
                         }
-                        if (parsed.isNotEmpty()) parsed.sortedBy { it.order } else defaultModules
+                        if (parsed.isNotEmpty()) {
+                            parsed.sortedBy { it.order }.mapIndexed { i, m -> m.copy(order = i) }
+                        } else defaultModules
                     } catch (e: Exception) {
                         defaultModules
                     }
@@ -1100,33 +1235,57 @@ fun MainContent(netWorth: Double, petEvents: List<com.example.data.PetEvent>, ma
                         MarketCard(marketItems, onNavigate)
                     }
                     "pets" -> PetsCard(petEvents, onNavigate)
-                    "system" -> {
-                        val transactions by mainViewModel.allTransactions.collectAsState()
-                        val marketItems by mainViewModel.pendingMarketItems.collectAsState()
-                        AISummaryWidget(
-                            netWorth = netWorth,
-                            transactions = transactions,
-                            petEvents = petEvents,
-                            pendingMarketCount = marketItems.size,
-                            onNavigate = onNavigate
+                    "health" -> {
+                        val medications by mainViewModel.allMedications.collectAsState()
+                        val weightRecords by mainViewModel.allWeightRecords.collectAsState(initial = emptyList())
+                        val stepsRecords by mainViewModel.allStepsRecords.collectAsState(initial = emptyList())
+                        val healthProfile by mainViewModel.healthProfile.collectAsState(initial = null)
+
+                        val latestWeight = weightRecords.lastOrNull()?.weightKg ?: 75.2
+                        val height = healthProfile?.heightCm?.div(100.0) ?: 1.75
+                        val bmi = latestWeight / (height * height)
+
+                        val todayStart = java.util.Calendar.getInstance().apply {
+                            set(java.util.Calendar.HOUR_OF_DAY, 0)
+                            set(java.util.Calendar.MINUTE, 0)
+                            set(java.util.Calendar.SECOND, 0)
+                            set(java.util.Calendar.MILLISECOND, 0)
+                        }.timeInMillis
+                        val todayEnd = java.util.Calendar.getInstance().apply {
+                            set(java.util.Calendar.HOUR_OF_DAY, 23)
+                            set(java.util.Calendar.MINUTE, 59)
+                            set(java.util.Calendar.SECOND, 59)
+                            set(java.util.Calendar.MILLISECOND, 999)
+                        }.timeInMillis
+                        val todaySteps = stepsRecords.filter { it.startTime >= todayStart && it.endTime <= todayEnd }.sumOf { it.count }
+
+                        HealthWidget(
+                            medications = medications,
+                            onToggleMedication = { med -> mainViewModel.toggleMedicationTaken(med) },
+                            latestWeight = latestWeight,
+                            todaySteps = todaySteps,
+                            bmi = bmi
                         )
                     }
-                "health" -> {
-                    val medications by mainViewModel.allMedications.collectAsState()
-                    HealthWidget(medications = medications, onToggleMedication = { med -> mainViewModel.toggleMedicationTaken(med) })
-                }
-                "goals" -> {
-                    val habits by mainViewModel.allHabits.collectAsState(initial = emptyList())
-                    val purchaseGoals by mainViewModel.allPurchaseGoals.collectAsState(initial = emptyList())
-                    GoalsWidget(
-                        habits = habits,
-                        purchaseGoals = purchaseGoals,
-                        onToggleHabit = { habit -> mainViewModel.toggleHabitCompleted(habit) },
-                        onNavigate = onNavigate
-                    )
+                    "goals" -> {
+                        val habits by mainViewModel.allHabits.collectAsState(initial = emptyList())
+                        val purchaseGoals by mainViewModel.allPurchaseGoals.collectAsState(initial = emptyList())
+                        val routines by mainViewModel.allRoutines.collectAsState(initial = emptyList())
+                        GoalsWidget(
+                            habits = habits,
+                            purchaseGoals = purchaseGoals,
+                            routines = routines,
+                            onToggleHabit = { habit -> mainViewModel.toggleHabitCompleted(habit) },
+                            onNavigate = { route ->
+                                if (route == "goals") {
+                                    mainViewModel.selectedGoalsTab = 0
+                                }
+                                onNavigate(route)
+                            }
+                        )
+                    }
                 }
             }
-        }
         }
         
         OutlinedButton(
@@ -1137,7 +1296,7 @@ fun MainContent(netWorth: Double, petEvents: List<com.example.data.PetEvent>, ma
         ) {
             Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Editar Módulos")
+            Text("Editar Widgets")
         }
     }
 
@@ -1147,7 +1306,7 @@ fun MainContent(netWorth: Double, petEvents: List<com.example.data.PetEvent>, ma
             containerColor = Color(0xFF131817)
         ) {
             Column(modifier = Modifier.padding(24.dp).padding(bottom = 32.dp)) {
-                Text("Editar Módulos", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                Text("Editar Widgets", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                 Spacer(modifier = Modifier.height(24.dp))
                 
                 modules.sortedBy { it.order }.forEachIndexed { index, module ->
@@ -1162,22 +1321,22 @@ fun MainContent(netWorth: Double, petEvents: List<com.example.data.PetEvent>, ma
                         },
                         onMoveUp = {
                             if (index > 0) {
-                                val newModules = modules.toMutableList()
-                                val temp = newModules[index]
-                                newModules[index] = newModules[index - 1]
-                                newModules[index - 1] = temp
-                                newModules.forEachIndexed { i, m -> m.order = i }
-                                saveModules(newModules)
+                                val sorted = modules.sortedBy { it.order }.toMutableList()
+                                val temp = sorted[index]
+                                sorted[index] = sorted[index - 1]
+                                sorted[index - 1] = temp
+                                sorted.forEachIndexed { i, m -> m.order = i }
+                                saveModules(sorted)
                             }
                         },
                         onMoveDown = {
                             if (index < modules.size - 1) {
-                                val newModules = modules.toMutableList()
-                                val temp = newModules[index]
-                                newModules[index] = newModules[index + 1]
-                                newModules[index + 1] = temp
-                                newModules.forEachIndexed { i, m -> m.order = i }
-                                saveModules(newModules)
+                                val sorted = modules.sortedBy { it.order }.toMutableList()
+                                val temp = sorted[index]
+                                sorted[index] = sorted[index + 1]
+                                sorted[index + 1] = temp
+                                sorted.forEachIndexed { i, m -> m.order = i }
+                                saveModules(sorted)
                             }
                         }
                     )
@@ -1225,7 +1384,10 @@ fun ModuleToggleWithOrder(
 @Composable
 fun HealthWidget(
     medications: List<com.example.data.Medication>,
-    onToggleMedication: (com.example.data.Medication) -> Unit
+    onToggleMedication: (com.example.data.Medication) -> Unit,
+    latestWeight: Double,
+    todaySteps: Long,
+    bmi: Double
 ) {
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
@@ -1258,7 +1420,7 @@ fun HealthWidget(
     if (showFeelingDialog) {
         AlertDialog(
             onDismissRequest = { showFeelingDialog = false },
-            title = { Text("Como você está hoje?", fontFamily = FontFamily.Serif, color = MaterialTheme.colorScheme.onSurface) },
+            title = { Text("Qual é a sua vibe hoje?", fontFamily = FontFamily.Serif, color = MaterialTheme.colorScheme.onSurface) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     feelings.forEach { (emoji, label, color) ->
@@ -1290,6 +1452,20 @@ fun HealthWidget(
         )
     }
 
+    // Find closest unchecked medication
+    val uncheckedMeds = medications.filter { !it.isTaken }
+    val nextMed = if (uncheckedMeds.isNotEmpty()) {
+        val nowStr = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+        val futureMeds = uncheckedMeds.filter { it.time >= nowStr }.sortedBy { it.time }
+        if (futureMeds.isNotEmpty()) {
+            futureMeds.first()
+        } else {
+            uncheckedMeds.sortedBy { it.time }.first()
+        }
+    } else {
+        null
+    }
+
     Column(modifier = GlassModifier.fillMaxWidth().padding(24.dp)) {
         // Header
         Row(
@@ -1298,7 +1474,7 @@ fun HealthWidget(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "SAÚDE RÁPIDA",
+                text = "SAÚDE",
                 fontSize = 11.sp,
                 letterSpacing = 1.5.sp,
                 fontWeight = FontWeight.Bold,
@@ -1317,12 +1493,13 @@ fun HealthWidget(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left column: Medications checklist
-            Column(modifier = Modifier.weight(1.3f)) {
+            // Left column: Next Medication
+            Column(modifier = Modifier.weight(1.2f)) {
                 Text(
-                    text = "PRÓXIMAS MEDICAÇÕES",
+                    text = "PRÓXIMO MEDICAMENTO",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1330,42 +1507,36 @@ fun HealthWidget(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
-                if (medications.isEmpty()) {
-                    Text("Nenhuma medicação agendada.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                if (nextMed != null) {
+                    MedItem(nextMed.name, nextMed.time, nextMed.isTaken) { _ ->
+                        onToggleMedication(nextMed)
+                    }
                 } else {
-                    medications.take(3).forEach { med ->
-                        MedItem(med.name, med.time, med.isTaken) { _ ->
-                            onToggleMedication(med)
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                    if (medications.size > 3) {
-                        Text("+ ${medications.size - 3} mais", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
-                    }
+                    Text("Nenhum pendente hoje.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                 }
             }
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Right column: How I am feeling
+            // Right column: Vibe
             Column(
-                modifier = Modifier.weight(0.9f),
+                modifier = Modifier.weight(0.8f),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "COMO ESTOU ME SENTINDO",
-                    fontSize = 9.sp,
+                    text = "VIBE",
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 0.5.sp,
+                    letterSpacing = 1.sp,
                     textAlign = TextAlign.Center
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 if (userFeeling.isEmpty()) {
                     Box(
                         modifier = Modifier
-                            .size(56.dp)
+                            .size(44.dp)
                             .clip(CircleShape)
                             .background(Color(0x0AFFFFFF))
                             .border(1.dp, Color(0x33FFFFFF), CircleShape)
@@ -1374,9 +1545,9 @@ fun HealthWidget(
                     ) {
                         Icon(
                             Icons.Outlined.Add,
-                            contentDescription = "Adicionar Sentimento",
+                            contentDescription = "Adicionar Vibe",
                             tint = Color.White,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 } else {
@@ -1389,18 +1560,88 @@ fun HealthWidget(
                     ) {
                         Text(
                             text = userFeeling.substringBefore(" "),
-                            fontSize = 32.sp
+                            fontSize = 24.sp
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = userFeeling.substringAfter(" "),
-                            fontSize = 14.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = feelingColor
                         )
                     }
                 }
             }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Row of Steps, IMC, and Weight using minimal icons
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            HealthMiniCard(
+                icon = Icons.Outlined.DirectionsWalk,
+                label = "Passos",
+                value = "$todaySteps",
+                tint = Color(0xFF4D96FF),
+                modifier = Modifier.weight(1f)
+            )
+            HealthMiniCard(
+                icon = Icons.Outlined.Analytics,
+                label = "IMC",
+                value = String.format(java.util.Locale("pt", "BR"), "%.1f", bmi),
+                tint = PrimaryTeal,
+                modifier = Modifier.weight(1f)
+            )
+            HealthMiniCard(
+                icon = Icons.Outlined.MonitorWeight,
+                label = "Peso",
+                value = String.format(java.util.Locale("pt", "BR"), "%.1f kg", latestWeight),
+                tint = TertiaryPurple,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+fun HealthMiniCard(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    tint: Color,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0x0AFFFFFF))
+            .border(1.dp, Color(0x0DFFFFFF), RoundedCornerShape(16.dp))
+            .padding(12.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                text = label,
+                fontSize = 10.sp,
+                color = Color(0xFF81928F),
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = value,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
         }
     }
 }
@@ -1452,6 +1693,7 @@ fun MedItem(name: String, time: String, isChecked: Boolean, onCheckedChange: (Bo
 fun GoalsWidget(
     habits: List<com.example.data.Habit>,
     purchaseGoals: List<com.example.data.PurchaseGoal>,
+    routines: List<com.example.data.Routine>,
     onToggleHabit: (com.example.data.Habit) -> Unit,
     onNavigate: (String) -> Unit
 ) {
@@ -1483,7 +1725,24 @@ fun GoalsWidget(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Icon(Icons.Outlined.Flag, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Pomodoro Shortcut Icon Button
+                IconButton(
+                    onClick = { onNavigate("focus") },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Timer,
+                        contentDescription = "Focus Time",
+                        tint = Color(0xFFD7B4F3),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                Icon(Icons.Outlined.Flag, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
+            }
         }
         
         Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
@@ -1537,6 +1796,97 @@ fun GoalsWidget(
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White
                 )
+            }
+
+            // Rotinas (Chronos)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigate("chronos") },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Outlined.Spa,
+                            contentDescription = null,
+                            tint = Color(0xFF71D7CD),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Fluxo de Rotinas (Chronos):",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Text(
+                        text = "${routines.size} ativas",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF71D7CD)
+                    )
+                }
+
+                if (routines.isEmpty()) {
+                    Text(
+                        text = "Nenhuma rotina cadastrada.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(start = 24.dp)
+                    )
+                } else {
+                    routines.take(2).forEach { routine ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0x0AFFFFFF))
+                                .clickable { onNavigate("chronos") }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0x1A71D7CD)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.PlayArrow,
+                                        contentDescription = "Iniciar",
+                                        tint = Color(0xFF71D7CD),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = routine.name,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.White
+                                    )
+                                    Text(
+                                        text = "Toque para iniciar fluxo",
+                                        fontSize = 9.sp,
+                                        color = Color(0xFF81928F)
+                                    )
+                                }
+                            }
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = Color(0x66FFFFFF),
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+                }
             }
 
             // Rituais Header and checklist
@@ -3140,6 +3490,93 @@ fun LockScreen(onUnlocked: () -> Unit) {
                     Text("Tentar Novamente")
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun DailyBriefWidget(onClick: () -> Unit) {
+    val calendar = java.util.Calendar.getInstance()
+    val dayOfWeek = calendar.get(java.util.Calendar.DAY_OF_WEEK)
+    val dayOfMonth = calendar.get(java.util.Calendar.DAY_OF_MONTH)
+    val monthName = calendar.getDisplayName(java.util.Calendar.MONTH, java.util.Calendar.LONG, java.util.Locale("pt", "BR"))
+    
+    val weekDayStr = when (dayOfWeek) {
+        java.util.Calendar.SUNDAY -> "Domingo"
+        java.util.Calendar.MONDAY -> "Segunda-feira"
+        java.util.Calendar.TUESDAY -> "Terça-feira"
+        java.util.Calendar.WEDNESDAY -> "Quarta-feira"
+        java.util.Calendar.THURSDAY -> "Quinta-feira"
+        java.util.Calendar.FRIDAY -> "Sexta-feira"
+        else -> "Sábado"
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .then(GlassModifier)
+            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(24.dp))
+            .clickable { onClick() }
+            .padding(24.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Outlined.AutoAwesome,
+                        contentDescription = null,
+                        tint = PrimaryTeal,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "DAILY BRIEF",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = PrimaryTeal,
+                        letterSpacing = 2.sp
+                    )
+                }
+                Text(
+                    text = "NOW",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0x99FFFFFF),
+                    letterSpacing = 1.sp
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            Text(
+                text = "$weekDayStr, $dayOfMonth de $monthName".uppercase(),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF81928F),
+                letterSpacing = 1.sp
+            )
+            
+            Text(
+                text = "Seu dia em resumo",
+                fontFamily = FontFamily.Serif,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Light,
+                color = Color.White,
+                lineHeight = 30.sp
+            )
+            
+            Text(
+                text = "Confira o panorama consolidado de finanças, saúde, pets, mercado e tarefas em um só lugar.",
+                fontSize = 13.sp,
+                color = Color(0xFF81928F),
+                lineHeight = 18.sp
+            )
         }
     }
 }

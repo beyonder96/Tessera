@@ -7,11 +7,17 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <!-- Health Connect Permissions -->
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
+    <uses-permission android:name="android.permission.health.WRITE_WEIGHT" />
     <uses-permission android:name="android.permission.health.READ_HEIGHT" />
+    <uses-permission android:name="android.permission.health.WRITE_HEIGHT" />
     <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.health.WRITE_SLEEP" />
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.health.WRITE_STEPS" />
 
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
@@ -29,21 +35,23 @@
         
         <receiver android:name=".notifications.MedicationReceiver" android:exported="false" />
         
-        <!-- App Widget Receiver -->
+        <!-- App Widget Receivers -->
         <receiver
-            android:name=".widget.TesseraWidgetReceiver"
-            android:exported="true">
+            android:name=".widget.DailyWidgetReceiver"
+            android:exported="true"
+            android:label="Tessera Daily">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/tessera_widget_info" />
+                android:resource="@xml/daily_widget_info" />
         </receiver>
 
         <receiver
             android:name=".widget.FinanceWidgetReceiver"
-            android:exported="true">
+            android:exported="true"
+            android:label="Tessera Finanças">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -53,14 +61,51 @@
         </receiver>
 
         <receiver
+            android:name=".widget.MarketWidgetReceiver"
+            android:exported="true"
+            android:label="Tessera Mercado">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/market_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.PetsWidgetReceiver"
+            android:exported="true"
+            android:label="Tessera Petz">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/pets_widget_info" />
+        </receiver>
+
+        <receiver
             android:name=".widget.HealthWidgetReceiver"
-            android:exported="true">
+            android:exported="true"
+            android:label="Tessera Saúde">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/health_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.GoalsWidgetReceiver"
+            android:exported="true"
+            android:label="Tessera Metas">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/goals_widget_info" />
         </receiver>
         
         <activity
@@ -75,6 +120,10 @@
             <!-- Health Connect Permissions Rationale -->
             <intent-filter>
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
             </intent-filter>
         </activity>
     </application>

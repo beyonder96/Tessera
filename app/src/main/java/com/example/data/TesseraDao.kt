@@ -129,4 +129,63 @@ interface TesseraDao {
 
     @Query("DELETE FROM sleep_records WHERE source = 'Health Connect'")
     suspend fun clearHealthConnectSleepRecords()
+
+    // Pets Queries
+    @Query("SELECT * FROM pets ORDER BY name ASC")
+    fun getAllPets(): Flow<List<PetEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPet(pet: PetEntity): Long
+
+    @Delete
+    suspend fun deletePet(pet: PetEntity)
+
+    // Pet Weight History Queries
+    @Query("SELECT * FROM pet_weight_history WHERE petId = :petId ORDER BY date ASC")
+    fun getWeightHistoryForPet(petId: Int): Flow<List<PetWeightHistoryEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertWeightHistory(record: PetWeightHistoryEntity)
+
+    @Delete
+    suspend fun deleteWeightHistory(record: PetWeightHistoryEntity)
+
+    // Medication Logs
+    @Query("SELECT * FROM medication_logs WHERE takenTimestamp >= :start AND takenTimestamp <= :end")
+    fun getMedicationLogsForRange(start: Long, end: Long): Flow<List<MedicationLog>>
+
+    @Query("SELECT * FROM medication_logs WHERE medicationId = :medicationId AND takenTimestamp >= :start AND takenTimestamp <= :end")
+    fun getLogsForMedication(medicationId: Int, start: Long, end: Long): Flow<List<MedicationLog>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMedicationLog(log: MedicationLog)
+
+    @Delete
+    suspend fun deleteMedicationLog(log: MedicationLog)
+
+    // Steps Records
+    @Query("SELECT * FROM steps_records ORDER BY startTime DESC")
+    fun getAllStepsRecords(): Flow<List<StepsRecord>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertStepsRecord(record: StepsRecord)
+
+    @Query("DELETE FROM steps_records WHERE source = 'Health Connect'")
+    suspend fun clearHealthConnectStepsRecords()
+
+    // Routines
+    @Query("SELECT * FROM routines ORDER BY id ASC")
+    fun getAllRoutines(): Flow<List<Routine>>
+
+    @Query("SELECT * FROM routine_steps WHERE routineId = :routineId ORDER BY orderIndex ASC")
+    fun getStepsForRoutine(routineId: Int): Flow<List<RoutineStep>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRoutine(routine: Routine): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRoutineStep(step: RoutineStep)
+
+    @Delete
+    suspend fun deleteRoutine(routine: Routine)
 }

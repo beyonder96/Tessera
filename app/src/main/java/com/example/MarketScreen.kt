@@ -35,6 +35,32 @@ import com.example.viewmodel.TesseraViewModel
 import com.example.ui.components.PremiumGlassModifier
 import java.util.Locale
 
+fun parseDoubleSafely(input: String): Double {
+    if (input.isBlank()) return 0.0
+    val clean = input.trim()
+    
+    // If the string ends with a separator, drop it temporarily to get the numeric value
+    val hasTrailingSeparator = clean.endsWith(".") || clean.endsWith(",")
+    val normalizedClean = if (hasTrailingSeparator) clean.dropLast(1) else clean
+    
+    val lastComma = normalizedClean.lastIndexOf(',')
+    val lastPoint = normalizedClean.lastIndexOf('.')
+    
+    return try {
+        if (lastComma > lastPoint) {
+            val normalized = normalizedClean.replace(".", "").replace(',', '.')
+            normalized.toDoubleOrNull() ?: 0.0
+        } else if (lastPoint > lastComma) {
+            val normalized = normalizedClean.replace(",", "")
+            normalized.toDoubleOrNull() ?: 0.0
+        } else {
+            normalizedClean.toDoubleOrNull() ?: 0.0
+        }
+    } catch (e: Exception) {
+        0.0
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
@@ -422,13 +448,17 @@ fun ShoppingListItem(
         String.format(Locale("pt", "BR"), "%.3f", item.quantity)
     }
 
-    var tempPrice by remember(item.price) { mutableStateOf(if (item.price > 0) String.format(Locale("pt", "BR"), "%.2f", item.price) else "") }
-    var tempQty by remember(item.quantity) { mutableStateOf(String.format(Locale("pt", "BR"), if(item.quantity % 1.0 == 0.0) "%.0f" else "%.3f", item.quantity)) }
-    var tempUnit by remember(item.unit) { mutableStateOf(item.unit) }
+    var tempPrice by remember(item.id) { mutableStateOf(if (item.price > 0) String.format(Locale("pt", "BR"), "%.2f", item.price) else "") }
+    var tempQty by remember(item.id) { mutableStateOf(String.format(Locale("pt", "BR"), if(item.quantity % 1.0 == 0.0) "%.0f" else "%.3f", item.quantity)) }
+    var tempUnit by remember(item.id) { mutableStateOf(item.unit) }
 
     val updateValues = {
-        val p = tempPrice.replace(",", ".").toDoubleOrNull() ?: 0.0
-        val q = tempQty.replace(",", ".").toDoubleOrNull() ?: 0.0
+        val p = parseDoubleSafely(tempPrice)
+        val q = if (tempUnit == "kg") {
+            parseDoubleSafely(tempQty)
+        } else {
+            parseDoubleSafely(tempQty).toInt().toDouble()
+        }
         onUpdate(p, q, tempUnit)
     }
 
@@ -510,11 +540,16 @@ fun ShoppingListItem(
                 ) {
                     OutlinedTextField(
                         value = tempPrice,
-                        onValueChange = { 
-                            tempPrice = it
+                        onValueChange = { input ->
+                            val sanitized = if (input.startsWith("0") && input.length > 1 && input[1].isDigit()) {
+                                input.substring(1)
+                            } else {
+                                input
+                            }
+                            tempPrice = sanitized
                             updateValues()
                         },
-                        label = { Text("R$", color = Color(0xFF5E6D6A), fontSize = 12.sp) },
+                        label = { Text("Preço Unitário / por Kg", color = Color(0xFF5E6D6A), fontSize = 12.sp) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -532,13 +567,18 @@ fun ShoppingListItem(
                     
                     OutlinedTextField(
                         value = tempQty,
-                        onValueChange = { 
-                            tempQty = it
+                        onValueChange = { input ->
+                            val sanitized = if (input.startsWith("0") && input.length > 1 && input[1].isDigit()) {
+                                input.substring(1)
+                            } else {
+                                input
+                            }
+                            tempQty = sanitized
                             updateValues()
                         },
-                        label = { Text("Qtd", color = Color(0xFF5E6D6A), fontSize = 12.sp) },
+                        label = { Text(if (tempUnit == "kg") "Peso (Kg)" else "Quantidade", color = Color(0xFF5E6D6A), fontSize = 12.sp) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier.weight(0.8f),
+                        modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Color(0xFF71D7CD),
                             unfocusedBorderColor = Color(0xFF3D4947),
@@ -551,19 +591,47 @@ fun ShoppingListItem(
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp)
                     )
-
-                    Column(
-                        modifier = Modifier.weight(0.7f),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // Premium Segmented Switch for Unit Selection
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0x14FFFFFF))
+                        .padding(4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (tempUnit == "un") Color(0xFF71D7CD).copy(alpha = 0.2f) else Color.Transparent)
+                            .border(1.dp, if (tempUnit == "un") Color(0xFF71D7CD) else Color.Transparent, RoundedCornerShape(10.dp))
+                            .clickable {
+                                tempUnit = "un"
+                                updateValues()
+                            }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        UnitButton(text = "un", isSelected = tempUnit == "un") { 
-                            tempUnit = "un"
-                            updateValues()
-                        }
-                        UnitButton(text = "kg", isSelected = tempUnit == "kg") { 
-                            tempUnit = "kg"
-                            updateValues()
-                        }
+                        Text("Unidade", color = if (tempUnit == "un") Color.White else Color(0x66FFFFFF), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (tempUnit == "kg") Color(0xFF71D7CD).copy(alpha = 0.2f) else Color.Transparent)
+                            .border(1.dp, if (tempUnit == "kg") Color(0xFF71D7CD) else Color.Transparent, RoundedCornerShape(10.dp))
+                            .clickable {
+                                tempUnit = "kg"
+                                updateValues()
+                            }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Kg", color = if (tempUnit == "kg") Color.White else Color(0x66FFFFFF), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
                 

@@ -25,31 +25,27 @@ import androidx.glance.text.TextStyle
 import com.example.MainActivity
 import com.example.R
 import com.example.data.AppDatabase
-import com.example.data.Transaction
+import com.example.data.MarketItem
 import kotlinx.coroutines.flow.first
-import java.util.Locale
 
-class FinanceGlanceWidget : GlanceAppWidget() {
+class MarketGlanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val db = AppDatabase.getDatabase(context)
-        val transactions = db.tesseraDao().getAllTransactions().first()
+        val items = db.tesseraDao().getPendingMarketItems().first()
 
         provideContent {
-            FinanceWidgetContent(context = context, transactions = transactions)
+            MarketWidgetContent(context = context, items = items)
         }
     }
 }
 
 @androidx.compose.runtime.Composable
-fun FinanceWidgetContent(context: Context, transactions: List<Transaction>) {
+fun MarketWidgetContent(context: Context, items: List<MarketItem>) {
     val openAppAction = androidx.glance.appwidget.action.actionStartActivity(
         android.content.Intent(context, MainActivity::class.java).apply {
-            putExtra("route", "finance")
+            putExtra("route", "market")
         }
     )
-    val totalIncome = transactions.filter { it.isIncome }.sumOf { it.value }
-    val totalExpense = transactions.filter { !it.isIncome }.sumOf { it.value }
-    val balance = totalIncome - totalExpense
 
     Column(
         modifier = GlanceModifier
@@ -65,9 +61,9 @@ fun FinanceWidgetContent(context: Context, transactions: List<Transaction>) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "FINANÇAS",
+                text = "MERCADO",
                 style = TextStyle(
-                    color = androidx.glance.color.ColorProvider(day = Color(0xFFF9A826), night = Color(0xFFF9A826)),
+                    color = androidx.glance.color.ColorProvider(day = Color(0xFF4D96FF), night = Color(0xFF4D96FF)),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold
                 ),
@@ -85,27 +81,39 @@ fun FinanceWidgetContent(context: Context, transactions: List<Transaction>) {
         Spacer(modifier = GlanceModifier.height(8.dp))
 
         Text(
-            text = "Saldo Geral",
+            text = "Lista de Compras",
             style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF81928F), night = Color(0xFF81928F)), fontSize = 11.sp)
         )
         Text(
-            text = "R$ ${String.format(Locale("pt", "BR"), "%,.2f", balance)}",
+            text = "${items.size} itens pendentes",
             style = TextStyle(
                 color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White),
-                fontSize = 22.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
         )
 
         Spacer(modifier = GlanceModifier.height(10.dp))
-        Row(modifier = GlanceModifier.fillMaxWidth()) {
-            Column(modifier = GlanceModifier.defaultWeight()) {
-                Text("Receitas", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x99FFFFFF), night = Color(0x99FFFFFF)), fontSize = 10.sp))
-                Text("R$ ${String.format(Locale("pt", "BR"), "%,.0f", totalIncome)}", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF71D7CD), night = Color(0xFF71D7CD)), fontSize = 13.sp, fontWeight = FontWeight.Bold))
-            }
-            Column(modifier = GlanceModifier.defaultWeight(), horizontalAlignment = Alignment.End) {
-                Text("Despesas", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x99FFFFFF), night = Color(0x99FFFFFF)), fontSize = 10.sp))
-                Text("R$ ${String.format(Locale("pt", "BR"), "%,.0f", totalExpense)}", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFFFF6B6B), night = Color(0xFFFF6B6B)), fontSize = 13.sp, fontWeight = FontWeight.Bold))
+        Column(modifier = GlanceModifier.fillMaxWidth()) {
+            if (items.isEmpty()) {
+                Text(
+                    text = "Tudo comprado!",
+                    style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF71D7CD), night = Color(0xFF71D7CD)), fontSize = 13.sp)
+                )
+            } else {
+                items.take(2).forEach { item ->
+                    val qtyText = if (item.unit == "Kg") "${item.quantity} Kg" else "${item.quantity.toInt()} un"
+                    Text(
+                        text = "• ${item.name} ($qtyText)",
+                        style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xE6FFFFFF), night = Color(0xE6FFFFFF)), fontSize = 12.sp)
+                    )
+                }
+                if (items.size > 2) {
+                    Text(
+                        text = "+ ${items.size - 2} outros itens...",
+                        style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x80FFFFFF), night = Color(0x80FFFFFF)), fontSize = 11.sp)
+                    )
+                }
             }
         }
     }

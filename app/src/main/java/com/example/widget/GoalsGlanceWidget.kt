@@ -25,31 +25,31 @@ import androidx.glance.text.TextStyle
 import com.example.MainActivity
 import com.example.R
 import com.example.data.AppDatabase
-import com.example.data.Transaction
+import com.example.data.Habit
+import com.example.data.Routine
 import kotlinx.coroutines.flow.first
-import java.util.Locale
 
-class FinanceGlanceWidget : GlanceAppWidget() {
+class GoalsGlanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val db = AppDatabase.getDatabase(context)
-        val transactions = db.tesseraDao().getAllTransactions().first()
+        val habits = db.tesseraDao().getAllHabits().first()
+        val routines = db.tesseraDao().getAllRoutines().first()
 
         provideContent {
-            FinanceWidgetContent(context = context, transactions = transactions)
+            GoalsWidgetContent(context = context, habits = habits, routines = routines)
         }
     }
 }
 
 @androidx.compose.runtime.Composable
-fun FinanceWidgetContent(context: Context, transactions: List<Transaction>) {
+fun GoalsWidgetContent(context: Context, habits: List<Habit>, routines: List<Routine>) {
     val openAppAction = androidx.glance.appwidget.action.actionStartActivity(
         android.content.Intent(context, MainActivity::class.java).apply {
-            putExtra("route", "finance")
+            putExtra("route", "goals")
         }
     )
-    val totalIncome = transactions.filter { it.isIncome }.sumOf { it.value }
-    val totalExpense = transactions.filter { !it.isIncome }.sumOf { it.value }
-    val balance = totalIncome - totalExpense
+    val completedHabits = habits.count { it.isCompleted }
+    val totalHabits = habits.size
 
     Column(
         modifier = GlanceModifier
@@ -65,7 +65,7 @@ fun FinanceWidgetContent(context: Context, transactions: List<Transaction>) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "FINANÇAS",
+                text = "METAS E HÁBITOS",
                 style = TextStyle(
                     color = androidx.glance.color.ColorProvider(day = Color(0xFFF9A826), night = Color(0xFFF9A826)),
                     fontSize = 10.sp,
@@ -84,29 +84,33 @@ fun FinanceWidgetContent(context: Context, transactions: List<Transaction>) {
         }
         Spacer(modifier = GlanceModifier.height(8.dp))
 
-        Text(
-            text = "Saldo Geral",
-            style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF81928F), night = Color(0xFF81928F)), fontSize = 11.sp)
-        )
-        Text(
-            text = "R$ ${String.format(Locale("pt", "BR"), "%,.2f", balance)}",
-            style = TextStyle(
-                color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White),
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold
-            )
-        )
-
-        Spacer(modifier = GlanceModifier.height(10.dp))
         Row(modifier = GlanceModifier.fillMaxWidth()) {
+            // Rituais
             Column(modifier = GlanceModifier.defaultWeight()) {
-                Text("Receitas", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x99FFFFFF), night = Color(0x99FFFFFF)), fontSize = 10.sp))
-                Text("R$ ${String.format(Locale("pt", "BR"), "%,.0f", totalIncome)}", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF71D7CD), night = Color(0xFF71D7CD)), fontSize = 13.sp, fontWeight = FontWeight.Bold))
+                Text("Rituais Diários", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF81928F), night = Color(0xFF81928F)), fontSize = 11.sp))
+                Text(
+                    text = "$completedHabits de $totalHabits concluídos",
+                    style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                )
             }
+            // Routines
             Column(modifier = GlanceModifier.defaultWeight(), horizontalAlignment = Alignment.End) {
-                Text("Despesas", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x99FFFFFF), night = Color(0x99FFFFFF)), fontSize = 10.sp))
-                Text("R$ ${String.format(Locale("pt", "BR"), "%,.0f", totalExpense)}", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFFFF6B6B), night = Color(0xFFFF6B6B)), fontSize = 13.sp, fontWeight = FontWeight.Bold))
+                Text("Rotinas Chronos", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF81928F), night = Color(0xFF81928F)), fontSize = 11.sp))
+                Text(
+                    text = "${routines.size} ativas hoje",
+                    style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                )
             }
         }
+
+        Spacer(modifier = GlanceModifier.height(12.dp))
+        Text(
+            text = "Deseja focar agora?",
+            style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x99FFFFFF), night = Color(0x99FFFFFF)), fontSize = 11.sp)
+        )
+        Text(
+            text = "Toque para abrir e iniciar Pomodoro ou Chronos.",
+            style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x66FFFFFF), night = Color(0x66FFFFFF)), fontSize = 10.sp)
+        )
     }
 }

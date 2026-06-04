@@ -9,9 +9,11 @@ import androidx.room.RoomDatabase
     entities = [
         Transaction::class, MarketItem::class, PetEvent::class, BankAccount::class, 
         CreditCard::class, Habit::class, PurchaseGoal::class, HealthProfile::class,
-        Medication::class, WeightRecord::class, SleepRecord::class
+        Medication::class, WeightRecord::class, SleepRecord::class, PetEntity::class,
+        PetWeightHistoryEntity::class, MedicationLog::class, StepsRecord::class,
+        Routine::class, RoutineStep::class
     ], 
-    version = 5, 
+    version = 8, 
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

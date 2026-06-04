@@ -2,6 +2,8 @@ package com.example.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import androidx.room.ForeignKey
+import androidx.room.Index
 
 @Entity(tableName = "transactions")
 data class Transaction(
@@ -95,7 +97,8 @@ data class Medication(
     val time: String,
     val isTaken: Boolean,
     val dosage: String,
-    val colorHex: String
+    val colorHex: String,
+    val recurrence: String = "DAILY" // "DAILY" (Diário) or "ALTERNATE" (Dias alternados)
 )
 
 @Entity(tableName = "weight_records")
@@ -113,4 +116,98 @@ data class SleepRecord(
     val endTime: Long,
     val durationHours: Double,
     val source: String // e.g., "manual", "Health Connect"
+)
+
+enum class PetSex {
+    MACHO, FEMEA
+}
+
+@Entity(tableName = "pets")
+data class PetEntity(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val name: String,
+    val breed: String,
+    val birthDate: Long, // Epoch timestamp (ms)
+    val photoUri: String,
+    val rga: String,
+    val microchip: String,
+    val sex: PetSex,
+    val isCastrated: Boolean,
+    val lastV4VaccineDate: Long?, // Epoch timestamp (ms)
+    val lastRaivaVaccineDate: Long?, // Epoch timestamp (ms)
+    val notes: String
+)
+
+@Entity(
+    tableName = "pet_weight_history",
+    foreignKeys = [
+        ForeignKey(
+            entity = PetEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["petId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index(value = ["petId"])]
+)
+data class PetWeightHistoryEntity(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val petId: Int,
+    val date: Long, // Epoch timestamp (ms)
+    val weight: Double
+)
+
+@Entity(
+    tableName = "medication_logs",
+    foreignKeys = [
+        ForeignKey(
+            entity = Medication::class,
+            parentColumns = ["id"],
+            childColumns = ["medicationId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index(value = ["medicationId"])]
+)
+data class MedicationLog(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val medicationId: Int,
+    val takenTimestamp: Long
+)
+
+@Entity(tableName = "steps_records")
+data class StepsRecord(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val count: Long,
+    val startTime: Long,
+    val endTime: Long,
+    val source: String // e.g. "manual", "Health Connect"
+)
+
+@Entity(tableName = "routines")
+data class Routine(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val name: String,
+    val iconName: String = "Spa"
+)
+
+@Entity(
+    tableName = "routine_steps",
+    foreignKeys = [
+        ForeignKey(
+            entity = Routine::class,
+            parentColumns = ["id"],
+            childColumns = ["routineId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index(value = ["routineId"])]
+)
+data class RoutineStep(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val routineId: Int,
+    val title: String,
+    val durationSeconds: Int,
+    val iconName: String,
+    val orderIndex: Int
 )

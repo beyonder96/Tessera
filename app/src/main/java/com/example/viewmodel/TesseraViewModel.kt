@@ -15,13 +15,22 @@ import com.example.data.HealthProfile
 import com.example.data.Medication
 import com.example.data.WeightRecord
 import com.example.data.SleepRecord
+import com.example.data.MedicationLog
+import com.example.data.StepsRecord
+import com.example.data.Routine
+import com.example.data.RoutineStep
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.combine
+import java.util.Calendar
 import kotlinx.coroutines.launch
 
 class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() {
+
+    var selectedGoalsTab: Int = 0
 
     val allTransactions: StateFlow<List<Transaction>> = repository.allTransactions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -38,6 +47,9 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
     val allPurchaseGoals: StateFlow<List<PurchaseGoal>> = repository.allPurchaseGoals
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val allRoutines: StateFlow<List<Routine>> = repository.allRoutines
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val allPetEvents: StateFlow<List<PetEvent>> = repository.allPetEvents
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -50,7 +62,35 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
     val healthProfile: StateFlow<HealthProfile?> = repository.healthProfile
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    val allMedications: StateFlow<List<Medication>> = repository.allMedications
+    private fun getStartOfToday(): Long {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        return cal.timeInMillis
+    }
+
+    private fun getEndOfToday(): Long {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.HOUR_OF_DAY, 23)
+        cal.set(Calendar.MINUTE, 59)
+        cal.set(Calendar.SECOND, 59)
+        cal.set(Calendar.MILLISECOND, 999)
+        return cal.timeInMillis
+    }
+
+    val allMedications: StateFlow<List<Medication>> = combine(
+        repository.allMedications,
+        repository.getMedicationLogsForRange(getStartOfToday(), getEndOfToday())
+    ) { meds, logs ->
+        meds.map { med ->
+            val hasLog = logs.any { it.medicationId == med.id }
+            med.copy(isTaken = hasLog)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allStepsRecords: StateFlow<List<StepsRecord>> = repository.allStepsRecords
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allWeightRecords: StateFlow<List<WeightRecord>> = repository.allWeightRecords
@@ -247,6 +287,19 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
                 repository.insertPurchaseGoal(PurchaseGoal(title = "MacBook Pro M3", targetValue = 24000.00, currentValue = 15000.00, imageUrl = "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=800&auto=format&fit=crop", deadlineTimestamp = System.currentTimeMillis() + 86400000L * 90, colorHex = "#71D7CD"))
                 repository.insertPurchaseGoal(PurchaseGoal(title = "Viagem Kyoto", targetValue = 35000.00, currentValue = 8000.00, imageUrl = "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=800&auto=format&fit=crop", deadlineTimestamp = System.currentTimeMillis() + 86400000L * 180, colorHex = "#F9A826"))
             }
+
+            val routines = repository.allRoutines.first()
+            if (routines.isEmpty()) {
+                val r1Id = repository.insertRoutine(Routine(name = "Rotina Matinal", iconName = "Spa"))
+                repository.insertRoutineStep(RoutineStep(routineId = r1Id.toInt(), title = "Beber Água", durationSeconds = 60, iconName = "WaterDrop", orderIndex = 0))
+                repository.insertRoutineStep(RoutineStep(routineId = r1Id.toInt(), title = "Meditação", durationSeconds = 300, iconName = "SelfImprovement", orderIndex = 1))
+                repository.insertRoutineStep(RoutineStep(routineId = r1Id.toInt(), title = "Alongamento", durationSeconds = 180, iconName = "Spa", orderIndex = 2))
+
+                val r2Id = repository.insertRoutine(Routine(name = "Rotina Noturna", iconName = "Spa"))
+                repository.insertRoutineStep(RoutineStep(routineId = r2Id.toInt(), title = "Reflexão Diária", durationSeconds = 300, iconName = "MenuBook", orderIndex = 0))
+                repository.insertRoutineStep(RoutineStep(routineId = r2Id.toInt(), title = "Higiene do Sono", durationSeconds = 120, iconName = "Spa", orderIndex = 1))
+                repository.insertRoutineStep(RoutineStep(routineId = r2Id.toInt(), title = "Respiração Profunda", durationSeconds = 180, iconName = "SelfImprovement", orderIndex = 2))
+            }
         }
     }
 
@@ -323,15 +376,24 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
         }
     }
 
-    fun addMedication(name: String, time: String, dosage: String, colorHex: String) {
+    fun addMedication(name: String, time: String, dosage: String, colorHex: String, recurrence: String = "DAILY") {
         viewModelScope.launch {
-            repository.insertMedication(Medication(name = name, time = time, isTaken = false, dosage = dosage, colorHex = colorHex))
+            repository.insertMedication(Medication(name = name, time = time, isTaken = false, dosage = dosage, colorHex = colorHex, recurrence = recurrence))
         }
     }
 
     fun toggleMedicationTaken(medication: Medication) {
         viewModelScope.launch {
-            repository.updateMedication(medication.copy(isTaken = !medication.isTaken))
+            val start = getStartOfToday()
+            val end = getEndOfToday()
+            val logs = repository.getLogsForMedication(medication.id, start, end).first()
+            if (logs.isEmpty()) {
+                repository.insertMedicationLog(
+                    MedicationLog(medicationId = medication.id, takenTimestamp = System.currentTimeMillis())
+                )
+            } else {
+                logs.forEach { repository.deleteMedicationLog(it) }
+            }
         }
     }
 
@@ -347,13 +409,50 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
         }
     }
 
-    fun syncHealthConnectData(weights: List<WeightRecord>, sleeps: List<SleepRecord>) {
+    fun addManualSleepRecord(startTime: Long, endTime: Long, durationHours: Double) {
+        viewModelScope.launch {
+            repository.insertSleepRecord(SleepRecord(startTime = startTime, endTime = endTime, durationHours = durationHours, source = "manual"))
+        }
+    }
+
+    fun addManualStepsRecord(count: Long, startTime: Long, endTime: Long) {
+        viewModelScope.launch {
+            repository.insertStepsRecord(StepsRecord(count = count, startTime = startTime, endTime = endTime, source = "manual"))
+        }
+    }
+
+    fun syncHealthConnectData(weights: List<WeightRecord>, sleeps: List<SleepRecord>, steps: List<StepsRecord>) {
         viewModelScope.launch {
             repository.clearHealthConnectWeightRecords()
             weights.forEach { repository.insertWeightRecord(it) }
 
             repository.clearHealthConnectSleepRecords()
             sleeps.forEach { repository.insertSleepRecord(it) }
+
+            repository.clearHealthConnectStepsRecords()
+            steps.forEach { repository.insertStepsRecord(it) }
+        }
+    }
+
+    fun getStepsForRoutine(routineId: Int): Flow<List<RoutineStep>> {
+        return repository.getStepsForRoutine(routineId)
+    }
+
+    fun addRoutine(name: String, iconName: String) {
+        viewModelScope.launch {
+            repository.insertRoutine(Routine(name = name, iconName = iconName))
+        }
+    }
+
+    fun addRoutineStep(routineId: Int, title: String, durationSeconds: Int, iconName: String, orderIndex: Int) {
+        viewModelScope.launch {
+            repository.insertRoutineStep(RoutineStep(routineId = routineId, title = title, durationSeconds = durationSeconds, iconName = iconName, orderIndex = orderIndex))
+        }
+    }
+
+    fun deleteRoutine(routine: Routine) {
+        viewModelScope.launch {
+            repository.deleteRoutine(routine)
         }
     }
 }

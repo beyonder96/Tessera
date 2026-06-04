@@ -106,4 +106,71 @@ class TesseraRepository(private val dao: TesseraDao) {
     
     suspend fun insertSleepRecord(record: SleepRecord) = dao.insertSleepRecord(record)
     suspend fun clearHealthConnectSleepRecords() = dao.clearHealthConnectSleepRecords()
+
+    val allPets: Flow<List<PetEntity>> = dao.getAllPets()
+
+    suspend fun insertPet(pet: PetEntity): Long {
+        return dao.insertPet(pet)
+    }
+
+    suspend fun deletePet(pet: PetEntity) {
+        dao.deletePet(pet)
+    }
+
+    fun getWeightHistoryForPet(petId: Int): Flow<List<PetWeightHistoryEntity>> {
+        return dao.getWeightHistoryForPet(petId)
+    }
+
+    suspend fun insertWeightHistory(record: PetWeightHistoryEntity) {
+        dao.insertWeightHistory(record)
+    }
+
+    suspend fun deleteWeightHistory(record: PetWeightHistoryEntity) {
+        dao.deleteWeightHistory(record)
+    }
+
+    fun getMedicationLogsForRange(start: Long, end: Long): Flow<List<MedicationLog>> {
+        return dao.getMedicationLogsForRange(start, end)
+    }
+
+    fun getLogsForMedication(medicationId: Int, start: Long, end: Long): Flow<List<MedicationLog>> {
+        return dao.getLogsForMedication(medicationId, start, end)
+    }
+
+    suspend fun insertMedicationLog(log: MedicationLog) {
+        dao.insertMedicationLog(log)
+    }
+
+    suspend fun deleteMedicationLog(log: MedicationLog) {
+        dao.deleteMedicationLog(log)
+    }
+
+    val allStepsRecords: Flow<List<StepsRecord>> = dao.getAllStepsRecords()
+
+    suspend fun insertStepsRecord(record: StepsRecord) {
+        dao.insertStepsRecord(record)
+    }
+
+    suspend fun clearHealthConnectStepsRecords() {
+        dao.clearHealthConnectStepsRecords()
+    }
+
+    // Routines
+    val allRoutines: Flow<List<Routine>> = dao.getAllRoutines()
+
+    fun getStepsForRoutine(routineId: Int): Flow<List<RoutineStep>> {
+        return dao.getStepsForRoutine(routineId)
+    }
+
+    suspend fun insertRoutine(routine: Routine): Long {
+        return dao.insertRoutine(routine)
+    }
+
+    suspend fun insertRoutineStep(step: RoutineStep) {
+        dao.insertRoutineStep(step)
+    }
+
+    suspend fun deleteRoutine(routine: Routine) {
+        dao.deleteRoutine(routine)
+    }
 }

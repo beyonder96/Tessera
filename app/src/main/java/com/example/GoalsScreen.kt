@@ -16,7 +16,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.draw.*
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -32,6 +33,7 @@ import com.example.data.PurchaseGoal
 import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.theme.*
 import com.example.viewmodel.TesseraViewModel
+import androidx.compose.ui.text.style.TextAlign
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -46,112 +48,287 @@ fun GoalsScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
     var habitToEdit by remember { mutableStateOf<Habit?>(null) }
     var goalToEdit by remember { mutableStateOf<PurchaseGoal?>(null) }
 
-    Scaffold(
-        containerColor = Color(0xFF070909), // Oura deep black
-        contentWindowInsets = WindowInsets.systemBars,
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Metas & Hábitos",
-                        fontFamily = FontFamily.Serif,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 28.sp,
-                        color = Color(0xFFDFE3E2)
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onHomeClick) {
-                        Icon(
-                            imageVector = Icons.Outlined.Home,
-                            contentDescription = "Home",
-                            tint = Color(0xFFBDC9C6)
+    var selectedTab by remember(viewModel.selectedGoalsTab) { mutableStateOf(viewModel.selectedGoalsTab) }
+    var showExpansionMenu by remember { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = Color(0xFF070909), // Oura deep black
+            contentWindowInsets = WindowInsets.systemBars,
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = when (selectedTab) {
+                                1 -> "Chronos"
+                                2 -> "Focus Time"
+                                else -> "Metas & Rituais"
+                            },
+                            fontFamily = FontFamily.Serif,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 28.sp,
+                            color = Color(0xFFDFE3E2)
                         )
-                    }
-                },
-                actions = {
-                    var showMenu by remember { mutableStateOf(false) }
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Outlined.Add, contentDescription = "Adicionar", tint = Color(0xFFBDC9C6))
-                        }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false },
-                            modifier = Modifier.background(Color(0xFF141918))
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Novo Hábito", color = Color.White) },
-                                onClick = {
-                                    showMenu = false
-                                    showAddHabitDialog = true
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Nova Meta de Compra", color = Color.White) },
-                                onClick = {
-                                    showMenu = false
-                                    showAddPurchaseGoalDialog = true
-                                }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onHomeClick) {
+                            Icon(
+                                imageVector = Icons.Outlined.Home,
+                                contentDescription = "Home",
+                                tint = Color(0xFFBDC9C6)
                             )
                         }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent,
+                    },
+                    actions = {
+                        if (selectedTab == 0) {
+                            IconButton(onClick = { showExpansionMenu = true }) {
+                                Icon(Icons.Outlined.Add, contentDescription = "Adicionar", tint = Color(0xFFBDC9C6))
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent,
+                    )
                 )
-            )
+            }
+        ) { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                // Internal navigation tabs
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFF141918))
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    listOf("Metas", "Chronos", "Focus").forEachIndexed { index, title ->
+                        val isSelected = selectedTab == index
+                        val bgSelectedColor = when (index) {
+                            1 -> Color(0xFF0F2624) // Teal dark
+                            2 -> Color(0xFF1D0F1C) // Purple/Black
+                            else -> Color(0xFF26200F) // Gold/Black
+                        }
+                        val textAccentColor = when (index) {
+                            1 -> Color(0xFF71D7CD)
+                            2 -> Color(0xFFD7B4F3)
+                            else -> Color(0xFFF9A826)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isSelected) bgSelectedColor else Color.Transparent)
+                                .clickable { 
+                                    selectedTab = index 
+                                    viewModel.selectedGoalsTab = index
+                                }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = title,
+                                color = if (isSelected) textAccentColor else Color(0xFF81928F),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                AnimatedContent(
+                    targetState = selectedTab,
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                    },
+                    label = "MainTabsContent"
+                ) { tab ->
+                    when (tab) {
+                        1 -> ChronosScreen(viewModel = viewModel)
+                        2 -> PomodoroScreen()
+                        else -> {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 20.dp),
+                                contentPadding = PaddingValues(bottom = 120.dp)
+                            ) {
+                                item { Spacer(modifier = Modifier.height(16.dp)) }
+
+                                // Section: Hábitos (Rituais)
+                                item {
+                                    SectionHeader("RITUAIS DIÁRIOS", Icons.Outlined.Spa)
+                                }
+                                
+                                if (habits.isEmpty()) {
+                                    item {
+                                        Text("Nenhum hábito configurado.", color = Color(0xFF5E6D6A), modifier = Modifier.padding(vertical = 16.dp))
+                                    }
+                                } else {
+                                    items(habits, key = { "habit_${it.id}" }) { habit ->
+                                        HabitCard(
+                                            habit = habit, 
+                                            onToggle = { viewModel.toggleHabitCompleted(habit) },
+                                            onEditClick = { habitToEdit = habit }
+                                        )
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                    }
+                                }
+
+                                item { Spacer(modifier = Modifier.height(40.dp)) }
+
+                                // Section: Metas de Compra
+                                item {
+                                    SectionHeader("LISTA DE DESEJOS", Icons.Outlined.StarBorder)
+                                }
+
+                                if (purchaseGoals.isEmpty()) {
+                                    item {
+                                        Text("Nenhuma meta de compra configurada.", color = Color(0xFF5E6D6A), modifier = Modifier.padding(vertical = 16.dp))
+                                    }
+                                } else {
+                                    items(purchaseGoals, key = { "goal_${it.id}" }) { goal ->
+                                        PurchaseGoalCard(
+                                            goal = goal, 
+                                            onAddFunds = { amount -> viewModel.updatePurchaseGoalProgress(goal, amount) },
+                                            onEditClick = { goalToEdit = goal }
+                                        )
+                                        Spacer(modifier = Modifier.height(24.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 20.dp),
-            contentPadding = PaddingValues(bottom = 120.dp)
+
+        // Fullscreen Premium Expansion Menu Overlay
+        AnimatedVisibility(
+            visible = showExpansionMenu,
+            enter = fadeIn(tween(400)),
+            exit = fadeOut(tween(400))
         ) {
-            item { Spacer(modifier = Modifier.height(16.dp)) }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xE6000000)) // 90% black
+                    .zIndex(100f)
+            ) {
+                Row(modifier = Modifier.fillMaxSize()) {
+                    // Left half sliding from left: Nova Meta
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .animateEnterExit(
+                                enter = slideInHorizontally(animationSpec = tween(400, easing = EaseOutQuad)) { -it },
+                                exit = slideOutHorizontally(animationSpec = tween(400, easing = EaseInQuad)) { -it }
+                            )
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(Color(0xFF1E170A), Color(0xFF0D0A05))
+                                )
+                            )
+                            .clickable {
+                                showExpansionMenu = false
+                                showAddPurchaseGoalDialog = true
+                            }
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Outlined.Star,
+                                contentDescription = null,
+                                tint = Color(0xFFF9A826),
+                                modifier = Modifier.size(64.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Nova Meta",
+                                fontFamily = FontFamily.Serif,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp,
+                                color = Color.White,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Defina seus desejos materiais e economize com propósito.",
+                                fontSize = 12.sp,
+                                color = Color(0xFFBDC9C6),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
 
-            // Section: Hábitos (Rituais)
-            item {
-                SectionHeader("RITUAIS DIÁRIOS", Icons.Outlined.Spa)
-            }
-            
-            if (habits.isEmpty()) {
-                item {
-                    Text("Nenhum hábito configurado.", color = Color(0xFF5E6D6A), modifier = Modifier.padding(vertical = 16.dp))
+                    // Right half sliding from right: Novo Ritual
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .animateEnterExit(
+                                enter = slideInHorizontally(animationSpec = tween(400, easing = EaseOutQuad)) { it },
+                                exit = slideOutHorizontally(animationSpec = tween(400, easing = EaseInQuad)) { it }
+                            )
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(Color(0xFF0B1E1C), Color(0xFF050D0C))
+                                )
+                            )
+                            .clickable {
+                                showExpansionMenu = false
+                                showAddHabitDialog = true
+                            }
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Outlined.Spa,
+                                contentDescription = null,
+                                tint = Color(0xFF71D7CD),
+                                modifier = Modifier.size(64.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Novo Ritual",
+                                fontFamily = FontFamily.Serif,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp,
+                                color = Color.White,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Construa hábitos diários consistentes e saudáveis.",
+                                fontSize = 12.sp,
+                                color = Color(0xFFBDC9C6),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
                 }
-            } else {
-                items(habits, key = { "habit_${it.id}" }) { habit ->
-                    HabitCard(
-                        habit = habit, 
-                        onToggle = { viewModel.toggleHabitCompleted(habit) },
-                        onEditClick = { habitToEdit = habit }
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-            }
 
-            item { Spacer(modifier = Modifier.height(40.dp)) }
-
-            // Section: Metas de Compra
-            item {
-                SectionHeader("LISTA DE DESEJOS", Icons.Outlined.StarBorder)
-            }
-
-            if (purchaseGoals.isEmpty()) {
-                item {
-                    Text("Nenhuma meta de compra configurada.", color = Color(0xFF5E6D6A), modifier = Modifier.padding(vertical = 16.dp))
-                }
-            } else {
-                items(purchaseGoals, key = { "goal_${it.id}" }) { goal ->
-                    PurchaseGoalCard(
-                        goal = goal, 
-                        onAddFunds = { amount -> viewModel.updatePurchaseGoalProgress(goal, amount) },
-                        onEditClick = { goalToEdit = goal }
-                    )
-                    Spacer(modifier = Modifier.height(24.dp))
+                // Close button at top-right
+                IconButton(
+                    onClick = { showExpansionMenu = false },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .statusBarsPadding()
+                        .padding(16.dp)
+                        .background(Color(0x33FFFFFF), CircleShape)
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "Fechar", tint = Color.White)
                 }
             }
         }
@@ -311,6 +488,7 @@ fun HabitCard(habit: Habit, onToggle: () -> Unit, onEditClick: () -> Unit) {
 fun PurchaseGoalCard(goal: PurchaseGoal, onAddFunds: (Double) -> Unit, onEditClick: () -> Unit) {
     val progress = (goal.currentValue / goal.targetValue).coerceIn(0.0, 1.0)
     val color = try { Color(android.graphics.Color.parseColor(goal.colorHex)) } catch (e: Exception) { Color(0xFFF9A826) }
+    val daysLeft = ((goal.deadlineTimestamp - System.currentTimeMillis()) / (24 * 60 * 60 * 1000L)).coerceAtLeast(0)
     var showAddFunds by remember { mutableStateOf(false) }
     var fundsAmount by remember { mutableStateOf("") }
 
@@ -333,7 +511,7 @@ fun PurchaseGoalCard(goal: PurchaseGoal, onAddFunds: (Double) -> Unit, onEditCli
             
             // Gradient Overlay
             Box(modifier = Modifier.fillMaxWidth().height(180.dp).background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xFF070909)))))
-
+ 
             // Edit button
             IconButton(
                 onClick = onEditClick,
@@ -397,8 +575,42 @@ fun PurchaseGoalCard(goal: PurchaseGoal, onAddFunds: (Double) -> Unit, onEditCli
             
             // Progress Bar
             val animatedProgress by animateFloatAsState(targetValue = progress.toFloat(), animationSpec = tween(1500, easing = FastOutSlowInEasing))
-            Box(modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape).background(Color(0x1AFFFFFF))) {
-                Box(modifier = Modifier.fillMaxWidth(animatedProgress).height(6.dp).clip(CircleShape).background(color))
+            Box(modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(Color(0x1AFFFFFF))) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(animatedProgress)
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(
+                                    color.copy(alpha = 0.7f),
+                                    color
+                                )
+                            )
+                        )
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Prazo com ícone de calendário
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.CalendarToday,
+                    contentDescription = null,
+                    tint = Color(0xFF81928F),
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Prazo: $daysLeft dias restantes",
+                    fontSize = 12.sp,
+                    color = Color(0xFF81928F)
+                )
             }
             
             Spacer(modifier = Modifier.height(20.dp))

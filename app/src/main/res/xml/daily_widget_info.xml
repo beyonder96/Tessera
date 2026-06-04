@@ -5,5 +5,5 @@
     android:targetCellWidth="4"
     android:targetCellHeight="2"
     android:updatePeriodMillis="1800000"
-    android:previewImage="@drawable/preview_health"
+    android:previewImage="@drawable/preview_daily"
     android:widgetCategory="home_screen" />

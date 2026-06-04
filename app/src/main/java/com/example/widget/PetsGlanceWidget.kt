@@ -25,31 +25,30 @@ import androidx.glance.text.TextStyle
 import com.example.MainActivity
 import com.example.R
 import com.example.data.AppDatabase
-import com.example.data.Transaction
+import com.example.data.PetEvent
 import kotlinx.coroutines.flow.first
-import java.util.Locale
 
-class FinanceGlanceWidget : GlanceAppWidget() {
+class PetsGlanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val db = AppDatabase.getDatabase(context)
-        val transactions = db.tesseraDao().getAllTransactions().first()
+        val events = db.tesseraDao().getAllPetEvents().first()
 
         provideContent {
-            FinanceWidgetContent(context = context, transactions = transactions)
+            PetsWidgetContent(context = context, events = events)
         }
     }
 }
 
 @androidx.compose.runtime.Composable
-fun FinanceWidgetContent(context: Context, transactions: List<Transaction>) {
+fun PetsWidgetContent(context: Context, events: List<PetEvent>) {
     val openAppAction = androidx.glance.appwidget.action.actionStartActivity(
         android.content.Intent(context, MainActivity::class.java).apply {
-            putExtra("route", "finance")
+            putExtra("route", "petz")
         }
     )
-    val totalIncome = transactions.filter { it.isIncome }.sumOf { it.value }
-    val totalExpense = transactions.filter { !it.isIncome }.sumOf { it.value }
-    val balance = totalIncome - totalExpense
+    val completedCount = events.count { it.isCompleted }
+    val totalCount = events.size
+    val nextEvent = events.find { !it.isCompleted }
 
     Column(
         modifier = GlanceModifier
@@ -65,9 +64,9 @@ fun FinanceWidgetContent(context: Context, transactions: List<Transaction>) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "FINANÇAS",
+                text = "PETZ",
                 style = TextStyle(
-                    color = androidx.glance.color.ColorProvider(day = Color(0xFFF9A826), night = Color(0xFFF9A826)),
+                    color = androidx.glance.color.ColorProvider(day = Color(0xFFD7B4F3), night = Color(0xFFD7B4F3)),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold
                 ),
@@ -85,27 +84,34 @@ fun FinanceWidgetContent(context: Context, transactions: List<Transaction>) {
         Spacer(modifier = GlanceModifier.height(8.dp))
 
         Text(
-            text = "Saldo Geral",
+            text = "Atividades de Hoje",
             style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF81928F), night = Color(0xFF81928F)), fontSize = 11.sp)
         )
         Text(
-            text = "R$ ${String.format(Locale("pt", "BR"), "%,.2f", balance)}",
+            text = "$completedCount de $totalCount concluídas",
             style = TextStyle(
                 color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White),
-                fontSize = 22.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
         )
 
         Spacer(modifier = GlanceModifier.height(10.dp))
-        Row(modifier = GlanceModifier.fillMaxWidth()) {
-            Column(modifier = GlanceModifier.defaultWeight()) {
-                Text("Receitas", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x99FFFFFF), night = Color(0x99FFFFFF)), fontSize = 10.sp))
-                Text("R$ ${String.format(Locale("pt", "BR"), "%,.0f", totalIncome)}", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF71D7CD), night = Color(0xFF71D7CD)), fontSize = 13.sp, fontWeight = FontWeight.Bold))
-            }
-            Column(modifier = GlanceModifier.defaultWeight(), horizontalAlignment = Alignment.End) {
-                Text("Despesas", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x99FFFFFF), night = Color(0x99FFFFFF)), fontSize = 10.sp))
-                Text("R$ ${String.format(Locale("pt", "BR"), "%,.0f", totalExpense)}", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFFFF6B6B), night = Color(0xFFFF6B6B)), fontSize = 13.sp, fontWeight = FontWeight.Bold))
+        Column(modifier = GlanceModifier.fillMaxWidth()) {
+            if (nextEvent != null) {
+                Text(
+                    text = "Próxima atividade:",
+                    style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x99FFFFFF), night = Color(0x99FFFFFF)), fontSize = 10.sp)
+                )
+                Text(
+                    text = "${nextEvent.petName}: ${nextEvent.title} às ${nextEvent.time}",
+                    style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                )
+            } else {
+                Text(
+                    text = "Todas as atividades concluídas!",
+                    style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF71D7CD), night = Color(0xFF71D7CD)), fontSize = 13.sp)
+                )
             }
         }
     }
