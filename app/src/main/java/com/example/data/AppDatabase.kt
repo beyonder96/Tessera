@@ -13,7 +13,7 @@ import androidx.room.RoomDatabase
         PetWeightHistoryEntity::class, MedicationLog::class, StepsRecord::class,
         Routine::class, RoutineStep::class
     ], 
-    version = 8, 
+    version = 9, 
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -28,7 +28,7 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "tessera_database"
+                    "tessera_database.db"
                 )
                 .fallbackToDestructiveMigration()
                 .build()

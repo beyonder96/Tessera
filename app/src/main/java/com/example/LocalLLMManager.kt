@@ -15,6 +15,13 @@ class LocalLLMManager(private val context: Context) {
 
     // Prepara a IA buscando o modelo em diversas pastas candidatas
     fun startInference(preferredPath: String) {
+        // Garante a criação da pasta de arquivos externos do app
+        try {
+            context.getExternalFilesDir(null)?.mkdirs()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         val candidatePaths = listOf(
             preferredPath,
             File(context.getExternalFilesDir(null), "gemma-2b-it-cpu-int4.bin").absolutePath,

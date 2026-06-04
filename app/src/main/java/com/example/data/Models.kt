@@ -14,7 +14,11 @@ data class Transaction(
     val isIncome: Boolean,
     val timestamp: Long,
     val category: String,
-    val accountOrCardName: String = ""
+    val accountOrCardName: String = "",
+    val isRealized: Boolean = true,
+    val isRecurrent: Boolean = false,
+    val recurrenceInterval: String = "Mensal", // "Mensal", "Semanal", "Anual"
+    val dueDate: Long = 0L
 )
 
 @Entity(tableName = "market_items")

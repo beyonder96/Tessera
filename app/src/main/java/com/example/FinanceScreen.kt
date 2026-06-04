@@ -35,6 +35,8 @@ import com.example.data.CreditCard
 import com.example.data.Transaction
 import com.example.ui.components.PremiumGlassModifier
 import com.example.viewmodel.TesseraViewModel
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
 import java.util.*
 
 fun parseHexColor(hex: String): Color {
@@ -100,8 +102,8 @@ fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                 showAddDialog = false
                 editingTransaction = null
             },
-            onAdd = { title, value, isIncome, category, origin ->
-                viewModel.addTransaction(title, "", value, isIncome, category, origin)
+            onAdd = { title, value, isIncome, category, origin, isRealized, isRecurrent, interval, dueDate ->
+                viewModel.addTransaction(title, "", value, isIncome, category, origin, isRealized, isRecurrent, interval, dueDate)
                 showAddDialog = false
                 editingTransaction = null
             },
@@ -255,8 +257,16 @@ fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
             Spacer(modifier = Modifier.height(24.dp))
             SmoothEvolutionChart(transactions = filteredTransactions)
             Spacer(modifier = Modifier.height(24.dp))
-            CategoryBreakdown(transactions = filteredTransactions)
+             CategoryBreakdown(transactions = filteredTransactions)
             Spacer(modifier = Modifier.height(24.dp))
+            RecurringExpensesSection(
+                transactions = filteredTransactions,
+                viewModel = viewModel,
+                onTransactionClick = { transaction ->
+                    editingTransaction = transaction
+                    showAddDialog = true
+                }
+            )
             RecentTransactionsSection(
                 transactions = filteredTransactions, 
                 bankAccounts = bankAccounts, 
@@ -1217,6 +1227,27 @@ fun TransactionItem(transaction: Transaction, bankAccounts: List<BankAccount>, c
                         )
                     }
                 }
+                if (!transaction.isRealized) {
+                    val isOverdue = transaction.dueDate > 0L && transaction.dueDate < System.currentTimeMillis()
+                    val labelText = if (isOverdue) "Atrasado" else "Pendente"
+                    val labelColor = if (isOverdue) Color(0xFFEF4444) else Color(0xFFEAB308)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(labelColor.copy(alpha = 0.15f))
+                            .border(0.5.dp, labelColor.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = labelText.uppercase(),
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = labelColor,
+                            maxLines = 1
+                        )
+                    }
+                }
             }
         }
         
@@ -1239,7 +1270,7 @@ fun AddTransactionDialog(
     creditCards: List<CreditCard>,
     editingTransaction: Transaction?,
     onDismiss: () -> Unit,
-    onAdd: (String, Double, Boolean, String, String) -> Unit,
+    onAdd: (String, Double, Boolean, String, String, Boolean, Boolean, String, Long) -> Unit,
     onUpdate: (Transaction, Transaction) -> Unit,
     onDelete: (Transaction) -> Unit
 ) {
@@ -1247,6 +1278,11 @@ fun AddTransactionDialog(
     var valueStr by remember { mutableStateOf(editingTransaction?.value?.toString() ?: "") }
     var isIncome by remember { mutableStateOf(editingTransaction?.isIncome ?: false) }
     var category by remember { mutableStateOf(editingTransaction?.category ?: "Alimentação") }
+    
+    var isRealized by remember { mutableStateOf(editingTransaction?.isRealized ?: true) }
+    var isRecurrent by remember { mutableStateOf(editingTransaction?.isRecurrent ?: false) }
+    var recurrenceInterval by remember { mutableStateOf(editingTransaction?.recurrenceInterval ?: "Mensal") }
+    var dueDate by remember { mutableStateOf(editingTransaction?.dueDate ?: System.currentTimeMillis()) }
     
     val origins = remember(bankAccounts, creditCards) {
         bankAccounts.map { it.name } + creditCards.map { it.name }
@@ -1443,6 +1479,108 @@ fun AddTransactionDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                // Realizada / Pendente Toggle Switch
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Transação realizada?", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                    Switch(
+                        checked = isRealized,
+                        onCheckedChange = { isRealized = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color(0xFF71D7CD),
+                            checkedTrackColor = Color(0xFF71D7CD).copy(alpha = 0.3f),
+                            uncheckedThumbColor = Color.Gray,
+                            uncheckedTrackColor = Color(0x1AFFFFFF)
+                        )
+                    )
+                }
+
+                // Recorrente Toggle Switch
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Lançamento recorrente?", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                    Switch(
+                        checked = isRecurrent,
+                        onCheckedChange = { isRecurrent = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color(0xFF71D7CD),
+                            checkedTrackColor = Color(0xFF71D7CD).copy(alpha = 0.3f),
+                            uncheckedThumbColor = Color.Gray,
+                            uncheckedTrackColor = Color(0x1AFFFFFF)
+                        )
+                    )
+                }
+
+                // Interval Selection Segmented Switch
+                AnimatedVisibility(visible = isRecurrent) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("FREQUÊNCIA", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0x66FFFFFF), letterSpacing = 1.sp)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0x14FFFFFF))
+                                .padding(4.dp)
+                        ) {
+                            listOf("Semanal", "Mensal", "Anual").forEach { interval ->
+                                val isSel = recurrenceInterval == interval
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(if (isSel) Color(0xFF71D7CD).copy(alpha = 0.2f) else Color.Transparent)
+                                        .border(1.dp, if (isSel) Color(0xFF71D7CD) else Color.Transparent, RoundedCornerShape(10.dp))
+                                        .clickable { recurrenceInterval = interval }
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(interval, color = if (isSel) Color.White else Color(0x66FFFFFF), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Date Picker for due date/planned date
+                val context = LocalContext.current
+                val dateFormat = remember { java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()) }
+                val formattedDate = dateFormat.format(java.util.Date(dueDate))
+
+                AnimatedVisibility(visible = isRecurrent || !isRealized) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color(0x14FFFFFF))
+                            .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(14.dp))
+                            .clickable {
+                                showFinanceDatePicker(context, dueDate) { selectedDate ->
+                                    dueDate = selectedDate
+                                }
+                            }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (isRecurrent) "Data do Primeiro Vencimento" else "Data Planejada",
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontSize = 13.sp
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(formattedDate, color = Color(0xFF71D7CD), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(Icons.Default.CalendarToday, contentDescription = null, tint = Color(0xFF71D7CD), modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+
                 // Buttons container
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1477,11 +1615,16 @@ fun AddTransactionDialog(
                                         value = v,
                                         isIncome = isIncome,
                                         category = category,
-                                        accountOrCardName = selectedOrigin
+                                        accountOrCardName = selectedOrigin,
+                                        isRealized = isRealized,
+                                        isRecurrent = isRecurrent,
+                                        recurrenceInterval = recurrenceInterval,
+                                        dueDate = dueDate,
+                                        timestamp = if (!isRealized) dueDate else editingTransaction.timestamp
                                     )
                                     onUpdate(editingTransaction, updatedTx)
                                 } else {
-                                    onAdd(title, v, isIncome, category, selectedOrigin)
+                                    onAdd(title, v, isIncome, category, selectedOrigin, isRealized, isRecurrent, recurrenceInterval, dueDate)
                                 }
                             }
                         },
@@ -1999,6 +2142,171 @@ fun AdjustBalancesDialog(
                     }
                 }
             }
+        }
+    }
+}
+
+fun showFinanceDatePicker(context: Context, initialTime: Long, onDateSelected: (Long) -> Unit) {
+    val calendar = Calendar.getInstance().apply { timeInMillis = initialTime }
+    android.app.DatePickerDialog(
+        context,
+        { _, year, month, dayOfMonth ->
+            val selectedCalendar = Calendar.getInstance().apply {
+                set(Calendar.YEAR, year)
+                set(Calendar.MONTH, month)
+                set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                set(Calendar.HOUR_OF_DAY, 12)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            onDateSelected(selectedCalendar.timeInMillis)
+        },
+        calendar.get(Calendar.YEAR),
+        calendar.get(Calendar.MONTH),
+        calendar.get(Calendar.DAY_OF_MONTH)
+    ).show()
+}
+
+@Composable
+fun RecurringExpensesSection(
+    transactions: List<Transaction>,
+    viewModel: TesseraViewModel,
+    onTransactionClick: (Transaction) -> Unit
+) {
+    val recurrentPending = remember(transactions) {
+        transactions.filter { it.isRecurrent && !it.isRealized }
+    }
+    
+    if (recurrentPending.isNotEmpty()) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = "Despesas Recorrentes",
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 18.sp,
+                color = Color.White,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+            
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                recurrentPending.forEach { tx ->
+                    val isOverdue = tx.dueDate > 0L && tx.dueDate < System.currentTimeMillis()
+                    val dateFormat = remember { java.text.SimpleDateFormat("dd/MM/yy", java.util.Locale.getDefault()) }
+                    val dueDateStr = dateFormat.format(java.util.Date(tx.dueDate))
+                    
+                    val borderBrush = if (isOverdue) {
+                        val infiniteTransition = rememberInfiniteTransition(label = "OverdueGlow")
+                        val glowAlpha by infiniteTransition.animateFloat(
+                            initialValue = 0.4f,
+                            targetValue = 0.9f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(1200, easing = LinearEasing),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "Alpha"
+                        )
+                        Brush.linearGradient(listOf(Color(0xFFEF4444).copy(alpha = glowAlpha), Color(0xFFEF4444).copy(alpha = 0.2f)))
+                    } else {
+                        SolidColor(Color(0x1AFFFFFF))
+                    }
+                    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0x0CFFFFFF))
+                            .border(
+                                width = if (isOverdue) 1.5.dp else 1.dp,
+                                brush = borderBrush,
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .clickable { onTransactionClick(tx) }
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isOverdue) Color(0x26EF4444) else Color(0x1A71D7CD)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (isOverdue) Icons.Outlined.ErrorOutline else Icons.Outlined.Repeat,
+                                    contentDescription = null,
+                                    tint = if (isOverdue) Color(0xFFEF4444) else Color(0xFF71D7CD),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = tx.title,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = Color.White
+                                )
+                                Text(
+                                    text = if (tx.accountOrCardName.isNotEmpty()) "Origem: ${tx.accountOrCardName}" else "Sem origem",
+                                    fontSize = 11.sp,
+                                    color = Color(0x80BDC9C6)
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                if (isOverdue) {
+                                    val diffMs = System.currentTimeMillis() - tx.dueDate
+                                    val diffDays = (diffMs / (24 * 60 * 60 * 1000L)).coerceAtLeast(1)
+                                    Text(
+                                        text = "ATRASADO HÁ $diffDays DIAS (Venceu em $dueDateStr)",
+                                        fontSize = 9.sp,
+                                        color = Color(0xFFEF4444),
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                } else {
+                                    Text(
+                                        text = "Vence em: $dueDateStr (${tx.recurrenceInterval})",
+                                        fontSize = 9.sp,
+                                        color = Color(0xFFBDC9C6)
+                                    )
+                                }
+                            }
+                        }
+                        
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = String.format(java.util.Locale("pt", "BR"), "R$ %,.2f", tx.value),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = if (isOverdue) Color(0xFFEF4444) else Color.White
+                            )
+                            
+                            Button(
+                                onClick = { viewModel.realizeRecurrentTransaction(tx) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isOverdue) Color(0xFFEF4444) else Color(0xFF71D7CD),
+                                    contentColor = Color.Black
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                modifier = Modifier.height(28.dp)
+                            ) {
+                                Text("Pagar", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }

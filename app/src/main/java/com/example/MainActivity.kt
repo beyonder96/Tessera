@@ -447,15 +447,6 @@ fun getDatabaseSizeInKB(context: android.content.Context): String {
 @Composable
 fun HomeScreen(onNavigate: (String) -> Unit) {
     val context = LocalContext.current
-    val tesseraDb = remember { TesseraDatabase.getDatabase(context) }
-    val homeViewModel: HomeViewModel = viewModel(
-        factory = HomeViewModel.Factory(tesseraDb.tesseraDao())
-    )
-
-    val netWorth by homeViewModel.totalNetWorth.collectAsState()
-    val totalIncome by homeViewModel.totalIncome.collectAsState()
-    val totalExpense by homeViewModel.totalExpense.collectAsState()
-    
     val mainViewModel: TesseraViewModel = viewModel(factory = com.example.viewmodel.TesseraViewModelFactory(com.example.data.TesseraRepository(com.example.data.AppDatabase.getDatabase(context).tesseraDao())))
     val petEvents by mainViewModel.allPetEvents.collectAsState(initial = emptyList())
     val stepsRecords by mainViewModel.allStepsRecords.collectAsState(initial = emptyList())
@@ -471,6 +462,10 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
     val realExpense = remember(transactions) { transactions.filter { !it.isIncome }.sumOf { it.value } }
     val realBalance = realIncome - realExpense
     val realPatrimony = remember(bankAccounts) { bankAccounts.sumOf { it.balance } }
+
+    val netWorth = realBalance
+    val totalIncome = realIncome
+    val totalExpense = realExpense
     
     var showChatSheet by remember { mutableStateOf(false) }
 
@@ -648,7 +643,7 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
                     }
             ) {
                 val habits by mainViewModel.allHabits.collectAsState(initial = emptyList<com.example.data.Habit>())
-                HeroMetric(habits, todaySteps, onNavigate)
+                HeroMetric(habits, onNavigate)
             }
             
             Spacer(modifier = Modifier.height(32.dp))
@@ -1124,105 +1119,28 @@ fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, prog
 }
 
 @Composable
-fun HeroMetric(habits: List<com.example.data.Habit>, todaySteps: Long = 0, onNavigate: (String) -> Unit) {
-    val calendar = java.util.Calendar.getInstance()
-    val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
-    val minute = calendar.get(java.util.Calendar.MINUTE)
-    
-    val isMorning = hour in 5..11
-    val isAfternoon = hour in 12..17
-    
+fun HeroMetric(habits: List<com.example.data.Habit>, onNavigate: (String) -> Unit) {
     val completedHabits = habits.count { it.isCompleted }
     val totalHabits = habits.size
-    val habitScore = if (totalHabits > 0) ((completedHabits.toFloat() / totalHabits) * 100).toInt() else 85
-    val habitProgressValue = if (totalHabits > 0) completedHabits.toFloat() / totalHabits else 0.85f
+    val habitScore = if (totalHabits > 0) ((completedHabits.toFloat() / totalHabits) * 100).toInt() else 0
+    val habitProgressValue = if (totalHabits > 0) completedHabits.toFloat() / totalHabits else 0f
 
-    val title = if (isMorning) "PRONTIDÃO" else if (isAfternoon) "ATIVIDADE" else "RELAXAMENTO"
-    val value = if (isMorning) {
-        "$habitScore"
-    } else if (isAfternoon) {
-        if (todaySteps >= 1000) {
-            String.format(java.util.Locale("pt", "BR"), "%.1fk", todaySteps.toFloat() / 1000f)
+    val title = "HÁBITOS DIÁRIOS"
+    val value = if (totalHabits > 0) "$completedHabits/$totalHabits" else "0"
+    val subtitle = "Rituais de Hoje"
+    val subtext = if (totalHabits > 0) {
+        if (completedHabits == totalHabits) {
+            "Excelente! Todos os hábitos de hoje foram concluídos."
         } else {
-            todaySteps.toString()
+            "Você completou $completedHabits de $totalHabits hábitos diários!\nMantenha o foco."
         }
     } else {
-        val targetHour = 23
-        val targetMinute = 0
-        val currentMinutesOfDay = hour * 60 + minute
-        val targetMinutesOfDay = targetHour * 60 + targetMinute
-        
-        if (currentMinutesOfDay >= targetMinutesOfDay || hour < 5) {
-            "Dormir"
-        } else {
-            val startRelaxMinutesOfDay = 21 * 60
-            if (currentMinutesOfDay < startRelaxMinutesOfDay) {
-                val diffMin = startRelaxMinutesOfDay - currentMinutesOfDay
-                if (diffMin >= 60) "${(diffMin / 60)}h" else "${diffMin}m"
-            } else {
-                val remainingMin = targetMinutesOfDay - currentMinutesOfDay
-                if (remainingMin >= 60) {
-                    val hrs = remainingMin / 60
-                    val mins = remainingMin % 60
-                    if (mins == 0) "${hrs}h" else "${hrs}h${mins}m"
-                } else {
-                    "${remainingMin}m"
-                }
-            }
-        }
+        "Nenhum hábito cadastrado para hoje.\nToque para configurar."
     }
     
-    val subtitle = if (isMorning) "Bom dia" else if (isAfternoon) "Progresso da tarde" else "Boa noite"
-    val subtext = if (isMorning) {
-        "Você completou $completedHabits de $totalHabits hábitos diários!\nÓtimo progresso."
-    } else if (isAfternoon) {
-        if (todaySteps >= 10000) {
-            "Meta de 10.000 passos alcançada! Excelente atividade hoje."
-        } else {
-            "Você deu $todaySteps passos hoje. Faltam ${10000 - todaySteps} para sua meta diária."
-        }
-    } else {
-        val targetHour = 23
-        val targetMinute = 0
-        val currentMinutesOfDay = hour * 60 + minute
-        val targetMinutesOfDay = targetHour * 60 + targetMinute
-        
-        if (currentMinutesOfDay >= targetMinutesOfDay || hour < 5) {
-            "Já passou do seu horário de dormir recomendado. Desligue as telas e descanse."
-        } else {
-            val startRelaxMinutesOfDay = 21 * 60
-            if (currentMinutesOfDay < startRelaxMinutesOfDay) {
-                "A noite chegou. O período de relaxamento guiado começa às 21h."
-            } else {
-                val remainingMin = targetMinutesOfDay - currentMinutesOfDay
-                "Faltam $remainingMin min para seu horário ideal de sono. Comece a desacelerar."
-            }
-        }
-    }
-    
-    val icon = if (isMorning) Icons.Outlined.WbSunny else if (isAfternoon) Icons.Outlined.DirectionsWalk else Icons.Outlined.Bedtime
-    val progressValue = if (isMorning) {
-        habitProgressValue
-    } else if (isAfternoon) {
-        (todaySteps.toFloat() / 10000f).coerceIn(0f, 1f)
-    } else {
-        val targetHour = 23
-        val targetMinute = 0
-        val currentMinutesOfDay = hour * 60 + minute
-        val targetMinutesOfDay = targetHour * 60 + targetMinute
-        val startRelaxMinutesOfDay = 21 * 60
-        
-        if (currentMinutesOfDay >= targetMinutesOfDay || hour < 5) {
-            1.0f
-        } else if (currentMinutesOfDay < startRelaxMinutesOfDay) {
-            0.0f
-        } else {
-            val totalRelaxPeriod = targetMinutesOfDay - startRelaxMinutesOfDay
-            val elapsed = currentMinutesOfDay - startRelaxMinutesOfDay
-            (elapsed.toFloat() / totalRelaxPeriod.toFloat()).coerceIn(0f, 1f)
-        }
-    }
-    val progressColor = if (isMorning) Color(0xFFF9A826) else if (isAfternoon) PrimaryTeal else TertiaryPurple
+    val icon = Icons.Outlined.CheckCircle
+    val progressValue = habitProgressValue
+    val progressColor = PrimaryTeal
 
     var animationStarted by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { animationStarted = true }

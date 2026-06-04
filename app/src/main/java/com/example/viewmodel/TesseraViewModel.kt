@@ -99,20 +99,37 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
     val allSleepRecords: StateFlow<List<SleepRecord>> = repository.allSleepRecords
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun addTransaction(title: String, subtitle: String, value: Double, isIncome: Boolean, category: String, accountOrCardName: String = "") {
+    fun addTransaction(
+        title: String,
+        subtitle: String,
+        value: Double,
+        isIncome: Boolean,
+        category: String,
+        accountOrCardName: String = "",
+        isRealized: Boolean = true,
+        isRecurrent: Boolean = false,
+        recurrenceInterval: String = "Mensal",
+        dueDate: Long = 0L,
+        customTimestamp: Long? = null
+    ) {
         viewModelScope.launch {
+            val txTime = customTimestamp ?: if (dueDate > 0L) dueDate else System.currentTimeMillis()
             repository.insertTransaction(
                 Transaction(
                     title = title,
                     subtitle = subtitle,
                     value = value,
                     isIncome = isIncome,
-                    timestamp = System.currentTimeMillis(),
+                    timestamp = txTime,
                     category = category,
-                    accountOrCardName = accountOrCardName
+                    accountOrCardName = accountOrCardName,
+                    isRealized = isRealized,
+                    isRecurrent = isRecurrent,
+                    recurrenceInterval = recurrenceInterval,
+                    dueDate = if (dueDate > 0L) dueDate else txTime
                 )
             )
-            if (accountOrCardName.isNotEmpty()) {
+            if (isRealized && accountOrCardName.isNotEmpty()) {
                 adjustBalances(accountOrCardName, value, isIncome)
             }
         }
@@ -120,11 +137,11 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
 
     fun updateTransaction(oldTransaction: Transaction, newTransaction: Transaction) {
         viewModelScope.launch {
-            if (oldTransaction.accountOrCardName.isNotEmpty()) {
+            if (oldTransaction.isRealized && oldTransaction.accountOrCardName.isNotEmpty()) {
                 rollbackBalances(oldTransaction.accountOrCardName, oldTransaction.value, oldTransaction.isIncome)
             }
             repository.insertTransaction(newTransaction)
-            if (newTransaction.accountOrCardName.isNotEmpty()) {
+            if (newTransaction.isRealized && newTransaction.accountOrCardName.isNotEmpty()) {
                 adjustBalances(newTransaction.accountOrCardName, newTransaction.value, newTransaction.isIncome)
             }
         }
@@ -132,11 +149,47 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
 
     fun deleteTransaction(transaction: Transaction) {
         viewModelScope.launch {
-            if (transaction.accountOrCardName.isNotEmpty()) {
+            if (transaction.isRealized && transaction.accountOrCardName.isNotEmpty()) {
                 rollbackBalances(transaction.accountOrCardName, transaction.value, transaction.isIncome)
             }
             repository.deleteTransaction(transaction)
         }
+    }
+
+    fun realizeRecurrentTransaction(transaction: Transaction) {
+        viewModelScope.launch {
+            // 1. Mark current transaction as realized
+            val realizedTx = transaction.copy(
+                isRealized = true,
+                timestamp = System.currentTimeMillis() // Set realization timestamp to now
+            )
+            repository.insertTransaction(realizedTx)
+            if (realizedTx.accountOrCardName.isNotEmpty()) {
+                adjustBalances(realizedTx.accountOrCardName, realizedTx.value, realizedTx.isIncome)
+            }
+
+            // 2. Schedule the next recurrence
+            val nextDueDate = calculateNextDueDate(transaction.dueDate, transaction.recurrenceInterval)
+            val nextTx = transaction.copy(
+                id = 0, // Generate new ID
+                isRealized = false,
+                dueDate = nextDueDate,
+                timestamp = nextDueDate // Set timestamp to the due date so it sorts or shows up in the future
+            )
+            repository.insertTransaction(nextTx)
+        }
+    }
+
+    fun calculateNextDueDate(currentDueDate: Long, interval: String): Long {
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = if (currentDueDate > 0) currentDueDate else System.currentTimeMillis()
+        when (interval) {
+            "Semanal" -> cal.add(Calendar.WEEK_OF_YEAR, 1)
+            "Mensal" -> cal.add(Calendar.MONTH, 1)
+            "Anual" -> cal.add(Calendar.YEAR, 1)
+            else -> cal.add(Calendar.MONTH, 1)
+        }
+        return cal.timeInMillis
     }
 
     private fun adjustBalances(name: String, value: Double, isIncome: Boolean) {
@@ -277,11 +330,70 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
 
             val txs = repository.allTransactions.first()
             if (txs.isEmpty()) {
-                repository.insertTransaction(Transaction(title = "Salário Mensal", subtitle = "Depósito Recebido", value = 18500.00, isIncome = true, timestamp = System.currentTimeMillis() - 86400000 * 5, category = "Salário", accountOrCardName = "XP Investimentos"))
-                repository.insertTransaction(Transaction(title = "Mercado Municipal", subtitle = "Compras da semana", value = 450.20, isIncome = false, timestamp = System.currentTimeMillis() - 86400000 * 3, category = "Alimentação", accountOrCardName = "Nubank"))
-                repository.insertTransaction(Transaction(title = "Posto Ipiranga", subtitle = "Combustível", value = 220.00, isIncome = false, timestamp = System.currentTimeMillis() - 86400000 * 2, category = "Transporte", accountOrCardName = "Nubank Ultravioleta"))
-                repository.insertTransaction(Transaction(title = "Assinatura Netflix", subtitle = "Mensalidade", value = 55.90, isIncome = false, timestamp = System.currentTimeMillis() - 86400000 * 1, category = "Lazer", accountOrCardName = "Inter Black"))
-                repository.insertTransaction(Transaction(title = "Jantar Premium", subtitle = "Restaurante", value = 380.00, isIncome = false, timestamp = System.currentTimeMillis() - 3600000 * 4, category = "Alimentação", accountOrCardName = "C6 Carbon"))
+                // Realized transactions
+                repository.insertTransaction(Transaction(title = "Salário Mensal", subtitle = "Depósito Recebido", value = 18500.00, isIncome = true, timestamp = System.currentTimeMillis() - 86400000 * 5, category = "Salário", accountOrCardName = "XP Investimentos", isRealized = true))
+                repository.insertTransaction(Transaction(title = "Mercado Municipal", subtitle = "Compras da semana", value = 450.20, isIncome = false, timestamp = System.currentTimeMillis() - 86400000 * 3, category = "Alimentação", accountOrCardName = "Nubank", isRealized = true))
+                repository.insertTransaction(Transaction(title = "Posto Ipiranga", subtitle = "Combustível", value = 220.00, isIncome = false, timestamp = System.currentTimeMillis() - 86400000 * 2, category = "Transporte", accountOrCardName = "Nubank Ultravioleta", isRealized = true))
+                repository.insertTransaction(Transaction(title = "Assinatura Netflix", subtitle = "Mensalidade", value = 55.90, isIncome = false, timestamp = System.currentTimeMillis() - 86400000 * 1, category = "Lazer", accountOrCardName = "Inter Black", isRealized = true))
+                repository.insertTransaction(Transaction(title = "Jantar Premium", subtitle = "Restaurante", value = 380.00, isIncome = false, timestamp = System.currentTimeMillis() - 3600000 * 4, category = "Alimentação", accountOrCardName = "C6 Carbon", isRealized = true))
+
+                // Recurrent and pending transactions (overdue)
+                repository.insertTransaction(Transaction(
+                    title = "Assinatura Spotify",
+                    subtitle = "Mensalidade Premium",
+                    value = 34.90,
+                    isIncome = false,
+                    timestamp = System.currentTimeMillis() - 86400000 * 3, // 3 days ago
+                    category = "Lazer",
+                    accountOrCardName = "Nubank Ultravioleta",
+                    isRealized = false,
+                    isRecurrent = true,
+                    recurrenceInterval = "Mensal",
+                    dueDate = System.currentTimeMillis() - 86400000 * 3
+                ))
+
+                // Recurrent and pending transactions (future)
+                repository.insertTransaction(Transaction(
+                    title = "Aluguel Apartamento",
+                    subtitle = "Custo Fixo Mensal",
+                    value = 2800.00,
+                    isIncome = false,
+                    timestamp = System.currentTimeMillis() + 86400000 * 10, // 10 days in future
+                    category = "Outros",
+                    accountOrCardName = "Nubank",
+                    isRealized = false,
+                    isRecurrent = true,
+                    recurrenceInterval = "Mensal",
+                    dueDate = System.currentTimeMillis() + 86400000 * 10
+                ))
+
+                // One-off pending transaction (future)
+                repository.insertTransaction(Transaction(
+                    title = "Manutenção Notebook",
+                    subtitle = "Conserto de cooler",
+                    value = 450.00,
+                    isIncome = false,
+                    timestamp = System.currentTimeMillis() + 86400000 * 5, // 5 days in future
+                    category = "Outros",
+                    accountOrCardName = "Inter Black",
+                    isRealized = false,
+                    isRecurrent = false,
+                    dueDate = System.currentTimeMillis() + 86400000 * 5
+                ))
+
+                // One-off pending transaction (overdue)
+                repository.insertTransaction(Transaction(
+                    title = "Ajuste Costureira",
+                    subtitle = "Ajuste de ternos",
+                    value = 120.00,
+                    isIncome = false,
+                    timestamp = System.currentTimeMillis() - 86400000 * 2, // 2 days ago
+                    category = "Outros",
+                    accountOrCardName = "Itaú Uniclass",
+                    isRealized = false,
+                    isRecurrent = false,
+                    dueDate = System.currentTimeMillis() - 86400000 * 2
+                ))
             }
 
             val habits = repository.allHabits.first()

@@ -31,7 +31,7 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "tessera_database.db"
+                    "tessera_legacy_database.db"
                 ).build()
                 INSTANCE = instance
                 instance
