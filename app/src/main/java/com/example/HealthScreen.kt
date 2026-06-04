@@ -655,8 +655,8 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                             }
                         }
 
-                        // Health Connect Connect Banner (Avoid flicker: only display if healthProfile loaded and disabled)
-                        if (healthProfile != null && healthProfile?.isHealthConnectEnabled != true) {
+                        // Health Connect Connect Banner (display if healthProfile is null or disabled)
+                        if (healthProfile == null || healthProfile?.isHealthConnectEnabled != true) {
                             item {
                                 AnimatedCardContainer(delayMillis = 150) {
                                     HealthConnectBanner { 

@@ -243,6 +243,15 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
     
     fun initializeDataIfNeeded() {
         viewModelScope.launch {
+            val profile = repository.healthProfile.first()
+            if (profile == null) {
+                repository.insertHealthProfile(HealthProfile(id = 1, heightCm = 0.0, targetWeightKg = 0.0, isHealthConnectEnabled = false))
+            }
+        }
+    }
+
+    fun seedDemoData() {
+        viewModelScope.launch {
             val count = repository.getPetEventsCount()
             if (count == 0) {
                 repository.insertPetEvents(listOf(
@@ -299,6 +308,13 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
                 repository.insertRoutineStep(RoutineStep(routineId = r2Id.toInt(), title = "Reflexão Diária", durationSeconds = 300, iconName = "MenuBook", orderIndex = 0))
                 repository.insertRoutineStep(RoutineStep(routineId = r2Id.toInt(), title = "Higiene do Sono", durationSeconds = 120, iconName = "Spa", orderIndex = 1))
                 repository.insertRoutineStep(RoutineStep(routineId = r2Id.toInt(), title = "Respiração Profunda", durationSeconds = 180, iconName = "SelfImprovement", orderIndex = 2))
+            }
+
+            val profile = repository.healthProfile.first()
+            if (profile == null) {
+                repository.insertHealthProfile(HealthProfile(id = 1, heightCm = 175.0, targetWeightKg = 70.0, isHealthConnectEnabled = false))
+            } else {
+                repository.insertHealthProfile(profile.copy(heightCm = 175.0, targetWeightKg = 70.0))
             }
         }
     }

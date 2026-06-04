@@ -125,7 +125,25 @@ val GlassModifier = PremiumGlassModifier
 @Composable
 fun TesseraApp() {
     val context = LocalContext.current
+    val database = remember { AppDatabase.getDatabase(context) }
+    val repository = remember { TesseraRepository(database.tesseraDao()) }
+    val viewModel: TesseraViewModel = viewModel(factory = TesseraViewModelFactory(repository))
+    val petViewModel: PetViewModel = viewModel(factory = PetViewModelFactory(repository))
+
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
+    var isFirstTime by remember { mutableStateOf(sharedPrefs.getBoolean("first_time_user", true)) }
+
+    if (isFirstTime) {
+        OnboardingScreen(
+            viewModel = viewModel,
+            onCompleted = {
+                isFirstTime = false
+                sharedPrefs.edit().putBoolean("first_time_user", false).apply()
+            }
+        )
+        return
+    }
+
     var isBiometricEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("biometric_enabled", false)) }
     var isUnlocked by remember { mutableStateOf(!isBiometricEnabled) }
 
@@ -134,12 +152,6 @@ fun TesseraApp() {
         return
     }
 
-
-    val database = remember { AppDatabase.getDatabase(context) }
-    val repository = remember { TesseraRepository(database.tesseraDao()) }
-    val viewModel: TesseraViewModel = viewModel(factory = TesseraViewModelFactory(repository))
-    val petViewModel: PetViewModel = viewModel(factory = PetViewModelFactory(repository))
-    
     LaunchedEffect(Unit) {
         viewModel.initializeDataIfNeeded()
     }
@@ -3659,52 +3671,189 @@ fun LockScreen(onUnlocked: () -> Unit) {
         biometricPrompt.authenticate(promptInfo)
     }
 
+    val infiniteTransition = rememberInfiniteTransition(label = "LockScreenRipple")
+    val wave1Progress by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "Wave1"
+    )
+    val wave2Progress by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2500, easing = LinearEasing, delayMillis = 1250),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "Wave2"
+    )
+    
+    val ambientGlowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.05f,
+        targetValue = 0.15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = EaseInOutSine),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "AmbientGlow"
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF070909)),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = Icons.Outlined.Fingerprint,
-                contentDescription = "Biometria",
-                tint = PrimaryTeal,
-                modifier = Modifier.size(80.dp)
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                text = "Tessera Bloqueado",
-                fontFamily = FontFamily.Serif,
-                color = Color.White,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-            if (hasError) {
-                Spacer(modifier = Modifier.height(16.dp))
-                OutlinedButton(
-                    onClick = {
-                        val executor = ContextCompat.getMainExecutor(context)
-                        val biometricPrompt = BiometricPrompt(
-                            context as androidx.fragment.app.FragmentActivity,
-                            executor,
-                            object : BiometricPrompt.AuthenticationCallback() {
-                                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                                    super.onAuthenticationSucceeded(result)
-                                    onUnlocked()
-                                }
-                            }
-                        )
-                        val promptInfo = BiometricPrompt.PromptInfo.Builder()
-                            .setTitle("Desbloquear Tessera")
-                            .setNegativeButtonText("Cancelar")
-                            .build()
-                        biometricPrompt.authenticate(promptInfo)
-                    },
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryTeal),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, PrimaryTeal)
+        // Soft background glow
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(PrimaryTeal.copy(alpha = ambientGlowAlpha), Color.Transparent),
+                        center = Offset.Unspecified,
+                        radius = 800f
+                    )
+                )
+        )
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(horizontal = 32.dp)
+        ) {
+            // Glassmorphic Biometrics Card
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(32.dp))
+                    .then(PremiumGlassModifier)
+                    .padding(vertical = 40.dp, horizontal = 24.dp)
+            ) {
+                // Animated Fingerprint Container with Waves
+                Box(
+                    modifier = Modifier.size(160.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text("Tentar Novamente")
+                    // Wave 1
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        drawCircle(
+                            color = PrimaryTeal,
+                            radius = 40.dp.toPx() + (40.dp.toPx() * wave1Progress),
+                            alpha = (1f - wave1Progress) * 0.25f,
+                            style = Stroke(width = 1.5.dp.toPx())
+                        )
+                    }
+                    // Wave 2
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        drawCircle(
+                            color = PrimaryTeal,
+                            radius = 40.dp.toPx() + (40.dp.toPx() * wave2Progress),
+                            alpha = (1f - wave2Progress) * 0.25f,
+                            style = Stroke(width = 1.5.dp.toPx())
+                        )
+                    }
+
+                    // Pulsing Central Icon Background
+                    Box(
+                        modifier = Modifier
+                            .size(76.dp)
+                            .clip(CircleShape)
+                            .background(PrimaryTeal.copy(alpha = 0.1f))
+                            .border(1.dp, PrimaryTeal.copy(alpha = 0.25f), CircleShape)
+                            .clickable {
+                                val executor = ContextCompat.getMainExecutor(context)
+                                val biometricPrompt = BiometricPrompt(
+                                    context as androidx.fragment.app.FragmentActivity,
+                                    executor,
+                                    object : BiometricPrompt.AuthenticationCallback() {
+                                        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                                            super.onAuthenticationSucceeded(result)
+                                            onUnlocked()
+                                        }
+                                        override fun onAuthenticationFailed() {
+                                            super.onAuthenticationFailed()
+                                            hasError = true
+                                        }
+                                    }
+                                )
+                                val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                                    .setTitle("Desbloquear Tessera")
+                                    .setSubtitle("Use sua biometria para acessar o app")
+                                    .setNegativeButtonText("Cancelar")
+                                    .build()
+                                biometricPrompt.authenticate(promptInfo)
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Fingerprint,
+                            contentDescription = "Biometria",
+                            tint = PrimaryTeal,
+                            modifier = Modifier.size(38.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(28.dp))
+                
+                Text(
+                    text = "Tessera Protegido",
+                    fontFamily = FontFamily.Serif,
+                    color = Color.White,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Light,
+                    textAlign = TextAlign.Center
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    text = "Sua privacidade está resguardada. Use biometria para acessar seu painel.",
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 18.sp
+                )
+
+                if (hasError) {
+                    Spacer(modifier = Modifier.height(32.dp))
+                    Button(
+                        onClick = {
+                            val executor = ContextCompat.getMainExecutor(context)
+                            val biometricPrompt = BiometricPrompt(
+                                context as androidx.fragment.app.FragmentActivity,
+                                executor,
+                                object : BiometricPrompt.AuthenticationCallback() {
+                                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                                        super.onAuthenticationSucceeded(result)
+                                        onUnlocked()
+                                    }
+                                }
+                            )
+                            val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                                .setTitle("Desbloquear Tessera")
+                                .setNegativeButtonText("Cancelar")
+                                .build()
+                            biometricPrompt.authenticate(promptInfo)
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrimaryTeal,
+                            contentColor = Color.Black
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth().height(48.dp)
+                    ) {
+                        Text(
+                            "TENTAR NOVAMENTE",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            letterSpacing = 1.5.sp
+                        )
+                    }
                 }
             }
         }

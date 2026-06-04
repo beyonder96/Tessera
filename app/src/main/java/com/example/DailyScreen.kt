@@ -18,8 +18,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -28,6 +31,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.theme.*
@@ -35,6 +39,7 @@ import com.example.viewmodel.TesseraViewModel
 import java.util.Calendar
 import java.util.Locale
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,6 +49,7 @@ fun DailyScreen(
     onNavigate: (String) -> Unit
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
     // State Collection
@@ -56,29 +62,27 @@ fun DailyScreen(
     val habits by viewModel.allHabits.collectAsStateWithLifecycle(initialValue = emptyList())
     val healthProfile by viewModel.healthProfile.collectAsStateWithLifecycle(initialValue = null)
 
+    // Quick Dialog States
+    var showQuickExpenseDialog by remember { mutableStateOf(false) }
+    var showQuickWeightDialog by remember { mutableStateOf(false) }
+
     // Cascade Animation States
     var animateHeader by remember { mutableStateOf(false) }
-    var animateFinance by remember { mutableStateOf(false) }
-    var animateHealth by remember { mutableStateOf(false) }
-    var animatePets by remember { mutableStateOf(false) }
-    var animateMarket by remember { mutableStateOf(false) }
-    var animateTasks by remember { mutableStateOf(false) }
-    var animateShortcuts by remember { mutableStateOf(false) }
+    var animateInsight by remember { mutableStateOf(false) }
+    var animateRings by remember { mutableStateOf(false) }
+    var animateInteractiveCards by remember { mutableStateOf(false) }
+    var animateQuickActions by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         animateHeader = true
         delay(60L)
-        animateFinance = true
+        animateInsight = true
         delay(60L)
-        animateHealth = true
+        animateRings = true
         delay(60L)
-        animatePets = true
+        animateInteractiveCards = true
         delay(60L)
-        animateMarket = true
-        delay(60L)
-        animateTasks = true
-        delay(60L)
-        animateShortcuts = true
+        animateQuickActions = true
     }
 
     // Calendar Calculations
@@ -104,7 +108,7 @@ fun DailyScreen(
         else -> "Boa noite"
     }
 
-    // Consolidated Calculations
+    // Calculations
     val totalIncome = transactions.filter { it.isIncome }.sumOf { it.value }
     val totalExpense = transactions.filter { !it.isIncome }.sumOf { it.value }
     val financeBalance = totalIncome - totalExpense
@@ -128,13 +132,53 @@ fun DailyScreen(
     }.timeInMillis
     
     val todaySteps = stepsRecords.filter { it.startTime >= todayStart && it.endTime <= todayEnd }.sumOf { it.count }
-    val latestSleep = sleepRecords.lastOrNull()?.durationHours ?: 7.5
+    val latestSleep = sleepRecords.lastOrNull()?.durationHours ?: 0.0
 
     val completedPetEvents = petEvents.count { it.isCompleted }
     val totalPetEvents = petEvents.size
 
     val completedHabits = habits.count { it.isCompleted }
     val totalHabits = habits.size
+
+    // Dynamic Assistant Briefing Generator
+    val assistantInsight = remember(financeBalance, todaySteps, completedHabits, petEvents) {
+        val financeStr = if (transactions.isEmpty()) {
+            "Suas finanças estão limpas de registros hoje."
+        } else if (financeBalance >= 0) {
+            "Seu balanço mensal está positivo em R$ ${String.format(Locale("pt", "BR"), "%,.2f", financeBalance)}. Excelente controle!"
+        } else {
+            "Suas despesas superaram suas receitas neste mês por R$ ${String.format(Locale("pt", "BR"), "%,.2f", -financeBalance)}. Fique atento."
+        }
+
+        val healthStr = if (todaySteps == 0L) {
+            "Ainda não registramos passos para hoje. Que tal caminhar um pouco?"
+        } else if (todaySteps < 6000) {
+            "Você deu $todaySteps passos hoje. Falta pouco para atingir um nível ativo!"
+        } else {
+            "Parabéns! $todaySteps passos registrados. Seu corpo agradece o movimento."
+        }
+
+        val habitStr = if (totalHabits == 0) {
+            "Nenhum hábito cadastrado para hoje."
+        } else if (completedHabits == totalHabits) {
+            "Todos os seus $totalHabits hábitos foram concluídos! Dia perfeito."
+        } else {
+            "Você concluiu $completedHabits de $totalHabits hábitos hoje. Continue focado!"
+        }
+
+        val petStr = if (totalPetEvents == 0) {
+            "Nenhuma tarefa de pets cadastrada."
+        } else {
+            val pending = petEvents.count { !it.isCompleted }
+            if (pending == 0) {
+                "Todas as tarefas de Marie & Churchill foram cumpridas."
+            } else {
+                "Lembrete: Marie & Churchill possuem $pending atividades aguardando você."
+            }
+        }
+
+        "Olá! $financeStr $healthStr $habitStr $petStr"
+    }
 
     Column(
         modifier = Modifier
@@ -181,7 +225,7 @@ fun DailyScreen(
                 .weight(1f)
                 .verticalScroll(scrollState)
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 120.dp),
+                .padding(bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(28.dp)
         ) {
             // Header Typography with animation
@@ -214,316 +258,486 @@ fun DailyScreen(
                 }
             }
 
-            // Consolidated Modules Section
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                AnimatedVisibility(
-                    visible = animateHeader,
-                    enter = fadeIn(animationSpec = tween(600))
+            // AI Insight Card
+            AnimatedVisibility(
+                visible = animateInsight,
+                enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { 30 })
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    PrimaryTeal.copy(alpha = 0.12f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                        .border(
+                            width = 1.dp,
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    PrimaryTeal.copy(alpha = 0.3f),
+                                    Color.Transparent
+                                )
+                            ),
+                            shape = RoundedCornerShape(24.dp)
+                        )
+                        .padding(24.dp)
+                ) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Outlined.AutoAwesome,
+                                contentDescription = null,
+                                tint = PrimaryTeal,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "ASSISTENTE TESSERA",
+                                color = PrimaryTeal,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 2.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = assistantInsight,
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontSize = 14.sp,
+                            lineHeight = 22.sp,
+                            fontWeight = FontWeight.Normal
+                        )
+                    }
+                }
+            }
+
+            // Multi Ring Activity Progress (Canvas)
+            AnimatedVisibility(
+                visible = animateRings,
+                enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { 40 })
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(28.dp))
+                        .then(PremiumGlassModifier)
+                        .padding(24.dp)
                 ) {
                     Text(
-                        text = "INDICADORES CHAVE",
+                        text = "METAS DE ATIVIDADE DIÁRIA",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF81928F),
-                        letterSpacing = 2.sp
+                        color = Color.White.copy(alpha = 0.5f),
+                        letterSpacing = 1.5.sp,
+                        modifier = Modifier.padding(bottom = 20.dp)
                     )
-                }
 
-                // 1. Finance Section Card
-                AnimatedVisibility(
-                    visible = animateFinance,
-                    enter = fadeIn(animationSpec = tween(500, easing = FastOutSlowInEasing)) + 
-                            slideInVertically(initialOffsetY = { 40 }, animationSpec = tween(500, easing = FastOutSlowInEasing))
-                ) {
-                    DailySectionCard(
-                        title = "FINANÇAS",
-                        icon = Icons.Outlined.AccountBalanceWallet,
-                        iconColor = Color(0xFFF9A826),
-                        onClick = { onNavigate("finance") }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceAround
                     ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Balanço Mensal", fontSize = 13.sp, color = Color(0xFF81928F))
-                                Text(
-                                    text = String.format(Locale("pt", "BR"), "R$ %,.2f", financeBalance),
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (financeBalance >= 0) Color(0xFF71D7CD) else Color(0xFFFF6B6B)
-                                )
+                        // Apple/Oura Style Multi Rings
+                        Box(
+                            modifier = Modifier.size(140.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            val stepsPct = (todaySteps.toFloat() / 10000f).coerceIn(0f, 1f)
+                            val habitsPct = if (totalHabits > 0) (completedHabits.toFloat() / totalHabits.toFloat()) else 0f
+                            val petsPct = if (totalPetEvents > 0) (completedPetEvents.toFloat() / totalPetEvents.toFloat()) else 0f
+
+                            val animatedStepsPct by animateFloatAsState(stepsPct, tween(1500, easing = FastOutSlowInEasing), label = "StepsRingAnim")
+                            val animatedHabitsPct by animateFloatAsState(habitsPct, tween(1500, easing = FastOutSlowInEasing), label = "HabitsRingAnim")
+                            val animatedPetsPct by animateFloatAsState(petsPct, tween(1500, easing = FastOutSlowInEasing), label = "PetsRingAnim")
+
+                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                val strokeW = 7.dp.toPx()
+                                val spacing = 2.dp.toPx()
+
+                                // Ring 1: Steps (Outer - Teal)
+                                val radius1 = (size.width - strokeW) / 2
+                                drawArc(color = PrimaryTeal.copy(alpha = 0.08f), startAngle = -90f, sweepAngle = 360f, useCenter = false, style = Stroke(width = strokeW), alpha = 0.5f)
+                                drawArc(color = PrimaryTeal, startAngle = -90f, sweepAngle = 360f * animatedStepsPct, useCenter = false, style = Stroke(width = strokeW, cap = StrokeCap.Round))
+
+                                // Ring 2: Habits (Middle - Gold)
+                                val radius2 = radius1 - strokeW - spacing
+                                drawArc(color = SecondaryGold.copy(alpha = 0.08f), startAngle = -90f, sweepAngle = 360f, useCenter = false, style = Stroke(width = strokeW), alpha = 0.5f, topLeft = Offset(strokeW + spacing, strokeW + spacing), size = androidx.compose.ui.geometry.Size(radius2 * 2, radius2 * 2))
+                                drawArc(color = SecondaryGold, startAngle = -90f, sweepAngle = 360f * animatedHabitsPct, useCenter = false, style = Stroke(width = strokeW, cap = StrokeCap.Round), topLeft = Offset(strokeW + spacing, strokeW + spacing), size = androidx.compose.ui.geometry.Size(radius2 * 2, radius2 * 2))
+
+                                // Ring 3: Pets (Inner - Purple)
+                                val radius3 = radius2 - strokeW - spacing
+                                val offset3 = (strokeW + spacing) * 2
+                                drawArc(color = TertiaryPurple.copy(alpha = 0.08f), startAngle = -90f, sweepAngle = 360f, useCenter = false, style = Stroke(width = strokeW), alpha = 0.5f, topLeft = Offset(offset3, offset3), size = androidx.compose.ui.geometry.Size(radius3 * 2, radius3 * 2))
+                                drawArc(color = TertiaryPurple, startAngle = -90f, sweepAngle = 360f * animatedPetsPct, useCenter = false, style = Stroke(width = strokeW, cap = StrokeCap.Round), topLeft = Offset(offset3, offset3), size = androidx.compose.ui.geometry.Size(radius3 * 2, radius3 * 2))
                             }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Receitas / Despesas", fontSize = 12.sp, color = Color(0xFF81928F))
-                                Text(
-                                    text = String.format(Locale("pt", "BR"), "+R$ %,.2f / -R$ %,.2f", totalIncome, totalExpense),
-                                    fontSize = 12.sp,
-                                    color = Color.White
-                                )
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("HOJE", fontSize = 11.sp, color = Color.White.copy(alpha = 0.4f), fontWeight = FontWeight.Bold)
+                                Icon(Icons.Default.Check, null, tint = PrimaryTeal, modifier = Modifier.size(16.dp))
                             }
                         }
-                    }
-                }
 
-                // 2. Health Section Card
-                AnimatedVisibility(
-                    visible = animateHealth,
-                    enter = fadeIn(animationSpec = tween(500, easing = FastOutSlowInEasing)) + 
-                            slideInVertically(initialOffsetY = { 40 }, animationSpec = tween(500, easing = FastOutSlowInEasing))
-                ) {
-                    DailySectionCard(
-                        title = "SAÚDE",
-                        icon = Icons.Outlined.FavoriteBorder,
-                        iconColor = Color(0xFF71D7CD),
-                        onClick = { onNavigate("health") }
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                        // Labels explanation
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.padding(start = 12.dp)
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Passos Hoje", fontSize = 11.sp, color = Color(0xFF81928F))
-                                Text("$todaySteps", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Sono", fontSize = 11.sp, color = Color(0xFF81928F))
-                                Text(String.format(Locale("pt", "BR"), "%.1fh", latestSleep), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = if (latestWeight > 0.0) {
-                                        String.format(Locale("pt", "BR"), "%.1fkg / %.1f", latestWeight, bmi)
-                                    } else {
-                                        "--"
-                                    },
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // 3. Pets Section Card
-                AnimatedVisibility(
-                    visible = animatePets,
-                    enter = fadeIn(animationSpec = tween(500, easing = FastOutSlowInEasing)) + 
-                            slideInVertically(initialOffsetY = { 40 }, animationSpec = tween(500, easing = FastOutSlowInEasing))
-                ) {
-                    DailySectionCard(
-                        title = "PETZ",
-                        icon = Icons.Outlined.Pets,
-                        iconColor = Color(0xFFD7B4F3),
-                        onClick = { onNavigate("petz") }
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Atividades para Marie & Churchill", fontSize = 13.sp, color = Color(0xFF81928F))
-                            Text(
-                                text = "$completedPetEvents de $totalPetEvents concluídas",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                        }
-                    }
-                }
-
-                // 4. Market Section Card
-                AnimatedVisibility(
-                    visible = animateMarket,
-                    enter = fadeIn(animationSpec = tween(500, easing = FastOutSlowInEasing)) + 
-                            slideInVertically(initialOffsetY = { 40 }, animationSpec = tween(500, easing = FastOutSlowInEasing))
-                ) {
-                    DailySectionCard(
-                        title = "MERCADO",
-                        icon = Icons.Outlined.ShoppingCart,
-                        iconColor = Color(0xFF4D96FF),
-                        onClick = { onNavigate("market") }
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Itens na lista de compras", fontSize = 13.sp, color = Color(0xFF81928F))
-                            Text(
-                                text = "${marketItems.size} pendentes",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                        }
-                    }
-                }
-
-                // 5. Habits / Routines Section Card
-                AnimatedVisibility(
-                    visible = animateTasks,
-                    enter = fadeIn(animationSpec = tween(500, easing = FastOutSlowInEasing)) + 
-                            slideInVertically(initialOffsetY = { 40 }, animationSpec = tween(500, easing = FastOutSlowInEasing))
-                ) {
-                    DailySectionCard(
-                        title = "TAREFAS & RITUAIS",
-                        icon = Icons.Outlined.Spa,
-                        iconColor = Color(0xFFF9A826),
-                        onClick = { onNavigate("goals") }
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Hábitos concluídos", fontSize = 13.sp, color = Color(0xFF81928F))
-                            Text(
-                                text = "$completedHabits de $totalHabits",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
+                            MetasRingLabel(label = "Passos ($todaySteps / 10k)", color = PrimaryTeal)
+                            MetasRingLabel(label = "Habitos ($completedHabits / $totalHabits)", color = SecondaryGold)
+                            MetasRingLabel(label = "Tarefas Pets ($completedPetEvents / $totalPetEvents)", color = TertiaryPurple)
                         }
                     }
                 }
             }
 
-            // 6. Conexões e Atalhos (X, Google News, Spotify)
+            // Interactive Modules (Habits & Pets)
             AnimatedVisibility(
-                visible = animateShortcuts,
-                enter = fadeIn(animationSpec = tween(500, easing = FastOutSlowInEasing)) + 
-                        slideInVertically(initialOffsetY = { 40 }, animationSpec = tween(500, easing = FastOutSlowInEasing))
+                visible = animateInteractiveCards,
+                enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { 50 })
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                    
+                    // Habits Interactive Card
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(24.dp))
+                            .then(PremiumGlassModifier)
+                            .padding(24.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("LISTA DE HÁBITOS DE HOJE", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.5f), letterSpacing = 1.sp)
+                            Icon(Icons.Outlined.CheckCircle, null, tint = SecondaryGold, modifier = Modifier.size(18.dp))
+                        }
+
+                        if (habits.isEmpty()) {
+                            Text("Nenhum hábito cadastrado para hoje.", color = Color.White.copy(alpha = 0.4f), fontSize = 13.sp, modifier = Modifier.padding(vertical = 12.dp))
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                habits.forEach { habit ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(Color.White.copy(alpha = 0.03f))
+                                            .clickable { viewModel.toggleHabitCompleted(habit) }
+                                            .padding(14.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(32.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color(android.graphics.Color.parseColor(habit.colorHex)).copy(alpha = 0.15f)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                // Map icon name to icon
+                                                val iconVector = when(habit.iconName) {
+                                                    "WaterDrop" -> Icons.Outlined.WaterDrop
+                                                    "MenuBook" -> Icons.Outlined.MenuBook
+                                                    "SelfImprovement" -> Icons.Outlined.SelfImprovement
+                                                    else -> Icons.Outlined.Check
+                                                }
+                                                Icon(iconVector, null, tint = Color(android.graphics.Color.parseColor(habit.colorHex)), modifier = Modifier.size(16.dp))
+                                            }
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Text(
+                                                text = habit.name,
+                                                color = if (habit.isCompleted) Color.White.copy(alpha = 0.5f) else Color.White,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                        Checkbox(
+                                            checked = habit.isCompleted,
+                                            onCheckedChange = { viewModel.toggleHabitCompleted(habit) },
+                                            colors = CheckboxDefaults.colors(
+                                                checkedColor = SecondaryGold,
+                                                uncheckedColor = Color.White.copy(alpha = 0.2f),
+                                                checkmarkColor = Color.Black
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Pet Events Interactive Card
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(24.dp))
+                            .then(PremiumGlassModifier)
+                            .padding(24.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("TAREFAS PETZ DE HOJE", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.5f), letterSpacing = 1.sp)
+                            Icon(Icons.Outlined.Pets, null, tint = TertiaryPurple, modifier = Modifier.size(18.dp))
+                        }
+
+                        if (petEvents.isEmpty()) {
+                            Text("Nenhuma atividade de pets registrada.", color = Color.White.copy(alpha = 0.4f), fontSize = 13.sp, modifier = Modifier.padding(vertical = 12.dp))
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                petEvents.forEach { event ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(Color.White.copy(alpha = 0.03f))
+                                            .clickable { viewModel.togglePetEventCompleted(event) }
+                                            .padding(14.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(32.dp)
+                                                    .clip(CircleShape)
+                                                    .background(TertiaryPurple.copy(alpha = 0.15f)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (event.title.contains("Alimentação")) Icons.Outlined.Restaurant else Icons.Outlined.DirectionsRun,
+                                                    contentDescription = null,
+                                                    tint = TertiaryPurple,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Column {
+                                                Text(
+                                                    text = "${event.petName} - ${event.title}",
+                                                    color = if (event.isCompleted) Color.White.copy(alpha = 0.5f) else Color.White,
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                                Text(
+                                                    text = event.time,
+                                                    color = Color.White.copy(alpha = 0.4f),
+                                                    fontSize = 11.sp
+                                                )
+                                            }
+                                        }
+                                        Checkbox(
+                                            checked = event.isCompleted,
+                                            onCheckedChange = { viewModel.togglePetEventCompleted(event) },
+                                            colors = CheckboxDefaults.colors(
+                                                checkedColor = TertiaryPurple,
+                                                uncheckedColor = Color.White.copy(alpha = 0.2f),
+                                                checkmarkColor = Color.Black
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Quick Actions Panel
+            AnimatedVisibility(
+                visible = animateQuickActions,
+                enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { 60 })
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        text = "CONEXÕES E ATALHOS RÁPIDOS",
+                        text = "AÇÕES DIÁRIAS EXPRESSAS",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF81928F),
-                        letterSpacing = 2.sp
+                        color = Color.White.copy(alpha = 0.5f),
+                        letterSpacing = 1.5.sp,
+                        modifier = Modifier.padding(start = 4.dp)
                     )
-                    
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // X Shortcut
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(96.dp)
-                                .clip(RoundedCornerShape(20.dp))
-                                .then(PremiumGlassModifier)
-                                .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(20.dp))
-                                .clickable {
-                                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://x.com"))
-                                    context.startActivity(browserIntent)
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF111111))
-                                        .border(0.5.dp, Color(0x33FFFFFF), CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = "𝕏",
-                                        color = Color.White,
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text("Abrir X", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-
-                        // Google Notícias Shortcut
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(96.dp)
-                                .clip(RoundedCornerShape(20.dp))
-                                .then(PremiumGlassModifier)
-                                .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(20.dp))
-                                .clickable {
-                                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://news.google.com"))
-                                    context.startActivity(browserIntent)
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF4285F4).copy(alpha = 0.2f))
-                                        .border(0.5.dp, Color(0xFF4285F4).copy(alpha = 0.4f), CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Newspaper,
-                                        contentDescription = null,
-                                        tint = Color(0xFF4285F4),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text("Google News", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-
-                        // Spotify Shortcut
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(96.dp)
-                                .clip(RoundedCornerShape(20.dp))
-                                .then(PremiumGlassModifier)
-                                .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(20.dp))
-                                .clickable {
-                                    val spotifyIntent = context.packageManager.getLaunchIntentForPackage("com.spotify.music")
-                                    if (spotifyIntent != null) {
-                                        context.startActivity(spotifyIntent)
+                        // Quick log water
+                        QuickActionButton(
+                            label = "Tomar Água",
+                            icon = Icons.Outlined.WaterDrop,
+                            color = Color(0xFF4FC3F7),
+                            onClick = {
+                                val waterHabit = habits.find { it.name.contains("Hidratação") || it.name.contains("Água") }
+                                if (waterHabit != null) {
+                                    if (!waterHabit.isCompleted) {
+                                        viewModel.toggleHabitCompleted(waterHabit)
+                                        Toast.makeText(context, "Hábito de Hidratação atualizado!", Toast.LENGTH_SHORT).show()
                                     } else {
-                                        Toast.makeText(context, "Spotify não instalado. Abrindo no navegador...", Toast.LENGTH_LONG).show()
-                                        val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://open.spotify.com"))
-                                        context.startActivity(webIntent)
+                                        Toast.makeText(context, "Hidratação de hoje já está concluída!", Toast.LENGTH_SHORT).show()
                                     }
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF1DB954).copy(alpha = 0.2f))
-                                        .border(0.5.dp, Color(0xFF1DB954).copy(alpha = 0.4f), CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.MusicNote,
-                                        contentDescription = null,
-                                        tint = Color(0xFF1DB954),
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                                } else {
+                                    // Complete a default steps or log manually
+                                    viewModel.addManualStepsRecord(500, System.currentTimeMillis() - 600000, System.currentTimeMillis())
+                                    Toast.makeText(context, "Registrado 500 passos como atividade de hidratação!", Toast.LENGTH_SHORT).show()
                                 }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text("Spotify", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                            }
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        // Quick weight register
+                        QuickActionButton(
+                            label = "Registrar Peso",
+                            icon = Icons.Outlined.Scale,
+                            color = PrimaryTeal,
+                            onClick = { showQuickWeightDialog = true },
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        // Quick expense log
+                        QuickActionButton(
+                            label = "Nova Despesa",
+                            icon = Icons.Outlined.AccountBalanceWallet,
+                            color = Color(0xFFFF8A65),
+                            onClick = { showQuickExpenseDialog = true },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    // Quick Expense Dialog
+    if (showQuickExpenseDialog) {
+        var expenseValue by remember { mutableStateOf("") }
+        var expenseTitle by remember { mutableStateOf("") }
+        var expenseCategory by remember { mutableStateOf("Outros") }
+
+        Dialog(onDismissRequest = { showQuickExpenseDialog = false }) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color(0xFF070909))
+                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(24.dp))
+                    .padding(24.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text("REGISTRAR DESPESA EXPRESSA", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    
+                    OutlinedTextField(
+                        value = expenseTitle,
+                        onValueChange = { expenseTitle = it },
+                        label = { Text("Descrição (Ex: Café)") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = PrimaryTeal,
+                            unfocusedBorderColor = Color(0x33FFFFFF)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = expenseValue,
+                        onValueChange = { expenseValue = it },
+                        label = { Text("Valor (R$)") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = PrimaryTeal,
+                            unfocusedBorderColor = Color(0x33FFFFFF)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = { showQuickExpenseDialog = false }) {
+                            Text("CANCELAR", color = Color.Gray)
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                val valD = expenseValue.toDoubleOrNull()
+                                if (valD != null && expenseTitle.isNotBlank()) {
+                                    viewModel.addTransaction(
+                                        title = expenseTitle,
+                                        subtitle = "Despesa Expressa",
+                                        value = valD,
+                                        isIncome = false,
+                                        category = expenseCategory
+                                    )
+                                    Toast.makeText(context, "Despesa registrada!", Toast.LENGTH_SHORT).show()
+                                }
+                                showQuickExpenseDialog = false
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal, contentColor = Color.Black)
+                        ) {
+                            Text("SALVAR")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Quick Weight Dialog
+    if (showQuickWeightDialog) {
+        var weightInput by remember { mutableStateOf("") }
+
+        Dialog(onDismissRequest = { showQuickWeightDialog = false }) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color(0xFF070909))
+                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(24.dp))
+                    .padding(24.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text("REGISTRAR PESO HOJE", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    
+                    OutlinedTextField(
+                        value = weightInput,
+                        onValueChange = { weightInput = it },
+                        label = { Text("Peso (kg)") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = PrimaryTeal,
+                            unfocusedBorderColor = Color(0x33FFFFFF)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = { showQuickWeightDialog = false }) {
+                            Text("CANCELAR", color = Color.Gray)
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                val weightVal = weightInput.toDoubleOrNull()
+                                if (weightVal != null) {
+                                    viewModel.addManualWeightRecord(weightVal)
+                                    Toast.makeText(context, "Peso de $weightVal kg salvo!", Toast.LENGTH_SHORT).show()
+                                }
+                                showQuickWeightDialog = false
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal, contentColor = Color.Black)
+                        ) {
+                            Text("SALVAR")
                         }
                     }
                 }
@@ -533,52 +747,69 @@ fun DailyScreen(
 }
 
 @Composable
-fun DailySectionCard(
-    title: String,
+fun MetasRingLabel(label: String, color: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .clip(CircleShape)
+                .background(color)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = label,
+            color = Color.White.copy(alpha = 0.7f),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+fun QuickActionButton(
+    label: String,
     icon: ImageVector,
-    iconColor: Color,
+    color: Color,
     onClick: () -> Unit,
-    content: @Composable () -> Unit
+    modifier: Modifier = Modifier
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
+            .height(90.dp)
             .clip(RoundedCornerShape(20.dp))
             .then(PremiumGlassModifier)
             .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(20.dp))
             .clickable { onClick() }
-            .padding(20.dp)
+            .padding(12.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = 0.15f))
+                    .border(0.5.dp, color.copy(alpha = 0.3f), CircleShape),
+                contentAlignment = Alignment.Center
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = iconColor,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = title,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF81928F),
-                        letterSpacing = 1.sp
-                    )
-                }
                 Icon(
-                    imageVector = Icons.Default.ChevronRight,
+                    imageVector = icon,
                     contentDescription = null,
-                    tint = Color(0xFF5E6D6A),
-                    modifier = Modifier.size(16.dp)
+                    tint = color,
+                    modifier = Modifier.size(18.dp)
                 )
             }
-            content()
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = label,
+                color = Color.White,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }

@@ -31,6 +31,14 @@ import com.example.ui.theme.PrimaryTeal
 import com.example.ui.theme.SecondaryGold
 import com.example.ui.components.PremiumGlassModifier
 import com.example.viewmodel.TesseraViewModel
+import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.PermissionController
+import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.HeightRecord
+import androidx.health.connect.client.records.SleepSessionRecord
+import androidx.health.connect.client.records.StepsRecord as HCStepsRecord
+import androidx.health.connect.client.records.WeightRecord as HCWeightRecord
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,6 +52,39 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
             sharedPrefs.getString("home_background_uri", "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop")
             ?: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"
         )
+    }
+
+    val coroutineScope = rememberCoroutineScope()
+    val healthProfile by viewModel.healthProfile.collectAsState(initial = null)
+
+    val permissions = setOf(
+        HealthPermission.getReadPermission(HCWeightRecord::class),
+        HealthPermission.getWritePermission(HCWeightRecord::class),
+        HealthPermission.getReadPermission(SleepSessionRecord::class),
+        HealthPermission.getWritePermission(SleepSessionRecord::class),
+        HealthPermission.getReadPermission(HCStepsRecord::class),
+        HealthPermission.getWritePermission(HCStepsRecord::class),
+        HealthPermission.getReadPermission(HeightRecord::class)
+    )
+
+    val requiredReadPermissions = setOf(
+        HealthPermission.getReadPermission(HCWeightRecord::class),
+        HealthPermission.getReadPermission(HCStepsRecord::class),
+        HealthPermission.getReadPermission(SleepSessionRecord::class),
+        HealthPermission.getReadPermission(HeightRecord::class)
+    )
+
+    val requestPermissionActivityContract = PermissionController.createRequestPermissionResultContract()
+
+    val requestPermissions = rememberLauncherForActivityResult(requestPermissionActivityContract) { granted ->
+        if (granted.containsAll(requiredReadPermissions) || granted.isNotEmpty()) {
+            viewModel.updateHealthProfile(
+                heightCm = healthProfile?.heightCm ?: 0.0,
+                targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
+                isHealthConnectEnabled = true
+            )
+            Toast.makeText(context, "Sincronização com Health Connect ativada!", Toast.LENGTH_SHORT).show()
+        }
     }
 
     val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
@@ -236,6 +277,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                     modifier = PremiumGlassModifier
                         .fillMaxWidth()
                         .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -268,6 +310,76 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                             )
                         )
                     }
+
+                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x0AFFFFFF)))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                            Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(PrimaryTeal.copy(alpha=0.15f)), contentAlignment = Alignment.Center) {
+                                Icon(Icons.Outlined.Sync, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text("Google Health Connect", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    if (healthProfile?.isHealthConnectEnabled == true) "Sincronização ativa" else "Sincronizar passos, peso e sono",
+                                    fontSize = 12.sp,
+                                    color = Color.White.copy(alpha=0.6f)
+                                )
+                            }
+                        }
+                        Switch(
+                            checked = healthProfile?.isHealthConnectEnabled == true,
+                            onCheckedChange = { isEnabled ->
+                                if (isEnabled) {
+                                    coroutineScope.launch {
+                                        try {
+                                            val providerPackageName = "com.google.android.apps.healthdata"
+                                            val availabilityStatus = HealthConnectClient.getSdkStatus(context, providerPackageName)
+                                            if (availabilityStatus == HealthConnectClient.SDK_AVAILABLE) {
+                                                val client = HealthConnectClient.getOrCreate(context)
+                                                val granted = client.permissionController.getGrantedPermissions()
+                                                if (granted.containsAll(requiredReadPermissions)) {
+                                                    viewModel.updateHealthProfile(
+                                                        heightCm = healthProfile?.heightCm ?: 0.0,
+                                                        targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
+                                                        isHealthConnectEnabled = true
+                                                    )
+                                                    Toast.makeText(context, "Sincronização ativada!", Toast.LENGTH_SHORT).show()
+                                                } else {
+                                                    requestPermissions.launch(permissions)
+                                                }
+                                            } else {
+                                                Toast.makeText(context, "Saúde Connect indisponível no sistema", Toast.LENGTH_LONG).show()
+                                            }
+                                        } catch (e: Exception) {
+                                            e.printStackTrace()
+                                            requestPermissions.launch(permissions)
+                                        }
+                                    }
+                                } else {
+                                    viewModel.updateHealthProfile(
+                                        heightCm = healthProfile?.heightCm ?: 0.0,
+                                        targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
+                                        isHealthConnectEnabled = false
+                                    )
+                                    Toast.makeText(context, "Sincronização desativada", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = PrimaryTeal,
+                                uncheckedThumbColor = Color.White.copy(alpha=0.7f),
+                                uncheckedTrackColor = Color(0x33FFFFFF),
+                                uncheckedBorderColor = Color.Transparent
+                            )
+                        )
+                    }
                 }
             }
 
@@ -290,6 +402,20 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
                     Spacer(modifier = Modifier.height(8.dp))
+
+                    Button(
+                        onClick = {
+                            viewModel.seedDemoData()
+                            Toast.makeText(context, "Dados de demonstração carregados com sucesso!", Toast.LENGTH_SHORT).show()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = SecondaryGold, contentColor = Color.Black),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth().height(52.dp)
+                    ) {
+                        Icon(Icons.Outlined.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Importar Dados de Demonstração", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
 
                     Button(
                         onClick = { exportDatabaseLauncher.launch("tessera_backup.db") },
