@@ -170,6 +170,10 @@ class TesseraRepository(private val dao: TesseraDao) {
         dao.insertRoutineStep(step)
     }
 
+    suspend fun clearStepsForRoutine(routineId: Int) {
+        dao.clearStepsForRoutine(routineId)
+    }
+
     suspend fun deleteRoutine(routine: Routine) {
         dao.deleteRoutine(routine)
     }

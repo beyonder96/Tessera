@@ -14,6 +14,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -26,11 +28,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.Routine
 import com.example.data.RoutineStep
@@ -39,7 +43,7 @@ import com.example.viewmodel.TesseraViewModel
 import kotlinx.coroutines.delay
 import java.util.Random
 
-// Programmatic White Noise Player
+// Programmatic Calm Ambient Sound Player (Brown Noise + Meditative Drone)
 class WhiteNoisePlayer {
     private var audioTrack: AudioTrack? = null
     private var isPlaying = false
@@ -68,10 +72,36 @@ class WhiteNoisePlayer {
             Thread {
                 val buffer = ShortArray(bufferSize)
                 val random = Random()
+                var lastValue = 0f
+                var phase1 = 0f
+                var phase2 = 0f
+                val sampleRateF = 44100f
+                val freq1 = 110f // A2 note
+                val freq2 = 165f // E3 note (perfect fifth)
+                val phaseIncrement1 = 2f * Math.PI.toFloat() * freq1 / sampleRateF
+                val phaseIncrement2 = 2f * Math.PI.toFloat() * freq2 / sampleRateF
+                
+                var time = 0L
                 while (isPlaying) {
                     for (i in buffer.indices) {
-                        // Math-synthesized white noise
-                        buffer[i] = (random.nextGaussian() * 4000).toInt().toShort()
+                        // 1. Brown noise generator (calm rain/waterfall)
+                        val white = random.nextGaussian().toFloat() * 1000f
+                        lastValue = (lastValue * 0.98f) + (white * 0.05f)
+                        
+                        // 2. Meditative drone sine waves (soft hum)
+                        val swell = 0.5f + 0.3f * Math.sin(2.0 * Math.PI * time / (sampleRateF * 6f)).toFloat()
+                        val sine1 = Math.sin(phase1.toDouble()).toFloat() * 1500f * swell
+                        val sine2 = Math.sin(phase2.toDouble()).toFloat() * 800f * swell
+                        
+                        phase1 += phaseIncrement1
+                        if (phase1 > 2f * Math.PI.toFloat()) phase1 -= 2f * Math.PI.toFloat()
+                        
+                        phase2 += phaseIncrement2
+                        if (phase2 > 2f * Math.PI.toFloat()) phase2 -= 2f * Math.PI.toFloat()
+                        
+                        val mixed = lastValue + sine1 + sine2
+                        buffer[i] = mixed.coerceIn(-32768f, 32767f).toInt().toShort()
+                        time++
                     }
                     audioTrack?.write(buffer, 0, buffer.size)
                 }
@@ -117,19 +147,32 @@ fun RoutinesListView(
     viewModel: TesseraViewModel,
     onStartRoutine: (Routine) -> Unit
 ) {
+    var showAddRoutineDialog by remember { mutableStateOf(false) }
+    var routineToEdit by remember { mutableStateOf<Routine?>(null) }
+    var routineToEditSteps by remember { mutableStateOf<List<RoutineStep>>(emptyList()) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp)
     ) {
         Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Chronos - Seus Rituais",
-            fontFamily = FontFamily.Serif,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 22.sp,
-            color = Color.White
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Chronos - Seus Rituais",
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 22.sp,
+                color = Color.White
+            )
+            IconButton(onClick = { showAddRoutineDialog = true }) {
+                Icon(Icons.Default.Add, contentDescription = "Gerenciar", tint = Color(0xFF71D7CD))
+            }
+        }
         Text(
             text = "Rotinas sequenciais cronometradas para impulsionar seu dia.",
             fontSize = 13.sp,
@@ -139,6 +182,7 @@ fun RoutinesListView(
 
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(bottom = 140.dp), // Fix FAB overlap
             modifier = Modifier.fillMaxSize()
         ) {
             items(routines, key = { it.id }) { routine ->
@@ -159,7 +203,7 @@ fun RoutinesListView(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                                 Box(
                                     modifier = Modifier
                                         .size(40.dp)
@@ -171,6 +215,8 @@ fun RoutinesListView(
                                         imageVector = when (routine.iconName) {
                                             "Spa" -> Icons.Outlined.Spa
                                             "WaterDrop" -> Icons.Outlined.WaterDrop
+                                            "SelfImprovement" -> Icons.Outlined.SelfImprovement
+                                            "MenuBook" -> Icons.Outlined.MenuBook
                                             else -> Icons.Outlined.Spa
                                         },
                                         contentDescription = null,
@@ -194,13 +240,33 @@ fun RoutinesListView(
                                 }
                             }
 
-                            Button(
-                                onClick = { onStartRoutine(routine) },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF71D7CD)),
-                                shape = RoundedCornerShape(12.dp),
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Iniciar", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                IconButton(
+                                    onClick = {
+                                        routineToEdit = routine
+                                        routineToEditSteps = steps
+                                    },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(Icons.Default.Edit, contentDescription = "Editar", tint = Color(0xFF71D7CD), modifier = Modifier.size(16.dp))
+                                }
+                                IconButton(
+                                    onClick = { viewModel.deleteRoutine(routine) },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Excluir", tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
+                                }
+                                Button(
+                                    onClick = { onStartRoutine(routine) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF71D7CD)),
+                                    shape = RoundedCornerShape(12.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Text("Iniciar", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                }
                             }
                         }
 
@@ -236,6 +302,296 @@ fun RoutinesListView(
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showAddRoutineDialog) {
+        ManageRoutineDialog(
+            routine = null,
+            initialSteps = emptyList(),
+            onSave = { name, icon, stepsList ->
+                viewModel.saveRoutineWithSteps(Routine(name = name, iconName = icon), stepsList)
+            },
+            onDismiss = { showAddRoutineDialog = false }
+        )
+    }
+
+    if (routineToEdit != null) {
+        ManageRoutineDialog(
+            routine = routineToEdit,
+            initialSteps = routineToEditSteps,
+            onSave = { name, icon, stepsList ->
+                viewModel.saveRoutineWithSteps(Routine(id = routineToEdit!!.id, name = name, iconName = icon), stepsList)
+            },
+            onDismiss = { routineToEdit = null }
+        )
+    }
+}
+
+@Composable
+fun ManageRoutineDialog(
+    routine: Routine?,
+    initialSteps: List<RoutineStep>,
+    onSave: (String, String, List<RoutineStep>) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var name by remember { mutableStateOf(routine?.name ?: "") }
+    val iconOptions = listOf("Spa", "WaterDrop", "SelfImprovement", "MenuBook")
+    var selectedIcon by remember { mutableStateOf(routine?.iconName ?: "Spa") }
+    
+    var steps by remember { mutableStateOf(initialSteps) }
+    
+    // Step creation form states
+    var stepTitle by remember { mutableStateOf("") }
+    var stepDurationMins by remember { mutableStateOf("2") }
+    var stepDurationSecs by remember { mutableStateOf("0") }
+    var selectedStepIcon by remember { mutableStateOf("Spa") }
+    
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F0F0F)),
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, Color(0x1FFFFFFF), RoundedCornerShape(24.dp))
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = if (routine == null) "Nova Rotina" else "Editar Rotina",
+                    fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 20.sp,
+                    color = Color.White
+                )
+                
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Nome da Rotina (ex: Manhã)", color = Color(0x66FFFFFF)) },
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = Color(0x1AFFFFFF), focusedTextColor = Color.White, unfocusedTextColor = Color.White),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                Column {
+                    Text("ÍCONE DA ROTINA", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0x66FFFFFF))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        iconOptions.forEach { iconName ->
+                            val isSel = selectedIcon == iconName
+                            val icon = when (iconName) {
+                                "Spa" -> Icons.Outlined.Spa
+                                "WaterDrop" -> Icons.Outlined.WaterDrop
+                                "SelfImprovement" -> Icons.Outlined.SelfImprovement
+                                "MenuBook" -> Icons.Outlined.MenuBook
+                                else -> Icons.Outlined.Spa
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isSel) Color(0xFF71D7CD).copy(alpha = 0.2f) else Color(0x0CFFFFFF))
+                                    .border(if (isSel) 1.dp else 0.dp, Color(0xFF71D7CD), CircleShape)
+                                    .clickable { selectedIcon = iconName },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(icon, contentDescription = null, tint = if (isSel) Color(0xFF71D7CD) else Color(0xFF81928F), modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    }
+                }
+                
+                HorizontalDivider(color = Color(0x14FFFFFF))
+                
+                Text("PASSOS DA ROTINA (${steps.size})", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF71D7CD))
+                
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    steps.forEachIndexed { index, step ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0x0AFFFFFF), RoundedCornerShape(12.dp))
+                                .padding(10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                Icon(
+                                    imageVector = when (step.iconName) {
+                                        "Spa" -> Icons.Outlined.Spa
+                                        "WaterDrop" -> Icons.Outlined.WaterDrop
+                                        "SelfImprovement" -> Icons.Outlined.SelfImprovement
+                                        "MenuBook" -> Icons.Outlined.MenuBook
+                                        else -> Icons.Outlined.Spa
+                                    },
+                                    contentDescription = null,
+                                    tint = Color(0xFF71D7CD),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(step.title, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                    Text("${step.durationSeconds}s", color = Color(0xFF81928F), fontSize = 11.sp)
+                                }
+                            }
+                            
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                if (index > 0) {
+                                    IconButton(
+                                        onClick = {
+                                            steps = steps.toMutableList().apply {
+                                                val temp = this[index]
+                                                this[index] = this[index - 1]
+                                                this[index - 1] = temp
+                                            }
+                                        },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Subir", tint = Color.White, modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                                if (index < steps.size - 1) {
+                                    IconButton(
+                                        onClick = {
+                                            steps = steps.toMutableList().apply {
+                                                val temp = this[index]
+                                                this[index] = this[index + 1]
+                                                this[index + 1] = temp
+                                            }
+                                        },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Descer", tint = Color.White, modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                                IconButton(
+                                    onClick = {
+                                        steps = steps.filterIndexed { i, _ -> i != index }
+                                    },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Excluir", tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0x05FFFFFF), RoundedCornerShape(16.dp))
+                        .border(0.5.dp, Color(0x14FFFFFF), RoundedCornerShape(16.dp))
+                        .padding(12.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("ADICIONAR NOVO PASSO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF81928F))
+                        
+                        OutlinedTextField(
+                            value = stepTitle,
+                            onValueChange = { stepTitle = it },
+                            label = { Text("Nome do Passo (ex: Meditar)", color = Color(0x66FFFFFF)) },
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = Color(0x1AFFFFFF), focusedTextColor = Color.White, unfocusedTextColor = Color.White),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(
+                                value = stepDurationMins,
+                                onValueChange = { stepDurationMins = it.filter { c -> c.isDigit() } },
+                                label = { Text("Minutos", color = Color(0x66FFFFFF)) },
+                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = Color(0x1AFFFFFF), focusedTextColor = Color.White, unfocusedTextColor = Color.White),
+                                modifier = Modifier.weight(1f)
+                            )
+                            OutlinedTextField(
+                                value = stepDurationSecs,
+                                onValueChange = { stepDurationSecs = it.filter { c -> c.isDigit() } },
+                                label = { Text("Segundos", color = Color(0x66FFFFFF)) },
+                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = Color(0x1AFFFFFF), focusedTextColor = Color.White, unfocusedTextColor = Color.White),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                iconOptions.forEach { iconName ->
+                                    val isSel = selectedStepIcon == iconName
+                                    val icon = when (iconName) {
+                                        "Spa" -> Icons.Outlined.Spa
+                                        "WaterDrop" -> Icons.Outlined.WaterDrop
+                                        "SelfImprovement" -> Icons.Outlined.SelfImprovement
+                                        "MenuBook" -> Icons.Outlined.MenuBook
+                                        else -> Icons.Outlined.Spa
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .size(30.dp)
+                                            .clip(CircleShape)
+                                            .background(if (isSel) Color(0xFF71D7CD).copy(alpha = 0.2f) else Color(0x0CFFFFFF))
+                                            .border(if (isSel) 1.dp else 0.dp, Color(0xFF71D7CD), CircleShape)
+                                            .clickable { selectedStepIcon = iconName },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(icon, contentDescription = null, tint = if (isSel) Color(0xFF71D7CD) else Color(0xFF81928F), modifier = Modifier.size(14.dp))
+                                    }
+                                }
+                            }
+                            
+                            Button(
+                                onClick = {
+                                    val mins = stepDurationMins.toIntOrNull() ?: 0
+                                    val secs = stepDurationSecs.toIntOrNull() ?: 0
+                                    val totalSecs = mins * 60 + secs
+                                    if (stepTitle.isNotBlank() && totalSecs > 0) {
+                                        steps = steps + RoutineStep(
+                                            routineId = routine?.id ?: 0,
+                                            title = stepTitle,
+                                            durationSeconds = totalSecs,
+                                            iconName = selectedStepIcon,
+                                            orderIndex = steps.size
+                                        )
+                                        stepTitle = ""
+                                        stepDurationMins = "2"
+                                        stepDurationSecs = "0"
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF71D7CD))
+                            ) {
+                                Text("+ Passo", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancelar", color = Color.White.copy(alpha = 0.6f))
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    Button(
+                        onClick = {
+                            if (name.isNotBlank() && steps.isNotEmpty()) {
+                                onSave(name, selectedIcon, steps)
+                                onDismiss()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF71D7CD))
+                    ) {
+                        Text("Salvar", color = Color.Black, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -282,6 +638,7 @@ fun RoutinePlayerView(
             if (currentStepIndex < steps.size - 1) {
                 currentStepIndex++
             } else {
+                viewModel.completeRoutine(routine)
                 onStopRoutine()
             }
         }
@@ -302,7 +659,8 @@ fun RoutinePlayerView(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 120.dp), // Adjust for navigation overlap
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
@@ -376,9 +734,9 @@ fun RoutinePlayerView(
         // Controls and Mute Button
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(bottom = 40.dp)
+            modifier = Modifier.padding(bottom = 20.dp)
         ) {
-            // White Noise Toggle
+            // Ambient Sound Toggle
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp))
@@ -393,20 +751,20 @@ fun RoutinePlayerView(
             ) {
                 Icon(
                     imageVector = if (isWhiteNoisePlaying) Icons.Outlined.VolumeUp else Icons.Outlined.VolumeMute,
-                    contentDescription = "Ruído Branco",
+                    contentDescription = "Som Relaxante",
                     tint = if (isWhiteNoisePlaying) Color(0xFF71D7CD) else Color(0xFF81928F),
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if (isWhiteNoisePlaying) "Ruído Branco Ativo" else "Ativar Ruído Branco",
+                    text = if (isWhiteNoisePlaying) "Som Relaxante Ativo" else "Ativar Som Relaxante",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = if (isWhiteNoisePlaying) Color.White else Color(0xFF81928F)
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Player Commands
             Row(
@@ -444,6 +802,7 @@ fun RoutinePlayerView(
                         if (currentStepIndex < steps.size - 1) {
                             currentStepIndex++
                         } else {
+                            viewModel.completeRoutine(routine)
                             onStopRoutine()
                         }
                     },

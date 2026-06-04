@@ -61,8 +61,8 @@ fun GoalsScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                         Text(
                             text = when (selectedTab) {
                                 1 -> "Chronos"
-                                2 -> "Focus Time"
-                                else -> "Metas & Rituais"
+                                2 -> "Focus"
+                                else -> "Foco & Rotinas"
                             },
                             fontFamily = FontFamily.Serif,
                             fontWeight = FontWeight.SemiBold,
@@ -108,7 +108,7 @@ fun GoalsScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                         .padding(4.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    listOf("Metas", "Chronos", "Focus").forEachIndexed { index, title ->
+                    listOf("Rituais", "Chronos", "Focus").forEachIndexed { index, title ->
                         val isSelected = selectedTab == index
                         val bgSelectedColor = when (index) {
                             1 -> Color(0xFF0F2624) // Teal dark

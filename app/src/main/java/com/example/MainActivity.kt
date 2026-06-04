@@ -376,7 +376,7 @@ fun TesseraApp() {
                                     }
                                     Box(modifier = Modifier.weight(1f)) {
                                         PremiumGridTile(
-                                            title = "Metas\n& Hábitos",
+                                            title = "Foco\n& Rotinas",
                                             icon = Icons.Outlined.Flag,
                                             iconColor = Color(0xFFF9A826),
                                             alpha = itemsAlpha,
@@ -1166,7 +1166,7 @@ fun MainContent(netWorth: Double, petEvents: List<com.example.data.PetEvent>, ma
         ModuleConfig("market", "Mercado", true, 1),
         ModuleConfig("pets", "Petz", true, 2),
         ModuleConfig("health", "Saúde", false, 3),
-        ModuleConfig("goals", "Metas Diárias", false, 4)
+        ModuleConfig("goals", "Foco & Rotinas", false, 4)
     )
 
     var modules by remember {
@@ -1719,7 +1719,7 @@ fun GoalsWidget(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "METAS DIÁRIAS",
+                text = "FOCO & ROTINAS",
                 fontSize = 11.sp,
                 letterSpacing = 1.5.sp,
                 fontWeight = FontWeight.Bold,

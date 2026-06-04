@@ -186,6 +186,9 @@ interface TesseraDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRoutineStep(step: RoutineStep)
 
+    @Query("DELETE FROM routine_steps WHERE routineId = :routineId")
+    suspend fun clearStepsForRoutine(routineId: Int)
+
     @Delete
     suspend fun deleteRoutine(routine: Routine)
 }

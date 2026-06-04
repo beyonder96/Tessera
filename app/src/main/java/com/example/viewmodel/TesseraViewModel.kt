@@ -438,15 +438,48 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
         return repository.getStepsForRoutine(routineId)
     }
 
-    fun addRoutine(name: String, iconName: String) {
+    fun addRoutine(name: String, iconName: String, id: Int = 0) {
         viewModelScope.launch {
-            repository.insertRoutine(Routine(name = name, iconName = iconName))
+            repository.insertRoutine(Routine(id = id, name = name, iconName = iconName))
         }
     }
 
     fun addRoutineStep(routineId: Int, title: String, durationSeconds: Int, iconName: String, orderIndex: Int) {
         viewModelScope.launch {
             repository.insertRoutineStep(RoutineStep(routineId = routineId, title = title, durationSeconds = durationSeconds, iconName = iconName, orderIndex = orderIndex))
+        }
+    }
+
+    fun saveRoutineWithSteps(routine: Routine, steps: List<RoutineStep>) {
+        viewModelScope.launch {
+            val routineId = repository.insertRoutine(routine).toInt()
+            repository.clearStepsForRoutine(routineId)
+            steps.forEachIndexed { index, step ->
+                repository.insertRoutineStep(step.copy(routineId = routineId, orderIndex = index))
+            }
+        }
+    }
+
+    fun completeRoutine(routine: Routine) {
+        viewModelScope.launch {
+            val habitsList = repository.allHabits.first()
+            val matchingHabit = habitsList.find { it.name.equals(routine.name, ignoreCase = true) }
+            if (matchingHabit != null) {
+                if (!matchingHabit.isCompleted) {
+                    val newStreak = matchingHabit.streak + 1
+                    repository.updateHabit(matchingHabit.copy(isCompleted = true, streak = newStreak))
+                }
+            } else {
+                val count = habitsList.size
+                repository.insertHabit(Habit(
+                    name = routine.name,
+                    isCompleted = true,
+                    streak = 1,
+                    iconName = routine.iconName,
+                    colorHex = "#71D7CD",
+                    orderIndex = count
+                ))
+            }
         }
     }
 
