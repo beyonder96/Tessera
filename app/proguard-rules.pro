@@ -56,3 +56,16 @@
 
 # Jetpack Glance
 -keep class androidx.glance.** { *; }
+
+# Remove verbose and debug logs in production/release builds
+-assumenosideeffects class android.util.Log {
+    public static boolean isLoggable(java.lang.String, int);
+    public static int v(...);
+    public static int d(...);
+}
+
+# Remove System.out.println and print statements from release builds
+-assumenosideeffects class java.io.PrintStream {
+    public void println(java.lang.String);
+    public void print(java.lang.String);
+}

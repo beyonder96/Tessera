@@ -423,8 +423,22 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
 
     fun syncHealthConnectData(weights: List<WeightRecord>, sleeps: List<SleepRecord>, steps: List<StepsRecord>) {
         viewModelScope.launch {
-            repository.clearHealthConnectWeightRecords()
-            weights.forEach { repository.insertWeightRecord(it) }
+            val existingWeights = repository.allWeightRecords.first()
+            if (existingWeights.isEmpty()) {
+                // Adiciona como dados iniciais no histórico
+                weights.forEach { repository.insertWeightRecord(it) }
+            } else {
+                val latestDbWeight = existingWeights.lastOrNull()
+                val latestHcWeight = weights.maxByOrNull { it.timestamp }
+                if (latestHcWeight != null && latestDbWeight != null) {
+                    // Se o peso mais recente mudou em relação ao último registrado, adiciona novo registro
+                    if (Math.abs(latestHcWeight.weightKg - latestDbWeight.weightKg) >= 0.05) {
+                        repository.insertWeightRecord(latestHcWeight)
+                    }
+                } else if (latestHcWeight != null) {
+                    repository.insertWeightRecord(latestHcWeight)
+                }
+            }
 
             repository.clearHealthConnectSleepRecords()
             sleeps.forEach { repository.insertSleepRecord(it) }

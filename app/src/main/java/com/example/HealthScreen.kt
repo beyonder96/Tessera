@@ -6,8 +6,12 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -80,6 +85,14 @@ private fun getEndOfToday(): Long {
     return cal.timeInMillis
 }
 
+// Helper to determine if a timestamp belongs to today in local time
+private fun isSameDayLocal(timestamp1: Long, timestamp2: Long): Boolean {
+    val cal1 = Calendar.getInstance().apply { timeInMillis = timestamp1 }
+    val cal2 = Calendar.getInstance().apply { timeInMillis = timestamp2 }
+    return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
+           cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+}
+
 private fun parseDoubleSanitized(input: String): Double? {
     val normalized = input.replace(",", ".")
     val regex = """[+-]?([0-9]*[.])?[0-9]+""".toRegex()
@@ -101,9 +114,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
     val stepsRecords by viewModel.allStepsRecords.collectAsState(initial = emptyList())
 
     val todaySteps = remember(stepsRecords) {
-        val todayStart = getStartOfToday()
-        val todayEnd = getEndOfToday()
-        stepsRecords.filter { it.startTime >= todayStart && it.endTime <= todayEnd }.sumOf { it.count }
+        stepsRecords.filter { isSameDayLocal(it.endTime, System.currentTimeMillis()) }.sumOf { it.count }
     }
 
     val permissions = setOf(
@@ -116,10 +127,41 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
         HealthPermission.getReadPermission(HeightRecord::class)
     )
 
+    val requiredReadPermissions = setOf(
+        HealthPermission.getReadPermission(HCWeightRecord::class),
+        HealthPermission.getReadPermission(HCStepsRecord::class),
+        HealthPermission.getReadPermission(SleepSessionRecord::class),
+        HealthPermission.getReadPermission(HeightRecord::class)
+    )
+
+    // Check system permissions on start. If they are already granted, enable Health Connect and trigger sync.
+    LaunchedEffect(healthProfile) {
+        try {
+            val providerPackageName = "com.google.android.apps.healthdata"
+            val availabilityStatus = HealthConnectClient.getSdkStatus(context, providerPackageName)
+            if (availabilityStatus == HealthConnectClient.SDK_AVAILABLE) {
+                val client = HealthConnectClient.getOrCreate(context)
+                val granted = client.permissionController.getGrantedPermissions()
+                // Se o usuário já concedeu as permissões de leitura essenciais, ativamos silenciosamente
+                if (granted.containsAll(requiredReadPermissions)) {
+                    if (healthProfile != null && healthProfile?.isHealthConnectEnabled != true) {
+                        viewModel.updateHealthProfile(
+                            heightCm = healthProfile?.heightCm ?: 0.0,
+                            targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
+                            isHealthConnectEnabled = true
+                        )
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     val requestPermissionActivityContract = PermissionController.createRequestPermissionResultContract()
 
     val requestPermissions = rememberLauncherForActivityResult(requestPermissionActivityContract) { granted ->
-        if (granted.containsAll(permissions)) {
+        if (granted.containsAll(requiredReadPermissions) || granted.isNotEmpty()) {
             coroutineScope.launch {
                 val end = Instant.now()
                 val start = end.minus(30, ChronoUnit.DAYS)
@@ -137,7 +179,9 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                 }
                 viewModel.syncHealthConnectData(localWeights, localSleeps, localSteps)
                 
-                val hcHeights = healthConnectManager.readHeightRecords(start, end)
+                // Busca altura com janela ampla (5 anos) para garantir resgate do dado histórico
+                val heightStart = end.minus(365 * 5, ChronoUnit.DAYS)
+                val hcHeights = healthConnectManager.readHeightRecords(heightStart, end)
                 val latestHeight = hcHeights.maxByOrNull { it.time }?.height?.inMeters?.times(100)
                 
                 viewModel.updateHealthProfile(
@@ -149,7 +193,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
         }
     }
 
-    // Auto-sync in the background if Health Connect is already enabled
+    // Auto-sync in the background if Health Connect is already enabled (including height synchronization)
     LaunchedEffect(healthProfile?.isHealthConnectEnabled) {
         if (healthProfile?.isHealthConnectEnabled == true) {
             try {
@@ -168,6 +212,18 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                     StepsRecord(count = it.count, startTime = it.startTime.toEpochMilli(), endTime = it.endTime.toEpochMilli(), source = "Health Connect")
                 }
                 viewModel.syncHealthConnectData(localWeights, localSleeps, localSteps)
+
+                // Sync height record in background as well (5 years window)
+                val heightStart = end.minus(365 * 5, ChronoUnit.DAYS)
+                val hcHeights = healthConnectManager.readHeightRecords(heightStart, end)
+                val latestHeight = hcHeights.maxByOrNull { it.time }?.height?.inMeters?.times(100)
+                if (latestHeight != null && latestHeight != healthProfile?.heightCm) {
+                    viewModel.updateHealthProfile(
+                        heightCm = latestHeight,
+                        targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
+                        isHealthConnectEnabled = true
+                    )
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -181,7 +237,13 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
 
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            val hasNotificationPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (!hasNotificationPermission) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
         }
     }
 
@@ -343,10 +405,9 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
         var name by remember { mutableStateOf("") }
         var time by remember { mutableStateOf("08:00") }
         var dosage by remember { mutableStateOf("") }
-        var recurrence by remember { mutableStateOf("DAILY") } // "DAILY", "ALTERNATE" ou "SPECIFIC"
+        var recurrence by remember { mutableStateOf("DAILY") }
         var selectedDays by remember { mutableStateOf(setOf(Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY)) }
         
-        // Native TimePickerDialog setup
         val calendar = Calendar.getInstance()
         val timePickerDialog = TimePickerDialog(
             context,
@@ -520,118 +581,173 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                                 viewModel.addMedication(name, time, dosage, "#FF4081", savedRecurrence)
                                 com.example.notifications.AlarmScheduler.scheduleMedicationAlarm(context, name, dosage, time)
                             }
-                            showMedicationDialog = false
-                        }, colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal, contentColor = Color.Black)) { Text("ADICIONAR") }
+                                    showMedicationDialog = false
+                                }, colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal, contentColor = Color.Black)) { Text("ADICIONAR") }
+                            }
+                        }
                     }
                 }
             }
-        }
-    }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color(0xFF0F1618), // Soft dark teal/slate top
+                                Color(0xFF070909)  // Rich black base matching HomeScreen
+                            )
+                        )
+                    )
+            ) {
+                // Ambient glows
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    PrimaryTeal.copy(alpha = 0.12f),
+                                    Color.Transparent
+                                ),
+                                center = Offset(800f, 200f),
+                                radius = 1100f
+                            )
+                        )
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    TertiaryPurple.copy(alpha = 0.08f),
+                                    Color.Transparent
+                                ),
+                                center = Offset(-100f, 1300f),
+                                radius = 1100f
+                            )
+                        )
+                )
 
-    Scaffold(
-        containerColor = Color.Transparent,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = {
-            TopAppBar(
-                title = { Text("Saúde", fontFamily = FontFamily.Serif, fontWeight = FontWeight.SemiBold, fontSize = 28.sp, color = OnBackgroundDark) },
-                navigationIcon = { IconButton(onClick = onHomeClick) { Icon(Icons.Outlined.Home, "Home", tint = OnBackgroundDark.copy(alpha = 0.7f)) } },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-            )
-        }
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(bottom = 140.dp) // Adjusted for FAB/Navigation bottom padding
-        ) {
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-            
-            // IMC & Weight Card
-            item {
-                BmiCard(healthProfile, weightRecords.lastOrNull())
-            }
+                Scaffold(
+                    containerColor = Color.Transparent,
+                    contentWindowInsets = WindowInsets(0, 0, 0, 0),
+                    topBar = {
+                        TopAppBar(
+                            title = { Text("Saúde", fontFamily = FontFamily.Serif, fontWeight = FontWeight.SemiBold, fontSize = 28.sp, color = OnBackgroundDark) },
+                            navigationIcon = { IconButton(onClick = onHomeClick) { Icon(Icons.Outlined.Home, "Home", tint = OnBackgroundDark.copy(alpha = 0.7f)) } },
+                            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+                        )
+                    }
+                ) { innerPadding ->
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        contentPadding = PaddingValues(bottom = 140.dp)
+                    ) {
+                        item { Spacer(modifier = Modifier.height(8.dp)) }
+                        
+                        // IMC & Weight Card
+                        item {
+                            AnimatedCardContainer(delayMillis = 100) {
+                                BmiCard(healthProfile, weightRecords.lastOrNull())
+                            }
+                        }
 
-            // Health Connect Connect Banner
-            if (healthProfile?.isHealthConnectEnabled != true) {
-                item {
-                    HealthConnectBanner { 
-                        coroutineScope.launch {
-                            val providerPackageName = "com.google.android.apps.healthdata"
-                            val availabilityStatus = HealthConnectClient.getSdkStatus(context, providerPackageName)
-                            
-                            if (availabilityStatus == HealthConnectClient.SDK_UNAVAILABLE || availabilityStatus == HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED) {
-                                android.widget.Toast.makeText(context, "O app 'Saúde Connect' da Google não está instalado ou precisa de atualização. Redirecionando...", android.widget.Toast.LENGTH_LONG).show()
-                                val uriString = "market://details?id=$providerPackageName&url=healthconnect%3A%2F%2Fonboarding"
-                                try {
-                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uriString)))
-                                } catch (e: Exception) {
-                                    android.widget.Toast.makeText(context, "Não foi possível abrir a Play Store.", android.widget.Toast.LENGTH_SHORT).show()
+                        // Health Connect Connect Banner (Avoid flicker: only display if healthProfile loaded and disabled)
+                        if (healthProfile != null && healthProfile?.isHealthConnectEnabled != true) {
+                            item {
+                                AnimatedCardContainer(delayMillis = 150) {
+                                    HealthConnectBanner { 
+                                        coroutineScope.launch {
+                                            val providerPackageName = "com.google.android.apps.healthdata"
+                                            val availabilityStatus = HealthConnectClient.getSdkStatus(context, providerPackageName)
+                                            
+                                            if (availabilityStatus == HealthConnectClient.SDK_UNAVAILABLE || availabilityStatus == HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED) {
+                                                android.widget.Toast.makeText(context, "O app 'Saúde Connect' da Google não está instalado ou precisa de atualização. Redirecionando...", android.widget.Toast.LENGTH_LONG).show()
+                                                val uriString = "market://details?id=$providerPackageName&url=healthconnect%3A%2F%2Fonboarding"
+                                                try {
+                                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uriString)))
+                                                } catch (e: Exception) {
+                                                    android.widget.Toast.makeText(context, "Não foi possível abrir a Play Store.", android.widget.Toast.LENGTH_SHORT).show()
+                                                }
+                                                return@launch
+                                            }
+                                            
+                                            try {
+                                                val client = HealthConnectClient.getOrCreate(context)
+                                                val granted = client.permissionController.getGrantedPermissions()
+                                                if (granted.containsAll(permissions)) {
+                                                    android.widget.Toast.makeText(context, "Permissões já concedidas. Habilitando sincronização...", android.widget.Toast.LENGTH_SHORT).show()
+                                                    viewModel.updateHealthProfile(
+                                                        heightCm = healthProfile?.heightCm ?: 0.0,
+                                                        targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
+                                                        isHealthConnectEnabled = true
+                                                    )
+                                                } else {
+                                                    requestPermissions.launch(permissions)
+                                                }
+                                            } catch (e: Exception) {
+                                                android.widget.Toast.makeText(context, "Erro ao abrir permissões: ${e.localizedMessage}", android.widget.Toast.LENGTH_LONG).show()
+                                            }
+                                        }
+                                    }
                                 }
-                                return@launch
                             }
-                            
-                            try {
-                                val client = HealthConnectClient.getOrCreate(context)
-                                val granted = client.permissionController.getGrantedPermissions()
-                                if (granted.containsAll(permissions)) {
-                                    android.widget.Toast.makeText(context, "Permissões já concedidas. Habilitando sincronização...", android.widget.Toast.LENGTH_SHORT).show()
-                                    viewModel.updateHealthProfile(
-                                        heightCm = healthProfile?.heightCm ?: 0.0,
-                                        targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
-                                        isHealthConnectEnabled = true
-                                    )
-                                } else {
-                                    requestPermissions.launch(permissions)
+                        }
+
+                        // Steps Card
+                        item {
+                            AnimatedCardContainer(delayMillis = 200) {
+                                StepsCard(todaySteps) { showStepsDialog = true }
+                            }
+                        }
+
+                        // Weight Chart Card
+                        item {
+                            AnimatedCardContainer(delayMillis = 300) {
+                                WeightChartCard(weightRecords, healthProfile?.targetWeightKg) { showWeightDialog = true }
+                            }
+                        }
+
+                        // Sleep Card
+                        item {
+                            AnimatedCardContainer(delayMillis = 400) {
+                                SleepCard(sleepRecords.firstOrNull()) { showSleepDialog = true }
+                            }
+                        }
+
+                        // Medications Card
+                        item {
+                            AnimatedCardContainer(delayMillis = 500) {
+                                Column(modifier = PremiumGlassModifier.fillMaxWidth().padding(24.dp)) {
+                                    Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                        Text("CONTROLE DE REMÉDIOS", style = MaterialTheme.typography.labelSmall, color = OnBackgroundDark.copy(alpha = 0.7f), letterSpacing = 1.sp)
+                                        IconButton(onClick = { showMedicationDialog = true }, modifier = Modifier.size(24.dp)) {
+                                            Icon(Icons.Default.Add, "Adicionar", tint = PrimaryTeal, modifier = Modifier.size(20.dp))
+                                        }
+                                    }
+                                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    
+                                    if (medications.isEmpty()) {
+                                        Text("Nenhum remédio registrado", color = OnBackgroundDark.copy(alpha = 0.5f), fontSize = 14.sp)
+                                    } else {
+                                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                            medications.forEach { med ->
+                                                MedicationItem(med) { viewModel.toggleMedicationTaken(med) }
+                                            }
+                                        }
+                                    }
                                 }
-                            } catch (e: Exception) {
-                                android.widget.Toast.makeText(context, "Erro ao abrir permissões: ${e.localizedMessage}", android.widget.Toast.LENGTH_LONG).show()
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Steps Card (New!)
-            item {
-                StepsCard(todaySteps) { showStepsDialog = true }
-            }
-
-            // Weight Chart Card
-            item {
-                WeightChartCard(weightRecords, healthProfile?.targetWeightKg) { showWeightDialog = true }
-            }
-
-            // Sleep Card
-            item {
-                SleepCard(sleepRecords.firstOrNull()) { showSleepDialog = true }
-            }
-
-            // Medications Card
-            item {
-                Column(modifier = PremiumGlassModifier.fillMaxWidth().padding(24.dp)) {
-                    Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text("CONTROLE DE REMÉDIOS", style = MaterialTheme.typography.labelSmall, color = OnBackgroundDark.copy(alpha = 0.7f))
-                        IconButton(onClick = { showMedicationDialog = true }, modifier = Modifier.size(24.dp)) {
-                            Icon(Icons.Default.Add, "Adicionar", tint = PrimaryTeal, modifier = Modifier.size(20.dp))
-                        }
-                    }
-                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    if (medications.isEmpty()) {
-                        Text("Nenhum remédio registrado", color = OnBackgroundDark.copy(alpha = 0.5f), fontSize = 14.sp)
-                    } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            medications.forEach { med ->
-                                MedicationItem(med) { viewModel.toggleMedicationTaken(med) }
                             }
                         }
                     }
                 }
             }
         }
-    }
-}
+
 
 @Composable
 fun BmiCard(profile: HealthProfile?, latestWeight: WeightRecord?) {
@@ -642,32 +758,104 @@ fun BmiCard(profile: HealthProfile?, latestWeight: WeightRecord?) {
     val (bmiStatus, bmiColor) = when {
         bmi == 0.0 -> "Sem Dados" to Color.Gray
         bmi < 18.5 -> "Abaixo do Peso" to Color(0xFF03A9F4)
-        bmi < 24.9 -> "Peso Normal" to PrimaryTeal
+        bmi < 24.9 -> "Peso Saudável" to PrimaryTeal
         bmi < 29.9 -> "Sobrepeso" to SecondaryGold
-        else -> "Obesidade" to Color(0xFFF44336)
+        else -> "Obesidade" to Color(0xFFFF5252)
     }
 
-    Column(modifier = PremiumGlassModifier.fillMaxWidth().padding(24.dp)) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Column {
-                Text("Seu IMC", color = OnBackgroundDark.copy(alpha = 0.7f), fontSize = 12.sp)
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(if (bmi > 0) String.format("%.1f", bmi) else "--", fontFamily = FontFamily.Serif, fontSize = 36.sp, color = OnBackgroundDark)
+    val bmiPosition = ((bmi.toFloat() - 15f) / 20f).coerceIn(0f, 1f)
+    val animatedPosition = remember { Animatable(0f) }
+    LaunchedEffect(bmi) {
+        if (bmi > 0) {
+            animatedPosition.animateTo(bmiPosition, animationSpec = tween(1500, easing = FastOutSlowInEasing))
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .then(PremiumGlassModifier)
+            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(24.dp))
+            .padding(24.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column {
+                    Text("COMPOSIÇÃO CORPORAL", style = MaterialTheme.typography.labelSmall, color = OnBackgroundDark.copy(alpha = 0.7f), letterSpacing = 1.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(if (bmi > 0) String.format(Locale.getDefault(), "%.1f", bmi) else "--", fontFamily = FontFamily.Serif, fontSize = 42.sp, color = OnBackgroundDark, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("IMC", fontSize = 16.sp, color = OnBackgroundDark.copy(alpha = 0.6f), modifier = Modifier.padding(bottom = 8.dp))
+                    }
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(bmiColor))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(bmiStatus, color = bmiColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("STATUS", style = MaterialTheme.typography.labelSmall, color = OnBackgroundDark.copy(alpha = 0.7f))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(bmiColor.copy(alpha = 0.15f))
+                            .border(0.5.dp, bmiColor.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(bmiStatus, color = bmiColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Text("Peso Atual", color = OnBackgroundDark.copy(alpha = 0.7f), fontSize = 12.sp)
-                Text(if (weightKg > 0) "${String.format("%.1f", weightKg)} kg" else "--", color = OnBackgroundDark, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("Altura", color = OnBackgroundDark.copy(alpha = 0.7f), fontSize = 12.sp)
-                Text(if (heightM > 0) "${profile?.heightCm?.toInt()} cm" else "--", color = OnBackgroundDark, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+
+            // Histórico de peso rápido / altura
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column {
+                    Text("Altura", fontSize = 11.sp, color = OnBackgroundDark.copy(alpha = 0.6f))
+                    Text(if (heightM > 0) "${profile?.heightCm?.toInt()} cm" else "--", color = OnBackgroundDark, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Peso Registrado", fontSize = 11.sp, color = OnBackgroundDark.copy(alpha = 0.6f))
+                    Text(if (weightKg > 0) "${String.format(Locale.getDefault(), "%.1f", weightKg)} kg" else "--", color = OnBackgroundDark, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("Meta", fontSize = 11.sp, color = OnBackgroundDark.copy(alpha = 0.6f))
+                    Text(if (profile?.targetWeightKg != null && profile.targetWeightKg > 0) "${profile.targetWeightKg.toInt()} kg" else "--", color = OnBackgroundDark, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+
+            // Espectro visual do IMC
+            if (bmi > 0) {
+                Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                    // Barra do Espectro
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(
+                                        Color(0xFF03A9F4), // Abaixo do peso
+                                        Color(0xFF71D7CD), // Normal
+                                        Color(0xFFF9A826), // Sobrepeso
+                                        Color(0xFFFF5252)  // Obesidade
+                                    )
+                                )
+                            )
+                    )
+                    
+                    // Indicador móvel (agulha)
+                    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                        val indicatorOffset = maxWidth * animatedPosition.value - 6.dp
+                        Box(
+                            modifier = Modifier
+                                .offset(x = indicatorOffset)
+                                .size(12.dp)
+                                .clip(CircleShape)
+                                .background(Color.White)
+                                .border(2.dp, bmiColor, CircleShape)
+                        )
+                    }
+                }
             }
         }
     }
@@ -692,20 +880,140 @@ fun HealthConnectBanner(onClick: () -> Unit) {
 
 @Composable
 fun StepsCard(stepsCount: Long, onRegisterClick: () -> Unit) {
-    Column(modifier = PremiumGlassModifier.fillMaxWidth().padding(24.dp)) {
+    val targetSteps = 10000f
+    val progress = (stepsCount.toFloat() / targetSteps).coerceIn(0f, 1f)
+    
+    // Animação do arco
+    val animatedProgress = remember { Animatable(0f) }
+    LaunchedEffect(stepsCount) {
+        animatedProgress.animateTo(progress, animationSpec = tween(1500, easing = FastOutSlowInEasing))
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .then(PremiumGlassModifier)
+            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(24.dp))
+            .padding(24.dp)
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Outlined.DirectionsWalk, null, tint = PrimaryTeal, modifier = Modifier.size(18.dp))
-                Text("PASSOS", style = MaterialTheme.typography.labelSmall, color = OnBackgroundDark.copy(alpha = 0.7f))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Outlined.DirectionsWalk, null, tint = PrimaryTeal, modifier = Modifier.size(18.dp))
+                    Text("PASSOS DIÁRIOS", style = MaterialTheme.typography.labelSmall, color = OnBackgroundDark.copy(alpha = 0.7f), letterSpacing = 1.sp)
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("$stepsCount", fontFamily = FontFamily.Serif, fontSize = 42.sp, color = OnBackgroundDark, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("Meta de 10.000 passos", fontSize = 13.sp, color = OnBackgroundDark.copy(alpha = 0.6f))
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "REGISTRAR", 
+                    color = PrimaryTeal, 
+                    fontSize = 12.sp, 
+                    fontWeight = FontWeight.Bold, 
+                    modifier = Modifier.clickable { onRegisterClick() }
+                )
             }
-            Text("REGISTRAR", color = PrimaryTeal, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { onRegisterClick() })
+            
+            // Oura Ring style Progress Circle
+            Box(
+                modifier = Modifier.size(110.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val strokeWidth = 7.dp.toPx()
+                    val center = Offset(size.width / 2, size.height / 2)
+                    val radius = (size.width - strokeWidth) / 2
+                    
+                    // Background Ring
+                    drawArc(
+                        color = PrimaryTeal.copy(alpha = 0.12f),
+                        startAngle = -90f,
+                        sweepAngle = 360f,
+                        useCenter = false,
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                    )
+                    
+                    // Outer glow layer 1 (Wide, low opacity)
+                    drawArc(
+                        brush = Brush.sweepGradient(
+                            colors = listOf(PrimaryTeal, Color(0xFF4D96FF), TertiaryPurple, PrimaryTeal)
+                        ),
+                        startAngle = -90f,
+                        sweepAngle = 360f * animatedProgress.value,
+                        useCenter = false,
+                        style = Stroke(width = strokeWidth + 6.dp.toPx(), cap = StrokeCap.Round),
+                        alpha = 0.15f
+                    )
+                    
+                    // Outer glow layer 2 (Medium, medium opacity)
+                    drawArc(
+                        brush = Brush.sweepGradient(
+                            colors = listOf(PrimaryTeal, Color(0xFF4D96FF), TertiaryPurple, PrimaryTeal)
+                        ),
+                        startAngle = -90f,
+                        sweepAngle = 360f * animatedProgress.value,
+                        useCenter = false,
+                        style = Stroke(width = strokeWidth + 3.dp.toPx(), cap = StrokeCap.Round),
+                        alpha = 0.35f
+                    )
+                    
+                    // Foreground Ring com degradê Oura Ring
+                    drawArc(
+                        brush = Brush.sweepGradient(
+                            colors = listOf(PrimaryTeal, Color(0xFF4D96FF), TertiaryPurple, PrimaryTeal)
+                        ),
+                        startAngle = -90f,
+                        sweepAngle = 360f * animatedProgress.value,
+                        useCenter = false,
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                    )
+                    
+                    // Glowing cursor dot at the end of progress
+                    if (animatedProgress.value > 0.01f) {
+                        val angle = -90f + 360f * animatedProgress.value
+                        val angleRad = Math.toRadians(angle.toDouble())
+                        val endX = center.x + radius * Math.cos(angleRad).toFloat()
+                        val endY = center.y + radius * Math.sin(angleRad).toFloat()
+                        
+                        // Cursor glow outer
+                        drawCircle(
+                            color = Color(0xFF4D96FF),
+                            radius = 6.dp.toPx(),
+                            center = Offset(endX, endY),
+                            alpha = 0.6f
+                        )
+                        // Cursor core white
+                        drawCircle(
+                            color = Color.White,
+                            radius = 3.dp.toPx(),
+                            center = Offset(endX, endY)
+                        )
+                    }
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "${(progress * 100).toInt()}%",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = OnBackgroundDark,
+                        fontFamily = FontFamily.Serif
+                    )
+                    Text(
+                        text = "meta",
+                        fontSize = 9.sp,
+                        color = OnBackgroundDark.copy(alpha = 0.5f),
+                        letterSpacing = 1.sp
+                    )
+                }
+            }
         }
-        Text("$stepsCount", fontFamily = FontFamily.Serif, fontSize = 36.sp, color = OnBackgroundDark)
-        Text("Passos registrados hoje", fontSize = 12.sp, color = OnBackgroundDark.copy(alpha = 0.7f))
     }
 }
 
@@ -756,6 +1064,24 @@ fun WeightChartCard(records: List<WeightRecord>, targetWeight: Double?, onRegist
                     }
                 }
 
+                // Área do gráfico preenchida com degradê
+                val fillPath = Path().apply {
+                    addPath(path)
+                    lineTo(width, height)
+                    lineTo(0f, height)
+                    close()
+                }
+                drawPath(
+                    path = fillPath,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            PrimaryTeal.copy(alpha = 0.25f * animationProgress.value),
+                            Color.Transparent
+                        )
+                    )
+                )
+
+                // Desenha a linha de peso
                 drawPath(path = path, brush = Brush.horizontalGradient(listOf(TertiaryPurple, PrimaryTeal)), style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round), alpha = animationProgress.value)
                 points.forEach { point ->
                     drawCircle(color = Color.White, radius = 4.dp.toPx(), center = point, alpha = animationProgress.value)
@@ -772,26 +1098,70 @@ fun WeightChartCard(records: List<WeightRecord>, targetWeight: Double?, onRegist
 
 @Composable
 fun SleepCard(latestSleep: SleepRecord?, onRegisterClick: () -> Unit) {
-    Column(modifier = PremiumGlassModifier.fillMaxWidth().padding(24.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Outlined.Bedtime, null, tint = PrimaryTeal, modifier = Modifier.size(18.dp))
-                Text("SONO", style = MaterialTheme.typography.labelSmall, color = OnBackgroundDark.copy(alpha = 0.7f))
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .then(PremiumGlassModifier)
+            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(24.dp))
+            .padding(24.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Outlined.Bedtime, null, tint = TertiaryPurple, modifier = Modifier.size(18.dp))
+                    Text("SONO E DESCANSO", style = MaterialTheme.typography.labelSmall, color = OnBackgroundDark.copy(alpha = 0.7f), letterSpacing = 1.sp)
+                }
+                Text("REGISTRAR", color = PrimaryTeal, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { onRegisterClick() })
             }
-            Text("REGISTRAR", color = PrimaryTeal, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { onRegisterClick() })
-        }
-        if (latestSleep != null) {
-            val hours = latestSleep.durationHours.toInt()
-            val minutes = ((latestSleep.durationHours - hours) * 60).roundToInt()
-            Text("${hours}h ${minutes}m", fontFamily = FontFamily.Serif, fontSize = 36.sp, color = OnBackgroundDark)
-            Text("Última noite sincronizada", fontSize = 12.sp, color = OnBackgroundDark.copy(alpha = 0.7f))
-        } else {
-            Text("Sem Dados", fontFamily = FontFamily.Serif, fontSize = 28.sp, color = OnBackgroundDark.copy(alpha = 0.5f))
-            Text("Conecte ao Health Connect ou registre", fontSize = 12.sp, color = OnBackgroundDark.copy(alpha = 0.7f))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    if (latestSleep != null) {
+                        val hours = latestSleep.durationHours.toInt()
+                        val minutes = ((latestSleep.durationHours - hours) * 60).roundToInt()
+                        Text("${hours}h ${minutes}m", fontFamily = FontFamily.Serif, fontSize = 42.sp, color = OnBackgroundDark, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("Última noite sincronizada", fontSize = 13.sp, color = OnBackgroundDark.copy(alpha = 0.6f))
+                    } else {
+                        Text("Sem Dados", fontFamily = FontFamily.Serif, fontSize = 28.sp, color = OnBackgroundDark.copy(alpha = 0.5f))
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("Sincronize com o Health Connect", fontSize = 13.sp, color = OnBackgroundDark.copy(alpha = 0.6f))
+                    }
+                }
+                
+                // Desenhar lua crescente estilizada no Canvas
+                Canvas(modifier = Modifier.size(64.dp)) {
+                    val radius = size.width / 2
+                    val center = Offset(size.width / 2, size.height / 2)
+                    
+                    val path = Path().apply {
+                        addArc(
+                            oval = androidx.compose.ui.geometry.Rect(center.x - radius, center.y - radius, center.x + radius, center.y + radius),
+                            startAngleDegrees = -90f,
+                            sweepAngleDegrees = 180f
+                        )
+                        quadraticTo(
+                            x1 = center.x + radius * 0.1f,
+                            y1 = center.y,
+                            x2 = center.x,
+                            y2 = center.y - radius
+                        )
+                    }
+                    drawPath(path = path, color = TertiaryPurple)
+                    
+                    drawCircle(color = Color.White.copy(alpha = 0.8f), radius = 2.dp.toPx(), center = Offset(center.x - radius * 0.5f, center.y - radius * 0.4f))
+                    drawCircle(color = Color.White.copy(alpha = 0.6f), radius = 1.5.dp.toPx(), center = Offset(center.x + radius * 0.3f, center.y + radius * 0.5f))
+                }
+            }
         }
     }
 }
@@ -859,5 +1229,25 @@ fun MedicationItem(med: Medication, onToggle: () -> Unit) {
             Icon(Icons.Outlined.AccessTime, null, tint = OnBackgroundDark.copy(alpha = 0.4f), modifier = Modifier.size(14.dp))
             Text(med.time, color = if (med.isTaken) OnBackgroundDark.copy(alpha = 0.5f) else PrimaryTeal, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
         }
+    }
+}
+
+@Composable
+fun AnimatedCardContainer(
+    delayMillis: Int = 0,
+    content: @Composable () -> Unit
+) {
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(delayMillis.toLong())
+        visible = true
+    }
+    androidx.compose.animation.AnimatedVisibility(
+        visible = visible,
+        enter = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(600, easing = androidx.compose.animation.core.FastOutSlowInEasing)) + 
+                androidx.compose.animation.slideInVertically(initialOffsetY = { 40 }, animationSpec = androidx.compose.animation.core.tween(600, easing = androidx.compose.animation.core.FastOutSlowInEasing)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        content()
     }
 }

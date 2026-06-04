@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.unit.dp
@@ -445,6 +446,9 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
     
     val mainViewModel: TesseraViewModel = viewModel(factory = com.example.viewmodel.TesseraViewModelFactory(com.example.data.TesseraRepository(com.example.data.AppDatabase.getDatabase(context).tesseraDao())))
     val petEvents by mainViewModel.allPetEvents.collectAsState(initial = emptyList())
+    val stepsRecords by mainViewModel.allStepsRecords.collectAsState(initial = emptyList())
+    val marketItems by mainViewModel.pendingMarketItems.collectAsState(initial = emptyList())
+    val medications by mainViewModel.allMedications.collectAsState(initial = emptyList())
     
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
     var isBiometricEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("biometric_enabled", false)) }
@@ -467,24 +471,23 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
 
     val scrollState = rememberScrollState()
 
+    val todayStart = java.util.Calendar.getInstance().apply {
+        set(java.util.Calendar.HOUR_OF_DAY, 0)
+        set(java.util.Calendar.MINUTE, 0)
+        set(java.util.Calendar.SECOND, 0)
+        set(java.util.Calendar.MILLISECOND, 0)
+    }.timeInMillis
+    val todayEnd = java.util.Calendar.getInstance().apply {
+        set(java.util.Calendar.HOUR_OF_DAY, 23)
+        set(java.util.Calendar.MINUTE, 59)
+        set(java.util.Calendar.SECOND, 59)
+        set(java.util.Calendar.MILLISECOND, 999)
+    }.timeInMillis
+    val todaySteps = stepsRecords.filter { it.startTime >= todayStart && it.endTime <= todayEnd }.sumOf { it.count }
+
     LaunchedEffect(Unit) {
         // removed seedDatabase
     }
-
-    val parallaxOffset = scrollState.value * 0.2f
-    val depthZoom = (1f + (scrollState.value * 0.00003f)).coerceIn(1.0f, 1.05f)
-    
-    val headerAlpha = (1f - (scrollState.value / 250f)).coerceIn(0f, 1f)
-    val headerScale = (1f - (scrollState.value / 1200f)).coerceIn(0.85f, 1f)
-    val headerTranslation = -scrollState.value * 0.15f
-    
-    val metricsAlpha = (1f - (scrollState.value / 400f)).coerceIn(0f, 1f)
-    val metricsScale = (1f - (scrollState.value / 1500f)).coerceIn(0.9f, 1f)
-    val metricsTranslation = -scrollState.value * 0.1f
-
-    val heroAlpha = (1f - (scrollState.value / 550f)).coerceIn(0f, 1f)
-    val heroScale = (1f - (scrollState.value / 2000f)).coerceIn(0.92f, 1f)
-    val heroTranslation = -scrollState.value * 0.08f
 
     Box(
         modifier = Modifier
@@ -515,6 +518,54 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
                 )
         )
 
+        // Ambient Breathing Glow
+        val calendarForTheme = java.util.Calendar.getInstance()
+        val hourForTheme = calendarForTheme.get(java.util.Calendar.HOUR_OF_DAY)
+        val glowColor = when (hourForTheme) {
+            in 5..11 -> Color(0xFFFF8A65) // Warm peach sunrise
+            in 12..17 -> Color(0xFFFFD54F) // Golden yellow sun
+            in 18..22 -> Color(0xFF9575CD) // Twilight violet/purple
+            else -> Color(0xFF4FC3F7) // Midnight deep blue
+        }
+
+        val infiniteTransition = rememberInfiniteTransition(label = "GlowBreathe")
+        val glowAlpha by infiniteTransition.animateFloat(
+            initialValue = 0.08f,
+            targetValue = 0.20f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(4000, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "GlowAlpha"
+        )
+        val glowScale by infiniteTransition.animateFloat(
+            initialValue = 0.9f,
+            targetValue = 1.1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(6000, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "GlowScale"
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(350.dp)
+                .graphicsLayer {
+                    scaleX = glowScale
+                    scaleY = glowScale
+                    alpha = (1f - (scrollState.value / 300f)).coerceIn(0f, 1f)
+                }
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(glowColor.copy(alpha = glowAlpha), Color.Transparent),
+                        center = Offset(200f, 0f),
+                        radius = 600f
+                    )
+                )
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -528,10 +579,12 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .graphicsLayer {
-                        alpha = headerAlpha
-                        scaleX = headerScale
-                        scaleY = headerScale
-                        translationY = headerTranslation
+                        val scrollVal = scrollState.value
+                        alpha = (1f - (scrollVal / 250f)).coerceIn(0f, 1f)
+                        val scale = (1f - (scrollVal / 1200f)).coerceIn(0.85f, 1f)
+                        scaleX = scale
+                        scaleY = scale
+                        translationY = -scrollVal * 0.15f
                     }
             ) {
                 TopHeader(onOpenSettings = { onNavigate("settings") })
@@ -543,30 +596,18 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .graphicsLayer {
-                        alpha = metricsAlpha
-                        scaleX = metricsScale
-                        scaleY = metricsScale
-                        translationY = metricsTranslation
+                        val scrollVal = scrollState.value
+                        alpha = (1f - (scrollVal / 400f)).coerceIn(0f, 1f)
+                        val scale = (1f - (scrollVal / 1500f)).coerceIn(0.9f, 1f)
+                        scaleX = scale
+                        scaleY = scale
+                        translationY = -scrollVal * 0.1f
                     }
             ) {
                 val habits by mainViewModel.allHabits.collectAsState(initial = emptyList<com.example.data.Habit>())
                 val weightRecords by mainViewModel.allWeightRecords.collectAsState(initial = emptyList())
-                val stepsRecords by mainViewModel.allStepsRecords.collectAsState(initial = emptyList())
 
                 val latestWeight = weightRecords.lastOrNull()?.weightKg ?: 75.2
-                val todayStart = java.util.Calendar.getInstance().apply {
-                    set(java.util.Calendar.HOUR_OF_DAY, 0)
-                    set(java.util.Calendar.MINUTE, 0)
-                    set(java.util.Calendar.SECOND, 0)
-                    set(java.util.Calendar.MILLISECOND, 0)
-                }.timeInMillis
-                val todayEnd = java.util.Calendar.getInstance().apply {
-                    set(java.util.Calendar.HOUR_OF_DAY, 23)
-                    set(java.util.Calendar.MINUTE, 59)
-                    set(java.util.Calendar.SECOND, 59)
-                    set(java.util.Calendar.MILLISECOND, 999)
-                }.timeInMillis
-                val todaySteps = stepsRecords.filter { it.startTime >= todayStart && it.endTime <= todayEnd }.sumOf { it.count }
 
                 TopMetricsRow(
                     patrimony = realPatrimony,
@@ -582,23 +623,25 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
             
             Spacer(modifier = Modifier.height(32.dp))
             
-            DailyBriefWidget(onClick = { onNavigate("daily") })
-            
-            Spacer(modifier = Modifier.height(32.dp))
-            
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .graphicsLayer {
-                        alpha = heroAlpha
-                        scaleX = heroScale
-                        scaleY = heroScale
-                        translationY = heroTranslation
+                        val scrollVal = scrollState.value
+                        alpha = (1f - (scrollVal / 550f)).coerceIn(0f, 1f)
+                        val scale = (1f - (scrollVal / 2000f)).coerceIn(0.92f, 1f)
+                        scaleX = scale
+                        scaleY = scale
+                        translationY = -scrollVal * 0.08f
                     }
             ) {
                 val habits by mainViewModel.allHabits.collectAsState(initial = emptyList<com.example.data.Habit>())
-                HeroMetric(habits, onNavigate)
+                HeroMetric(habits, todaySteps, onNavigate)
             }
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            DailyBriefWidget(onClick = { onNavigate("daily") })
             
             Spacer(modifier = Modifier.height(48.dp))
             MainContent(netWorth, petEvents, mainViewModel, onNavigate)
@@ -607,7 +650,13 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
     }
 
     if (showChatSheet) {
-        TesseraChatSheet(onDismiss = { showChatSheet = false }, netWorth = netWorth, petEvents = petEvents)
+        TesseraChatSheet(
+            onDismiss = { showChatSheet = false },
+            netWorth = netWorth,
+            petEvents = petEvents,
+            marketItems = marketItems,
+            medications = medications
+        )
     }
 }
 
@@ -675,7 +724,7 @@ fun TopHeader(onOpenSettings: () -> Unit) {
                         .clip(CircleShape)
                         .background(Color(0x0AFFFFFF))
                         .border(1.dp, Color(0x1AFFFFFF), CircleShape)
-                        .clickable {
+                        .bounceClick {
                             launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                         },
                     contentAlignment = Alignment.Center
@@ -704,24 +753,81 @@ fun TopHeader(onOpenSettings: () -> Unit) {
                     in 12..17 -> "Boa tarde"
                     else -> "Boa noite"
                 }
-                Text(
-                    text = "$greeting, Kenned",
-                    fontFamily = FontFamily.Serif,
-                    fontSize = 20.sp,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Normal
-                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "$greeting, Kenned",
+                        fontFamily = FontFamily.Serif,
+                        fontSize = 20.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Normal
+                    )
+
+                    val timeIcon = when (hour) {
+                        in 5..11 -> Icons.Outlined.WbSunny
+                        in 12..17 -> Icons.Outlined.LightMode
+                        in 18..22 -> Icons.Outlined.Nightlight
+                        else -> Icons.Outlined.Bedtime
+                    }
+                    val iconColor = when (hour) {
+                        in 5..11 -> Color(0xFFFFB74D)
+                        in 12..17 -> Color(0xFFFFD54F)
+                        in 18..22 -> Color(0xFFB39DDB)
+                        else -> Color(0xFF81D4FA)
+                    }
+
+                    val rotationTransition = rememberInfiniteTransition(label = "IconAnim")
+                    val rotationAngle by if (hour in 5..17) {
+                        rotationTransition.animateFloat(
+                            initialValue = 0f,
+                            targetValue = 360f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(20000, easing = LinearEasing)
+                            ),
+                            label = "SunRotate"
+                        )
+                    } else {
+                        rotationTransition.animateFloat(
+                            initialValue = -10f,
+                            targetValue = 10f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(3000, easing = FastOutSlowInEasing),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "MoonSway"
+                        )
+                    }
+
+                    Icon(
+                        imageVector = timeIcon,
+                        contentDescription = null,
+                        tint = iconColor,
+                        modifier = Modifier
+                            .size(18.dp)
+                            .graphicsLayer {
+                                rotationZ = rotationAngle
+                            }
+                    )
+                }
             }
 
-            IconButton(
-                onClick = onOpenSettings,
-                modifier = Modifier.size(36.dp)
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color(0x0AFFFFFF))
+                    .border(1.dp, Color(0x1AFFFFFF), CircleShape)
+                    .bounceClick(onOpenSettings),
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Settings,
                     contentDescription = "Configurações",
                     tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
@@ -892,6 +998,7 @@ fun TopMetricsRow(
 
 @Composable
 fun MetricItem(icon: ImageVector, value: String, label: String, onClick: () -> Unit) {
+    val displayFontSize = if (value.length > 5) 12.sp else if (value.length > 4) 14.sp else 16.sp
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
@@ -915,13 +1022,20 @@ fun MetricItem(icon: ImageVector, value: String, label: String, onClick: () -> U
                     ),
                     shape = CircleShape
                 )
-                .clickable { onClick() },
+                .bounceClick { onClick() },
             contentAlignment = Alignment.Center
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 4.dp)) {
                 Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurface)
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(value, fontFamily = FontFamily.Serif, fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurface)
+                Text(
+                    text = value,
+                    fontSize = displayFontSize,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
         Spacer(modifier = Modifier.height(12.dp))
@@ -935,6 +1049,7 @@ fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, prog
         targetValue = progress,
         animationSpec = tween(durationMillis = 1500, easing = androidx.compose.animation.core.FastOutSlowInEasing)
     )
+    val displayFontSize = if (value.length > 5) 11.sp else if (value.length > 4) 13.sp else 15.sp
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
@@ -959,7 +1074,7 @@ fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, prog
                     ),
                     shape = CircleShape
                 )
-                .clickable { onClick() },
+                .bounceClick { onClick() },
             contentAlignment = Alignment.Center
         ) {
             Canvas(modifier = Modifier.fillMaxSize().padding(1.dp)) {
@@ -978,10 +1093,17 @@ fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, prog
                     style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
                 )
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 4.dp)) {
                 Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurface)
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(value, fontFamily = FontFamily.Serif, fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurface)
+                Text(
+                    text = value,
+                    fontSize = displayFontSize,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
         Spacer(modifier = Modifier.height(12.dp))
@@ -990,11 +1112,11 @@ fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, prog
 }
 
 @Composable
-fun HeroMetric(habits: List<com.example.data.Habit>, onNavigate: (String) -> Unit) {
+fun HeroMetric(habits: List<com.example.data.Habit>, todaySteps: Long = 0, onNavigate: (String) -> Unit) {
     val calendar = java.util.Calendar.getInstance()
     val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+    val minute = calendar.get(java.util.Calendar.MINUTE)
     
-    // Determine dynamic content based on time of day
     val isMorning = hour in 5..11
     val isAfternoon = hour in 12..17
     
@@ -1004,16 +1126,92 @@ fun HeroMetric(habits: List<com.example.data.Habit>, onNavigate: (String) -> Uni
     val habitProgressValue = if (totalHabits > 0) completedHabits.toFloat() / totalHabits else 0.85f
 
     val title = if (isMorning) "PRONTIDÃO" else if (isAfternoon) "ATIVIDADE" else "RELAXAMENTO"
-    val value = if (isMorning) "$habitScore" else if (isAfternoon) "6.4k" else "1h"
+    val value = if (isMorning) {
+        "$habitScore"
+    } else if (isAfternoon) {
+        if (todaySteps >= 1000) {
+            String.format(java.util.Locale("pt", "BR"), "%.1fk", todaySteps.toFloat() / 1000f)
+        } else {
+            todaySteps.toString()
+        }
+    } else {
+        val targetHour = 23
+        val targetMinute = 0
+        val currentMinutesOfDay = hour * 60 + minute
+        val targetMinutesOfDay = targetHour * 60 + targetMinute
+        
+        if (currentMinutesOfDay >= targetMinutesOfDay || hour < 5) {
+            "Dormir"
+        } else {
+            val startRelaxMinutesOfDay = 21 * 60
+            if (currentMinutesOfDay < startRelaxMinutesOfDay) {
+                val diffMin = startRelaxMinutesOfDay - currentMinutesOfDay
+                if (diffMin >= 60) "${(diffMin / 60)}h" else "${diffMin}m"
+            } else {
+                val remainingMin = targetMinutesOfDay - currentMinutesOfDay
+                if (remainingMin >= 60) {
+                    val hrs = remainingMin / 60
+                    val mins = remainingMin % 60
+                    if (mins == 0) "${hrs}h" else "${hrs}h${mins}m"
+                } else {
+                    "${remainingMin}m"
+                }
+            }
+        }
+    }
+    
     val subtitle = if (isMorning) "Bom dia" else if (isAfternoon) "Progresso da tarde" else "Boa noite"
-    val subtext = if (isMorning) "Você completou $completedHabits de $totalHabits hábitos diários!\nÓtimo progresso." 
-                  else if (isAfternoon) "Você está no caminho certo para atingir a meta diária." 
-                  else "Hora de desacelerar. Prepare-se para uma boa noite de sono."
+    val subtext = if (isMorning) {
+        "Você completou $completedHabits de $totalHabits hábitos diários!\nÓtimo progresso."
+    } else if (isAfternoon) {
+        if (todaySteps >= 10000) {
+            "Meta de 10.000 passos alcançada! Excelente atividade hoje."
+        } else {
+            "Você deu $todaySteps passos hoje. Faltam ${10000 - todaySteps} para sua meta diária."
+        }
+    } else {
+        val targetHour = 23
+        val targetMinute = 0
+        val currentMinutesOfDay = hour * 60 + minute
+        val targetMinutesOfDay = targetHour * 60 + targetMinute
+        
+        if (currentMinutesOfDay >= targetMinutesOfDay || hour < 5) {
+            "Já passou do seu horário de dormir recomendado. Desligue as telas e descanse."
+        } else {
+            val startRelaxMinutesOfDay = 21 * 60
+            if (currentMinutesOfDay < startRelaxMinutesOfDay) {
+                "A noite chegou. O período de relaxamento guiado começa às 21h."
+            } else {
+                val remainingMin = targetMinutesOfDay - currentMinutesOfDay
+                "Faltam $remainingMin min para seu horário ideal de sono. Comece a desacelerar."
+            }
+        }
+    }
+    
     val icon = if (isMorning) Icons.Outlined.WbSunny else if (isAfternoon) Icons.Outlined.DirectionsWalk else Icons.Outlined.Bedtime
-    val progressValue = if (isMorning) habitProgressValue else if (isAfternoon) 0.64f else 0.3f
+    val progressValue = if (isMorning) {
+        habitProgressValue
+    } else if (isAfternoon) {
+        (todaySteps.toFloat() / 10000f).coerceIn(0f, 1f)
+    } else {
+        val targetHour = 23
+        val targetMinute = 0
+        val currentMinutesOfDay = hour * 60 + minute
+        val targetMinutesOfDay = targetHour * 60 + targetMinute
+        val startRelaxMinutesOfDay = 21 * 60
+        
+        if (currentMinutesOfDay >= targetMinutesOfDay || hour < 5) {
+            1.0f
+        } else if (currentMinutesOfDay < startRelaxMinutesOfDay) {
+            0.0f
+        } else {
+            val totalRelaxPeriod = targetMinutesOfDay - startRelaxMinutesOfDay
+            val elapsed = currentMinutesOfDay - startRelaxMinutesOfDay
+            (elapsed.toFloat() / totalRelaxPeriod.toFloat()).coerceIn(0f, 1f)
+        }
+    }
     val progressColor = if (isMorning) Color(0xFFF9A826) else if (isAfternoon) PrimaryTeal else TertiaryPurple
 
-    // Start-up animation for the arc
     var animationStarted by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { animationStarted = true }
     
@@ -1056,7 +1254,6 @@ fun HeroMetric(habits: List<com.example.data.Habit>, onNavigate: (String) -> Uni
                     val arcRectSize = Size(size.width, size.width)
                     val topLeft = Offset(0f, size.height - size.width / 2)
 
-                    // Background arc
                     drawArc(
                         color = Color(0x33DFE3E2),
                         startAngle = startAngle,
@@ -1066,7 +1263,6 @@ fun HeroMetric(habits: List<com.example.data.Habit>, onNavigate: (String) -> Uni
                         size = arcRectSize,
                         topLeft = topLeft
                     )
-                    // Progress arc
                     drawArc(
                         color = progressColor,
                         startAngle = startAngle,
@@ -1080,7 +1276,6 @@ fun HeroMetric(habits: List<com.example.data.Habit>, onNavigate: (String) -> Uni
                     val centerVector = Offset(size.width / 2, size.height)
                     val radius = size.width / 2
 
-                    // Dots
                     val angles = listOf(155f, 212.5f, 270f, 327.5f, 25f)
                     for (angle in angles) {
                         val angleRad = Math.toRadians(angle.toDouble())
@@ -1090,11 +1285,10 @@ fun HeroMetric(habits: List<com.example.data.Habit>, onNavigate: (String) -> Uni
                     }
                 }
 
-                // Top center icon in thin circle
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .offset(y = topOfArcY - 12.dp) // carefully centered on the arc
+                        .offset(y = topOfArcY - 12.dp)
                         .size(24.dp)
                         .clip(CircleShape)
                         .background(Color(0x1AFFFFFF)),
@@ -1120,13 +1314,15 @@ fun HeroMetric(habits: List<com.example.data.Habit>, onNavigate: (String) -> Uni
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.SemiBold
                     )
+                    val heroFontSize = if (value.length > 5) 28.sp else if (value.length > 3) 44.sp else 62.sp
+                    val heroLineHeight = if (value.length > 5) 36.sp else if (value.length > 3) 50.sp else 72.sp
                     Text(
                         text = value,
                         fontFamily = FontFamily.Serif,
-                        fontSize = 62.sp,
+                        fontSize = heroFontSize,
                         color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Normal,
-                        lineHeight = 72.sp
+                        lineHeight = heroLineHeight
                     )
                 }
             }
@@ -1241,9 +1437,10 @@ fun MainContent(netWorth: Double, petEvents: List<com.example.data.PetEvent>, ma
                         val stepsRecords by mainViewModel.allStepsRecords.collectAsState(initial = emptyList())
                         val healthProfile by mainViewModel.healthProfile.collectAsState(initial = null)
 
-                        val latestWeight = weightRecords.lastOrNull()?.weightKg ?: 75.2
-                        val height = healthProfile?.heightCm?.div(100.0) ?: 1.75
-                        val bmi = latestWeight / (height * height)
+                        val latestWeight = weightRecords.lastOrNull()?.weightKg ?: 0.0
+                        val heightCm = healthProfile?.heightCm ?: 0.0
+                        val height = if (heightCm > 0.0) heightCm / 100.0 else 1.75
+                        val bmi = if (latestWeight > 0.0 && height > 0.0) latestWeight / (height * height) else 0.0
 
                         val todayStart = java.util.Calendar.getInstance().apply {
                             set(java.util.Calendar.HOUR_OF_DAY, 0)
@@ -1259,13 +1456,19 @@ fun MainContent(netWorth: Double, petEvents: List<com.example.data.PetEvent>, ma
                         }.timeInMillis
                         val todaySteps = stepsRecords.filter { it.startTime >= todayStart && it.endTime <= todayEnd }.sumOf { it.count }
 
-                        HealthWidget(
-                            medications = medications,
-                            onToggleMedication = { med -> mainViewModel.toggleMedicationTaken(med) },
-                            latestWeight = latestWeight,
-                            todaySteps = todaySteps,
-                            bmi = bmi
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .bounceClick { onNavigate("health") }
+                        ) {
+                            HealthWidget(
+                                medications = medications,
+                                onToggleMedication = { med -> mainViewModel.toggleMedicationTaken(med) },
+                                latestWeight = latestWeight,
+                                todaySteps = todaySteps,
+                                bmi = bmi
+                            )
+                        }
                     }
                     "goals" -> {
                         val habits by mainViewModel.allHabits.collectAsState(initial = emptyList())
@@ -1593,14 +1796,14 @@ fun HealthWidget(
             HealthMiniCard(
                 icon = Icons.Outlined.Analytics,
                 label = "IMC",
-                value = String.format(java.util.Locale("pt", "BR"), "%.1f", bmi),
+                value = if (bmi > 0.0) String.format(java.util.Locale("pt", "BR"), "%.1f", bmi) else "--",
                 tint = PrimaryTeal,
                 modifier = Modifier.weight(1f)
             )
             HealthMiniCard(
                 icon = Icons.Outlined.MonitorWeight,
                 label = "Peso",
-                value = String.format(java.util.Locale("pt", "BR"), "%.1f kg", latestWeight),
+                value = if (latestWeight > 0.0) String.format(java.util.Locale("pt", "BR"), "%.1f kg", latestWeight) else "--",
                 tint = TertiaryPurple,
                 modifier = Modifier.weight(1f)
             )
@@ -3042,7 +3245,13 @@ fun PremiumGridTile(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TesseraChatSheet(onDismiss: () -> Unit, netWorth: Double, petEvents: List<com.example.data.PetEvent>) {
+fun TesseraChatSheet(
+    onDismiss: () -> Unit,
+    netWorth: Double,
+    petEvents: List<com.example.data.PetEvent>,
+    marketItems: List<com.example.data.MarketItem>,
+    medications: List<com.example.data.Medication>
+) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var prompt by remember { mutableStateOf("") }
@@ -3280,8 +3489,16 @@ fun TesseraChatSheet(onDismiss: () -> Unit, netWorth: Double, petEvents: List<co
                             coroutineScope.launch {
                                 if (llmManager != null) {
                                     val petsString = if (petEvents.isEmpty()) "Nenhum compromisso pendente hoje." else petEvents.joinToString("; ") { "${it.petName}: ${it.title} (${if(it.isCompleted) "Concluído" else "Pendente"})" }
+                                    val marketString = if (marketItems.isEmpty()) "Nenhuma compra pendente." else marketItems.joinToString("; ") { "${it.name} (${it.quantity} ${it.unit})${if (it.isChecked || it.isBought) " (Comprado)" else " (Pendente)"}" }
+                                    val medsString = if (medications.isEmpty()) "Nenhum medicamento agendado." else medications.joinToString("; ") { "${it.name} (${it.dosage}) às ${it.time} - ${if (it.isTaken) "Tomado" else "Pendente"}" }
+
                                     val hiddenContext = """
-                                        [Contexto] Nome: Kenned | Patrimônio: R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", netWorth)} | Pets: $petsString
+                                        [Contexto] Nome do Usuário: Kenned
+                                        [Contexto] Patrimônio consolidado: R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", netWorth)}
+                                        [Contexto] Compromissos dos Pets: $petsString
+                                        [Contexto] Lista de Compras (Mercado): $marketString
+                                        [Contexto] Medicamentos e Remédios: $medsString
+                                        
                                         Pergunta do usuário: "$userText"
                                     """.trimIndent()
                                     val response = llmManager.generateResponse(hiddenContext)
@@ -3514,14 +3731,14 @@ fun DailyBriefWidget(onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp)
-            .clip(RoundedCornerShape(24.dp))
+            .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(20.dp))
             .then(GlassModifier)
-            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(24.dp))
-            .clickable { onClick() }
-            .padding(24.dp)
+            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(20.dp))
+            .bounceClick(onClick)
+            .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -3532,31 +3749,31 @@ fun DailyBriefWidget(onClick: () -> Unit) {
                         imageVector = Icons.Outlined.AutoAwesome,
                         contentDescription = null,
                         tint = PrimaryTeal,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(14.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "DAILY BRIEF",
-                        fontSize = 11.sp,
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = PrimaryTeal,
-                        letterSpacing = 2.sp
+                        letterSpacing = 1.5.sp
                     )
                 }
                 Text(
                     text = "NOW",
-                    fontSize = 10.sp,
+                    fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0x99FFFFFF),
                     letterSpacing = 1.sp
                 )
             }
             
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
             
             Text(
                 text = "$weekDayStr, $dayOfMonth de $monthName".uppercase(),
-                fontSize = 11.sp,
+                fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF81928F),
                 letterSpacing = 1.sp
@@ -3565,17 +3782,17 @@ fun DailyBriefWidget(onClick: () -> Unit) {
             Text(
                 text = "Seu dia em resumo",
                 fontFamily = FontFamily.Serif,
-                fontSize = 24.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Light,
                 color = Color.White,
-                lineHeight = 30.sp
+                lineHeight = 22.sp
             )
             
             Text(
                 text = "Confira o panorama consolidado de finanças, saúde, pets, mercado e tarefas em um só lugar.",
-                fontSize = 13.sp,
+                fontSize = 12.sp,
                 color = Color(0xFF81928F),
-                lineHeight = 18.sp
+                lineHeight = 16.sp
             )
         }
     }

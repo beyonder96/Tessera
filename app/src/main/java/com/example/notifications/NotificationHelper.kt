@@ -22,6 +22,9 @@ object NotificationHelper {
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Reminders for taking your medication"
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 500, 250, 500)
+                setShowBadge(true)
             }
             val notificationManager: NotificationManager =
                 context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -43,7 +46,9 @@ object NotificationHelper {
             .setContentTitle(title)
             .setContentText(message)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setVibrate(longArrayOf(0, 500, 250, 500))
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setFullScreenIntent(pendingIntent, true)
             .setAutoCancel(true)
 

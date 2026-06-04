@@ -55,7 +55,19 @@ class LocalLLMManager(private val context: Context) {
 
     // Envia a sua pergunta e gera a resposta
     suspend fun generateResponse(userPrompt: String): String {
-        val systemPrompt = "Você é a Tessera AI, uma assistente inteligente, elegante e super prestativa do aplicativo Tessera. Responda de forma concisa e amigável."
+        val systemPrompt = """
+            Você é a Tessera AI, uma assistente pessoal inteligente, elegante, super prestativa e integrada ao aplicativo Tessera do Kenned.
+            Você tem acesso em tempo real ao contexto local do usuário:
+            - Patrimônio Consolidado (Finanças)
+            - Compromissos e vacinas dos Pets
+            - Lista de compras do Mercado
+            - Medicamentos agendados e status de ingestão
+            
+            Use essas tabelas ativamente para responder:
+            - Se o usuário perguntar ou mencionar compras, receitas, ingredientes ou mercado, analise a lista de mercado e liste os itens e quantidades pendentes ou comprados. Sugira fazer as compras dos itens pendentes.
+            - Se o usuário perguntar sobre saúde, remédios, medicação ou horários de dosagem, analise os medicamentos do dia e faça alertas explícitos se houver algum pendente, ou parabenize-o se todos já foram tomados.
+            - Seja sempre direta, concisa, elegante e amigável. Responda em português brasileiro.
+        """.trimIndent()
         val prompt = "$systemPrompt\nUsuário: $userPrompt"
 
         return withContext(Dispatchers.IO) {
@@ -72,23 +84,56 @@ class LocalLLMManager(private val context: Context) {
                 if (!response.isNullOrBlank()) {
                     response
                 } else {
-                    // High-fidelity fallback simulated AI
-                    val netWorth = regexFind(userPrompt, "- Patrimônio: R\\$ ([\\d,.]+)") ?: "120.000,00"
+                    // High-fidelity fallback simulated AI reading local context dynamically
+                    val netWorth = regexFind(userPrompt, "\\[Contexto\\] Patrimônio consolidado: R\\$ ([\\d,.]+)") ?: "0,00"
+                    val petsContext = regexFind(userPrompt, "\\[Contexto\\] Compromissos dos Pets: (.*)") ?: "Nenhum compromisso pendente hoje."
+                    val marketContext = regexFind(userPrompt, "\\[Contexto\\] Lista de Compras \\(Mercado\\): (.*)") ?: "Nenhuma compra pendente."
+                    val medsContext = regexFind(userPrompt, "\\[Contexto\\] Medicamentos e Remédios: (.*)") ?: "Nenhum medicamento agendado."
                     val query = regexFind(userPrompt, "Pergunta do usuário: \"(.*)\"") ?: userPrompt
                     val queryClean = query.lowercase()
 
                     when {
                         queryClean.contains("patrimônio") || queryClean.contains("saldo") || queryClean.contains("finança") || queryClean.contains("dinheiro") || queryClean.contains("quanto tenho") || queryClean.contains("capital") -> {
-                            "Olá Kenned! Seu patrimônio total atual consolidado é de R$ $netWorth. O seu progresso financeiro está excelente, e todos os lançamentos estão sob controle no painel de finanças."
+                            "Olá Kenned! Analisei suas finanças locais: seu patrimônio consolidado atual é de R$ $netWorth. Seu saldo e seus lançamentos estão sob controle no painel financeiro do app."
                         }
-                        queryClean.contains("pet") || queryClean.contains("marie") || queryClean.contains("churchill") || queryClean.contains("vacina") || queryClean.contains("consulta") || queryClean.contains("tarefa") -> {
-                            "Olá Kenned! Analisando o status dos seus pets: a Marie está com a Vacina Antirrábica agendada para 12/Jun e o Churchill está com o Check-up Geral confirmado para 24/Jun. Ambas as tarefas estão salvas e em dia!"
+                        queryClean.contains("compra") || queryClean.contains("mercado") || queryClean.contains("adquirir") || queryClean.contains("comprar") || queryClean.contains("ingrediente") || queryClean.contains("receita") -> {
+                            val pendingItems = marketContext.split("; ")
+                                .filter { it.contains("Pendente") }
+                                .map { it.substringBefore(" (Pendente)") }
+                            
+                            val advice = if (pendingItems.isNotEmpty()) {
+                                "Vejo que você tem os seguintes itens pendentes na sua lista de compras de mercado: ${pendingItems.joinToString(", ")}. Recomendo comprá-los na sua próxima ida ao mercado!"
+                            } else {
+                                "Todos os itens da sua lista de mercado já foram marcados como comprados!"
+                            }
+                            "Olá Kenned! $advice"
+                        }
+                        queryClean.contains("remédio") || queryClean.contains("medicamento") || queryClean.contains("saúde") || queryClean.contains("dose") || queryClean.contains("tomar") -> {
+                            val pendingMeds = medsContext.split("; ")
+                                .filter { it.contains("Pendente") }
+                                .map { it.substringBefore(" - Pendente") }
+                            
+                            val advice = if (pendingMeds.isNotEmpty()) {
+                                "Atenção, Kenned! Você tem medicamentos pendentes para hoje: ${pendingMeds.joinToString(", ")}. Lembre-se de tomá-los no horário correto para manter seu tratamento em dia!"
+                            } else {
+                                "Parabéns, Kenned! Todos os seus medicamentos agendados para hoje já constam como tomados."
+                            }
+                            "Olá Kenned! $advice"
+                        }
+                        queryClean.contains("pet") || queryClean.contains("marie") || queryClean.contains("churchill") || queryClean.contains("vacina") || queryClean.contains("consulta") || queryClean.contains("rotina") -> {
+                            "Olá Kenned! Analisando o status dos seus pets: $petsContext."
                         }
                         queryClean.contains("olá") || queryClean.contains("oi") || queryClean.contains("bom dia") || queryClean.contains("boa tarde") || queryClean.contains("boa noite") -> {
-                            "Olá Kenned! Sou a Tessera AI, sua assistente pessoal de IA. Posso te ajudar com as suas finanças (seu patrimônio atual é de R$ $netWorth) ou com os compromissos dos seus pets (Marie & Churchill). Como posso te apoiar hoje?"
+                            "Olá Kenned! Sou a Tessera AI, sua assistente pessoal de IA. Estou monitorando seu status. Patrimônio: R$ $netWorth. Pets: $petsContext. Compras pendentes: $marketContext. Saúde: $medsContext. Como posso te apoiar hoje?"
                         }
                         else -> {
-                            "Entendido, Kenned! Como sua assistente inteligente Tessera AI, estou monitorando seu painel. Vejo que seu patrimônio é de R$ $netWorth e a rotina de vacinas e consultas dos seus pets está 100% atualizada. Se precisar de ajuda para registrar transações ou peso, é só me chamar!"
+                            val pendingItems = marketContext.split("; ").filter { it.contains("Pendente") }
+                            val pendingMeds = medsContext.split("; ").filter { it.contains("Pendente") }
+                            
+                            val healthAlert = if (pendingMeds.isNotEmpty()) " (Alerte: você possui medicamentos pendentes)" else ""
+                            val marketAlert = if (pendingItems.isNotEmpty()) " (Nota: você possui itens pendentes no mercado)" else ""
+                            
+                            "Entendido, Kenned! Como sua assistente inteligente Tessera AI, estou acompanhando seu painel. Seu patrimônio atual é de R$ $netWorth. Compromissos dos pets: $petsContext.$healthAlert$marketAlert. Se precisar de alguma ajuda específica com finanças, rotinas ou mercado, me informe!"
                         }
                     }
                 }

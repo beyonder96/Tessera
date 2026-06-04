@@ -171,7 +171,6 @@ fun PetzScreen(
                     // Hero Image with Fade to Black
                     val scrollOffset = scrollState.value
                     val blurRadius = (scrollOffset * 0.04f).coerceIn(0f, 16f).dp
-                    val scale = (1f + (scrollOffset * 0.0005f)).coerceIn(1f, 1.15f)
 
                     Box(
                         modifier = Modifier
@@ -184,11 +183,6 @@ fun PetzScreen(
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .fillMaxSize()
-                                .graphicsLayer {
-                                    translationY = scrollOffset * 0.4f
-                                    scaleX = scale
-                                    scaleY = scale
-                                }
                                 .blur(blurRadius)
                         )
                         Box(

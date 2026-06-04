@@ -34,6 +34,7 @@ import com.example.ui.theme.*
 import com.example.viewmodel.TesseraViewModel
 import java.util.Calendar
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,6 +55,31 @@ fun DailyScreen(
     val marketItems by viewModel.pendingMarketItems.collectAsStateWithLifecycle(initialValue = emptyList())
     val habits by viewModel.allHabits.collectAsStateWithLifecycle(initialValue = emptyList())
     val healthProfile by viewModel.healthProfile.collectAsStateWithLifecycle(initialValue = null)
+
+    // Cascade Animation States
+    var animateHeader by remember { mutableStateOf(false) }
+    var animateFinance by remember { mutableStateOf(false) }
+    var animateHealth by remember { mutableStateOf(false) }
+    var animatePets by remember { mutableStateOf(false) }
+    var animateMarket by remember { mutableStateOf(false) }
+    var animateTasks by remember { mutableStateOf(false) }
+    var animateShortcuts by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        animateHeader = true
+        delay(60L)
+        animateFinance = true
+        delay(60L)
+        animateHealth = true
+        delay(60L)
+        animatePets = true
+        delay(60L)
+        animateMarket = true
+        delay(60L)
+        animateTasks = true
+        delay(60L)
+        animateShortcuts = true
+    }
 
     // Calendar Calculations
     val calendar = Calendar.getInstance()
@@ -79,15 +105,14 @@ fun DailyScreen(
     }
 
     // Consolidated Calculations
-    // 1. Finance
     val totalIncome = transactions.filter { it.isIncome }.sumOf { it.value }
     val totalExpense = transactions.filter { !it.isIncome }.sumOf { it.value }
     val financeBalance = totalIncome - totalExpense
 
-    // 2. Health
-    val latestWeight = weightRecords.lastOrNull()?.weightKg ?: 75.2
-    val height = healthProfile?.heightCm?.div(100.0) ?: 1.75
-    val bmi = latestWeight / (height * height)
+    val latestWeight = weightRecords.lastOrNull()?.weightKg ?: 0.0
+    val heightCm = healthProfile?.heightCm ?: 0.0
+    val height = if (heightCm > 0.0) heightCm / 100.0 else 1.75
+    val bmi = if (latestWeight > 0.0 && height > 0.0) latestWeight / (height * height) else 0.0
     
     val todayStart = Calendar.getInstance().apply {
         set(Calendar.HOUR_OF_DAY, 0)
@@ -105,18 +130,23 @@ fun DailyScreen(
     val todaySteps = stepsRecords.filter { it.startTime >= todayStart && it.endTime <= todayEnd }.sumOf { it.count }
     val latestSleep = sleepRecords.lastOrNull()?.durationHours ?: 7.5
 
-    // 3. Pets
     val completedPetEvents = petEvents.count { it.isCompleted }
     val totalPetEvents = petEvents.size
 
-    // 4. Habits
     val completedHabits = habits.count { it.isCompleted }
     val totalHabits = habits.size
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF070909))
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFF0C0F0F),
+                        Color(0xFF060808)
+                    )
+                )
+            )
             .statusBarsPadding()
     ) {
         // Top Bar
@@ -154,227 +184,347 @@ fun DailyScreen(
                 .padding(bottom = 120.dp),
             verticalArrangement = Arrangement.spacedBy(28.dp)
         ) {
-            // Header Typography
-            Column(modifier = Modifier.padding(vertical = 12.dp)) {
-                Text(
-                    text = "$weekDayStr, $dayOfMonth de $monthName".uppercase(),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF81928F),
-                    letterSpacing = 1.5.sp
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "$greeting, Kenned.",
-                    fontFamily = FontFamily.Serif,
-                    fontSize = 36.sp,
-                    fontWeight = FontWeight.Light,
-                    color = Color.White,
-                    lineHeight = 44.sp
-                )
-                Text(
-                    text = "Seu panorama geral consolidado de hoje.",
-                    fontSize = 15.sp,
-                    color = Color(0xFF81928F)
-                )
+            // Header Typography with animation
+            AnimatedVisibility(
+                visible = animateHeader,
+                enter = fadeIn(animationSpec = tween(600)) + slideInVertically(initialOffsetY = { 30 })
+            ) {
+                Column(modifier = Modifier.padding(vertical = 12.dp)) {
+                    Text(
+                        text = "$weekDayStr, $dayOfMonth de $monthName".uppercase(),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF81928F),
+                        letterSpacing = 1.5.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "$greeting, Kenned.",
+                        fontFamily = FontFamily.Serif,
+                        fontSize = 36.sp,
+                        fontWeight = FontWeight.Light,
+                        color = Color.White,
+                        lineHeight = 44.sp
+                    )
+                    Text(
+                        text = "Seu panorama geral consolidado de hoje.",
+                        fontSize = 15.sp,
+                        color = Color(0xFF81928F)
+                    )
+                }
             }
 
-            // Consolidated Modules Grid/Section
+            // Consolidated Modules Section
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(
-                    text = "INDICADORES CHAVE",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF81928F),
-                    letterSpacing = 2.sp
-                )
+                AnimatedVisibility(
+                    visible = animateHeader,
+                    enter = fadeIn(animationSpec = tween(600))
+                ) {
+                    Text(
+                        text = "INDICADORES CHAVE",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF81928F),
+                        letterSpacing = 2.sp
+                    )
+                }
 
                 // 1. Finance Section Card
-                DailySectionCard(
-                    title = "FINANÇAS",
-                    icon = Icons.Outlined.AccountBalanceWallet,
-                    iconColor = Color(0xFFF9A826),
-                    onClick = { onNavigate("finance") }
+                AnimatedVisibility(
+                    visible = animateFinance,
+                    enter = fadeIn(animationSpec = tween(500, easing = FastOutSlowInEasing)) + 
+                            slideInVertically(initialOffsetY = { 40 }, animationSpec = tween(500, easing = FastOutSlowInEasing))
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Balanço Mensal", fontSize = 13.sp, color = Color(0xFF81928F))
-                            Text(
-                                text = String.format(Locale("pt", "BR"), "R$ %,.2f", financeBalance),
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (financeBalance >= 0) Color(0xFF71D7CD) else Color(0xFFFF6B6B)
-                            )
+                    DailySectionCard(
+                        title = "FINANÇAS",
+                        icon = Icons.Outlined.AccountBalanceWallet,
+                        iconColor = Color(0xFFF9A826),
+                        onClick = { onNavigate("finance") }
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Balanço Mensal", fontSize = 13.sp, color = Color(0xFF81928F))
+                                Text(
+                                    text = String.format(Locale("pt", "BR"), "R$ %,.2f", financeBalance),
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (financeBalance >= 0) Color(0xFF71D7CD) else Color(0xFFFF6B6B)
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Receitas / Despesas", fontSize = 12.sp, color = Color(0xFF81928F))
+                                Text(
+                                    text = String.format(Locale("pt", "BR"), "+R$ %,.2f / -R$ %,.2f", totalIncome, totalExpense),
+                                    fontSize = 12.sp,
+                                    color = Color.White
+                                )
+                            }
                         }
+                    }
+                }
+
+                // 2. Health Section Card
+                AnimatedVisibility(
+                    visible = animateHealth,
+                    enter = fadeIn(animationSpec = tween(500, easing = FastOutSlowInEasing)) + 
+                            slideInVertically(initialOffsetY = { 40 }, animationSpec = tween(500, easing = FastOutSlowInEasing))
+                ) {
+                    DailySectionCard(
+                        title = "SAÚDE",
+                        icon = Icons.Outlined.FavoriteBorder,
+                        iconColor = Color(0xFF71D7CD),
+                        onClick = { onNavigate("health") }
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Passos Hoje", fontSize = 11.sp, color = Color(0xFF81928F))
+                                Text("$todaySteps", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Sono", fontSize = 11.sp, color = Color(0xFF81928F))
+                                Text(String.format(Locale("pt", "BR"), "%.1fh", latestSleep), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (latestWeight > 0.0) {
+                                        String.format(Locale("pt", "BR"), "%.1fkg / %.1f", latestWeight, bmi)
+                                    } else {
+                                        "--"
+                                    },
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 3. Pets Section Card
+                AnimatedVisibility(
+                    visible = animatePets,
+                    enter = fadeIn(animationSpec = tween(500, easing = FastOutSlowInEasing)) + 
+                            slideInVertically(initialOffsetY = { 40 }, animationSpec = tween(500, easing = FastOutSlowInEasing))
+                ) {
+                    DailySectionCard(
+                        title = "PETZ",
+                        icon = Icons.Outlined.Pets,
+                        iconColor = Color(0xFFD7B4F3),
+                        onClick = { onNavigate("petz") }
+                    ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Receitas / Despesas", fontSize = 12.sp, color = Color(0xFF81928F))
+                            Text("Atividades para Marie & Churchill", fontSize = 13.sp, color = Color(0xFF81928F))
                             Text(
-                                text = String.format(Locale("pt", "BR"), "+R$ %,.2f / -R$ %,.2f", totalIncome, totalExpense),
-                                fontSize = 12.sp,
+                                text = "$completedPetEvents de $totalPetEvents concluídas",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
                         }
                     }
                 }
 
-                // 2. Health Section Card
-                DailySectionCard(
-                    title = "SAÚDE",
-                    icon = Icons.Outlined.FavoriteBorder,
-                    iconColor = Color(0xFF71D7CD),
-                    onClick = { onNavigate("health") }
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Passos Hoje", fontSize = 11.sp, color = Color(0xFF81928F))
-                            Text("$todaySteps", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Sono", fontSize = 11.sp, color = Color(0xFF81928F))
-                            Text(String.format(Locale("pt", "BR"), "%.1fh", latestSleep), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Peso / IMC", fontSize = 11.sp, color = Color(0xFF81928F))
-                            Text(String.format(Locale("pt", "BR"), "%.1fkg / %.1f", latestWeight, bmi), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        }
-                    }
-                }
-
-                // 3. Pets Section Card
-                DailySectionCard(
-                    title = "PETZ",
-                    icon = Icons.Outlined.Pets,
-                    iconColor = Color(0xFFD7B4F3),
-                    onClick = { onNavigate("petz") }
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Atividades para Marie & Churchill", fontSize = 13.sp, color = Color(0xFF81928F))
-                        Text(
-                            text = "$completedPetEvents de $totalPetEvents concluídas",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
-                }
-
                 // 4. Market Section Card
-                DailySectionCard(
-                    title = "MERCADO",
-                    icon = Icons.Outlined.ShoppingCart,
-                    iconColor = Color(0xFF4D96FF),
-                    onClick = { onNavigate("market") }
+                AnimatedVisibility(
+                    visible = animateMarket,
+                    enter = fadeIn(animationSpec = tween(500, easing = FastOutSlowInEasing)) + 
+                            slideInVertically(initialOffsetY = { 40 }, animationSpec = tween(500, easing = FastOutSlowInEasing))
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    DailySectionCard(
+                        title = "MERCADO",
+                        icon = Icons.Outlined.ShoppingCart,
+                        iconColor = Color(0xFF4D96FF),
+                        onClick = { onNavigate("market") }
                     ) {
-                        Text("Itens na lista de compras", fontSize = 13.sp, color = Color(0xFF81928F))
-                        Text(
-                            text = "${marketItems.size} pendentes",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Itens na lista de compras", fontSize = 13.sp, color = Color(0xFF81928F))
+                            Text(
+                                text = "${marketItems.size} pendentes",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
 
                 // 5. Habits / Routines Section Card
-                DailySectionCard(
-                    title = "TAREFAS & RITUAIS",
-                    icon = Icons.Outlined.Spa,
-                    iconColor = Color(0xFFF9A826),
-                    onClick = { onNavigate("goals") }
+                AnimatedVisibility(
+                    visible = animateTasks,
+                    enter = fadeIn(animationSpec = tween(500, easing = FastOutSlowInEasing)) + 
+                            slideInVertically(initialOffsetY = { 40 }, animationSpec = tween(500, easing = FastOutSlowInEasing))
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    DailySectionCard(
+                        title = "TAREFAS & RITUAIS",
+                        icon = Icons.Outlined.Spa,
+                        iconColor = Color(0xFFF9A826),
+                        onClick = { onNavigate("goals") }
                     ) {
-                        Text("Hábitos concluídos", fontSize = 13.sp, color = Color(0xFF81928F))
-                        Text(
-                            text = "$completedHabits de $totalHabits",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Hábitos concluídos", fontSize = 13.sp, color = Color(0xFF81928F))
+                            Text(
+                                text = "$completedHabits de $totalHabits",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
             }
 
-            // News Recommendations
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(
-                    text = "RECOMENDAÇÕES DE NOTÍCIAS",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF81928F),
-                    letterSpacing = 2.sp
-                )
+            // 6. Conexões e Atalhos (X, Google News, Spotify)
+            AnimatedVisibility(
+                visible = animateShortcuts,
+                enter = fadeIn(animationSpec = tween(500, easing = FastOutSlowInEasing)) + 
+                        slideInVertically(initialOffsetY = { 40 }, animationSpec = tween(500, easing = FastOutSlowInEasing))
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "CONEXÕES E ATALHOS RÁPIDOS",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF81928F),
+                        letterSpacing = 2.sp
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // X Shortcut
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(96.dp)
+                                .clip(RoundedCornerShape(20.dp))
+                                .then(PremiumGlassModifier)
+                                .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(20.dp))
+                                .clickable {
+                                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://x.com"))
+                                    context.startActivity(browserIntent)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF111111))
+                                        .border(0.5.dp, Color(0x33FFFFFF), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "𝕏",
+                                        color = Color.White,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Abrir X", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
 
-                // News Card 1: X (Twitter) style
-                NewsCard(
-                    source = "X • @TesseraAI",
-                    time = "Há 1h",
-                    title = "Novos módulos premium liberados! Chronos e Focus Focus agora trazem timers avançados e ruído branco analógico programado nativamente.",
-                    tag = "#PremiumUpdate",
-                    tagColor = Color(0xFF71D7CD),
-                    icon = Icons.Outlined.AutoAwesome,
-                    onClick = {
-                        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://x.com"))
-                        context.startActivity(browserIntent)
-                    }
-                )
+                        // Google Notícias Shortcut
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(96.dp)
+                                .clip(RoundedCornerShape(20.dp))
+                                .then(PremiumGlassModifier)
+                                .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(20.dp))
+                                .clickable {
+                                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://news.google.com"))
+                                    context.startActivity(browserIntent)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF4285F4).copy(alpha = 0.2f))
+                                        .border(0.5.dp, Color(0xFF4285F4).copy(alpha = 0.4f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Newspaper,
+                                        contentDescription = null,
+                                        tint = Color(0xFF4285F4),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Google News", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
 
-                // News Card 2: Google News style
-                NewsCard(
-                    source = "Google Notícias",
-                    time = "Há 3h",
-                    title = "Como rotinas estruturadas aumentam o foco e a produtividade mental em até 42%, segundo novos estudos neurocientíficos.",
-                    tag = "Saúde Mental",
-                    tagColor = Color(0xFFD7B4F3),
-                    icon = Icons.Outlined.Article,
-                    onClick = {
-                        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://news.google.com"))
-                        context.startActivity(browserIntent)
-                    }
-                )
-            }
-
-            // Spotify Shortcut Compact Card
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    text = "FUNDO SONORO",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF81928F),
-                    letterSpacing = 2.sp
-                )
-                
-                SpotifyCompactPlayer {
-                    val spotifyIntent = context.packageManager.getLaunchIntentForPackage("com.spotify.music")
-                    if (spotifyIntent != null) {
-                        context.startActivity(spotifyIntent)
-                    } else {
-                        Toast.makeText(context, "Spotify não instalado. Redirecionando para Web Spotify...", Toast.LENGTH_LONG).show()
-                        val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://open.spotify.com"))
-                        context.startActivity(webIntent)
+                        // Spotify Shortcut
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(96.dp)
+                                .clip(RoundedCornerShape(20.dp))
+                                .then(PremiumGlassModifier)
+                                .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(20.dp))
+                                .clickable {
+                                    val spotifyIntent = context.packageManager.getLaunchIntentForPackage("com.spotify.music")
+                                    if (spotifyIntent != null) {
+                                        context.startActivity(spotifyIntent)
+                                    } else {
+                                        Toast.makeText(context, "Spotify não instalado. Abrindo no navegador...", Toast.LENGTH_LONG).show()
+                                        val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://open.spotify.com"))
+                                        context.startActivity(webIntent)
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF1DB954).copy(alpha = 0.2f))
+                                        .border(0.5.dp, Color(0xFF1DB954).copy(alpha = 0.4f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.MusicNote,
+                                        contentDescription = null,
+                                        tint = Color(0xFF1DB954),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Spotify", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
                     }
                 }
             }
@@ -429,167 +579,6 @@ fun DailySectionCard(
                 )
             }
             content()
-        }
-    }
-}
-
-@Composable
-fun NewsCard(
-    source: String,
-    time: String,
-    title: String,
-    tag: String,
-    tagColor: Color,
-    icon: ImageVector,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .then(PremiumGlassModifier)
-            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(20.dp))
-            .clickable { onClick() }
-            .padding(20.dp)
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = tagColor,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = source,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = tagColor
-                    )
-                }
-                Text(
-                    text = time,
-                    fontSize = 11.sp,
-                    color = Color(0xFF81928F)
-                )
-            }
-            Text(
-                text = title,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color.White,
-                lineHeight = 18.sp,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis
-            )
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(tagColor.copy(alpha = 0.15f))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    text = tag,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = tagColor
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun SpotifyCompactPlayer(
-    onClick: () -> Unit
-) {
-    var isPlaying by remember { mutableStateOf(false) }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .then(PremiumGlassModifier)
-            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(20.dp))
-            .clickable { onClick() }
-            .padding(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                // Album Art Mock
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFF222222)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.MusicNote,
-                        contentDescription = null,
-                        tint = Color(0xFF1DB954),
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column {
-                    Text(
-                        text = "Dreaming - Tessera Focus",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = "Lofi Girl • Spotify",
-                        fontSize = 12.sp,
-                        color = Color(0xFF81928F),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Play / Pause mock control
-                IconButton(
-                    onClick = { isPlaying = !isPlaying }
-                ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = "Reproduzir",
-                        tint = Color(0xFF1DB954),
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-
-                // Spotify Brand Logo Shortcut Icon
-                Icon(
-                    imageVector = Icons.Default.LibraryMusic,
-                    contentDescription = "Abrir Spotify",
-                    tint = Color(0xFF1DB954),
-                    modifier = Modifier.size(20.dp)
-                )
-            }
         }
     }
 }
