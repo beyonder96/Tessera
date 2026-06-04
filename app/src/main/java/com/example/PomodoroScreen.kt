@@ -52,14 +52,7 @@ data class FocusCategory(
     val colorHex: String
 )
 
-// Helper color parser
-private fun parseHexColor(hex: String): Color {
-    return try {
-        Color(android.graphics.Color.parseColor(hex))
-    } catch (e: Exception) {
-        Color(0xFF71D7CD)
-    }
-}
+// parseHexColor is defined in FinanceScreen.kt (same package, public)
 
 // SharedPreferences loaders/savers
 private fun loadFocusCategories(prefs: SharedPreferences): List<FocusCategory> {
@@ -271,8 +264,9 @@ fun PomodoroScreen() {
                         useCenter = false,
                         style = Stroke(width = strokeWidth)
                     )
+                    val glowAlpha = (0.15f * pulseGlow).coerceIn(0f, 1f)
                     drawArc(
-                        color = accentColor.copy(alpha = 0.15f * pulseGlow),
+                        color = accentColor.copy(alpha = glowAlpha),
                         startAngle = -90f + rotationAngle,
                         sweepAngle = animatedProgress * 360f,
                         useCenter = false,
@@ -469,8 +463,9 @@ fun PomodoroScreen() {
                         useCenter = false,
                         style = Stroke(width = strokeWidth)
                     )
+                    val glowAlpha2 = (0.15f * pulseGlow).coerceIn(0f, 1f)
                     drawArc(
-                        color = accentColor.copy(alpha = 0.15f * pulseGlow),
+                        color = accentColor.copy(alpha = glowAlpha2),
                         startAngle = -90f + rotationAngle,
                         sweepAngle = animatedProgress * 360f,
                         useCenter = false,
