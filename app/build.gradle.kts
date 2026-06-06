@@ -15,7 +15,7 @@ android {
     minSdk = 26
     targetSdk = 36
     versionCode = 1
-    versionName = "1.0"
+    versionName = "1.0.1"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -137,3 +137,67 @@ dependencies {
   implementation("androidx.biometric:biometric:1.2.0-alpha05")
   implementation("androidx.fragment:fragment-ktx:1.6.2")
 }
+
+abstract class CopyApkTask : org.gradle.api.DefaultTask() {
+    @get:org.gradle.api.tasks.Input
+    abstract val versionName: org.gradle.api.provider.Property<String>
+
+    @get:org.gradle.api.tasks.InputDirectory
+    abstract val inputDir: org.gradle.api.file.DirectoryProperty
+
+    @get:org.gradle.api.tasks.OutputDirectory
+    abstract val outputDir: org.gradle.api.file.DirectoryProperty
+
+    @get:org.gradle.api.tasks.Input
+    abstract val buildType: org.gradle.api.provider.Property<String>
+
+    @org.gradle.api.tasks.TaskAction
+    fun run() {
+        val ver = versionName.get()
+        val type = buildType.get()
+        val inDir = inputDir.get().asFile
+        val outDir = outputDir.get().asFile
+
+        if (outDir.exists()) {
+            outDir.listFiles { file ->
+                file.isFile && (file.name == "app-$type.apk" || (file.name.startsWith("app-$type-") && file.name.endsWith(".apk")))
+            }?.forEach { it.delete() }
+        } else {
+            outDir.mkdirs()
+        }
+
+        val inputFile = File(inDir, "app-$type.apk")
+        if (inputFile.exists()) {
+            val outputFile = File(outDir, "app-$type-$ver.apk")
+            inputFile.copyTo(outputFile, overwrite = true)
+        }
+    }
+}
+
+val verName = provider { android.defaultConfig.versionName ?: "1.0.1" }
+
+tasks.register<CopyApkTask>("copyReleaseApk") {
+    dependsOn("assembleRelease")
+    versionName.set(verName)
+    buildType.set("release")
+    inputDir.set(layout.buildDirectory.dir("outputs/apk/release"))
+    outputDir.set(rootProject.layout.projectDirectory.dir(".build-outputs"))
+}
+
+tasks.register<CopyApkTask>("copyDebugApk") {
+    dependsOn("assembleDebug")
+    versionName.set(verName)
+    buildType.set("debug")
+    inputDir.set(layout.buildDirectory.dir("outputs/apk/debug"))
+    outputDir.set(rootProject.layout.projectDirectory.dir(".build-outputs"))
+}
+
+tasks.configureEach {
+    if (name == "assembleRelease") {
+        finalizedBy("copyReleaseApk")
+    }
+    if (name == "assembleDebug") {
+        finalizedBy("copyDebugApk")
+    }
+}
+
