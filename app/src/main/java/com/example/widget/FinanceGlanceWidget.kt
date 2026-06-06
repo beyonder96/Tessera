@@ -26,6 +26,7 @@ import com.example.MainActivity
 import com.example.R
 import com.example.data.AppDatabase
 import com.example.data.Transaction
+import com.example.data.BankAccount
 import kotlinx.coroutines.flow.first
 import java.util.Locale
 
@@ -33,15 +34,16 @@ class FinanceGlanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val db = AppDatabase.getDatabase(context)
         val transactions = db.tesseraDao().getAllTransactions().first()
+        val bankAccounts = db.tesseraDao().getAllBankAccounts().first()
 
         provideContent {
-            FinanceWidgetContent(context = context, transactions = transactions)
+            FinanceWidgetContent(context = context, transactions = transactions, bankAccounts = bankAccounts)
         }
     }
 }
 
 @androidx.compose.runtime.Composable
-fun FinanceWidgetContent(context: Context, transactions: List<Transaction>) {
+fun FinanceWidgetContent(context: Context, transactions: List<Transaction>, bankAccounts: List<BankAccount>) {
     val openAppAction = androidx.glance.appwidget.action.actionStartActivity(
         android.content.Intent(context, MainActivity::class.java).apply {
             putExtra("route", "finance")
@@ -49,7 +51,7 @@ fun FinanceWidgetContent(context: Context, transactions: List<Transaction>) {
     )
     val totalIncome = transactions.filter { it.isIncome }.sumOf { it.value }
     val totalExpense = transactions.filter { !it.isIncome }.sumOf { it.value }
-    val balance = totalIncome - totalExpense
+    val balance = bankAccounts.sumOf { it.balance }
 
     Column(
         modifier = GlanceModifier

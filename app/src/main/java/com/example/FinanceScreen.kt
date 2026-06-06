@@ -37,6 +37,7 @@ import com.example.ui.components.PremiumGlassModifier
 import com.example.viewmodel.TesseraViewModel
 import android.content.Context
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.vector.ImageVector
 import java.util.*
 
 fun parseHexColor(hex: String): Color {
@@ -102,8 +103,12 @@ fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                 showAddDialog = false
                 editingTransaction = null
             },
-            onAdd = { title, value, isIncome, category, origin, isRealized, isRecurrent, interval, dueDate ->
-                viewModel.addTransaction(title, "", value, isIncome, category, origin, isRealized, isRecurrent, interval, dueDate)
+            onAdd = { title, value, isIncome, category, origin, isRealized, isRecurrent, interval, dueDate, isInstallment, installmentsCount ->
+                if (isInstallment) {
+                    viewModel.addInstallmentTransaction(title, value, isIncome, category, origin, isRealized, installmentsCount, dueDate)
+                } else {
+                    viewModel.addTransaction(title, "", value, isIncome, category, origin, isRealized, isRecurrent, interval, dueDate)
+                }
                 showAddDialog = false
                 editingTransaction = null
             },
@@ -212,6 +217,12 @@ fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                     isPrivacyModeEnabled = isPrivacyModeEnabled,
                     onClearFilter = { selectedFilterName = null }
                 )
+            }
+
+            val overdueTransactions = allTransactions.filter { !it.isRealized && it.dueDate > 0L && it.dueDate < System.currentTimeMillis() }
+            if (overdueTransactions.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                OverdueAlertBanner(overdueCount = overdueTransactions.size)
             }
 
             Spacer(modifier = Modifier.height(28.dp))
@@ -349,17 +360,16 @@ fun BalanceHeaderSection(
         }
 
         Text(
-            text = String.format(Locale("pt", "BR"), "R$ %,.2f", displayValue),
+            text = if (isPrivacyModeEnabled) "R$ *****" else String.format(Locale("pt", "BR"), "R$ %,.2f", displayValue),
             fontFamily = FontFamily.Serif,
             fontWeight = FontWeight.Bold,
             fontSize = 42.sp,
-            color = Color(0xFFDFE3E2),
-            modifier = Modifier.blur(if (isPrivacyModeEnabled) 16.dp else 0.dp)
+            color = Color(0xFFDFE3E2)
         )
 
         if (activeCard != null) {
             Text(
-                text = String.format(Locale("pt", "BR"), "Limite disponível: R$ %,.2f", activeCard.limit - activeCard.usedLimit),
+                text = if (isPrivacyModeEnabled) "Limite disponível: R$ *****" else String.format(Locale("pt", "BR"), "Limite disponível: R$ %,.2f", activeCard.limit - activeCard.usedLimit),
                 fontSize = 13.sp,
                 color = Color(0xFF99A5A3)
             )
@@ -389,11 +399,10 @@ fun BalanceHeaderSection(
                         Text("Corrente", fontSize = 9.sp, color = Color(0x99BDC9C6), fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = String.format(Locale("pt", "BR"), "R$ %,.2f", checkingBalance), 
+                            text = if (isPrivacyModeEnabled) "R$ *****" else String.format(Locale("pt", "BR"), "R$ %,.2f", checkingBalance), 
                             fontSize = 11.sp, 
                             color = Color.White, 
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.blur(if (isPrivacyModeEnabled) 8.dp else 0.dp)
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
@@ -410,11 +419,10 @@ fun BalanceHeaderSection(
                         Text("Poupança", fontSize = 9.sp, color = Color(0x99BDC9C6), fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = String.format(Locale("pt", "BR"), "R$ %,.2f", savingsBalance), 
+                            text = if (isPrivacyModeEnabled) "R$ *****" else String.format(Locale("pt", "BR"), "R$ %,.2f", savingsBalance), 
                             fontSize = 11.sp, 
                             color = Color(0xFF71D7CD), 
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.blur(if (isPrivacyModeEnabled) 8.dp else 0.dp)
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
@@ -431,11 +439,10 @@ fun BalanceHeaderSection(
                         Text("Investimento", fontSize = 9.sp, color = Color(0x99BDC9C6), fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = String.format(Locale("pt", "BR"), "R$ %,.2f", investmentBalance), 
+                            text = if (isPrivacyModeEnabled) "R$ *****" else String.format(Locale("pt", "BR"), "R$ %,.2f", investmentBalance), 
                             fontSize = 11.sp, 
                             color = Color(0xFFEAB308), 
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.blur(if (isPrivacyModeEnabled) 8.dp else 0.dp)
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
@@ -1169,10 +1176,19 @@ fun TransactionItem(transaction: Transaction, bankAccounts: List<BankAccount>, c
         ?: "#71D7CD"
     val badgeColor = parseHexColor(originColor)
 
+    val isOverdue = !transaction.isRealized && transaction.dueDate > 0L && transaction.dueDate < System.currentTimeMillis()
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .then(PremiumGlassModifier)
+            .then(
+                if (isOverdue) {
+                    Modifier.border(1.5.dp, Color(0xFFEF4444), RoundedCornerShape(28.dp))
+                } else {
+                    Modifier
+                }
+            )
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1200,8 +1216,11 @@ fun TransactionItem(transaction: Transaction, bankAccounts: List<BankAccount>, c
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
+                val dateFormat = remember { java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()) }
+                val dateStr = dateFormat.format(java.util.Date(transaction.timestamp))
+
                 Text(
-                    text = transaction.subtitle.ifEmpty { transaction.category },
+                    text = "$dateStr • ${transaction.subtitle.ifEmpty { transaction.category }}",
                     fontSize = 12.sp,
                     color = Color(0xFF99A5A3),
                     maxLines = 1,
@@ -1228,7 +1247,6 @@ fun TransactionItem(transaction: Transaction, bankAccounts: List<BankAccount>, c
                     }
                 }
                 if (!transaction.isRealized) {
-                    val isOverdue = transaction.dueDate > 0L && transaction.dueDate < System.currentTimeMillis()
                     val labelText = if (isOverdue) "Atrasado" else "Pendente"
                     val labelColor = if (isOverdue) Color(0xFFEF4444) else Color(0xFFEAB308)
                     Spacer(modifier = Modifier.width(8.dp))
@@ -1244,6 +1262,23 @@ fun TransactionItem(transaction: Transaction, bankAccounts: List<BankAccount>, c
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Bold,
                             color = labelColor,
+                            maxLines = 1
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFF71D7CD).copy(alpha = 0.15f))
+                            .border(0.5.dp, Color(0xFF71D7CD).copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "PAGA",
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF71D7CD),
                             maxLines = 1
                         )
                     }
@@ -1263,6 +1298,63 @@ fun TransactionItem(transaction: Transaction, bankAccounts: List<BankAccount>, c
     }
 }
 
+@Composable
+fun OverdueAlertBanner(overdueCount: Int, onClick: () -> Unit = {}) {
+    val infiniteTransition = rememberInfiniteTransition(label = "OverdueAlertGlow")
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.8f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Alpha"
+    )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0x1AEF4444))
+            .border(1.dp, Color(0xFFEF4444).copy(alpha = glowAlpha), RoundedCornerShape(16.dp))
+            .clickable { onClick() }
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(Color(0x26EF4444)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                tint = Color(0xFFEF4444),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "ATENÇÃO: DÉBITOS EM ATRASO",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFEF4444),
+                letterSpacing = 1.sp
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = if (overdueCount == 1) "Você tem 1 lançamento pendente vencido." else "Você tem $overdueCount lançamentos pendentes vencidos.",
+                fontSize = 13.sp,
+                color = Color.White.copy(alpha = 0.9f),
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionDialog(
@@ -1270,7 +1362,7 @@ fun AddTransactionDialog(
     creditCards: List<CreditCard>,
     editingTransaction: Transaction?,
     onDismiss: () -> Unit,
-    onAdd: (String, Double, Boolean, String, String, Boolean, Boolean, String, Long) -> Unit,
+    onAdd: (String, Double, Boolean, String, String, Boolean, Boolean, String, Long, Boolean, Int) -> Unit,
     onUpdate: (Transaction, Transaction) -> Unit,
     onDelete: (Transaction) -> Unit
 ) {
@@ -1281,6 +1373,8 @@ fun AddTransactionDialog(
     
     var isRealized by remember { mutableStateOf(editingTransaction?.isRealized ?: true) }
     var isRecurrent by remember { mutableStateOf(editingTransaction?.isRecurrent ?: false) }
+    var isInstallment by remember { mutableStateOf(false) }
+    var installmentsCountStr by remember { mutableStateOf("2") }
     var recurrenceInterval by remember { mutableStateOf(editingTransaction?.recurrenceInterval ?: "Mensal") }
     var dueDate by remember { mutableStateOf(editingTransaction?.dueDate ?: System.currentTimeMillis()) }
     
@@ -1289,6 +1383,27 @@ fun AddTransactionDialog(
     }
     var selectedOrigin by remember { 
         mutableStateOf(editingTransaction?.accountOrCardName ?: origins.firstOrNull() ?: "") 
+    }
+
+    var showNewCategoryDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val sharedPrefs = remember(context) { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
+    var customCategories by remember {
+        val catsSet = sharedPrefs.getStringSet("custom_categories", emptySet<String>()) ?: emptySet<String>()
+        mutableStateOf<List<String>>(catsSet.toList().sorted())
+    }
+    
+    val defaultCategories = listOf(
+        "Alimentação" to Icons.Outlined.Restaurant,
+        "Transporte" to Icons.Outlined.DirectionsCar,
+        "Saúde" to Icons.Outlined.MedicalServices,
+        "Lazer" to Icons.Outlined.Movie,
+        "Salário" to Icons.Outlined.AttachMoney,
+        "Outros" to Icons.Outlined.Receipt
+    )
+
+    val allCategories: List<Pair<String, ImageVector>> = remember(customCategories) {
+        defaultCategories + customCategories.map { it to Icons.Outlined.Label }
     }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -1300,7 +1415,7 @@ fun AddTransactionDialog(
                 .border(1.dp, Color(0x2BFFFFFF), RoundedCornerShape(28.dp))
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
+                modifier = Modifier.padding(24.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 Row(
@@ -1431,21 +1546,14 @@ fun AddTransactionDialog(
                 Column {
                     Text("CATEGORIA", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0x66FFFFFF), letterSpacing = 1.sp)
                     Spacer(modifier = Modifier.height(8.dp))
-                    val categories = listOf(
-                        "Alimentação" to Icons.Outlined.Restaurant,
-                        "Transporte" to Icons.Outlined.DirectionsCar,
-                        "Saúde" to Icons.Outlined.MedicalServices,
-                        "Lazer" to Icons.Outlined.Movie,
-                        "Salário" to Icons.Outlined.AttachMoney,
-                        "Outros" to Icons.Outlined.Receipt
-                    )
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        categories.forEach { (catName, catIcon) ->
+                        allCategories.forEach { (catName, catIcon) ->
                             val isSelected = category == catName
                             Box(
                                 modifier = Modifier
@@ -1460,6 +1568,22 @@ fun AddTransactionDialog(
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(catName, color = if (isSelected) Color.White else Color(0x99FFFFFF), fontSize = 12.sp)
                                 }
+                            }
+                        }
+                        
+                        // Add Category Item
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0x0AFFFFFF))
+                                .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(10.dp))
+                                .clickable { showNewCategoryDialog = true }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF71D7CD), modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Nova", color = Color(0xFF71D7CD), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
@@ -1485,7 +1609,7 @@ fun AddTransactionDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Transação realizada?", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                    Text("Transação paga?", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
                     Switch(
                         checked = isRealized,
                         onCheckedChange = { isRealized = it },
@@ -1498,23 +1622,51 @@ fun AddTransactionDialog(
                     )
                 }
 
-                // Recorrente Toggle Switch
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Lançamento recorrente?", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                    Switch(
-                        checked = isRecurrent,
-                        onCheckedChange = { isRecurrent = it },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color(0xFF71D7CD),
-                            checkedTrackColor = Color(0xFF71D7CD).copy(alpha = 0.3f),
-                            uncheckedThumbColor = Color.Gray,
-                            uncheckedTrackColor = Color(0x1AFFFFFF)
+                // Recorrente and Installment Toggles
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // Recorrente Toggle Switch
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Lançamento recorrente?", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                        Switch(
+                            checked = isRecurrent,
+                            onCheckedChange = { 
+                                isRecurrent = it
+                                if (it) isInstallment = false
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color(0xFF71D7CD),
+                                checkedTrackColor = Color(0xFF71D7CD).copy(alpha = 0.3f),
+                                uncheckedThumbColor = Color.Gray,
+                                uncheckedTrackColor = Color(0x1AFFFFFF)
+                            )
                         )
-                    )
+                    }
+
+                    // Installment Toggle Switch
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Lançamento parcelado?", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                        Switch(
+                            checked = isInstallment,
+                            onCheckedChange = { 
+                                isInstallment = it
+                                if (it) isRecurrent = false
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color(0xFF71D7CD),
+                                checkedTrackColor = Color(0xFF71D7CD).copy(alpha = 0.3f),
+                                uncheckedThumbColor = Color.Gray,
+                                uncheckedTrackColor = Color(0x1AFFFFFF)
+                            )
+                        )
+                    }
                 }
 
                 // Interval Selection Segmented Switch
@@ -1547,37 +1699,58 @@ fun AddTransactionDialog(
                     }
                 }
 
-                // Date Picker for due date/planned date
-                val context = LocalContext.current
+                // Installments Count input
+                AnimatedVisibility(visible = isInstallment) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("NÚMERO DE PARCELAS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0x66FFFFFF), letterSpacing = 1.sp)
+                        OutlinedTextField(
+                            value = installmentsCountStr,
+                            onValueChange = { installmentsCountStr = it.filter { char -> char.isDigit() } },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFF71D7CD),
+                                unfocusedBorderColor = Color(0x1AFFFFFF),
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+
+                // Date Picker for due date/planned date (Always visible)
                 val dateFormat = remember { java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()) }
                 val formattedDate = dateFormat.format(java.util.Date(dueDate))
 
-                AnimatedVisibility(visible = isRecurrent || !isRealized) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(Color(0x14FFFFFF))
-                            .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(14.dp))
-                            .clickable {
-                                showFinanceDatePicker(context, dueDate) { selectedDate ->
-                                    dueDate = selectedDate
-                                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color(0x14FFFFFF))
+                        .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(14.dp))
+                        .clickable {
+                            showFinanceDatePicker(context, dueDate) { selectedDate ->
+                                dueDate = selectedDate
                             }
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (isRecurrent) "Data do Primeiro Vencimento" else "Data Planejada",
-                            color = Color.White.copy(alpha = 0.8f),
-                            fontSize = 13.sp
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(formattedDate, color = Color(0xFF71D7CD), fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Icon(Icons.Default.CalendarToday, contentDescription = null, tint = Color(0xFF71D7CD), modifier = Modifier.size(16.dp))
                         }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = when {
+                            isRecurrent -> "Data do Primeiro Vencimento"
+                            isInstallment -> "Data do Primeiro Vencimento"
+                            !isRealized -> "Data de Vencimento"
+                            else -> "Data da Transação"
+                        },
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 13.sp
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(formattedDate, color = Color(0xFF71D7CD), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(Icons.Default.CalendarToday, contentDescription = null, tint = Color(0xFF71D7CD), modifier = Modifier.size(16.dp))
                     }
                 }
 
@@ -1601,7 +1774,7 @@ fun AddTransactionDialog(
                             onClick = onDismiss,
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("Cancelar", color = Color(0x99FFFFFF), fontWeight = FontWeight.SemiBold)
+                            Text("Cancelar", color = Color.White.copy(alpha = 0.6f), fontWeight = FontWeight.SemiBold)
                         }
                     }
 
@@ -1624,7 +1797,8 @@ fun AddTransactionDialog(
                                     )
                                     onUpdate(editingTransaction, updatedTx)
                                 } else {
-                                    onAdd(title, v, isIncome, category, selectedOrigin, isRealized, isRecurrent, recurrenceInterval, dueDate)
+                                    val count = installmentsCountStr.toIntOrNull() ?: 2
+                                    onAdd(title, v, isIncome, category, selectedOrigin, isRealized, isRecurrent, recurrenceInterval, dueDate, isInstallment, count)
                                 }
                             }
                         },
@@ -1641,6 +1815,52 @@ fun AddTransactionDialog(
                 }
             }
         }
+    }
+
+    if (showNewCategoryDialog) {
+        var newCatName by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showNewCategoryDialog = false },
+            title = { Text("Nova Categoria", color = Color.White) },
+            text = {
+                OutlinedTextField(
+                    value = newCatName,
+                    onValueChange = { newCatName = it },
+                    label = { Text("Nome da Categoria") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = Color(0xFF71D7CD),
+                        unfocusedBorderColor = Color(0x33FFFFFF)
+                    ),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val cleaned = newCatName.trim()
+                        if (cleaned.isNotEmpty() && !defaultCategories.any { it.first.equals(cleaned, ignoreCase = true) } && !customCategories.contains(cleaned)) {
+                            val updated = customCategories + cleaned
+                            sharedPrefs.edit().putStringSet("custom_categories", updated.toSet()).apply()
+                            customCategories = updated.sorted()
+                            category = cleaned
+                        }
+                        showNewCategoryDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF71D7CD), contentColor = Color.Black)
+                ) {
+                    Text("Adicionar", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNewCategoryDialog = false }) {
+                    Text("Cancelar", color = Color.Gray)
+                }
+            },
+            containerColor = Color(0xFF070909)
+        )
     }
 }
 

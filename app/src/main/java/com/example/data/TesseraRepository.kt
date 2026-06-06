@@ -113,6 +113,10 @@ class TesseraRepository(private val dao: TesseraDao) {
         return dao.insertPet(pet)
     }
 
+    suspend fun updatePet(pet: PetEntity) {
+        dao.updatePet(pet)
+    }
+
     suspend fun deletePet(pet: PetEntity) {
         dao.deletePet(pet)
     }

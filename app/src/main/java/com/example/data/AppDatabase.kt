@@ -13,7 +13,7 @@ import androidx.room.RoomDatabase
         PetWeightHistoryEntity::class, MedicationLog::class, StepsRecord::class,
         Routine::class, RoutineStep::class
     ], 
-    version = 9, 
+    version = 10, 
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

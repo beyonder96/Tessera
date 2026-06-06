@@ -101,6 +101,17 @@ fun calculateAge(birthDate: Long): String {
     }
 }
 
+// Helper function to format RGA (e.g. 2.394.541)
+fun formatRga(raw: String): String {
+    val digits = raw.filter { it.isDigit() }.take(7)
+    val len = digits.length
+    return when {
+        len <= 3 -> digits
+        len <= 6 -> "${digits.substring(0, len - 3)}.${digits.substring(len - 3)}"
+        else -> "${digits.substring(0, 1)}.${digits.substring(1, 4)}.${digits.substring(4)}"
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PetzScreen(
@@ -285,7 +296,7 @@ fun PetzScreen(
                                 ) {
                                     if (currentPet.rga.isNotEmpty()) {
                                         Text(
-                                            text = "RGA: ${currentPet.rga}",
+                                            text = "RGA: ${formatRga(currentPet.rga)}",
                                             fontFamily = FontFamily.Monospace,
                                             color = Color.DarkGray,
                                             fontSize = 11.sp,
@@ -332,17 +343,66 @@ fun PetzScreen(
                             SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(Date(it))
                         } ?: "Pendente"
 
+                        val isAntipulgasExpired = petViewModel.isAntipulgasExpired(currentPet.lastAntipulgasDate)
+                        val antipulgasFormattedDate = currentPet.lastAntipulgasDate?.let {
+                            SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(Date(it))
+                        } ?: "Pendente"
+
+                        val isVermifugoExpired = petViewModel.isVermifugoExpired(currentPet.lastVermifugoDate)
+                        val vermifugoFormattedDate = currentPet.lastVermifugoDate?.let {
+                            SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(Date(it))
+                        } ?: "Pendente"
+
+                        val isConsultaExpired = petViewModel.isConsultaExpired(currentPet.lastConsultaDate)
+                        val consultaFormattedDate = currentPet.lastConsultaDate?.let {
+                            SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(Date(it))
+                        } ?: "Pendente"
+
                         PetHealthDashboard(
                             latestWeight = latestWeight,
                             isV4Expired = isV4Expired,
                             v4FormattedDate = v4FormattedDate,
                             isRaivaExpired = isRaivaExpired,
                             raivaFormattedDate = raivaFormattedDate,
+                            isAntipulgasExpired = isAntipulgasExpired,
+                            antipulgasFormattedDate = antipulgasFormattedDate,
+                            isVermifugoExpired = isVermifugoExpired,
+                            vermifugoFormattedDate = vermifugoFormattedDate,
+                            isConsultaExpired = isConsultaExpired,
+                            consultaFormattedDate = consultaFormattedDate,
                             notes = currentPet.notes,
                             accentColor = accentColor,
                             onWeightClick = { healthCardToEdit = "weight" },
-                            onV4Click = { healthCardToEdit = "vaccine_v4" },
-                            onRaivaClick = { healthCardToEdit = "vaccine_raiva" },
+                            onV4Click = {
+                                val initialDate = currentPet.lastV4VaccineDate ?: System.currentTimeMillis()
+                                showDatePicker(context, initialDate) { selectedDate ->
+                                    petViewModel.insertPet(currentPet.copy(lastV4VaccineDate = selectedDate))
+                                }
+                            },
+                            onRaivaClick = {
+                                val initialDate = currentPet.lastRaivaVaccineDate ?: System.currentTimeMillis()
+                                showDatePicker(context, initialDate) { selectedDate ->
+                                    petViewModel.insertPet(currentPet.copy(lastRaivaVaccineDate = selectedDate))
+                                }
+                            },
+                            onAntipulgasClick = {
+                                val initialDate = currentPet.lastAntipulgasDate ?: System.currentTimeMillis()
+                                showDatePicker(context, initialDate) { selectedDate ->
+                                    petViewModel.insertPet(currentPet.copy(lastAntipulgasDate = selectedDate))
+                                }
+                            },
+                            onVermifugoClick = {
+                                val initialDate = currentPet.lastVermifugoDate ?: System.currentTimeMillis()
+                                showDatePicker(context, initialDate) { selectedDate ->
+                                    petViewModel.insertPet(currentPet.copy(lastVermifugoDate = selectedDate))
+                                }
+                            },
+                            onConsultaClick = {
+                                val initialDate = currentPet.lastConsultaDate ?: System.currentTimeMillis()
+                                showDatePicker(context, initialDate) { selectedDate ->
+                                    petViewModel.insertPet(currentPet.copy(lastConsultaDate = selectedDate))
+                                }
+                            },
                             onNotesClick = { healthCardToEdit = "notes" }
                         )
 
@@ -472,20 +532,6 @@ fun PetzScreen(
         val isM = activePet.name == "Marie"
 
         when (category) {
-            "vaccine_v4" -> {
-                val initialDate = activePet.lastV4VaccineDate ?: System.currentTimeMillis()
-                showDatePicker(context, initialDate) { selectedDate ->
-                    petViewModel.insertPet(activePet.copy(lastV4VaccineDate = selectedDate))
-                    healthCardToEdit = null
-                }
-            }
-            "vaccine_raiva" -> {
-                val initialDate = activePet.lastRaivaVaccineDate ?: System.currentTimeMillis()
-                showDatePicker(context, initialDate) { selectedDate ->
-                    petViewModel.insertPet(activePet.copy(lastRaivaVaccineDate = selectedDate))
-                    healthCardToEdit = null
-                }
-            }
             "weight" -> {
                 EditHealthCardDialog(
                     title = "Registrar Peso (kg)",
@@ -891,8 +937,11 @@ fun EditPetDialog(
 
                 // RGA
                 OutlinedTextField(
-                    value = rga,
-                    onValueChange = { rga = it },
+                    value = formatRga(rga),
+                    onValueChange = { input ->
+                        val cleaned = input.filter { it.isDigit() }.take(7)
+                        rga = cleaned
+                    },
                     label = { Text("RGA") },
                     isError = rgaError,
                     supportingText = {
@@ -1429,18 +1478,30 @@ fun PetHealthDashboard(
     v4FormattedDate: String,
     isRaivaExpired: Boolean,
     raivaFormattedDate: String,
+    isAntipulgasExpired: Boolean,
+    antipulgasFormattedDate: String,
+    isVermifugoExpired: Boolean,
+    vermifugoFormattedDate: String,
+    isConsultaExpired: Boolean,
+    consultaFormattedDate: String,
     notes: String,
     accentColor: Color,
     onWeightClick: () -> Unit,
     onV4Click: () -> Unit,
     onRaivaClick: () -> Unit,
+    onAntipulgasClick: () -> Unit,
+    onVermifugoClick: () -> Unit,
+    onConsultaClick: () -> Unit,
     onNotesClick: () -> Unit
 ) {
     var healthScore = 100
-    if (isV4Expired) healthScore -= 30
-    if (isRaivaExpired) healthScore -= 30
+    if (isV4Expired) healthScore -= 15
+    if (isRaivaExpired) healthScore -= 15
+    if (isAntipulgasExpired) healthScore -= 15
+    if (isVermifugoExpired) healthScore -= 15
+    if (isConsultaExpired) healthScore -= 15
     val weightDouble = latestWeight.toDoubleOrNull() ?: 0.0
-    if (weightDouble <= 0.0) healthScore -= 15
+    if (weightDouble <= 0.0) healthScore -= 10
     healthScore = healthScore.coerceIn(10, 100)
 
     val targetSweepAngle = (healthScore / 100f) * 360f
@@ -1549,6 +1610,30 @@ fun PetHealthDashboard(
                 isWarning = isRaivaExpired,
                 accentColor = accentColor,
                 onClick = onRaivaClick
+            )
+            HealthDashboardRow(
+                icon = Icons.Default.Shield,
+                label = "Antipulgas",
+                value = if (isAntipulgasExpired) "Expirado" else antipulgasFormattedDate,
+                isWarning = isAntipulgasExpired,
+                accentColor = accentColor,
+                onClick = onAntipulgasClick
+            )
+            HealthDashboardRow(
+                icon = Icons.Default.Medication,
+                label = "Vermífugo",
+                value = if (isVermifugoExpired) "Expirado" else vermifugoFormattedDate,
+                isWarning = isVermifugoExpired,
+                accentColor = accentColor,
+                onClick = onVermifugoClick
+            )
+            HealthDashboardRow(
+                icon = Icons.Default.MedicalServices,
+                label = "Consulta",
+                value = if (isConsultaExpired) "Expirada" else consultaFormattedDate,
+                isWarning = isConsultaExpired,
+                accentColor = accentColor,
+                onClick = onConsultaClick
             )
             HealthDashboardRow(
                 icon = Icons.Default.Description,

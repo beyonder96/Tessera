@@ -139,6 +139,9 @@ data class PetEntity(
     val isCastrated: Boolean,
     val lastV4VaccineDate: Long?, // Epoch timestamp (ms)
     val lastRaivaVaccineDate: Long?, // Epoch timestamp (ms)
+    val lastAntipulgasDate: Long? = null, // Epoch timestamp (ms)
+    val lastVermifugoDate: Long? = null, // Epoch timestamp (ms)
+    val lastConsultaDate: Long? = null, // Epoch timestamp (ms)
     val notes: String
 )
 

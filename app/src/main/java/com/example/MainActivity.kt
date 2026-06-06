@@ -82,6 +82,7 @@ import com.example.viewmodel.TesseraViewModel
 import com.example.viewmodel.TesseraViewModelFactory
 import com.example.viewmodel.PetViewModel
 import com.example.viewmodel.PetViewModelFactory
+import com.example.data.PetEntity
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import com.tessera.app.data.local.AppDatabase as TesseraDatabase
@@ -448,6 +449,7 @@ fun getDatabaseSizeInKB(context: android.content.Context): String {
 fun HomeScreen(onNavigate: (String) -> Unit) {
     val context = LocalContext.current
     val mainViewModel: TesseraViewModel = viewModel(factory = com.example.viewmodel.TesseraViewModelFactory(com.example.data.TesseraRepository(com.example.data.AppDatabase.getDatabase(context).tesseraDao())))
+    val petViewModel: PetViewModel = viewModel(factory = com.example.viewmodel.PetViewModelFactory(com.example.data.TesseraRepository(com.example.data.AppDatabase.getDatabase(context).tesseraDao())))
     val petEvents by mainViewModel.allPetEvents.collectAsState(initial = emptyList())
     val stepsRecords by mainViewModel.allStepsRecords.collectAsState(initial = emptyList())
     val marketItems by mainViewModel.pendingMarketItems.collectAsState(initial = emptyList())
@@ -651,7 +653,7 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
             DailyBriefWidget(onClick = { onNavigate("daily") })
             
             Spacer(modifier = Modifier.height(48.dp))
-            MainContent(netWorth, petEvents, mainViewModel, onNavigate)
+            MainContent(netWorth, petEvents, mainViewModel, petViewModel, onNavigate)
             Spacer(modifier = Modifier.height(140.dp))
         }
     }
@@ -1282,7 +1284,7 @@ data class ModuleConfig(val id: String, val name: String, var isVisible: Boolean
 
 @androidx.compose.material3.ExperimentalMaterial3Api
 @Composable
-fun MainContent(netWorth: Double, petEvents: List<com.example.data.PetEvent>, mainViewModel: com.example.viewmodel.TesseraViewModel, onNavigate: (String) -> Unit) {
+fun MainContent(netWorth: Double, petEvents: List<com.example.data.PetEvent>, mainViewModel: com.example.viewmodel.TesseraViewModel, petViewModel: com.example.viewmodel.PetViewModel, onNavigate: (String) -> Unit) {
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
     var showEditSheet by remember { mutableStateOf(false) }
@@ -1354,13 +1356,17 @@ fun MainContent(netWorth: Double, petEvents: List<com.example.data.PetEvent>, ma
                 when (module.id) {
                     "finance" -> {
                         val transactions by mainViewModel.allTransactions.collectAsState()
-                        HomeFinanceWidget(transactions, onNavigate)
+                        val bankAccounts by mainViewModel.allBankAccounts.collectAsState(initial = emptyList())
+                        HomeFinanceWidget(transactions, bankAccounts, onNavigate)
                     }
                     "market" -> {
                         val marketItems by mainViewModel.pendingMarketItems.collectAsState()
                         MarketCard(marketItems, onNavigate)
                     }
-                    "pets" -> PetsCard(petEvents, onNavigate)
+                    "pets" -> {
+                        val pets by petViewModel.allPets.collectAsState(initial = emptyList())
+                        PetsCard(pets, onNavigate)
+                    }
                     "health" -> {
                         val medications by mainViewModel.allMedications.collectAsState()
                         val weightRecords by mainViewModel.allWeightRecords.collectAsState(initial = emptyList())
@@ -2450,7 +2456,53 @@ fun MarketCardItemRow(item: com.example.data.MarketItem) {
 }
 
 @Composable
-fun PetsCard(routines: List<com.example.data.PetEvent>, onNavigate: (String) -> Unit) {
+fun PetsCard(pets: List<com.example.data.PetEntity>, onNavigate: (String) -> Unit) {
+    val now = System.currentTimeMillis()
+    val dateFormat = remember { java.text.SimpleDateFormat("dd/MMM", java.util.Locale("pt", "BR")) }
+    
+    data class HealthEvent(
+        val petName: String,
+        val title: String,
+        val interval: String,
+        val dueDate: Long,
+        val isVaccine: Boolean,
+        val isExpired: Boolean
+    )
+    
+    val allEvents = remember(pets) {
+        val events = mutableListOf<HealthEvent>()
+        pets.forEach { pet ->
+            val v4Due = pet.lastV4VaccineDate?.let { it + 365L * 24 * 3600 * 1000 } ?: 0L
+            val v4Expired = pet.lastV4VaccineDate == null || v4Due < now
+            events.add(HealthEvent(pet.name, "Vacina V4", "Anual", v4Due, true, v4Expired))
+            
+            val raivaDue = pet.lastRaivaVaccineDate?.let { it + 365L * 24 * 3600 * 1000 } ?: 0L
+            val raivaExpired = pet.lastRaivaVaccineDate == null || raivaDue < now
+            events.add(HealthEvent(pet.name, "Vacina Antirrábica", "Anual", raivaDue, true, raivaExpired))
+            
+            val antipulgasDue = pet.lastAntipulgasDate?.let { it + 90L * 24 * 3600 * 1000 } ?: 0L
+            val antipulgasExpired = pet.lastAntipulgasDate == null || antipulgasDue < now
+            events.add(HealthEvent(pet.name, "Antipulgas", "A cada 3 meses", antipulgasDue, false, antipulgasExpired))
+            
+            val vermifugoDue = pet.lastVermifugoDate?.let { it + 180L * 24 * 3600 * 1000 } ?: 0L
+            val vermifugoExpired = pet.lastVermifugoDate == null || vermifugoDue < now
+            events.add(HealthEvent(pet.name, "Vermífugo", "A cada 6 meses", vermifugoDue, false, vermifugoExpired))
+            
+            val consultaDue = pet.lastConsultaDate?.let { it + 365L * 24 * 3600 * 1000 } ?: 0L
+            val consultaExpired = pet.lastConsultaDate == null || consultaDue < now
+            events.add(HealthEvent(pet.name, "Consulta de Rotina", "Anual", consultaDue, false, consultaExpired))
+        }
+        events
+    }
+
+    val vaccines = remember(allEvents) {
+        allEvents.filter { it.isVaccine }.sortedWith(compareBy({ !it.isExpired }, { it.dueDate }))
+    }
+    
+    val routines = remember(allEvents) {
+        allEvents.filter { !it.isVaccine }.sortedWith(compareBy({ !it.isExpired }, { it.dueDate }))
+    }
+
     Column(
         modifier = GlassModifier
             .fillMaxWidth()
@@ -2489,22 +2541,38 @@ fun PetsCard(routines: List<com.example.data.PetEvent>, onNavigate: (String) -> 
             modifier = Modifier.padding(bottom = 12.dp)
         )
         
-        PetMedicalEvent(
-            petName = "Marie",
-            title = "Vacina Antirrábica",
-            detail = "Importada V10 + Raiva",
-            date = "12/Jun",
-            status = "Agendada",
-            statusColor = PrimaryTeal
-        )
+        if (vaccines.isEmpty()) {
+            Text(
+                text = "Nenhuma vacina pendente",
+                fontSize = 12.sp,
+                color = Color.Gray,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+        } else {
+            vaccines.take(2).forEachIndexed { idx, ev ->
+                if (idx > 0) Spacer(modifier = Modifier.height(12.dp))
+                val dateStr = if (ev.dueDate == 0L) "Pendente" else dateFormat.format(java.util.Date(ev.dueDate))
+                val statusText = if (ev.isExpired) "Atrasada" else "Em dia"
+                val statusColor = if (ev.isExpired) Color(0xFFEF4444) else PrimaryTeal
+                
+                PetMedicalEvent(
+                    petName = ev.petName,
+                    title = ev.title,
+                    detail = ev.interval,
+                    date = dateStr,
+                    status = statusText,
+                    statusColor = statusColor
+                )
+            }
+        }
         
         Spacer(modifier = Modifier.height(20.dp))
         Box(modifier = Modifier.fillMaxWidth().height(0.5.dp).background(Color(0x0DFFFFFF)))
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Consultas Section
+        // Rotinas/Consultas Section
         Text(
-            text = "CONSULTAS AGENDADAS",
+            text = "SAÚDE E ROTINAS",
             fontSize = 9.sp,
             letterSpacing = 1.sp,
             fontWeight = FontWeight.Bold,
@@ -2512,14 +2580,30 @@ fun PetsCard(routines: List<com.example.data.PetEvent>, onNavigate: (String) -> 
             modifier = Modifier.padding(bottom = 12.dp)
         )
 
-        PetMedicalEvent(
-            petName = "Churchill",
-            title = "Check-up Geral",
-            detail = "Dra. Ana Silva - Clinic Vet",
-            date = "24/Jun",
-            status = "Confirmada",
-            statusColor = TertiaryPurple
-        )
+        if (routines.isEmpty()) {
+            Text(
+                text = "Nenhum compromisso pendente",
+                fontSize = 12.sp,
+                color = Color.Gray,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+        } else {
+            routines.take(2).forEachIndexed { idx, ev ->
+                if (idx > 0) Spacer(modifier = Modifier.height(12.dp))
+                val dateStr = if (ev.dueDate == 0L) "Pendente" else dateFormat.format(java.util.Date(ev.dueDate))
+                val statusText = if (ev.isExpired) "Atrasado" else "Em dia"
+                val statusColor = if (ev.isExpired) Color(0xFFEF4444) else TertiaryPurple
+                
+                PetMedicalEvent(
+                    petName = ev.petName,
+                    title = ev.title,
+                    detail = ev.interval,
+                    date = dateStr,
+                    status = statusText,
+                    statusColor = statusColor
+                )
+            }
+        }
     }
 }
 
@@ -2608,11 +2692,15 @@ fun PetMedicalEvent(
 
 
 @Composable
-fun HomeFinanceWidget(transactions: List<com.example.data.Transaction>, onNavigate: (String) -> Unit) {
+fun HomeFinanceWidget(
+    transactions: List<com.example.data.Transaction>,
+    bankAccounts: List<com.example.data.BankAccount>,
+    onNavigate: (String) -> Unit
+) {
     val currentMonthTransactions = transactions // In a real app we'd filter by current month
     val totalIncome = currentMonthTransactions.filter { it.isIncome }.sumOf { it.value }
     val totalExpense = currentMonthTransactions.filter { !it.isIncome }.sumOf { it.value }
-    val balance = totalIncome - totalExpense
+    val balance = bankAccounts.sumOf { it.balance }
 
     Column(
         modifier = GlassModifier

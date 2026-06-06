@@ -114,23 +114,79 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
     ) {
         viewModelScope.launch {
             val txTime = customTimestamp ?: if (dueDate > 0L) dueDate else System.currentTimeMillis()
-            repository.insertTransaction(
-                Transaction(
-                    title = title,
-                    subtitle = subtitle,
-                    value = value,
-                    isIncome = isIncome,
-                    timestamp = txTime,
-                    category = category,
-                    accountOrCardName = accountOrCardName,
-                    isRealized = isRealized,
-                    isRecurrent = isRecurrent,
-                    recurrenceInterval = recurrenceInterval,
-                    dueDate = if (dueDate > 0L) dueDate else txTime
-                )
+            val mainTx = Transaction(
+                title = title,
+                subtitle = subtitle,
+                value = value,
+                isIncome = isIncome,
+                timestamp = txTime,
+                category = category,
+                accountOrCardName = accountOrCardName,
+                isRealized = isRealized,
+                isRecurrent = isRecurrent,
+                recurrenceInterval = recurrenceInterval,
+                dueDate = if (dueDate > 0L) dueDate else txTime
             )
+            repository.insertTransaction(mainTx)
             if (isRealized && accountOrCardName.isNotEmpty()) {
                 adjustBalances(accountOrCardName, value, isIncome)
+            }
+            
+            // Se for recorrente e já foi paga, agenda automaticamente o próximo vencimento
+            if (isRecurrent && isRealized) {
+                val nextDueDate = calculateNextDueDate(if (dueDate > 0L) dueDate else txTime, recurrenceInterval)
+                val nextTx = mainTx.copy(
+                    id = 0, // Novo ID autogerado
+                    isRealized = false,
+                    dueDate = nextDueDate,
+                    timestamp = nextDueDate
+                )
+                repository.insertTransaction(nextTx)
+            }
+        }
+    }
+
+    fun addInstallmentTransaction(
+        title: String,
+        value: Double,
+        isIncome: Boolean,
+        category: String,
+        accountOrCardName: String = "",
+        isRealized: Boolean = true,
+        installmentsCount: Int,
+        dueDate: Long = 0L
+    ) {
+        viewModelScope.launch {
+            val baseTime = if (dueDate > 0L) dueDate else System.currentTimeMillis()
+            val valuePerInstallment = value / installmentsCount
+            
+            for (i in 1..installmentsCount) {
+                // Desloca o vencimento em i-1 meses
+                val cal = Calendar.getInstance()
+                cal.timeInMillis = baseTime
+                cal.add(Calendar.MONTH, i - 1)
+                val installmentDueDate = cal.timeInMillis
+                
+                // A primeira parcela segue a escolha de "realizada/paga" do usuário. As seguintes são sempre pendentes.
+                val installmentRealized = if (i == 1) isRealized else false
+                
+                val installmentTx = Transaction(
+                    title = "$title ($i/$installmentsCount)",
+                    subtitle = "Parcela $i de $installmentsCount",
+                    value = valuePerInstallment,
+                    isIncome = isIncome,
+                    timestamp = installmentDueDate,
+                    category = category,
+                    accountOrCardName = accountOrCardName,
+                    isRealized = installmentRealized,
+                    isRecurrent = false,
+                    dueDate = installmentDueDate
+                )
+                repository.insertTransaction(installmentTx)
+                
+                if (installmentRealized && accountOrCardName.isNotEmpty()) {
+                    adjustBalances(accountOrCardName, valuePerInstallment, isIncome)
+                }
             }
         }
     }

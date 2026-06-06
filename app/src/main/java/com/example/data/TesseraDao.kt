@@ -137,6 +137,9 @@ interface TesseraDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPet(pet: PetEntity): Long
 
+    @Update
+    suspend fun updatePet(pet: PetEntity)
+
     @Delete
     suspend fun deletePet(pet: PetEntity)
 

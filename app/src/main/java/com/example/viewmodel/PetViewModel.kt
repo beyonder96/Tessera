@@ -37,6 +37,9 @@ class PetViewModel(private val repository: TesseraRepository) : ViewModel() {
                             isCastrated = true,
                             lastV4VaccineDate = System.currentTimeMillis() - 10L * 24 * 3600 * 1000, // 10 days ago (Valid)
                             lastRaivaVaccineDate = System.currentTimeMillis() - 12L * 24 * 3600 * 1000, // 12 days ago (Valid)
+                            lastAntipulgasDate = System.currentTimeMillis() - 15L * 24 * 3600 * 1000, // 15 days ago (Valid)
+                            lastVermifugoDate = System.currentTimeMillis() - 20L * 24 * 3600 * 1000, // 20 days ago (Valid)
+                            lastConsultaDate = System.currentTimeMillis() - 30L * 24 * 3600 * 1000, // 30 days ago (Valid)
                             notes = "Nenhuma Alergia"
                         )
                     ).toInt()
@@ -54,6 +57,9 @@ class PetViewModel(private val repository: TesseraRepository) : ViewModel() {
                             isCastrated = true,
                             lastV4VaccineDate = System.currentTimeMillis() - 400L * 24 * 3600 * 1000, // 400 days ago (Expired!)
                             lastRaivaVaccineDate = System.currentTimeMillis() - 15L * 24 * 3600 * 1000, // 15 days ago (Valid)
+                            lastAntipulgasDate = System.currentTimeMillis() - 120L * 24 * 3600 * 1000, // 120 days ago (Expired!)
+                            lastVermifugoDate = System.currentTimeMillis() - 200L * 24 * 3600 * 1000, // 200 days ago (Expired!)
+                            lastConsultaDate = System.currentTimeMillis() - 500L * 24 * 3600 * 1000, // 500 days ago (Expired!)
                             notes = "Dieta de Controle"
                         )
                     ).toInt()
@@ -91,9 +97,34 @@ class PetViewModel(private val repository: TesseraRepository) : ViewModel() {
         return diffDays >= 365
     }
 
+    fun isAntipulgasExpired(lastAppliedDate: Long?): Boolean {
+        if (lastAppliedDate == null) return true
+        val diffMillis = System.currentTimeMillis() - lastAppliedDate
+        val diffDays = diffMillis / (24L * 60 * 60 * 1000)
+        return diffDays >= 90 // 3 months
+    }
+
+    fun isVermifugoExpired(lastAppliedDate: Long?): Boolean {
+        if (lastAppliedDate == null) return true
+        val diffMillis = System.currentTimeMillis() - lastAppliedDate
+        val diffDays = diffMillis / (24L * 60 * 60 * 1000)
+        return diffDays >= 180 // 6 months
+    }
+
+    fun isConsultaExpired(lastAppliedDate: Long?): Boolean {
+        if (lastAppliedDate == null) return true
+        val diffMillis = System.currentTimeMillis() - lastAppliedDate
+        val diffDays = diffMillis / (24L * 60 * 60 * 1000)
+        return diffDays >= 365 // 1 year
+    }
+
     fun insertPet(pet: PetEntity) {
         viewModelScope.launch {
-            repository.insertPet(pet)
+            if (pet.id == 0) {
+                repository.insertPet(pet)
+            } else {
+                repository.updatePet(pet)
+            }
         }
     }
 
