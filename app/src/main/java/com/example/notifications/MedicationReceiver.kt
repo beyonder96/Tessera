@@ -12,6 +12,9 @@ import com.example.data.AppDatabase
 import kotlinx.coroutines.flow.first
 import java.util.Calendar
 
+import androidx.glance.appwidget.updateAll
+import com.example.widget.HealthGlanceWidget
+
 class MedicationReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val medName = intent.getStringExtra("MED_NAME") ?: "Remédio"
@@ -47,6 +50,11 @@ class MedicationReceiver : BroadcastReceiver() {
                 
                 if (matchingMed.isTaken) {
                     db.tesseraDao().updateMedication(matchingMed.copy(isTaken = false))
+                    try {
+                        HealthGlanceWidget().updateAll(context)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
             } else {
                 NotificationHelper.createNotificationChannel(context)

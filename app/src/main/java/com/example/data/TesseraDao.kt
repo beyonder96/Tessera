@@ -78,7 +78,7 @@ interface TesseraDao {
     suspend fun deleteHabit(habit: Habit)
 
     // Purchase Goals
-    @Query("SELECT * FROM purchase_goals ORDER BY deadlineTimestamp ASC")
+    @Query("SELECT * FROM purchase_goals ORDER BY priorityOrder ASC, deadlineTimestamp ASC")
     fun getAllPurchaseGoals(): Flow<List<PurchaseGoal>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

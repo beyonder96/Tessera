@@ -18,7 +18,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -36,6 +38,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.theme.*
 import com.example.viewmodel.TesseraViewModel
+import com.example.viewmodel.PetViewModel
 import java.util.Calendar
 import java.util.Locale
 import kotlinx.coroutines.delay
@@ -45,6 +48,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun DailyScreen(
     viewModel: TesseraViewModel,
+    petViewModel: PetViewModel,
     onBack: () -> Unit,
     onNavigate: (String) -> Unit
 ) {
@@ -61,6 +65,8 @@ fun DailyScreen(
     val marketItems by viewModel.pendingMarketItems.collectAsStateWithLifecycle(initialValue = emptyList())
     val habits by viewModel.allHabits.collectAsStateWithLifecycle(initialValue = emptyList())
     val healthProfile by viewModel.healthProfile.collectAsStateWithLifecycle(initialValue = null)
+    val bankAccounts by viewModel.allBankAccounts.collectAsStateWithLifecycle(initialValue = emptyList())
+    val pets by petViewModel.allPets.collectAsStateWithLifecycle(initialValue = emptyList())
 
     // Quick Dialog States
     var showQuickExpenseDialog by remember { mutableStateOf(false) }
@@ -69,23 +75,29 @@ fun DailyScreen(
     // Cascade Animation States
     var animateHeader by remember { mutableStateOf(false) }
     var animateInsight by remember { mutableStateOf(false) }
-    var animateRings by remember { mutableStateOf(false) }
-    var animateInteractiveCards by remember { mutableStateOf(false) }
-    var animateQuickActions by remember { mutableStateOf(false) }
+    var animateWellness by remember { mutableStateOf(false) }
+    var animateFinance by remember { mutableStateOf(false) }
+    var animatePets by remember { mutableStateOf(false) }
+    var animateMarket by remember { mutableStateOf(false) }
+    var animatePomodoro by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         animateHeader = true
         delay(60L)
         animateInsight = true
         delay(60L)
-        animateRings = true
+        animateWellness = true
         delay(60L)
-        animateInteractiveCards = true
+        animateFinance = true
         delay(60L)
-        animateQuickActions = true
+        animatePets = true
+        delay(60L)
+        animateMarket = true
+        delay(60L)
+        animatePomodoro = true
     }
 
-    // Calendar Calculations
+    // Calendar & Hour Details
     val calendar = Calendar.getInstance()
     val hour = calendar.get(Calendar.HOUR_OF_DAY)
     val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
@@ -112,6 +124,7 @@ fun DailyScreen(
     val totalIncome = transactions.filter { it.isIncome }.sumOf { it.value }
     val totalExpense = transactions.filter { !it.isIncome }.sumOf { it.value }
     val financeBalance = totalIncome - totalExpense
+    val totalPatrimony = bankAccounts.sumOf { it.balance }
 
     val latestWeight = weightRecords.lastOrNull()?.weightKg ?: 0.0
     val heightCm = healthProfile?.heightCm ?: 0.0
@@ -140,44 +153,52 @@ fun DailyScreen(
     val completedHabits = habits.count { it.isCompleted }
     val totalHabits = habits.size
 
-    // Dynamic Assistant Briefing Generator
+    // Dynamic Assistant Briefing
     val assistantInsight = remember(financeBalance, todaySteps, completedHabits, petEvents) {
         val financeStr = if (transactions.isEmpty()) {
-            "Suas finanças estão limpas de registros hoje."
+            "Suas finanças locais estão limpas hoje."
         } else if (financeBalance >= 0) {
-            "Seu balanço mensal está positivo em R$ ${String.format(Locale("pt", "BR"), "%,.2f", financeBalance)}. Excelente controle!"
+            "Seu balanço de hoje está sob controle (+R$ ${String.format(Locale("pt", "BR"), "%,.0f", financeBalance)})."
         } else {
-            "Suas despesas superaram suas receitas neste mês por R$ ${String.format(Locale("pt", "BR"), "%,.2f", -financeBalance)}. Fique atento."
+            "Seu balanço hoje está negativo em R$ ${String.format(Locale("pt", "BR"), "%,.0f", -financeBalance)}."
         }
 
         val healthStr = if (todaySteps == 0L) {
-            "Ainda não registramos passos para hoje. Que tal caminhar um pouco?"
-        } else if (todaySteps < 6000) {
-            "Você deu $todaySteps passos hoje. Falta pouco para atingir um nível ativo!"
+            "Ainda sem passos registrados hoje."
+        } else if (todaySteps < 8000) {
+            "Você deu $todaySteps passos hoje. Vá em frente!"
         } else {
-            "Parabéns! $todaySteps passos registrados. Seu corpo agradece o movimento."
+            "Meta de passos batida: $todaySteps hoje!"
         }
 
         val habitStr = if (totalHabits == 0) {
-            "Nenhum hábito cadastrado para hoje."
+            "Sem rituais cadastrados."
         } else if (completedHabits == totalHabits) {
-            "Todos os seus $totalHabits hábitos foram concluídos! Dia perfeito."
+            "Todos os hábitos concluídos!"
         } else {
-            "Você concluiu $completedHabits de $totalHabits hábitos hoje. Continue focado!"
+            "Concluídos $completedHabits de $totalHabits hábitos hoje."
         }
 
-        val petStr = if (totalPetEvents == 0) {
-            "Nenhuma tarefa de pets cadastrada."
-        } else {
-            val pending = petEvents.count { !it.isCompleted }
-            if (pending == 0) {
-                "Todas as tarefas de Marie & Churchill foram cumpridas."
-            } else {
-                "Lembrete: Marie & Churchill possuem $pending atividades aguardando você."
+        "Olá! $financeStr $healthStr $habitStr"
+    }
+
+    // Hydration Local State persistency simulator via SharedPreferences
+    val todayDateStr = java.text.SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date())
+    val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", Context.MODE_PRIVATE) }
+    var waterIntakeMl by remember { mutableStateOf(sharedPrefs.getInt("water_intake_$todayDateStr", 0)) }
+
+    fun addWater(amount: Int) {
+        val newVal = waterIntakeMl + amount
+        waterIntakeMl = newVal
+        sharedPrefs.edit().putInt("water_intake_$todayDateStr", newVal).apply()
+        
+        // Se bater 2000ml, ativa automaticamente o hábito de água/hidratação se disponível
+        if (newVal >= 2000) {
+            val waterHabit = habits.find { it.name.contains("Hidratação") || it.name.contains("Água") }
+            if (waterHabit != null && !waterHabit.isCompleted) {
+                viewModel.toggleHabitCompleted(waterHabit)
             }
         }
-
-        "Olá! $financeStr $healthStr $habitStr $petStr"
     }
 
     Column(
@@ -185,15 +206,12 @@ fun DailyScreen(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF0C0F0F),
-                        Color(0xFF060808)
-                    )
+                    colors = listOf(Color(0xFF070909), Color(0xFF030404))
                 )
             )
             .statusBarsPadding()
     ) {
-        // Top Bar
+        // Top Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -210,410 +228,108 @@ fun DailyScreen(
                 Icon(Icons.Default.ArrowBack, contentDescription = "Voltar", tint = Color.White)
             }
             Text(
-                text = "DAILY BRIEF",
+                text = "TESSERA DAILY",
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,
                 color = Color(0xFF71D7CD),
                 letterSpacing = 2.5.sp
             )
-            Box(modifier = Modifier.size(40.dp)) // Spacer to keep title centered
+            Box(modifier = Modifier.size(40.dp))
         }
 
         Column(
             modifier = Modifier
                 .weight(1f)
                 .verticalScroll(scrollState)
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 80.dp),
-            verticalArrangement = Arrangement.spacedBy(28.dp)
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 140.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Header Typography with animation
+            // 1. Dynamic Weather & Time Header Card
             AnimatedVisibility(
                 visible = animateHeader,
-                enter = fadeIn(animationSpec = tween(600)) + slideInVertically(initialOffsetY = { 30 })
+                enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { 30 })
             ) {
-                Column(modifier = Modifier.padding(vertical = 12.dp)) {
-                    Text(
-                        text = "$weekDayStr, $dayOfMonth de $monthName".uppercase(),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF81928F),
-                        letterSpacing = 1.5.sp
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "$greeting, Kenned.",
-                        fontFamily = FontFamily.Serif,
-                        fontSize = 36.sp,
-                        fontWeight = FontWeight.Light,
-                        color = Color.White,
-                        lineHeight = 44.sp
-                    )
-                    Text(
-                        text = "Seu panorama geral consolidado de hoje.",
-                        fontSize = 15.sp,
-                        color = Color(0xFF81928F)
-                    )
-                }
+                WeatherHeaderCard(hour, weekDayStr, dayOfMonth, monthName, greeting)
             }
 
-            // AI Insight Card
+            // 2. Gemma AI Advice Card
             AnimatedVisibility(
                 visible = animateInsight,
                 enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { 30 })
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    PrimaryTeal.copy(alpha = 0.12f),
-                                    Color.Transparent
-                                )
-                            )
-                        )
-                        .border(
-                            width = 1.dp,
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    PrimaryTeal.copy(alpha = 0.3f),
-                                    Color.Transparent
-                                )
-                            ),
-                            shape = RoundedCornerShape(24.dp)
-                        )
-                        .padding(24.dp)
-                ) {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Outlined.AutoAwesome,
-                                contentDescription = null,
-                                tint = PrimaryTeal,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = "ASSISTENTE TESSERA",
-                                color = PrimaryTeal,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 2.sp
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = assistantInsight,
-                            color = Color.White.copy(alpha = 0.85f),
-                            fontSize = 14.sp,
-                            lineHeight = 22.sp,
-                            fontWeight = FontWeight.Normal
-                        )
-                    }
-                }
+                GemmaAICard(
+                    insight = assistantInsight,
+                    habits = habits,
+                    viewModel = viewModel,
+                    context = context,
+                    onWaterLogged = { addWater(250) },
+                    onNewExpenseClick = { showQuickExpenseDialog = true }
+                )
             }
 
-            // Multi Ring Activity Progress (Canvas)
+            // 3. Wellness Core Card (Steps & Animated Hydration)
             AnimatedVisibility(
-                visible = animateRings,
-                enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { 40 })
+                visible = animateWellness,
+                enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { 30 })
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(28.dp))
-                        .then(PremiumGlassModifier)
-                        .padding(24.dp)
-                ) {
-                    Text(
-                        text = "METAS DE ATIVIDADE DIÁRIA",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White.copy(alpha = 0.5f),
-                        letterSpacing = 1.5.sp,
-                        modifier = Modifier.padding(bottom = 20.dp)
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceAround
-                    ) {
-                        // Apple/Oura Style Multi Rings
-                        Box(
-                            modifier = Modifier.size(140.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            val stepsPct = (todaySteps.toFloat() / 10000f).coerceIn(0f, 1f)
-                            val habitsPct = if (totalHabits > 0) (completedHabits.toFloat() / totalHabits.toFloat()) else 0f
-                            val petsPct = if (totalPetEvents > 0) (completedPetEvents.toFloat() / totalPetEvents.toFloat()) else 0f
-
-                            val animatedStepsPct by animateFloatAsState(stepsPct, tween(1500, easing = FastOutSlowInEasing), label = "StepsRingAnim")
-                            val animatedHabitsPct by animateFloatAsState(habitsPct, tween(1500, easing = FastOutSlowInEasing), label = "HabitsRingAnim")
-                            val animatedPetsPct by animateFloatAsState(petsPct, tween(1500, easing = FastOutSlowInEasing), label = "PetsRingAnim")
-
-                            Canvas(modifier = Modifier.fillMaxSize()) {
-                                val strokeW = 7.dp.toPx()
-                                val spacing = 2.dp.toPx()
-
-                                // Ring 1: Steps (Outer - Teal)
-                                val radius1 = (size.width - strokeW) / 2
-                                drawArc(color = PrimaryTeal.copy(alpha = 0.08f), startAngle = -90f, sweepAngle = 360f, useCenter = false, style = Stroke(width = strokeW), alpha = 0.5f)
-                                drawArc(color = PrimaryTeal, startAngle = -90f, sweepAngle = 360f * animatedStepsPct, useCenter = false, style = Stroke(width = strokeW, cap = StrokeCap.Round))
-
-                                // Ring 2: Habits (Middle - Gold)
-                                val radius2 = radius1 - strokeW - spacing
-                                drawArc(color = SecondaryGold.copy(alpha = 0.08f), startAngle = -90f, sweepAngle = 360f, useCenter = false, style = Stroke(width = strokeW), alpha = 0.5f, topLeft = Offset(strokeW + spacing, strokeW + spacing), size = androidx.compose.ui.geometry.Size(radius2 * 2, radius2 * 2))
-                                drawArc(color = SecondaryGold, startAngle = -90f, sweepAngle = 360f * animatedHabitsPct, useCenter = false, style = Stroke(width = strokeW, cap = StrokeCap.Round), topLeft = Offset(strokeW + spacing, strokeW + spacing), size = androidx.compose.ui.geometry.Size(radius2 * 2, radius2 * 2))
-
-                                // Ring 3: Pets (Inner - Purple)
-                                val radius3 = radius2 - strokeW - spacing
-                                val offset3 = (strokeW + spacing) * 2
-                                drawArc(color = TertiaryPurple.copy(alpha = 0.08f), startAngle = -90f, sweepAngle = 360f, useCenter = false, style = Stroke(width = strokeW), alpha = 0.5f, topLeft = Offset(offset3, offset3), size = androidx.compose.ui.geometry.Size(radius3 * 2, radius3 * 2))
-                                drawArc(color = TertiaryPurple, startAngle = -90f, sweepAngle = 360f * animatedPetsPct, useCenter = false, style = Stroke(width = strokeW, cap = StrokeCap.Round), topLeft = Offset(offset3, offset3), size = androidx.compose.ui.geometry.Size(radius3 * 2, radius3 * 2))
-                            }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("HOJE", fontSize = 11.sp, color = Color.White.copy(alpha = 0.4f), fontWeight = FontWeight.Bold)
-                                Icon(Icons.Default.Check, null, tint = PrimaryTeal, modifier = Modifier.size(16.dp))
-                            }
-                        }
-
-                        // Labels explanation
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                            modifier = Modifier.padding(start = 12.dp)
-                        ) {
-                            MetasRingLabel(label = "Passos ($todaySteps / 10k)", color = PrimaryTeal)
-                            MetasRingLabel(label = "Habitos ($completedHabits / $totalHabits)", color = SecondaryGold)
-                            MetasRingLabel(label = "Tarefas Pets ($completedPetEvents / $totalPetEvents)", color = TertiaryPurple)
-                        }
+                WellnessCard(
+                    todaySteps = todaySteps,
+                    latestSleep = latestSleep,
+                    waterIntakeMl = waterIntakeMl,
+                    onAddWater = { amount -> addWater(amount) },
+                    onAddManualSteps = {
+                        viewModel.addManualStepsRecord(1000, System.currentTimeMillis() - 600000L, System.currentTimeMillis())
+                        Toast.makeText(context, "+1.000 passos adicionados localmente!", Toast.LENGTH_SHORT).show()
                     }
-                }
+                )
             }
 
-            // Interactive Modules (Habits & Pets)
+            // 4. Finance Consolidated Card
             AnimatedVisibility(
-                visible = animateInteractiveCards,
-                enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { 50 })
+                visible = animateFinance,
+                enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { 30 })
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                    
-                    // Habits Interactive Card
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(24.dp))
-                            .then(PremiumGlassModifier)
-                            .padding(24.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("LISTA DE HÁBITOS DE HOJE", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.5f), letterSpacing = 1.sp)
-                            Icon(Icons.Outlined.CheckCircle, null, tint = SecondaryGold, modifier = Modifier.size(18.dp))
-                        }
-
-                        if (habits.isEmpty()) {
-                            Text("Nenhum hábito cadastrado para hoje.", color = Color.White.copy(alpha = 0.4f), fontSize = 13.sp, modifier = Modifier.padding(vertical = 12.dp))
-                        } else {
-                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                habits.forEach { habit ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(Color.White.copy(alpha = 0.03f))
-                                            .clickable { viewModel.toggleHabitCompleted(habit) }
-                                            .padding(14.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(32.dp)
-                                                    .clip(CircleShape)
-                                                    .background(Color(android.graphics.Color.parseColor(habit.colorHex)).copy(alpha = 0.15f)),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                // Map icon name to icon
-                                                val iconVector = when(habit.iconName) {
-                                                    "WaterDrop" -> Icons.Outlined.WaterDrop
-                                                    "MenuBook" -> Icons.Outlined.MenuBook
-                                                    "SelfImprovement" -> Icons.Outlined.SelfImprovement
-                                                    else -> Icons.Outlined.Check
-                                                }
-                                                Icon(iconVector, null, tint = Color(android.graphics.Color.parseColor(habit.colorHex)), modifier = Modifier.size(16.dp))
-                                            }
-                                            Spacer(modifier = Modifier.width(12.dp))
-                                            Text(
-                                                text = habit.name,
-                                                color = if (habit.isCompleted) Color.White.copy(alpha = 0.5f) else Color.White,
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                        }
-                                        Checkbox(
-                                            checked = habit.isCompleted,
-                                            onCheckedChange = { viewModel.toggleHabitCompleted(habit) },
-                                            colors = CheckboxDefaults.colors(
-                                                checkedColor = SecondaryGold,
-                                                uncheckedColor = Color.White.copy(alpha = 0.2f),
-                                                checkmarkColor = Color.Black
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Pet Events Interactive Card
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(24.dp))
-                            .then(PremiumGlassModifier)
-                            .padding(24.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("TAREFAS PETZ DE HOJE", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.5f), letterSpacing = 1.sp)
-                            Icon(Icons.Outlined.Pets, null, tint = TertiaryPurple, modifier = Modifier.size(18.dp))
-                        }
-
-                        if (petEvents.isEmpty()) {
-                            Text("Nenhuma atividade de pets registrada.", color = Color.White.copy(alpha = 0.4f), fontSize = 13.sp, modifier = Modifier.padding(vertical = 12.dp))
-                        } else {
-                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                petEvents.forEach { event ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(Color.White.copy(alpha = 0.03f))
-                                            .clickable { viewModel.togglePetEventCompleted(event) }
-                                            .padding(14.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(32.dp)
-                                                    .clip(CircleShape)
-                                                    .background(TertiaryPurple.copy(alpha = 0.15f)),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    imageVector = if (event.title.contains("Alimentação")) Icons.Outlined.Restaurant else Icons.Outlined.DirectionsRun,
-                                                    contentDescription = null,
-                                                    tint = TertiaryPurple,
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                            }
-                                            Spacer(modifier = Modifier.width(12.dp))
-                                            Column {
-                                                Text(
-                                                    text = "${event.petName} - ${event.title}",
-                                                    color = if (event.isCompleted) Color.White.copy(alpha = 0.5f) else Color.White,
-                                                    fontSize = 14.sp,
-                                                    fontWeight = FontWeight.Medium
-                                                )
-                                                Text(
-                                                    text = event.time,
-                                                    color = Color.White.copy(alpha = 0.4f),
-                                                    fontSize = 11.sp
-                                                )
-                                            }
-                                        }
-                                        Checkbox(
-                                            checked = event.isCompleted,
-                                            onCheckedChange = { viewModel.togglePetEventCompleted(event) },
-                                            colors = CheckboxDefaults.colors(
-                                                checkedColor = TertiaryPurple,
-                                                uncheckedColor = Color.White.copy(alpha = 0.2f),
-                                                checkmarkColor = Color.Black
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                FinanceDailyCard(
+                    totalPatrimony = totalPatrimony,
+                    totalIncome = totalIncome,
+                    totalExpense = totalExpense,
+                    transactions = transactions,
+                    onAddExpenseClick = { showQuickExpenseDialog = true }
+                )
             }
 
-            // Quick Actions Panel
+            // 5. Pets Core Card (Marie & Churchill Health / Vaccines / Tasks)
             AnimatedVisibility(
-                visible = animateQuickActions,
-                enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { 60 })
+                visible = animatePets,
+                enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { 30 })
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = "AÇÕES DIÁRIAS EXPRESSAS",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White.copy(alpha = 0.5f),
-                        letterSpacing = 1.5.sp,
-                        modifier = Modifier.padding(start = 4.dp)
-                    )
+                PetsDailyCard(
+                    pets = pets,
+                    petEvents = petEvents,
+                    petViewModel = petViewModel,
+                    viewModel = viewModel
+                )
+            }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // Quick log water
-                        QuickActionButton(
-                            label = "Tomar Água",
-                            icon = Icons.Outlined.WaterDrop,
-                            color = Color(0xFF4FC3F7),
-                            onClick = {
-                                val waterHabit = habits.find { it.name.contains("Hidratação") || it.name.contains("Água") }
-                                if (waterHabit != null) {
-                                    if (!waterHabit.isCompleted) {
-                                        viewModel.toggleHabitCompleted(waterHabit)
-                                        Toast.makeText(context, "Hábito de Hidratação atualizado!", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        Toast.makeText(context, "Hidratação de hoje já está concluída!", Toast.LENGTH_SHORT).show()
-                                    }
-                                } else {
-                                    // Complete a default steps or log manually
-                                    viewModel.addManualStepsRecord(500, System.currentTimeMillis() - 600000, System.currentTimeMillis())
-                                    Toast.makeText(context, "Registrado 500 passos como atividade de hidratação!", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            modifier = Modifier.weight(1f)
-                        )
+            // 6. Shopping & Market Card
+            AnimatedVisibility(
+                visible = animateMarket,
+                enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { 30 })
+            ) {
+                MarketDailyCard(
+                    marketItems = marketItems,
+                    viewModel = viewModel
+                )
+            }
 
-                        // Quick weight register
-                        QuickActionButton(
-                            label = "Registrar Peso",
-                            icon = Icons.Outlined.Scale,
-                            color = PrimaryTeal,
-                            onClick = { showQuickWeightDialog = true },
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        // Quick expense log
-                        QuickActionButton(
-                            label = "Nova Despesa",
-                            icon = Icons.Outlined.AccountBalanceWallet,
-                            color = Color(0xFFFF8A65),
-                            onClick = { showQuickExpenseDialog = true },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
+            // 7. Focus Pomodoro Connection Card
+            AnimatedVisibility(
+                visible = animatePomodoro,
+                enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { 30 })
+            ) {
+                PomodoroDailyCard(onNavigate)
             }
         }
     }
@@ -634,7 +350,7 @@ fun DailyScreen(
                     .padding(24.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("REGISTRAR DESPESA EXPRESSA", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Text("REGISTRAR DESPESA", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                     
                     OutlinedTextField(
                         value = expenseTitle,
@@ -681,7 +397,7 @@ fun DailyScreen(
                                     Toast.makeText(context, "Despesa registrada!", Toast.LENGTH_SHORT).show()
                                 }
                                 showQuickExpenseDialog = false
-                            },
+                             },
                             colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal, contentColor = Color.Black)
                         ) {
                             Text("SALVAR")
@@ -691,125 +407,761 @@ fun DailyScreen(
             }
         }
     }
+}
 
-    // Quick Weight Dialog
-    if (showQuickWeightDialog) {
-        var weightInput by remember { mutableStateOf("") }
+// 1. WeatherHeaderCard
+@Composable
+fun WeatherHeaderCard(hour: Int, weekDayStr: String, dayOfMonth: Int, monthName: String, greeting: String) {
+    val skyBrush = when (hour) {
+        in 5..11 -> Brush.verticalGradient(colors = listOf(Color(0xFFE0F7FA), Color(0xFF00ACC1)))
+        in 12..17 -> Brush.verticalGradient(colors = listOf(Color(0xFF00ACC1), Color(0xFF006064)))
+        in 18..19 -> Brush.verticalGradient(colors = listOf(Color(0xFF512DA8), Color(0xFFE91E63)))
+        else -> Brush.verticalGradient(colors = listOf(Color(0xFF0B0F19), Color(0xFF020407)))
+    }
+    val weatherIcon = when (hour) {
+        in 5..11 -> Icons.Outlined.WbSunny
+        in 12..17 -> Icons.Outlined.LightMode
+        in 18..19 -> Icons.Outlined.WbTwilight
+        else -> Icons.Outlined.NightlightRound
+    }
+    val weatherTemp = when (hour) {
+        in 5..11 -> "21°C • Manhã Fresca"
+        in 12..17 -> "26°C • Sol e Nuvens"
+        in 18..19 -> "22°C • Pôr do Sol"
+        else -> "18°C • Céu Limpo"
+    }
 
-        Dialog(onDismissRequest = { showQuickWeightDialog = false }) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Color(0xFF070909))
-                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(24.dp))
-                    .padding(24.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(skyBrush)
+            .padding(24.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("REGISTRAR PESO HOJE", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                    
-                    OutlinedTextField(
-                        value = weightInput,
-                        onValueChange = { weightInput = it },
-                        label = { Text("Peso (kg)") },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = PrimaryTeal,
-                            unfocusedBorderColor = Color(0x33FFFFFF)
-                        ),
-                        modifier = Modifier.fillMaxWidth()
+                Column {
+                    Text(
+                        text = "$weekDayStr, $dayOfMonth de $monthName".uppercase(),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (hour in 5..19) Color.Black.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.6f),
+                        letterSpacing = 1.5.sp
                     )
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        TextButton(onClick = { showQuickWeightDialog = false }) {
-                            Text("CANCELAR", color = Color.Gray)
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(
-                            onClick = {
-                                val weightVal = weightInput.toDoubleOrNull()
-                                if (weightVal != null) {
-                                    viewModel.addManualWeightRecord(weightVal)
-                                    Toast.makeText(context, "Peso de $weightVal kg salvo!", Toast.LENGTH_SHORT).show()
-                                }
-                                showQuickWeightDialog = false
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal, contentColor = Color.Black)
-                        ) {
-                            Text("SALVAR")
-                        }
-                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "$greeting, Kenned.",
+                        fontFamily = FontFamily.Serif,
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (hour in 5..19) Color.Black else Color.White,
+                        lineHeight = 36.sp
+                    )
+                }
+                
+                Column(horizontalAlignment = Alignment.End) {
+                    Icon(
+                        imageVector = weatherIcon,
+                        contentDescription = null,
+                        tint = if (hour in 5..17) Color(0xFFF9A826) else if (hour in 18..19) Color(0xFFFFB74D) else Color(0xFFE0F7FA),
+                        modifier = Modifier.size(36.dp)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = weatherTemp,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (hour in 5..19) Color.Black.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.8f)
+                    )
                 }
             }
         }
     }
 }
 
+// 2. GemmaAICard
 @Composable
-fun MetasRingLabel(label: String, color: Color) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            modifier = Modifier
-                .size(10.dp)
-                .clip(CircleShape)
-                .background(color)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = label,
-            color = Color.White.copy(alpha = 0.7f),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium
-        )
-    }
-}
-
-@Composable
-fun QuickActionButton(
-    label: String,
-    icon: ImageVector,
-    color: Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+fun GemmaAICard(
+    insight: String,
+    habits: List<com.example.data.Habit>,
+    viewModel: TesseraViewModel,
+    context: Context,
+    onWaterLogged: () -> Unit,
+    onNewExpenseClick: () -> Unit
 ) {
     Box(
-        modifier = modifier
-            .height(90.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .then(PremiumGlassModifier)
-            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(20.dp))
-            .clickable { onClick() }
-            .padding(12.dp),
-        contentAlignment = Alignment.Center
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        PrimaryTeal.copy(alpha = 0.12f),
+                        Color.Transparent
+                    )
+                )
+            )
+            .border(
+                width = 1.dp,
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        PrimaryTeal.copy(alpha = 0.3f),
+                        Color.Transparent
+                    )
+                ),
+                shape = RoundedCornerShape(24.dp)
+            )
+            .padding(20.dp)
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(color.copy(alpha = 0.15f))
-                    .border(0.5.dp, color.copy(alpha = 0.3f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = icon,
+                    imageVector = Icons.Outlined.AutoAwesome,
                     contentDescription = null,
-                    tint = color,
-                    modifier = Modifier.size(18.dp)
+                    tint = PrimaryTeal,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "TESSERA AI ADVISOR",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryTeal,
+                    letterSpacing = 1.5.sp
                 )
             }
-            Spacer(modifier = Modifier.height(8.dp))
+
             Text(
-                text = label,
-                color = Color.White,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center
+                text = insight,
+                color = Color.White.copy(alpha = 0.9f),
+                fontSize = 13.sp,
+                lineHeight = 18.sp
             )
+
+            // Quick actions inside the AI card
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                val waterHabit = habits.find { it.name.contains("Hidratação") || it.name.contains("Água") }
+                TextButton(
+                    onClick = {
+                        if (waterHabit != null) {
+                            onWaterLogged()
+                            Toast.makeText(context, "Copinho de água somado!", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "Cadastre o hábito 'Água' primeiro", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        containerColor = PrimaryTeal.copy(alpha = 0.15f),
+                        contentColor = PrimaryTeal
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Outlined.WaterDrop, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Beber Água", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+
+                TextButton(
+                    onClick = onNewExpenseClick,
+                    colors = ButtonDefaults.textButtonColors(
+                        containerColor = Color(0xFFFF8A65).copy(alpha = 0.15f),
+                        contentColor = Color(0xFFFF8A65)
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Outlined.AccountBalanceWallet, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Lançar Despesa", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+// 3. WellnessCard (Water & Steps)
+@Composable
+fun WellnessCard(
+    todaySteps: Long,
+    latestSleep: Double,
+    waterIntakeMl: Int,
+    onAddWater: (Int) -> Unit,
+    onAddManualSteps: () -> Unit
+) {
+    val progressSteps = (todaySteps / 8000f).coerceIn(0f, 1f)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .then(PremiumGlassModifier)
+            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(24.dp))
+            .padding(20.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text(
+                text = "SAÚDE E BEM-ESTAR",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White.copy(alpha = 0.4f),
+                letterSpacing = 1.5.sp
+            )
+
+            // Steps Progress
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.DirectionsWalk, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Passos Hoje", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                    Text(
+                        text = "$todaySteps / 8.000",
+                        color = if (todaySteps >= 8000) PrimaryTeal else Color.White.copy(alpha = 0.6f),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    LinearProgressIndicator(
+                        progress = { progressSteps },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(8.dp)
+                            .clip(CircleShape),
+                        color = PrimaryTeal,
+                        trackColor = Color(0x1AFFFFFF)
+                    )
+                    IconButton(
+                        onClick = onAddManualSteps,
+                        modifier = Modifier
+                            .size(24.dp)
+                            .background(PrimaryTeal.copy(alpha = 0.1f), CircleShape)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Mais passos", tint = PrimaryTeal, modifier = Modifier.size(14.dp))
+                    }
+                }
+            }
+
+            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x0AFFFFFF)))
+
+            // Hydration & Sleep
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Interactive Water Tracker
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White.copy(alpha = 0.02f))
+                        .padding(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Hidratação", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    
+                    // Cup Animation representation
+                    val waterRatio = (waterIntakeMl / 2000f).coerceIn(0f, 1f)
+                    Box(
+                        modifier = Modifier
+                            .size(width = 40.dp, height = 55.dp)
+                            .border(2.dp, Color(0xFF4FC3F7), RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp))
+                            .padding(2.dp),
+                        contentAlignment = Alignment.BottomCenter
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight(waterRatio)
+                                .clip(RoundedCornerShape(bottomStart = 6.dp, bottomEnd = 6.dp))
+                                .background(Color(0xFF4FC3F7))
+                        )
+                    }
+
+                    Text("$waterIntakeMl / 2000 ml", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        TextButton(
+                            onClick = { onAddWater(250) },
+                            colors = ButtonDefaults.textButtonColors(containerColor = Color(0xFF4FC3F7).copy(alpha = 0.1f), contentColor = Color(0xFF4FC3F7)),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.height(28.dp)
+                        ) {
+                            Text("+250ml", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        TextButton(
+                            onClick = { onAddWater(500) },
+                            colors = ButtonDefaults.textButtonColors(containerColor = Color(0xFF4FC3F7).copy(alpha = 0.1f), contentColor = Color(0xFF4FC3F7)),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.height(28.dp)
+                        ) {
+                            Text("+500ml", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                // Sleep Summary
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White.copy(alpha = 0.02f))
+                        .padding(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text("Última Noite", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    Icon(Icons.Outlined.Bedtime, contentDescription = null, tint = Color(0xFFB39DDB), modifier = Modifier.size(36.dp))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = String.format(Locale("pt", "BR"), "%.1f horas", latestSleep),
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (latestSleep >= 7.0) "Qualidade Excelente" else "Pode melhorar",
+                            color = if (latestSleep >= 7.0) Color(0xFF81C784) else Color(0xFFFFB74D),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// 4. FinanceDailyCard
+@Composable
+fun FinanceDailyCard(
+    totalPatrimony: Double,
+    totalIncome: Double,
+    totalExpense: Double,
+    transactions: List<com.example.data.Transaction>,
+    onAddExpenseClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .then(PremiumGlassModifier)
+            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(24.dp))
+            .padding(20.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "FINANÇAS E SALDOS",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White.copy(alpha = 0.4f),
+                    letterSpacing = 1.5.sp
+                )
+                IconButton(
+                    onClick = onAddExpenseClick,
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(Color(0xFFFF8A65).copy(alpha = 0.15f), CircleShape)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Nova Despesa", tint = Color(0xFFFF8A65), modifier = Modifier.size(14.dp))
+                }
+            }
+
+            // Patrimônio Consolidado
+            Column {
+                Text("Patrimônio Líquido", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+                Text(
+                    text = "R$ ${String.format(Locale("pt", "BR"), "%,.2f", totalPatrimony)}",
+                    color = Color.White,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Mini dual chart
+            val total = totalIncome + totalExpense
+            val incomeRatio = if (total > 0.0) (totalIncome / total).toFloat() else 0.5f
+            val expenseRatio = 1f - incomeRatio
+
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Receita: R$ ${String.format(Locale("pt", "BR"), "%,.0f", totalIncome)}", color = PrimaryTeal, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text("Despesa: R$ ${String.format(Locale("pt", "BR"), "%,.0f", totalExpense)}", color = Color(0xFFFF6B6B), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(CircleShape)
+                ) {
+                    Box(modifier = Modifier.weight(incomeRatio.coerceAtLeast(0.05f)).fillMaxHeight().background(PrimaryTeal))
+                    Box(modifier = Modifier.weight(expenseRatio.coerceAtLeast(0.05f)).fillMaxHeight().background(Color(0xFFFF6B6B)))
+                }
+            }
+
+            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x0AFFFFFF)))
+
+            // Recent 3 transactions
+            Text("LANÇAMENTOS RECENTES", color = Color.White.copy(alpha = 0.4f), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            
+            val recents = transactions.take(3)
+            if (recents.isEmpty()) {
+                Text("Nenhum lançamento hoje.", color = Color.White.copy(alpha = 0.3f), fontSize = 12.sp)
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    recents.forEach { tx ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .clip(CircleShape)
+                                        .background(if (tx.isIncome) PrimaryTeal.copy(alpha = 0.1f) else Color(0xFFFF6B6B).copy(alpha = 0.1f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = if (tx.isIncome) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                                        contentDescription = null,
+                                        tint = if (tx.isIncome) PrimaryTeal else Color(0xFFFF6B6B),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(tx.title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                    Text(tx.category, color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
+                                }
+                            }
+                            Text(
+                                text = "${if (tx.isIncome) "+" else "-"} R$ ${String.format(Locale("pt", "BR"), "%,.2f", tx.value)}",
+                                color = if (tx.isIncome) PrimaryTeal else Color.White.copy(alpha = 0.8f),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// 5. PetsDailyCard (Marie & Churchill vaccine and daily checklist)
+@Composable
+fun PetsDailyCard(
+    pets: List<com.example.data.PetEntity>,
+    petEvents: List<com.example.data.PetEvent>,
+    petViewModel: PetViewModel,
+    viewModel: TesseraViewModel
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .then(PremiumGlassModifier)
+            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(24.dp))
+            .padding(20.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text(
+                text = "PETZ CENTER",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White.copy(alpha = 0.4f),
+                letterSpacing = 1.5.sp
+            )
+
+            // Marie & Churchill Cards side-by-side
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Marie
+                val marie = pets.find { it.name.contains("Marie") }
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White.copy(alpha = 0.02f))
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(TertiaryPurple.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("M", color = TertiaryPurple, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text("Marie", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text("Golden Retriever", color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
+                        }
+                    }
+                    val v4Expired = petViewModel.isVaccineExpired(marie?.lastV4VaccineDate)
+                    val raivaExpired = petViewModel.isVaccineExpired(marie?.lastRaivaVaccineDate)
+                    val antiExpired = petViewModel.isAntipulgasExpired(marie?.lastAntipulgasDate)
+
+                    if (v4Expired || raivaExpired || antiExpired) {
+                        Text("⚠️ Vacinas Vencidas", color = Color(0xFFFF8A65), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    } else {
+                        Text("✅ Saúde em Dia", color = PrimaryTeal, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                // Churchill
+                val churchill = pets.find { it.name.contains("Churchill") }
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White.copy(alpha = 0.02f))
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(TertiaryPurple.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("C", color = TertiaryPurple, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text("Churchill", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text("Buldogue Francês", color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
+                        }
+                    }
+                    val cv4Expired = petViewModel.isVaccineExpired(churchill?.lastV4VaccineDate)
+                    val craivaExpired = petViewModel.isVaccineExpired(churchill?.lastRaivaVaccineDate)
+                    val cantiExpired = petViewModel.isAntipulgasExpired(churchill?.lastAntipulgasDate)
+
+                    if (cv4Expired || craivaExpired || cantiExpired) {
+                        Text("⚠️ Pendências Clínicas", color = Color(0xFFFF8A65), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    } else {
+                        Text("✅ Saúde em Dia", color = PrimaryTeal, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x0AFFFFFF)))
+
+            // Pet daily events checklist
+            Text("TAREFAS DE HOJE DOS PETS", color = Color.White.copy(alpha = 0.4f), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+
+            if (petEvents.isEmpty()) {
+                Text("Nenhuma tarefa para Marie & Churchill hoje.", color = Color.White.copy(alpha = 0.3f), fontSize = 12.sp)
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    petEvents.forEach { event ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White.copy(alpha = 0.02f))
+                                .clickable { viewModel.togglePetEventCompleted(event) }
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = if (event.isCompleted) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                    contentDescription = null,
+                                    tint = if (event.isCompleted) TertiaryPurple else Color.White.copy(alpha = 0.3f),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "${event.petName}: ${event.title} (${event.time})",
+                                    color = if (event.isCompleted) Color.White.copy(alpha = 0.5f) else Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// 6. MarketDailyCard (Shopping list checklist and direct quick add input)
+@Composable
+fun MarketDailyCard(
+    marketItems: List<com.example.data.MarketItem>,
+    viewModel: TesseraViewModel
+) {
+    var newItemText by remember { mutableStateOf("") }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .then(PremiumGlassModifier)
+            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(24.dp))
+            .padding(20.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text(
+                text = "MERCADO / COMPRAS PENDENTES",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White.copy(alpha = 0.4f),
+                letterSpacing = 1.5.sp
+            )
+
+            // Direct input to add item
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = newItemText,
+                    onValueChange = { newItemText = it },
+                    placeholder = { Text("Novo item...", fontSize = 12.sp, color = Color.White.copy(alpha = 0.4f)) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = PrimaryTeal,
+                        unfocusedBorderColor = Color(0x1AFFFFFF)
+                    ),
+                    singleLine = true,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                )
+
+                IconButton(
+                    onClick = {
+                        if (newItemText.isNotBlank()) {
+                            viewModel.addMarketItem(newItemText)
+                            newItemText = ""
+                        }
+                    },
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(PrimaryTeal, RoundedCornerShape(12.dp))
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Adicionar", tint = Color.Black, modifier = Modifier.size(18.dp))
+                }
+            }
+
+            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x0AFFFFFF)))
+
+            // Item Checklist
+            if (marketItems.isEmpty()) {
+                Text("Nenhum item pendente de compras!", color = PrimaryTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    marketItems.take(5).forEach { item ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White.copy(alpha = 0.02f))
+                                .clickable { viewModel.toggleMarketItemChecked(item) }
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.RadioButtonUnchecked,
+                                    contentDescription = null,
+                                    tint = Color.White.copy(alpha = 0.3f),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                val qtyText = if (item.unit == "Kg") "${item.quantity} Kg" else "${item.quantity.toInt()} un"
+                                Text(
+                                    text = "${item.name} ($qtyText)",
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                    if (marketItems.size > 5) {
+                        Text(
+                            text = "+ ${marketItems.size - 5} outros itens pendentes...",
+                            color = Color.White.copy(alpha = 0.4f),
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// 7. PomodoroDailyCard
+@Composable
+fun PomodoroDailyCard(onNavigate: (String) -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .then(PremiumGlassModifier)
+            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(24.dp))
+            .clickable { onNavigate("focus") }
+            .padding(20.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.Timer, contentDescription = null, tint = SecondaryGold, modifier = Modifier.size(24.dp))
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text("Foco Pomodoro", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text("Inicie um temporizador de foco produtivo", color = Color.White.copy(alpha = 0.4f), fontSize = 11.sp)
+                }
+            }
+            Icon(Icons.Default.ChevronRight, contentDescription = "Acessar", tint = SecondaryGold)
         }
     }
 }

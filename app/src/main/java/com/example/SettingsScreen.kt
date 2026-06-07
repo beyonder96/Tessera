@@ -30,6 +30,7 @@ import coil.compose.AsyncImage
 import com.example.ui.theme.PrimaryTeal
 import com.example.ui.theme.SecondaryGold
 import com.example.ui.components.PremiumGlassModifier
+import com.example.data.AppDatabase
 import com.example.viewmodel.TesseraViewModel
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
@@ -45,6 +46,14 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
+    val packageInfo = remember {
+        try {
+            context.packageManager.getPackageInfo(context.packageName, 0)
+        } catch (e: Exception) {
+            null
+        }
+    }
+    val appVersionName = packageInfo?.versionName ?: "1.0.2"
     
     var isBiometricEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("biometric_enabled", false)) }
     var backgroundUri by remember {
@@ -112,6 +121,8 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
     val exportDatabaseLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
         if (uri != null) {
             try {
+                // Fechar banco temporariamente para realizar checkpoint completo do WAL para o arquivo principal
+                AppDatabase.closeAndClearInstance()
                 val dbFile = context.getDatabasePath("tessera_database.db")
                 if (dbFile.exists()) {
                     dbFile.inputStream().use { inputStream ->
@@ -131,6 +142,15 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
     val importDatabaseLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             try {
+                // Fechar conexão ativa para evitar conflitos/travamento do SQLite
+                AppDatabase.closeAndClearInstance()
+                
+                // Excluir arquivos temporários do modo WAL para evitar corrupção e inconsistência
+                val walFile = context.getDatabasePath("tessera_database.db-wal")
+                val shmFile = context.getDatabasePath("tessera_database.db-shm")
+                if (walFile.exists()) walFile.delete()
+                if (shmFile.exists()) shmFile.delete()
+
                 context.contentResolver.openInputStream(uri)?.use { inputStream ->
                     val dbFile = context.getDatabasePath("tessera_database.db")
                     dbFile.outputStream().use { outputStream ->
@@ -446,7 +466,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                 Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("TESSERA", fontFamily = FontFamily.Serif, fontSize = 14.sp, color = Color.White.copy(alpha=0.3f), letterSpacing = 3.sp)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("v1.0.0 Alpha", fontSize = 11.sp, color = Color.White.copy(alpha=0.2f))
+                    Text("v$appVersionName", fontSize = 11.sp, color = Color.White.copy(alpha=0.2f))
                 }
             }
         }

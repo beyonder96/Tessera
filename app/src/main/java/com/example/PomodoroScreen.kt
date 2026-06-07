@@ -385,16 +385,16 @@ fun PomodoroScreen() {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF000000))
                 .padding(horizontal = 20.dp)
-                .padding(bottom = 120.dp), // Fix FAB overlap
+                .padding(bottom = 120.dp) // Fix FAB overlap
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.spacedBy(28.dp)
         ) {
             // Header
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(top = 32.dp)
+                modifier = Modifier.padding(top = 16.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -416,7 +416,7 @@ fun PomodoroScreen() {
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // Scrollable category row
                 Row(
@@ -451,7 +451,7 @@ fun PomodoroScreen() {
 
             // Circular Timer
             Box(
-                modifier = Modifier.size(280.dp),
+                modifier = Modifier.size(230.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
@@ -485,7 +485,7 @@ fun PomodoroScreen() {
                         text = String.format("%02d:%02d", secondsLeft / 60, secondsLeft % 60),
                         fontFamily = FontFamily.Serif,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 54.sp,
+                        fontSize = 44.sp,
                         color = Color.White
                     )
                     Text(
@@ -500,7 +500,7 @@ fun PomodoroScreen() {
             // Controls & Audio Option
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(bottom = 20.dp)
+                modifier = Modifier.padding(bottom = 12.dp)
             ) {
                 // Binaural Sound Toggle
                 Row(
@@ -530,7 +530,7 @@ fun PomodoroScreen() {
                     )
                 }
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(32.dp),

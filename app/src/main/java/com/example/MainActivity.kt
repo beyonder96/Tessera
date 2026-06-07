@@ -109,6 +109,14 @@ import androidx.fragment.app.FragmentActivity
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 
+import androidx.glance.appwidget.updateAll
+import com.example.widget.DailyGlanceWidget
+import com.example.widget.FinanceGlanceWidget
+import com.example.widget.GoalsGlanceWidget
+import com.example.widget.HealthGlanceWidget
+import com.example.widget.MarketGlanceWidget
+import com.example.widget.PetsGlanceWidget
+
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -155,6 +163,95 @@ fun TesseraApp() {
 
     LaunchedEffect(Unit) {
         viewModel.initializeDataIfNeeded()
+    }
+
+    LaunchedEffect(Unit) {
+        launch {
+            viewModel.allTransactions.collect {
+                try {
+                    FinanceGlanceWidget().updateAll(context)
+                    DailyGlanceWidget().updateAll(context)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+        launch {
+            viewModel.allBankAccounts.collect {
+                try {
+                    FinanceGlanceWidget().updateAll(context)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+        launch {
+            viewModel.pendingMarketItems.collect {
+                try {
+                    MarketGlanceWidget().updateAll(context)
+                    DailyGlanceWidget().updateAll(context)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+        launch {
+            viewModel.allHabits.collect {
+                try {
+                    GoalsGlanceWidget().updateAll(context)
+                    DailyGlanceWidget().updateAll(context)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+        launch {
+            viewModel.allRoutines.collect {
+                try {
+                    GoalsGlanceWidget().updateAll(context)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+        launch {
+            viewModel.allPetEvents.collect {
+                try {
+                    PetsGlanceWidget().updateAll(context)
+                    DailyGlanceWidget().updateAll(context)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+        launch {
+            viewModel.allMedications.collect {
+                try {
+                    HealthGlanceWidget().updateAll(context)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+        launch {
+            viewModel.allStepsRecords.collect {
+                try {
+                    HealthGlanceWidget().updateAll(context)
+                    DailyGlanceWidget().updateAll(context)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+        launch {
+            viewModel.allWeightRecords.collect {
+                try {
+                    HealthGlanceWidget().updateAll(context)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
     }
 
     val navController = rememberNavController()
@@ -290,6 +387,7 @@ fun TesseraApp() {
                 composable("daily") {
                     DailyScreen(
                         viewModel = viewModel,
+                        petViewModel = petViewModel,
                         onBack = { navController.popBackStack() },
                         onNavigate = navigateAction
                     )
@@ -503,6 +601,7 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
             .fillMaxSize()
             .background(Color(0xFF070909))
     ) {
+        val blurRadius = (scrollState.value * 0.04f).coerceIn(0f, 16f).dp
         AsyncImage(
             model = backgroundUri,
             contentDescription = null,
@@ -510,6 +609,7 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
             alignment = Alignment.TopCenter,
             modifier = Modifier
                 .fillMaxSize()
+                .blur(blurRadius)
         )
         Box(
             modifier = Modifier
@@ -596,7 +696,10 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
                         translationY = -scrollVal * 0.15f
                     }
             ) {
-                TopHeader(onOpenSettings = { onNavigate("settings") })
+                TopHeader(
+                    onOpenSettings = { onNavigate("settings") },
+                    onOpenChat = { showChatSheet = true }
+                )
             }
             
             Spacer(modifier = Modifier.height(32.dp))
@@ -670,7 +773,7 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
 }
 
 @Composable
-fun TopHeader(onOpenSettings: () -> Unit) {
+fun TopHeader(onOpenSettings: () -> Unit, onOpenChat: () -> Unit) {
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
     var profileUri by remember { mutableStateOf<Uri?>(null) }
@@ -823,21 +926,43 @@ fun TopHeader(onOpenSettings: () -> Unit) {
                 }
             }
 
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(Color(0x0AFFFFFF))
-                    .border(1.dp, Color(0x1AFFFFFF), CircleShape)
-                    .bounceClick(onOpenSettings),
-                contentAlignment = Alignment.Center
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.Settings,
-                    contentDescription = "Configurações",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(20.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x1F71D7CD))
+                        .border(1.dp, Color(0x6671D7CD), CircleShape)
+                        .bounceClick(onOpenChat),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.AutoAwesome,
+                        contentDescription = "Tessera AI Chat",
+                        tint = Color(0xFF71D7CD),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x0AFFFFFF))
+                        .border(1.dp, Color(0x1AFFFFFF), CircleShape)
+                        .bounceClick(onOpenSettings),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Settings,
+                        contentDescription = "Configurações",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
     }

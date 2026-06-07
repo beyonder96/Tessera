@@ -67,6 +67,14 @@ class FakeTesseraDao : TesseraDao {
     override fun getAllStepsRecords(): Flow<List<StepsRecord>> = flowOf(emptyList())
     override suspend fun insertStepsRecord(record: StepsRecord) {}
     override suspend fun clearHealthConnectStepsRecords() {}
+
+    override suspend fun updatePet(pet: PetEntity) {}
+    override fun getAllRoutines(): Flow<List<Routine>> = flowOf(emptyList())
+    override fun getStepsForRoutine(routineId: Int): Flow<List<RoutineStep>> = flowOf(emptyList())
+    override suspend fun insertRoutine(routine: Routine): Long = 0L
+    override suspend fun insertRoutineStep(step: RoutineStep) {}
+    override suspend fun clearStepsForRoutine(routineId: Int) {}
+    override suspend fun deleteRoutine(routine: Routine) {}
 }
 
 class PetViewModelTest {

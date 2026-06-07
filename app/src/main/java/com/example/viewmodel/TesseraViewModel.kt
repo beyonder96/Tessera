@@ -461,8 +461,8 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
 
             val goals = repository.allPurchaseGoals.first()
             if (goals.isEmpty()) {
-                repository.insertPurchaseGoal(PurchaseGoal(title = "MacBook Pro M3", targetValue = 24000.00, currentValue = 15000.00, imageUrl = "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=800&auto=format&fit=crop", deadlineTimestamp = System.currentTimeMillis() + 86400000L * 90, colorHex = "#71D7CD"))
-                repository.insertPurchaseGoal(PurchaseGoal(title = "Viagem Kyoto", targetValue = 35000.00, currentValue = 8000.00, imageUrl = "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=800&auto=format&fit=crop", deadlineTimestamp = System.currentTimeMillis() + 86400000L * 180, colorHex = "#F9A826"))
+                repository.insertPurchaseGoal(PurchaseGoal(title = "MacBook Pro M3", targetValue = 24000.00, currentValue = 15000.00, imageUrl = "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=800&auto=format&fit=crop", deadlineTimestamp = System.currentTimeMillis() + 86400000L * 90, colorHex = "#71D7CD", priorityOrder = 1, priorityClassification = "Urgente"))
+                repository.insertPurchaseGoal(PurchaseGoal(title = "Viagem Kyoto", targetValue = 35000.00, currentValue = 8000.00, imageUrl = "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=800&auto=format&fit=crop", deadlineTimestamp = System.currentTimeMillis() + 86400000L * 180, colorHex = "#F9A826", priorityOrder = 2, priorityClassification = "Moderado"))
             }
 
             val routines = repository.allRoutines.first()
@@ -528,9 +528,9 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
         }
     }
 
-    fun addPurchaseGoal(title: String, target: Double, current: Double, imageUrl: String, deadline: Long, colorHex: String) {
+    fun addPurchaseGoal(title: String, target: Double, current: Double, imageUrl: String, deadline: Long, colorHex: String, priorityOrder: Int = 1, priorityClassification: String = "Moderado") {
         viewModelScope.launch {
-            repository.insertPurchaseGoal(PurchaseGoal(title = title, targetValue = target, currentValue = current, imageUrl = imageUrl, deadlineTimestamp = deadline, colorHex = colorHex))
+            repository.insertPurchaseGoal(PurchaseGoal(title = title, targetValue = target, currentValue = current, imageUrl = imageUrl, deadlineTimestamp = deadline, colorHex = colorHex, priorityOrder = priorityOrder, priorityClassification = priorityClassification))
         }
     }
 

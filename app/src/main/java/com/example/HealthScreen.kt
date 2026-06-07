@@ -1,6 +1,7 @@
 package com.example
 
 import android.Manifest
+import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Intent
 import android.net.Uri
@@ -35,9 +36,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -307,43 +311,241 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
 
     // Dialog: Registrar Sono
     if (showSleepDialog) {
-        var inputHours by remember { mutableStateOf("") }
+        var sleepTimeMs by remember {
+            mutableStateOf(
+                Calendar.getInstance().apply {
+                    add(Calendar.DAY_OF_YEAR, -1)
+                    set(Calendar.HOUR_OF_DAY, 22)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }.timeInMillis
+            )
+        }
+        var wakeTimeMs by remember {
+            mutableStateOf(
+                Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, 7)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }.timeInMillis
+            )
+        }
+
+        val sleepDateStr = remember(sleepTimeMs) {
+            val cal = Calendar.getInstance().apply { timeInMillis = sleepTimeMs }
+            String.format(Locale.getDefault(), "%02d/%02d/%04d", cal.get(Calendar.DAY_OF_MONTH), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.YEAR))
+        }
+        val sleepTimeStr = remember(sleepTimeMs) {
+            val cal = Calendar.getInstance().apply { timeInMillis = sleepTimeMs }
+            String.format(Locale.getDefault(), "%02d:%02d", cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE))
+        }
+        val wakeDateStr = remember(wakeTimeMs) {
+            val cal = Calendar.getInstance().apply { timeInMillis = wakeTimeMs }
+            String.format(Locale.getDefault(), "%02d/%02d/%04d", cal.get(Calendar.DAY_OF_MONTH), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.YEAR))
+        }
+        val wakeTimeStr = remember(wakeTimeMs) {
+            val cal = Calendar.getInstance().apply { timeInMillis = wakeTimeMs }
+            String.format(Locale.getDefault(), "%02d:%02d", cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE))
+        }
+
+        val durationMs = wakeTimeMs - sleepTimeMs
+        val durationHours = durationMs.toDouble() / 3600000.0
+        val isValid = durationMs > 0
+        val durationText = if (isValid) {
+            val hours = (durationMs / 3600000L).toInt()
+            val minutes = ((durationMs % 3600000L) / 60000L).toInt()
+            "Total: ${hours}h ${minutes}m"
+        } else {
+            "A hora de acordar deve ser após a hora de dormir."
+        }
+
         Dialog(onDismissRequest = { showSleepDialog = false }) {
             Box(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color(0xFF070909)).border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(24.dp)).padding(24.dp)) {
                 Column {
                     Text("REGISTRAR SONO", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Spacer(modifier = Modifier.height(20.dp))
+                    
+                    Text("DORMIU EM", color = Color(0xFF879391), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1.2f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF131817))
+                                .clickable {
+                                    val cal = Calendar.getInstance().apply { timeInMillis = sleepTimeMs }
+                                    DatePickerDialog(
+                                        context,
+                                        { _, y, m, d ->
+                                            cal.set(Calendar.YEAR, y)
+                                            cal.set(Calendar.MONTH, m)
+                                            cal.set(Calendar.DAY_OF_MONTH, d)
+                                            sleepTimeMs = cal.timeInMillis
+                                        },
+                                        cal.get(Calendar.YEAR),
+                                        cal.get(Calendar.MONTH),
+                                        cal.get(Calendar.DAY_OF_MONTH)
+                                    ).show()
+                                }
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Outlined.CalendarToday, null, tint = PrimaryTeal, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(sleepDateStr, color = Color.White, fontSize = 13.sp)
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF131817))
+                                .clickable {
+                                    val cal = Calendar.getInstance().apply { timeInMillis = sleepTimeMs }
+                                    TimePickerDialog(
+                                        context,
+                                        { _, h, min ->
+                                            cal.set(Calendar.HOUR_OF_DAY, h)
+                                            cal.set(Calendar.MINUTE, min)
+                                            sleepTimeMs = cal.timeInMillis
+                                        },
+                                        cal.get(Calendar.HOUR_OF_DAY),
+                                        cal.get(Calendar.MINUTE),
+                                        true
+                                    ).show()
+                                }
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Outlined.AccessTime, null, tint = PrimaryTeal, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(sleepTimeStr, color = Color.White, fontSize = 13.sp)
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
-                    Text("HORAS DE SONO", color = Color(0xFF879391), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    TextField(
-                        value = inputHours,
-                        onValueChange = { inputHours = it },
-                        placeholder = { Text("Ex: 8.0", color = Color(0xFF55605E)) },
-                        colors = TextFieldDefaults.colors(focusedContainerColor = Color(0xFF131817), unfocusedContainerColor = Color(0xFF131817), focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent),
-                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    
+
+                    Text("ACORDOU EM", color = Color(0xFF879391), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1.2f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF131817))
+                                .clickable {
+                                    val cal = Calendar.getInstance().apply { timeInMillis = wakeTimeMs }
+                                    DatePickerDialog(
+                                        context,
+                                        { _, y, m, d ->
+                                            cal.set(Calendar.YEAR, y)
+                                            cal.set(Calendar.MONTH, m)
+                                            cal.set(Calendar.DAY_OF_MONTH, d)
+                                            wakeTimeMs = cal.timeInMillis
+                                        },
+                                        cal.get(Calendar.YEAR),
+                                        cal.get(Calendar.MONTH),
+                                        cal.get(Calendar.DAY_OF_MONTH)
+                                    ).show()
+                                }
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Outlined.CalendarToday, null, tint = PrimaryTeal, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(wakeDateStr, color = Color.White, fontSize = 13.sp)
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF131817))
+                                .clickable {
+                                    val cal = Calendar.getInstance().apply { timeInMillis = wakeTimeMs }
+                                    TimePickerDialog(
+                                        context,
+                                        { _, h, min ->
+                                            cal.set(Calendar.HOUR_OF_DAY, h)
+                                            cal.set(Calendar.MINUTE, min)
+                                            wakeTimeMs = cal.timeInMillis
+                                        },
+                                        cal.get(Calendar.HOUR_OF_DAY),
+                                        cal.get(Calendar.MINUTE),
+                                        true
+                                    ).show()
+                                }
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Outlined.AccessTime, null, tint = PrimaryTeal, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(wakeTimeStr, color = Color.White, fontSize = 13.sp)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Real-time duration panel
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isValid) PrimaryTeal.copy(alpha = 0.08f) else Color(0x15FF5252))
+                            .border(1.dp, if (isValid) PrimaryTeal.copy(alpha = 0.2f) else Color(0x33FF5252), RoundedCornerShape(12.dp))
+                            .padding(14.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = durationText,
+                            color = if (isValid) Color.White else Color(0xFFFF5252),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(24.dp))
+
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         TextButton(onClick = { showSleepDialog = false }) { Text("CANCELAR", color = Color(0xFF879391)) }
                         Spacer(modifier = Modifier.width(8.dp))
                         Button(
                             onClick = {
-                                val hours = inputHours.toDoubleOrNull()
-                                if (hours != null) {
-                                    val now = System.currentTimeMillis()
-                                    val startTime = now - (hours * 3600000).toLong()
-                                    viewModel.addManualSleepRecord(startTime, now, hours)
+                                if (isValid) {
+                                    viewModel.addManualSleepRecord(sleepTimeMs, wakeTimeMs, durationHours)
                                     if (healthProfile?.isHealthConnectEnabled == true) {
                                         coroutineScope.launch {
-                                            healthConnectManager.writeSleepRecord(startTime, now)
+                                            healthConnectManager.writeSleepRecord(sleepTimeMs, wakeTimeMs)
                                         }
                                     }
+                                    showSleepDialog = false
                                 }
-                                showSleepDialog = false
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal, contentColor = Color.Black)
+                            enabled = isValid,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = PrimaryTeal,
+                                contentColor = Color.Black,
+                                disabledContainerColor = Color(0xFF131817),
+                                disabledContentColor = Color.Gray
+                            )
                         ) {
                             Text("SALVAR")
                         }
@@ -715,6 +917,13 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                         item {
                             AnimatedCardContainer(delayMillis = 400) {
                                 SleepCard(sleepRecords.firstOrNull()) { showSleepDialog = true }
+                            }
+                        }
+
+                        // Sleep Chart Card
+                        item {
+                            AnimatedCardContainer(delayMillis = 450) {
+                                SleepChartCard(sleepRecords)
                             }
                         }
 
@@ -1161,6 +1370,185 @@ fun SleepCard(latestSleep: SleepRecord?, onRegisterClick: () -> Unit) {
                     drawCircle(color = Color.White.copy(alpha = 0.8f), radius = 2.dp.toPx(), center = Offset(center.x - radius * 0.5f, center.y - radius * 0.4f))
                     drawCircle(color = Color.White.copy(alpha = 0.6f), radius = 1.5.dp.toPx(), center = Offset(center.x + radius * 0.3f, center.y + radius * 0.5f))
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun SleepChartCard(records: List<SleepRecord>) {
+    val daysList = remember(records) {
+        (0..6).map { daysAgo ->
+            Calendar.getInstance().apply {
+                add(Calendar.DAY_OF_YEAR, -daysAgo)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+        }.reversed()
+    }
+
+    val sleepData = remember(records, daysList) {
+        daysList.map { dayCal ->
+            val startOfDay = dayCal.timeInMillis
+            val endOfDay = startOfDay + 86400000L - 1L
+            val dayRecords = records.filter { it.endTime in startOfDay..endOfDay }
+            val totalHours = dayRecords.sumOf { it.durationHours }
+            
+            val dayName = when (dayCal.get(Calendar.DAY_OF_WEEK)) {
+                Calendar.SUNDAY -> "Dom"
+                Calendar.MONDAY -> "Seg"
+                Calendar.TUESDAY -> "Ter"
+                Calendar.WEDNESDAY -> "Qua"
+                Calendar.THURSDAY -> "Qui"
+                Calendar.FRIDAY -> "Sex"
+                else -> "Sáb"
+            }
+            dayName to totalHours
+        }
+    }
+
+    val averageHours = remember(sleepData) {
+        val activeDays = sleepData.filter { it.second > 0 }
+        if (activeDays.isNotEmpty()) activeDays.map { it.second }.average() else 0.0
+    }
+
+    Column(modifier = PremiumGlassModifier.fillMaxWidth().padding(24.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Outlined.Bedtime, null, tint = TertiaryPurple, modifier = Modifier.size(18.dp))
+                Text("SONO SEMANAL", style = MaterialTheme.typography.labelSmall, color = OnBackgroundDark.copy(alpha = 0.7f), letterSpacing = 1.sp)
+            }
+            
+            if (averageHours > 0) {
+                val avgHoursInt = averageHours.toInt()
+                val avgMins = ((averageHours - avgHoursInt) * 60).roundToInt()
+                Text(
+                    text = "Média: ${avgHoursInt}h ${avgMins}m/dia",
+                    color = PrimaryTeal,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+
+        val hasData = sleepData.any { it.second > 0 }
+        if (hasData) {
+            val animationProgress = remember { Animatable(0f) }
+            LaunchedEffect(records) {
+                animationProgress.animateTo(1f, animationSpec = tween(1500))
+            }
+
+            val maxHours = remember(sleepData) {
+                max(sleepData.maxOf { it.second }, 10.0)
+            }
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp)
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val canvasWidth = size.width
+                        val canvasHeight = size.height
+                        val sectionWidth = canvasWidth / 7
+                        val barWidth = 20.dp.toPx()
+                        
+                        val targetY = canvasHeight - ((8.0 / maxHours) * canvasHeight).toFloat()
+                        drawLine(
+                            color = Color(0x33FFFFFF),
+                            start = Offset(0f, targetY),
+                            end = Offset(canvasWidth, targetY),
+                            strokeWidth = 1.dp.toPx(),
+                            pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(10f, 10f))
+                        )
+                        
+                        drawIntoCanvas { canvas ->
+                            val textPaint = android.graphics.Paint().apply {
+                                color = android.graphics.Color.parseColor("#879391")
+                                textSize = 9.dp.toPx()
+                                typeface = android.graphics.Typeface.DEFAULT_BOLD
+                            }
+                            canvas.nativeCanvas.drawText("Meta (8h)", 6.dp.toPx(), targetY - 4.dp.toPx(), textPaint)
+                        }
+
+                        sleepData.forEachIndexed { index, (_, hours) ->
+                            val centerX = index * sectionWidth + sectionWidth / 2f
+                            val barHeight = ((hours / maxHours) * canvasHeight * animationProgress.value).toFloat()
+                            val barTop = canvasHeight - barHeight
+                            
+                            if (hours > 0) {
+                                val startColor = if (hours >= 8.0) PrimaryTeal else TertiaryPurple
+                                val endColor = if (hours >= 8.0) PrimaryTeal.copy(alpha = 0.3f) else TertiaryPurple.copy(alpha = 0.3f)
+                                
+                                drawRoundRect(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(startColor, endColor)
+                                    ),
+                                    topLeft = Offset(centerX - barWidth / 2f, barTop),
+                                    size = Size(barWidth, barHeight),
+                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx(), 6.dp.toPx())
+                                )
+
+                                drawIntoCanvas { canvas ->
+                                    val textPaint = android.graphics.Paint().apply {
+                                        color = android.graphics.Color.WHITE
+                                        textSize = 10.dp.toPx()
+                                        textAlign = android.graphics.Paint.Align.CENTER
+                                        typeface = android.graphics.Typeface.DEFAULT
+                                    }
+                                    val hoursFormatted = String.format(Locale.getDefault(), "%.1f", hours).replace(",0", "")
+                                    canvas.nativeCanvas.drawText(
+                                        hoursFormatted,
+                                        centerX,
+                                        barTop - 6.dp.toPx(),
+                                        textPaint
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    sleepData.forEach { (dayName, _) ->
+                        Text(
+                            text = dayName,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center,
+                            fontSize = 11.sp,
+                            color = OnBackgroundDark.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Nenhum dado de sono registrado nos últimos 7 dias.",
+                    color = OnBackgroundDark.copy(alpha = 0.5f),
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center
+                )
             }
         }
     }

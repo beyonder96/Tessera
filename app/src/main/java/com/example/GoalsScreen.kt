@@ -337,8 +337,8 @@ fun GoalsScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
     if (showAddPurchaseGoalDialog) {
         AddPurchaseGoalDialog(
             onDismiss = { showAddPurchaseGoalDialog = false },
-            onSave = { title, target, current, url, deadline, color -> 
-                viewModel.addPurchaseGoal(title, target, current, url, deadline, color)
+            onSave = { title, target, current, url, deadline, color, priorityOrder, priorityClassification -> 
+                viewModel.addPurchaseGoal(title, target, current, url, deadline, color, priorityOrder, priorityClassification)
                 showAddPurchaseGoalDialog = false
             }
         )
@@ -594,23 +594,67 @@ fun PurchaseGoalCard(goal: PurchaseGoal, onAddFunds: (Double) -> Unit, onEditCli
             
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Prazo com ícone de calendário
+            // Prazo e prioridades
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.CalendarToday,
-                    contentDescription = null,
-                    tint = Color(0xFF81928F),
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "Prazo: $daysLeft dias restantes",
-                    fontSize = 12.sp,
-                    color = Color(0xFF81928F)
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.CalendarToday,
+                        contentDescription = null,
+                        tint = Color(0xFF81928F),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Prazo: $daysLeft dias restantes",
+                        fontSize = 12.sp,
+                        color = Color(0xFF81928F)
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    val badgeColor = when (goal.priorityClassification) {
+                        "Urgente" -> Color(0xFFEF4444)
+                        "Moderado" -> Color(0xFFF9A826)
+                        else -> Color(0xFF71D7CD)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(badgeColor.copy(alpha = 0.15f))
+                            .border(0.5.dp, badgeColor.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = goal.priorityClassification.uppercase(),
+                            color = badgeColor,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0x0AFFFFFF))
+                            .border(0.5.dp, Color(0x20FFFFFF), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = "Ordem: #${goal.priorityOrder}",
+                            color = Color(0xFFBDC9C6),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
             
             Spacer(modifier = Modifier.height(20.dp))
@@ -667,11 +711,13 @@ fun PurchaseGoalCard(goal: PurchaseGoal, onAddFunds: (Double) -> Unit, onEditCli
 @Composable
 fun AddPurchaseGoalDialog(
     onDismiss: () -> Unit,
-    onSave: (title: String, target: Double, current: Double, url: String, deadline: Long, color: String) -> Unit
+    onSave: (title: String, target: Double, current: Double, url: String, deadline: Long, color: String, priorityOrder: Int, priorityClassification: String) -> Unit
 ) {
     var title by remember { mutableStateOf("") }
     var target by remember { mutableStateOf("") }
     var url by remember { mutableStateOf("") }
+    var priorityOrder by remember { mutableStateOf("1") }
+    var selectedClassification by remember { mutableStateOf("Moderado") }
     
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -681,24 +727,70 @@ fun AddPurchaseGoalDialog(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = title, onValueChange = { title = it }, label = { Text("O que você deseja comprar?", color = Color(0xFF81928F)) },
-                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947)), singleLine = true
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947)), singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = target, onValueChange = { target = it }, label = { Text("Valor Alvo (R$)", color = Color(0xFF81928F)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947)), singleLine = true
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947)), singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = url, onValueChange = { url = it }, label = { Text("URL da Imagem (Opcional)", color = Color(0xFF81928F)) },
-                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947)), singleLine = true
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947)), singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
+                OutlinedTextField(
+                    value = priorityOrder, onValueChange = { priorityOrder = it.filter { c -> c.isDigit() } }, label = { Text("Ordem de Prioridade (Numérica)", color = Color(0xFF81928F)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947)), singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                Column {
+                    Text("Classificação de Prioridade", color = Color(0xFF81928F), fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("Leve", "Moderado", "Urgente").forEach { level ->
+                            val isSelected = selectedClassification == level
+                            val chipBg = when (level) {
+                                "Urgente" -> if (isSelected) Color(0xFFEF4444) else Color(0x1AEF4444)
+                                "Moderado" -> if (isSelected) Color(0xFFF9A826) else Color(0x1AF9A826)
+                                else -> if (isSelected) Color(0xFF71D7CD) else Color(0x1A71D7CD)
+                            }
+                            val chipTextColor = if (isSelected) Color.Black else when (level) {
+                                "Urgente" -> Color(0xFFEF4444)
+                                "Moderado" -> Color(0xFFF9A826)
+                                else -> Color(0xFF71D7CD)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(chipBg)
+                                    .border(1.dp, if (isSelected) Color.White else chipTextColor.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                                    .clickable { selectedClassification = level }
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(level, color = chipTextColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
             TextButton(onClick = {
                 val t = target.replace(",", ".").toDoubleOrNull() ?: 0.0
+                val pOrd = priorityOrder.toIntOrNull() ?: 1
                 val defaultUrl = if (url.isBlank()) "https://images.unsplash.com/photo-1555626906-fcf10d6851b4?q=80&w=800&auto=format&fit=crop" else url
-                onSave(title, t, 0.0, defaultUrl, System.currentTimeMillis() + 86400000L * 30, "#F9A826")
+                val colorHex = when (selectedClassification) {
+                    "Urgente" -> "#EF4444"
+                    "Moderado" -> "#F9A826"
+                    else -> "#71D7CD"
+                }
+                onSave(title, t, 0.0, defaultUrl, System.currentTimeMillis() + 86400000L * 30, colorHex, pOrd, selectedClassification)
             }) {
                 Text("Salvar", color = Color(0xFFF9A826))
             }
@@ -900,6 +992,8 @@ fun EditPurchaseGoalDialog(
     var target by remember { mutableStateOf(goal.targetValue.toString()) }
     var current by remember { mutableStateOf(goal.currentValue.toString()) }
     var url by remember { mutableStateOf(goal.imageUrl) }
+    var priorityOrder by remember { mutableStateOf(goal.priorityOrder.toString()) }
+    var selectedClassification by remember { mutableStateOf(goal.priorityClassification) }
     
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -909,22 +1003,63 @@ fun EditPurchaseGoalDialog(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = title, onValueChange = { title = it }, label = { Text("O que você deseja comprar?", color = Color(0xFF81928F)) },
-                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947)), singleLine = true
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947)), singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = target, onValueChange = { target = it }, label = { Text("Valor Alvo (R$)", color = Color(0xFF81928F)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947)), singleLine = true
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947)), singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = current, onValueChange = { current = it }, label = { Text("Valor Atual Salvo (R$)", color = Color(0xFF81928F)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947)), singleLine = true
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947)), singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = url, onValueChange = { url = it }, label = { Text("URL da Imagem", color = Color(0xFF81928F)) },
-                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947)), singleLine = true
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947)), singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
+                OutlinedTextField(
+                    value = priorityOrder, onValueChange = { priorityOrder = it.filter { c -> c.isDigit() } }, label = { Text("Ordem de Prioridade (Numérica)", color = Color(0xFF81928F)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947)), singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                Column {
+                    Text("Classificação de Prioridade", color = Color(0xFF81928F), fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("Leve", "Moderado", "Urgente").forEach { level ->
+                            val isSelected = selectedClassification == level
+                            val chipBg = when (level) {
+                                "Urgente" -> if (isSelected) Color(0xFFEF4444) else Color(0x1AEF4444)
+                                "Moderado" -> if (isSelected) Color(0xFFF9A826) else Color(0x1AF9A826)
+                                else -> if (isSelected) Color(0xFF71D7CD) else Color(0x1A71D7CD)
+                            }
+                            val chipTextColor = if (isSelected) Color.Black else when (level) {
+                                "Urgente" -> Color(0xFFEF4444)
+                                "Moderado" -> Color(0xFFF9A826)
+                                else -> Color(0xFF71D7CD)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(chipBg)
+                                    .border(1.dp, if (isSelected) Color.White else chipTextColor.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                                    .clickable { selectedClassification = level }
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(level, color = chipTextColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
@@ -935,7 +1070,13 @@ fun EditPurchaseGoalDialog(
                 TextButton(onClick = {
                     val t = target.replace(",", ".").toDoubleOrNull() ?: goal.targetValue
                     val c = current.replace(",", ".").toDoubleOrNull() ?: goal.currentValue
-                    onSave(goal.copy(title = title, targetValue = t, currentValue = c, imageUrl = url))
+                    val pOrd = priorityOrder.toIntOrNull() ?: goal.priorityOrder
+                    val colorHex = when (selectedClassification) {
+                        "Urgente" -> "#EF4444"
+                        "Moderado" -> "#F9A826"
+                        else -> "#71D7CD"
+                    }
+                    onSave(goal.copy(title = title, targetValue = t, currentValue = c, imageUrl = url, priorityOrder = pOrd, priorityClassification = selectedClassification, colorHex = colorHex))
                 }) {
                     Text("Salvar", color = Color(0xFFF9A826))
                 }

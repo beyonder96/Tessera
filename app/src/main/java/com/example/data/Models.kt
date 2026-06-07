@@ -83,7 +83,9 @@ data class PurchaseGoal(
     val currentValue: Double,
     val imageUrl: String,
     val deadlineTimestamp: Long,
-    val colorHex: String
+    val colorHex: String,
+    val priorityOrder: Int = 1,
+    val priorityClassification: String = "Moderado"
 )
 
 @Entity(tableName = "health_profile")

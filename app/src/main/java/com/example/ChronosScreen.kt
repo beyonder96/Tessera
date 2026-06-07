@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.Routine
@@ -212,13 +213,7 @@ fun RoutinesListView(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = when (routine.iconName) {
-                                            "Spa" -> Icons.Outlined.Spa
-                                            "WaterDrop" -> Icons.Outlined.WaterDrop
-                                            "SelfImprovement" -> Icons.Outlined.SelfImprovement
-                                            "MenuBook" -> Icons.Outlined.MenuBook
-                                            else -> Icons.Outlined.Spa
-                                        },
+                                        imageVector = getChronosIcon(routine.iconName),
                                         contentDescription = null,
                                         tint = Color(0xFF71D7CD),
                                         modifier = Modifier.size(20.dp)
@@ -339,7 +334,7 @@ fun ManageRoutineDialog(
     onDismiss: () -> Unit
 ) {
     var name by remember { mutableStateOf(routine?.name ?: "") }
-    val iconOptions = listOf("Spa", "WaterDrop", "SelfImprovement", "MenuBook")
+    val iconOptions = listOf("Spa", "WaterDrop", "SelfImprovement", "MenuBook", "FitnessCenter", "Coffee", "Bedtime", "WorkOutline", "Lightbulb", "FavoriteBorder", "MusicNote", "Brush")
     var selectedIcon by remember { mutableStateOf(routine?.iconName ?: "Spa") }
     
     var steps by remember { mutableStateOf(initialSteps) }
@@ -386,13 +381,7 @@ fun ManageRoutineDialog(
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         iconOptions.forEach { iconName ->
                             val isSel = selectedIcon == iconName
-                            val icon = when (iconName) {
-                                "Spa" -> Icons.Outlined.Spa
-                                "WaterDrop" -> Icons.Outlined.WaterDrop
-                                "SelfImprovement" -> Icons.Outlined.SelfImprovement
-                                "MenuBook" -> Icons.Outlined.MenuBook
-                                else -> Icons.Outlined.Spa
-                            }
+                            val icon = getChronosIcon(iconName)
                             Box(
                                 modifier = Modifier
                                     .size(36.dp)
@@ -424,13 +413,7 @@ fun ManageRoutineDialog(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                                 Icon(
-                                    imageVector = when (step.iconName) {
-                                        "Spa" -> Icons.Outlined.Spa
-                                        "WaterDrop" -> Icons.Outlined.WaterDrop
-                                        "SelfImprovement" -> Icons.Outlined.SelfImprovement
-                                        "MenuBook" -> Icons.Outlined.MenuBook
-                                        else -> Icons.Outlined.Spa
-                                    },
+                                    imageVector = getChronosIcon(step.iconName),
                                     contentDescription = null,
                                     tint = Color(0xFF71D7CD),
                                     modifier = Modifier.size(16.dp)
@@ -527,13 +510,7 @@ fun ManageRoutineDialog(
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 iconOptions.forEach { iconName ->
                                     val isSel = selectedStepIcon == iconName
-                                    val icon = when (iconName) {
-                                        "Spa" -> Icons.Outlined.Spa
-                                        "WaterDrop" -> Icons.Outlined.WaterDrop
-                                        "SelfImprovement" -> Icons.Outlined.SelfImprovement
-                                        "MenuBook" -> Icons.Outlined.MenuBook
-                                        else -> Icons.Outlined.Spa
-                                    }
+                                    val icon = getChronosIcon(iconName)
                                     Box(
                                         modifier = Modifier
                                             .size(30.dp)
@@ -648,13 +625,7 @@ fun RoutinePlayerView(
     val progress = (secondsLeft.toFloat() / totalDuration).coerceIn(0f, 1f)
     val animatedProgress by animateFloatAsState(targetValue = progress, animationSpec = tween(1000, easing = LinearEasing))
 
-    val stepIcon = when (currentStep.iconName) {
-        "WaterDrop" -> Icons.Outlined.WaterDrop
-        "SelfImprovement" -> Icons.Outlined.SelfImprovement
-        "Spa" -> Icons.Outlined.Spa
-        "MenuBook" -> Icons.Outlined.MenuBook
-        else -> Icons.Outlined.Spa
-    }
+    val stepIcon = getChronosIcon(currentStep.iconName)
 
     Column(
         modifier = Modifier
@@ -814,5 +785,23 @@ fun RoutinePlayerView(
                 }
             }
         }
+    }
+}
+
+fun getChronosIcon(name: String): ImageVector {
+    return when (name) {
+        "Spa" -> Icons.Outlined.Spa
+        "WaterDrop" -> Icons.Outlined.WaterDrop
+        "SelfImprovement" -> Icons.Outlined.SelfImprovement
+        "MenuBook" -> Icons.Outlined.MenuBook
+        "FitnessCenter" -> Icons.Outlined.FitnessCenter
+        "Coffee" -> Icons.Outlined.Coffee
+        "Bedtime" -> Icons.Outlined.Bedtime
+        "WorkOutline" -> Icons.Outlined.WorkOutline
+        "Lightbulb" -> Icons.Outlined.Lightbulb
+        "FavoriteBorder" -> Icons.Outlined.FavoriteBorder
+        "MusicNote" -> Icons.Outlined.MusicNote
+        "Brush" -> Icons.Outlined.Brush
+        else -> Icons.Outlined.Spa
     }
 }
