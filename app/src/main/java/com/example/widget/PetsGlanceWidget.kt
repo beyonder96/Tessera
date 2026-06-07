@@ -27,11 +27,13 @@ import com.example.R
 import com.example.data.AppDatabase
 import com.example.data.PetEvent
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 
 class PetsGlanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val db = AppDatabase.getDatabase(context)
-        val events = db.tesseraDao().getAllPetEvents().first()
+        val events = withContext(Dispatchers.IO) { db.tesseraDao().getAllPetEvents().first() }
 
         provideContent {
             PetsWidgetContent(context = context, events = events)

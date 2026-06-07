@@ -27,16 +27,18 @@ import com.example.MainActivity
 import com.example.R
 import com.example.data.AppDatabase
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import java.util.Calendar
 import java.util.Locale
 
 class DailyGlanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val db = AppDatabase.getDatabase(context)
-        val transactions = db.tesseraDao().getAllTransactions().first()
-        val stepsRecords = db.tesseraDao().getAllStepsRecords().first()
-        val petEvents = db.tesseraDao().getAllPetEvents().first()
-        val marketItems = db.tesseraDao().getPendingMarketItems().first()
+        val transactions = withContext(Dispatchers.IO) { db.tesseraDao().getAllTransactions().first() }
+        val stepsRecords = withContext(Dispatchers.IO) { db.tesseraDao().getAllStepsRecords().first() }
+        val petEvents = withContext(Dispatchers.IO) { db.tesseraDao().getAllPetEvents().first() }
+        val marketItems = withContext(Dispatchers.IO) { db.tesseraDao().getPendingMarketItems().first() }
 
         // Balance
         val totalIncome = transactions.filter { it.isIncome }.sumOf { it.value }

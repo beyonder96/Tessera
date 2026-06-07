@@ -255,6 +255,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
     var showSleepDialog by remember { mutableStateOf(false) }
     var showStepsDialog by remember { mutableStateOf(false) }
     var showMedicationDialog by remember { mutableStateOf(false) }
+    var medicationToDelete by remember { mutableStateOf<Medication?>(null) }
 
     // Dialog: Registrar Peso / Dados de Perfil
     if (showWeightDialog) {
@@ -790,6 +791,31 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                     }
                 }
             }
+
+    if (medicationToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { medicationToDelete = null },
+            title = { Text("Excluir Medicamento", fontFamily = FontFamily.Serif, color = OnBackgroundDark) },
+            text = { Text("Deseja realmente excluir o medicamento \"${medicationToDelete?.name}\"?", color = OnBackgroundDark.copy(alpha = 0.8f)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    medicationToDelete?.let { viewModel.deleteMedication(it) }
+                    medicationToDelete = null
+                }) {
+                    Text("EXCLUIR", color = Color(0xFFFF5252), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { medicationToDelete = null }) {
+                    Text("CANCELAR", color = Color.Gray)
+                }
+            },
+            containerColor = Color(0xFF131817),
+            titleContentColor = OnBackgroundDark,
+            textContentColor = OnBackgroundDark.copy(alpha = 0.8f)
+        )
+    }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -945,7 +971,11 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                                     } else {
                                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                                             medications.forEach { med ->
-                                                MedicationItem(med) { viewModel.toggleMedicationTaken(med) }
+                                                MedicationItem(
+                                                    med = med,
+                                                    onToggle = { viewModel.toggleMedicationTaken(med) },
+                                                    onDeleteClick = { medicationToDelete = med }
+                                                )
                                             }
                                         }
                                     }
@@ -1577,7 +1607,7 @@ private fun getRecurrenceDisplayName(recurrence: String): String {
 }
 
 @Composable
-fun MedicationItem(med: Medication, onToggle: () -> Unit) {
+fun MedicationItem(med: Medication, onToggle: () -> Unit, onDeleteClick: () -> Unit) {
     val recurrenceText = getRecurrenceDisplayName(med.recurrence)
     val subtitleText = if (med.dosage.isNotBlank()) "${med.dosage} • $recurrenceText" else recurrenceText
 
@@ -1613,9 +1643,22 @@ fun MedicationItem(med: Medication, onToggle: () -> Unit) {
                 )
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Icon(Icons.Outlined.AccessTime, null, tint = OnBackgroundDark.copy(alpha = 0.4f), modifier = Modifier.size(14.dp))
-            Text(med.time, color = if (med.isTaken) OnBackgroundDark.copy(alpha = 0.5f) else PrimaryTeal, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Icon(Icons.Outlined.AccessTime, null, tint = OnBackgroundDark.copy(alpha = 0.4f), modifier = Modifier.size(14.dp))
+                Text(med.time, color = if (med.isTaken) OnBackgroundDark.copy(alpha = 0.5f) else PrimaryTeal, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            }
+            IconButton(
+                onClick = onDeleteClick,
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Delete,
+                    contentDescription = "Excluir",
+                    tint = Color(0xFFFF5252),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
 }

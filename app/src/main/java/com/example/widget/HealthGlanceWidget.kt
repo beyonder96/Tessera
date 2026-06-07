@@ -29,15 +29,17 @@ import com.example.data.Medication
 import com.example.data.WeightRecord
 import com.example.data.StepsRecord
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import java.util.Calendar
 import java.util.Locale
 
 class HealthGlanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val db = AppDatabase.getDatabase(context)
-        val medications = db.tesseraDao().getAllMedications().first()
-        val weightRecords = db.tesseraDao().getAllWeightRecords().first()
-        val stepsRecords = db.tesseraDao().getAllStepsRecords().first()
+        val medications = withContext(Dispatchers.IO) { db.tesseraDao().getAllMedications().first() }
+        val weightRecords = withContext(Dispatchers.IO) { db.tesseraDao().getAllWeightRecords().first() }
+        val stepsRecords = withContext(Dispatchers.IO) { db.tesseraDao().getAllStepsRecords().first() }
 
         // Read Vibe from SharedPreferences
         val sharedPrefs = context.getSharedPreferences("tessera_prefs", Context.MODE_PRIVATE)

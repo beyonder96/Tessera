@@ -104,6 +104,10 @@ import kotlinx.coroutines.launch
 import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.components.OuraCircularProgress
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.composed
+import androidx.compose.ui.platform.LocalConfiguration
 
 import androidx.fragment.app.FragmentActivity
 import androidx.biometric.BiometricPrompt
@@ -127,6 +131,39 @@ class MainActivity : FragmentActivity() {
             }
         }
     }
+}
+
+fun Modifier.scrollFadeInOut(): Modifier = composed {
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
+    val screenHeightPx = remember(configuration, density) {
+        with(density) { configuration.screenHeightDp.dp.toPx() }
+    }
+    val fadeThreshold = remember(density) {
+        with(density) { 150.dp.toPx() }
+    }
+    var yPosition by remember { mutableStateOf(0f) }
+    var height by remember { mutableStateOf(0f) }
+
+    this
+        .onGloballyPositioned { coordinates ->
+            yPosition = coordinates.positionInWindow().y
+            height = coordinates.size.height.toFloat()
+        }
+        .graphicsLayer {
+            alpha = when {
+                yPosition + height < 0f || yPosition > screenHeightPx -> 0f
+                yPosition < fadeThreshold -> {
+                    val progress = (yPosition + height) / (fadeThreshold + height)
+                    progress.coerceIn(0f, 1f)
+                }
+                yPosition + height > screenHeightPx - fadeThreshold -> {
+                    val progress = (screenHeightPx - yPosition) / (fadeThreshold + height)
+                    progress.coerceIn(0f, 1f)
+                }
+                else -> 1f
+            }
+        }
 }
 
 val GlassModifier = PremiumGlassModifier
@@ -722,6 +759,7 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
                         scaleY = scale
                         translationY = -scrollVal * 0.1f
                     }
+                    .scrollFadeInOut()
             ) {
                 val habits by mainViewModel.allHabits.collectAsState(initial = emptyList<com.example.data.Habit>())
                 val weightRecords by mainViewModel.allWeightRecords.collectAsState(initial = emptyList())
@@ -753,6 +791,7 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
                         scaleY = scale
                         translationY = -scrollVal * 0.08f
                     }
+                    .scrollFadeInOut()
             ) {
                 val habits by mainViewModel.allHabits.collectAsState(initial = emptyList<com.example.data.Habit>())
                 HeroMetric(habits, onNavigate)
@@ -760,9 +799,6 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
             
             Spacer(modifier = Modifier.height(32.dp))
             
-            DailyBriefWidget(onClick = { onNavigate("daily") })
-            
-            Spacer(modifier = Modifier.height(48.dp))
             MainContent(netWorth, petEvents, mainViewModel, petViewModel, onNavigate)
             Spacer(modifier = Modifier.height(140.dp))
         }
@@ -1085,50 +1121,14 @@ fun TopMetricsRow(
                 }
             }
 
-            // Widget 3 (Contexto / Momento)
+            // Widget 3 (Daily Brief - Pulsing Neon)
             Box(modifier = Modifier.width(76.dp)) {
-                val calendar = java.util.Calendar.getInstance()
-                val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
-                val contextIcon = when (hour) {
-                    in 5..11 -> Icons.Outlined.WbSunny
-                    in 12..17 -> Icons.Outlined.WorkOutline
-                    in 18..22 -> Icons.Outlined.Nightlight
-                    else -> Icons.Outlined.Bedtime
-                }
-                val contextValue = when (hour) {
-                    in 5..11 -> "Café"
-                    in 12..17 -> "Foco"
-                    in 18..22 -> "Relax"
-                    else -> "Dormir"
-                }
-                val contextLabel = when (hour) {
-                    in 5..11 -> "MATINAL"
-                    in 12..17 -> "PRODUTIVO"
-                    in 18..22 -> "MOMENTO"
-                    else -> "CONTEXTO"
-                }
-                val contextProgress = when (hour) {
-                    in 5..11 -> 0.25f
-                    in 12..17 -> 0.60f
-                    in 18..22 -> 0.85f
-                    else -> 1.0f
-                }
-                val contextColor = when (hour) {
-                    in 5..11 -> Color(0xFFF9A826)
-                    in 12..17 -> Color(0xFF4D96FF)
-                    in 18..22 -> Color(0xFFD7B4F3)
-                    else -> Color(0xFF71D7CD)
-                }
-                
-                MetricItemWithProgress(
-                    icon = contextIcon,
-                    value = contextValue,
-                    label = contextLabel,
-                    progressColor = contextColor,
-                    progress = contextProgress,
-                    onClick = { 
-                        Toast.makeText(context, "Modo $contextLabel: $contextValue", Toast.LENGTH_SHORT).show()
-                    }
+                MetricItemWithNeonPulse(
+                    icon = Icons.Outlined.AutoAwesome,
+                    value = "NOW",
+                    label = "DAILY",
+                    glowColor = Color(0xFF71D7CD),
+                    onClick = { onNavigate("daily") }
                 )
             }
 
@@ -1250,6 +1250,113 @@ fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, prog
         }
         Spacer(modifier = Modifier.height(12.dp))
         Text(label, fontSize = 9.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+fun MetricItemWithNeonPulse(
+    icon: ImageVector,
+    value: String,
+    label: String,
+    glowColor: Color = Color(0xFF71D7CD),
+    onClick: () -> Unit
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "NeonPulse")
+    val pulseGlowVal by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "PulseGlow"
+    )
+    val pulseScaleVal by infiniteTransition.animateFloat(
+        initialValue = 1.0f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "PulseScale"
+    )
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .graphicsLayer {
+                    scaleX = pulseScaleVal
+                    scaleY = pulseScaleVal
+                }
+                .clip(CircleShape)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            glowColor.copy(alpha = 0.15f * pulseGlowVal),
+                            Color(0x05FFFFFF)
+                        )
+                    )
+                )
+                .border(
+                    width = 1.dp,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            glowColor.copy(alpha = 0.8f * pulseGlowVal),
+                            glowColor.copy(alpha = 0.15f)
+                        )
+                    ),
+                    shape = CircleShape
+                )
+                .bounceClick { onClick() },
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                drawCircle(
+                    color = glowColor,
+                    radius = (size.minDimension / 2) - 1.dp.toPx(),
+                    style = Stroke(width = 6.dp.toPx() * pulseGlowVal, cap = StrokeCap.Round),
+                    alpha = 0.1f * pulseGlowVal
+                )
+                drawCircle(
+                    color = glowColor,
+                    radius = (size.minDimension / 2) - 1.dp.toPx(),
+                    style = Stroke(width = 3.dp.toPx() * pulseGlowVal, cap = StrokeCap.Round),
+                    alpha = 0.25f * pulseGlowVal
+                )
+                drawCircle(
+                    color = glowColor,
+                    radius = (size.minDimension / 2) - 1.dp.toPx(),
+                    style = Stroke(width = 1.dp.toPx(), cap = StrokeCap.Round),
+                    alpha = 0.8f
+                )
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 4.dp)) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = glowColor
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = value,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = label,
+            fontSize = 9.sp,
+            letterSpacing = 1.sp,
+            fontWeight = FontWeight.Bold,
+            color = glowColor.copy(alpha = 0.7f + 0.3f * pulseGlowVal)
+        )
     }
 }
 
@@ -1486,75 +1593,77 @@ fun MainContent(netWorth: Double, petEvents: List<com.example.data.PetEvent>, ma
                             animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
                         )
             ) {
-                when (module.id) {
-                    "finance" -> {
-                        val transactions by mainViewModel.allTransactions.collectAsState()
-                        val bankAccounts by mainViewModel.allBankAccounts.collectAsState(initial = emptyList())
-                        HomeFinanceWidget(transactions, bankAccounts, onNavigate)
-                    }
-                    "market" -> {
-                        val marketItems by mainViewModel.pendingMarketItems.collectAsState()
-                        MarketCard(marketItems, onNavigate)
-                    }
-                    "pets" -> {
-                        val pets by petViewModel.allPets.collectAsState(initial = emptyList())
-                        PetsCard(pets, onNavigate)
-                    }
-                    "health" -> {
-                        val medications by mainViewModel.allMedications.collectAsState()
-                        val weightRecords by mainViewModel.allWeightRecords.collectAsState(initial = emptyList())
-                        val stepsRecords by mainViewModel.allStepsRecords.collectAsState(initial = emptyList())
-                        val healthProfile by mainViewModel.healthProfile.collectAsState(initial = null)
+                Box(modifier = Modifier.fillMaxWidth().scrollFadeInOut()) {
+                    when (module.id) {
+                        "finance" -> {
+                            val transactions by mainViewModel.allTransactions.collectAsState()
+                            val bankAccounts by mainViewModel.allBankAccounts.collectAsState(initial = emptyList())
+                            HomeFinanceWidget(transactions, bankAccounts, onNavigate)
+                        }
+                        "market" -> {
+                            val marketItems by mainViewModel.pendingMarketItems.collectAsState()
+                            MarketCard(marketItems, onNavigate)
+                        }
+                        "pets" -> {
+                            val pets by petViewModel.allPets.collectAsState(initial = emptyList())
+                            PetsCard(pets, onNavigate)
+                        }
+                        "health" -> {
+                            val medications by mainViewModel.allMedications.collectAsState()
+                            val weightRecords by mainViewModel.allWeightRecords.collectAsState(initial = emptyList())
+                            val stepsRecords by mainViewModel.allStepsRecords.collectAsState(initial = emptyList())
+                            val healthProfile by mainViewModel.healthProfile.collectAsState(initial = null)
 
-                        val latestWeight = weightRecords.lastOrNull()?.weightKg ?: 0.0
-                        val heightCm = healthProfile?.heightCm ?: 0.0
-                        val height = if (heightCm > 0.0) heightCm / 100.0 else 1.75
-                        val bmi = if (latestWeight > 0.0 && height > 0.0) latestWeight / (height * height) else 0.0
+                            val latestWeight = weightRecords.lastOrNull()?.weightKg ?: 0.0
+                            val heightCm = healthProfile?.heightCm ?: 0.0
+                            val height = if (heightCm > 0.0) heightCm / 100.0 else 1.75
+                            val bmi = if (latestWeight > 0.0 && height > 0.0) latestWeight / (height * height) else 0.0
 
-                        val todayStart = java.util.Calendar.getInstance().apply {
-                            set(java.util.Calendar.HOUR_OF_DAY, 0)
-                            set(java.util.Calendar.MINUTE, 0)
-                            set(java.util.Calendar.SECOND, 0)
-                            set(java.util.Calendar.MILLISECOND, 0)
-                        }.timeInMillis
-                        val todayEnd = java.util.Calendar.getInstance().apply {
-                            set(java.util.Calendar.HOUR_OF_DAY, 23)
-                            set(java.util.Calendar.MINUTE, 59)
-                            set(java.util.Calendar.SECOND, 59)
-                            set(java.util.Calendar.MILLISECOND, 999)
-                        }.timeInMillis
-                        val todaySteps = stepsRecords.filter { it.startTime >= todayStart && it.endTime <= todayEnd }.sumOf { it.count }
+                            val todayStart = java.util.Calendar.getInstance().apply {
+                                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                                set(java.util.Calendar.MINUTE, 0)
+                                set(java.util.Calendar.SECOND, 0)
+                                set(java.util.Calendar.MILLISECOND, 0)
+                            }.timeInMillis
+                            val todayEnd = java.util.Calendar.getInstance().apply {
+                                set(java.util.Calendar.HOUR_OF_DAY, 23)
+                                set(java.util.Calendar.MINUTE, 59)
+                                set(java.util.Calendar.SECOND, 59)
+                                set(java.util.Calendar.MILLISECOND, 999)
+                            }.timeInMillis
+                            val todaySteps = stepsRecords.filter { it.startTime >= todayStart && it.endTime <= todayEnd }.sumOf { it.count }
 
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .bounceClick { onNavigate("health") }
-                        ) {
-                            HealthWidget(
-                                medications = medications,
-                                onToggleMedication = { med -> mainViewModel.toggleMedicationTaken(med) },
-                                latestWeight = latestWeight,
-                                todaySteps = todaySteps,
-                                bmi = bmi
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .bounceClick { onNavigate("health") }
+                            ) {
+                                HealthWidget(
+                                    medications = medications,
+                                    onToggleMedication = { med -> mainViewModel.toggleMedicationTaken(med) },
+                                    latestWeight = latestWeight,
+                                    todaySteps = todaySteps,
+                                    bmi = bmi
+                                )
+                            }
+                        }
+                        "goals" -> {
+                            val habits by mainViewModel.allHabits.collectAsState(initial = emptyList())
+                            val purchaseGoals by mainViewModel.allPurchaseGoals.collectAsState(initial = emptyList())
+                            val routines by mainViewModel.allRoutines.collectAsState(initial = emptyList())
+                            GoalsWidget(
+                                habits = habits,
+                                purchaseGoals = purchaseGoals,
+                                routines = routines,
+                                onToggleHabit = { habit -> mainViewModel.toggleHabitCompleted(habit) },
+                                onNavigate = { route ->
+                                    if (route == "goals") {
+                                        mainViewModel.selectedGoalsTab = 0
+                                    }
+                                    onNavigate(route)
+                                }
                             )
                         }
-                    }
-                    "goals" -> {
-                        val habits by mainViewModel.allHabits.collectAsState(initial = emptyList())
-                        val purchaseGoals by mainViewModel.allPurchaseGoals.collectAsState(initial = emptyList())
-                        val routines by mainViewModel.allRoutines.collectAsState(initial = emptyList())
-                        GoalsWidget(
-                            habits = habits,
-                            purchaseGoals = purchaseGoals,
-                            routines = routines,
-                            onToggleHabit = { habit -> mainViewModel.toggleHabitCompleted(habit) },
-                            onNavigate = { route ->
-                                if (route == "goals") {
-                                    mainViewModel.selectedGoalsTab = 0
-                                }
-                                onNavigate(route)
-                            }
-                        )
                     }
                 }
             }
@@ -1682,11 +1791,11 @@ fun HealthWidget(
     var showFeelingDialog by remember { mutableStateOf(false) }
 
     val feelings = listOf(
-        Triple("⚡", "Energizado", PrimaryTeal),
-        Triple("😌", "Calmo", SecondaryGold),
-        Triple("😴", "Cansado", TertiaryPurple),
-        Triple("🧘", "Focado", Color(0xFF64B5F6)), // Light Blue
-        Triple("😰", "Estressado", Color(0xFFE57373)) // Light Red
+        Triple(Icons.Outlined.FlashOn, "Energizado", PrimaryTeal),
+        Triple(Icons.Outlined.Spa, "Calmo", SecondaryGold),
+        Triple(Icons.Outlined.Bedtime, "Cansado", TertiaryPurple),
+        Triple(Icons.Outlined.Adjust, "Focado", Color(0xFF64B5F6)), // Light Blue
+        Triple(Icons.Outlined.Speed, "Estressado", Color(0xFFE57373)) // Light Red
     )
 
     if (showFeelingDialog) {
@@ -1695,10 +1804,10 @@ fun HealthWidget(
             title = { Text("Qual é a sua vibe hoje?", fontFamily = FontFamily.Serif, color = MaterialTheme.colorScheme.onSurface) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    feelings.forEach { (emoji, label, color) ->
+                    feelings.forEach { (icon, label, color) ->
                         TextButton(
                             onClick = {
-                                userFeeling = "$emoji $label"
+                                userFeeling = label
                                 sharedPrefs.edit().putString("user_feeling", userFeeling).apply()
                                 showFeelingDialog = false
                             },
@@ -1709,7 +1818,12 @@ fun HealthWidget(
                                 horizontalArrangement = Arrangement.Start,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(emoji, fontSize = 20.sp)
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = label,
+                                    tint = color,
+                                    modifier = Modifier.size(20.dp)
+                                )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Text(label, fontSize = 16.sp, color = color, fontWeight = FontWeight.Medium)
                             }
@@ -1825,18 +1939,22 @@ fun HealthWidget(
                 } else {
                     val matchingFeeling = feelings.firstOrNull { userFeeling.contains(it.second) }
                     val feelingColor = matchingFeeling?.third ?: PrimaryTeal
+                    val feelingIcon = matchingFeeling?.first ?: Icons.Outlined.FlashOn
+                    val feelingLabel = matchingFeeling?.second ?: userFeeling
                     
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.clickable { showFeelingDialog = true }
                     ) {
-                        Text(
-                            text = userFeeling.substringBefore(" "),
-                            fontSize = 24.sp
+                        Icon(
+                            imageVector = feelingIcon,
+                            contentDescription = feelingLabel,
+                            tint = feelingColor,
+                            modifier = Modifier.size(28.dp)
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = userFeeling.substringAfter(" "),
+                            text = feelingLabel,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = feelingColor

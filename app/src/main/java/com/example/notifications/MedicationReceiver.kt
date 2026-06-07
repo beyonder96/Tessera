@@ -19,6 +19,8 @@ class MedicationReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val medName = intent.getStringExtra("MED_NAME") ?: "Remédio"
         val medDosage = intent.getStringExtra("MED_DOSAGE") ?: ""
+        val dosageText = if (medDosage.isNotBlank()) " ($medDosage)" else ""
+        val messageText = "Não se esqueça de tomar $medName$dosageText."
         
         val db = AppDatabase.getDatabase(context)
         CoroutineScope(Dispatchers.IO).launch {
@@ -43,7 +45,7 @@ class MedicationReceiver : BroadcastReceiver() {
                     NotificationHelper.showNotification(
                         context = context,
                         title = "Hora do Remédio: $medName",
-                        message = "Não se esqueça de tomar $medName ($medDosage).",
+                        message = messageText,
                         notificationId = medName.hashCode()
                     )
                 }
@@ -61,7 +63,7 @@ class MedicationReceiver : BroadcastReceiver() {
                 NotificationHelper.showNotification(
                     context = context,
                     title = "Hora do Remédio: $medName",
-                    message = "Não se esqueça de tomar $medName ($medDosage).",
+                    message = messageText,
                     notificationId = medName.hashCode()
                 )
             }

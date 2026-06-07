@@ -10,12 +10,12 @@ android {
   namespace = "com.example"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
-  defaultConfig {
+    defaultConfig {
     applicationId = "com.aistudio.tessera.xtrkna"
     minSdk = 26
     targetSdk = 36
-    versionCode = 3
-    versionName = "1.0.3"
+    versionCode = 4
+    versionName = "1.1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

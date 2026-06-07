@@ -28,12 +28,14 @@ import com.example.data.AppDatabase
 import com.example.data.Habit
 import com.example.data.Routine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 
 class GoalsGlanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val db = AppDatabase.getDatabase(context)
-        val habits = db.tesseraDao().getAllHabits().first()
-        val routines = db.tesseraDao().getAllRoutines().first()
+        val habits = withContext(Dispatchers.IO) { db.tesseraDao().getAllHabits().first() }
+        val routines = withContext(Dispatchers.IO) { db.tesseraDao().getAllRoutines().first() }
 
         provideContent {
             GoalsWidgetContent(context = context, habits = habits, routines = routines)

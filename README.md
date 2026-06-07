@@ -8,10 +8,19 @@
 
 Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.build-outputs/`:
 
-* **[📥 app-release-1.0.3.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.0.3.apk)**  
+* **[📥 app-release-1.1.0.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.1.0.apk)**  
   *Versão final de produção. Otimizada (~12.2 MB), com minificação de código (R8/ProGuard), remoção automática de logs de depuração/prints de console e compressão extrema de assets (PNG Crunching).*
-* **[📥 app-debug-1.0.3.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.0.3.apk)**  
+* **[📥 app-debug-1.1.0.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.1.0.apk)**  
   *Versão para testes contendo ferramentas de depuração ativas.*
+
+---
+
+## 🚀 Novidades da Versão 1.1.0 ✨
+* 🌀 **Animações de Scroll Premium**: Adicionamos efeitos dinâmicos de fade-in e fade-out na aba Hoje baseados no posicionamento vertical real de cada widget durante a rolagem.
+* ⚡ **Vibe Minimalista/Premium**: Substituímos os antigos emojis por ícones vetoriais refinados e discretos do Material Design, salvando dados textuais e recuperando-os dinamicamente.
+* 🗑️ **Exclusão de Medicamentos**: Adicionamos ícones de lixeira e caixa de diálogo (`AlertDialog`) com confirmação de segurança para exclusão direta na aba Saúde.
+* 🩺 **Notificações Inteligentes**: Removemos os parênteses vazios indesejados nas mensagens de alerta de medicamentos quando a dosagem está em branco.
+* 📱 **Correção de Widgets Android (Glance)**: Corrigimos o travamento infinito de "Carregando..." dos widgets na tela inicial, movendo todas as buscas ao banco de dados Room para a thread de I/O assíncrona (`Dispatchers.IO`).
 
 ---
 
@@ -83,8 +92,8 @@ Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.bui
 ```text
 Tessera/
 ├── .build-outputs/       # Diretório de APKs compilados e prontos para uso
-│   ├── app-debug-1.0.3.apk # Versão de testes com logs ativos
-│   └── app-release-1.0.3.apk # Versão final de produção assinada
+│   ├── app-debug-1.1.0.apk # Versão de testes com logs ativos
+│   └── app-release-1.1.0.apk # Versão final de produção assinada
 ├── app/                  # Módulo principal Android (Código Kotlin & Jetpack Compose)
 │   ├── src/main/java/    # Arquivos de código-fonte
 │   └── proguard-rules.pro# Regras de minificação R8/ProGuard

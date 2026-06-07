@@ -27,11 +27,13 @@ import com.example.R
 import com.example.data.AppDatabase
 import com.example.data.MarketItem
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 
 class MarketGlanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val db = AppDatabase.getDatabase(context)
-        val items = db.tesseraDao().getPendingMarketItems().first()
+        val items = withContext(Dispatchers.IO) { db.tesseraDao().getPendingMarketItems().first() }
 
         provideContent {
             MarketWidgetContent(context = context, items = items)

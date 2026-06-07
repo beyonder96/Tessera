@@ -28,13 +28,15 @@ import com.example.data.AppDatabase
 import com.example.data.Transaction
 import com.example.data.BankAccount
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import java.util.Locale
 
 class FinanceGlanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val db = AppDatabase.getDatabase(context)
-        val transactions = db.tesseraDao().getAllTransactions().first()
-        val bankAccounts = db.tesseraDao().getAllBankAccounts().first()
+        val transactions = withContext(Dispatchers.IO) { db.tesseraDao().getAllTransactions().first() }
+        val bankAccounts = withContext(Dispatchers.IO) { db.tesseraDao().getAllBankAccounts().first() }
 
         provideContent {
             FinanceWidgetContent(context = context, transactions = transactions, bankAccounts = bankAccounts)
