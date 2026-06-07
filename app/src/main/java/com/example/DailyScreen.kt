@@ -67,6 +67,7 @@ fun DailyScreen(
     val healthProfile by viewModel.healthProfile.collectAsStateWithLifecycle(initialValue = null)
     val bankAccounts by viewModel.allBankAccounts.collectAsStateWithLifecycle(initialValue = emptyList())
     val pets by petViewModel.allPets.collectAsStateWithLifecycle(initialValue = emptyList())
+    val weatherState by viewModel.weatherState.collectAsStateWithLifecycle(initialValue = null)
 
     // Quick Dialog States
     var showQuickExpenseDialog by remember { mutableStateOf(false) }
@@ -251,7 +252,7 @@ fun DailyScreen(
                 visible = animateHeader,
                 enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { 30 })
             ) {
-                WeatherHeaderCard(hour, weekDayStr, dayOfMonth, monthName, greeting)
+                WeatherHeaderCard(hour, weekDayStr, dayOfMonth, monthName, greeting, weatherState)
             }
 
             // 2. Gemma AI Advice Card
@@ -411,25 +412,51 @@ fun DailyScreen(
 
 // 1. WeatherHeaderCard
 @Composable
-fun WeatherHeaderCard(hour: Int, weekDayStr: String, dayOfMonth: Int, monthName: String, greeting: String) {
+fun WeatherHeaderCard(
+    hour: Int,
+    weekDayStr: String,
+    dayOfMonth: Int,
+    monthName: String,
+    greeting: String,
+    weatherState: TesseraViewModel.WeatherInfo?
+) {
     val skyBrush = when (hour) {
         in 5..11 -> Brush.verticalGradient(colors = listOf(Color(0xFFE0F7FA), Color(0xFF00ACC1)))
         in 12..17 -> Brush.verticalGradient(colors = listOf(Color(0xFF00ACC1), Color(0xFF006064)))
         in 18..19 -> Brush.verticalGradient(colors = listOf(Color(0xFF512DA8), Color(0xFFE91E63)))
         else -> Brush.verticalGradient(colors = listOf(Color(0xFF0B0F19), Color(0xFF020407)))
     }
-    val weatherIcon = when (hour) {
-        in 5..11 -> Icons.Outlined.WbSunny
-        in 12..17 -> Icons.Outlined.LightMode
-        in 18..19 -> Icons.Outlined.WbTwilight
-        else -> Icons.Outlined.NightlightRound
+    
+    val weatherIcon = if (weatherState != null) {
+        when (weatherState.weatherCode) {
+            0 -> if (hour in 6..18) Icons.Outlined.WbSunny else Icons.Outlined.NightlightRound
+            1, 2, 3 -> Icons.Outlined.Cloud
+            45, 48 -> Icons.Outlined.Cloud // Fallback logic for fog
+            51, 53, 55, 61, 63, 65, 80, 81, 82 -> Icons.Outlined.Grain
+            95, 96, 99 -> Icons.Outlined.Thunderstorm
+            else -> if (hour in 6..18) Icons.Outlined.LightMode else Icons.Outlined.NightlightRound
+        }
+    } else {
+        when (hour) {
+            in 5..11 -> Icons.Outlined.WbSunny
+            in 12..17 -> Icons.Outlined.LightMode
+            in 18..19 -> Icons.Outlined.WbTwilight
+            else -> Icons.Outlined.NightlightRound
+        }
     }
-    val weatherTemp = when (hour) {
-        in 5..11 -> "21°C • Manhã Fresca"
-        in 12..17 -> "26°C • Sol e Nuvens"
-        in 18..19 -> "22°C • Pôr do Sol"
-        else -> "18°C • Céu Limpo"
+
+    val weatherTemp = if (weatherState != null) {
+        "${String.format(Locale.US, "%.0f", weatherState.temp)}°C • ${weatherState.description}"
+    } else {
+        when (hour) {
+            in 5..11 -> "21°C • Manhã Fresca"
+            in 12..17 -> "26°C • Sol e Nuvens"
+            in 18..19 -> "22°C • Pôr do Sol"
+            else -> "18°C • Céu Limpo"
+        }
     }
+
+    val weatherCity = weatherState?.city ?: "Buscando clima..."
 
     Box(
         modifier = Modifier
@@ -441,10 +468,9 @@ fun WeatherHeaderCard(hour: Int, weekDayStr: String, dayOfMonth: Int, monthName:
         Column {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "$weekDayStr, $dayOfMonth de $monthName".uppercase(),
                         fontSize = 11.sp,
@@ -456,12 +482,21 @@ fun WeatherHeaderCard(hour: Int, weekDayStr: String, dayOfMonth: Int, monthName:
                     Text(
                         text = "$greeting, Kenned.",
                         fontFamily = FontFamily.Serif,
-                        fontSize = 32.sp,
+                        fontSize = 28.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = if (hour in 5..19) Color.Black else Color.White,
-                        lineHeight = 36.sp
+                        lineHeight = 32.sp
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = weatherCity,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (hour in 5..19) Color.Black.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.5f)
                     )
                 }
+                
+                Spacer(modifier = Modifier.width(16.dp))
                 
                 Column(horizontalAlignment = Alignment.End) {
                     Icon(
@@ -474,7 +509,7 @@ fun WeatherHeaderCard(hour: Int, weekDayStr: String, dayOfMonth: Int, monthName:
                     Text(
                         text = weatherTemp,
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
+                        fontWeight = FontWeight.Bold,
                         color = if (hour in 5..19) Color.Black.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.8f)
                     )
                 }

@@ -601,8 +601,15 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
             .fillMaxSize()
             .background(Color(0xFF070909))
     ) {
-        val blurRadius = (scrollState.value * 0.04f).coerceIn(0f, 16f).dp
-        AsyncImage(
+        val chatSheetBlur by animateDpAsState(if (showChatSheet) 20.dp else 0.dp, label = "ChatSheetBlur")
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .blur(chatSheetBlur)
+        ) {
+            val blurRadius = (scrollState.value * 0.04f).coerceIn(0f, 16f).dp
+            AsyncImage(
             model = backgroundUri,
             contentDescription = null,
             contentScale = ContentScale.Crop,
@@ -760,6 +767,7 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
             Spacer(modifier = Modifier.height(140.dp))
         }
     }
+}
 
     if (showChatSheet) {
         TesseraChatSheet(
@@ -3420,7 +3428,8 @@ fun TesseraChatSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color(0xCC070909), // More translucent for glass effect
+        containerColor = Color(0xB3070909), // 70% opacity for premium frosted glass effect
+        scrimColor = Color(0x1F000000), // Subtle shadow to let the blurred background shine through
         modifier = Modifier.fillMaxHeight(0.95f) // Taller sheet
     ) {
         Column(

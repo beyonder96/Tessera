@@ -22,13 +22,100 @@ import com.example.data.RoutineStep
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.combine
 import java.util.Calendar
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
 
 class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() {
+
+    // Weather structures
+    data class WeatherInfo(
+        val temp: Double,
+        val description: String,
+        val city: String,
+        val weatherCode: Int
+    )
+
+    private val _weatherState = MutableStateFlow<WeatherInfo?>(null)
+    val weatherState: StateFlow<WeatherInfo?> = _weatherState.asStateFlow()
+
+    init {
+        fetchWeather()
+    }
+
+    fun fetchWeather() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // 1. Get location by IP
+                val ipUrl = java.net.URL("https://ipapi.co/json/")
+                val ipConnection = ipUrl.openConnection() as java.net.HttpURLConnection
+                ipConnection.connectTimeout = 3000
+                ipConnection.readTimeout = 3000
+                val ipResponse = ipConnection.inputStream.bufferedReader().use { it.readText() }
+                val ipJson = org.json.JSONObject(ipResponse)
+                
+                val lat = ipJson.optDouble("latitude", -23.5505)
+                val lon = ipJson.optDouble("longitude", -46.6333)
+                val city = ipJson.optString("city", "São Paulo")
+                
+                // 2. Get current weather from Open-Meteo
+                val weatherUrl = java.net.URL("https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true")
+                val weatherConnection = weatherUrl.openConnection() as java.net.HttpURLConnection
+                weatherConnection.connectTimeout = 3000
+                weatherConnection.readTimeout = 3000
+                val weatherResponse = weatherConnection.inputStream.bufferedReader().use { it.readText() }
+                val weatherJson = org.json.JSONObject(weatherResponse)
+                
+                val currentWeather = weatherJson.getJSONObject("current_weather")
+                val temp = currentWeather.getDouble("temperature")
+                val code = currentWeather.getInt("weathercode")
+                
+                val description = getWeatherDescription(code)
+                
+                _weatherState.value = WeatherInfo(
+                    temp = temp,
+                    description = description,
+                    city = city,
+                    weatherCode = code
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // Default fallback based on local time
+                val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+                val (fallbackTemp, fallbackDesc) = when (hour) {
+                    in 5..11 -> 21.0 to "Manhã Fresca"
+                    in 12..17 -> 26.0 to "Sol e Nuvens"
+                    in 18..19 -> 22.0 to "Pôr do Sol"
+                    else -> 18.0 to "Céu Limpo"
+                }
+                _weatherState.value = WeatherInfo(
+                    temp = fallbackTemp,
+                    description = fallbackDesc,
+                    city = "Local",
+                    weatherCode = 0
+                )
+            }
+        }
+    }
+
+    private fun getWeatherDescription(code: Int): String {
+        return when (code) {
+            0 -> "Céu Limpo"
+            1, 2, 3 -> "Parcialmente Nublado"
+            45, 48 -> "Nevoeiro"
+            51, 53, 55 -> "Garoa"
+            61, 63, 65 -> "Chuva"
+            71, 73, 75 -> "Neve"
+            80, 81, 82 -> "Pancadas de Chuva"
+            95, 96, 99 -> "Tempestade"
+            else -> "Céu Limpo"
+        }
+    }
 
     var selectedGoalsTab: Int = 0
 
