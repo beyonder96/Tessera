@@ -101,6 +101,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.spring
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.components.OuraCircularProgress
 import androidx.compose.ui.draw.alpha
@@ -198,8 +199,37 @@ fun TesseraApp() {
         return
     }
 
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { /* Permissão concedida ou negada */ }
+    )
+
     LaunchedEffect(Unit) {
         viewModel.initializeDataIfNeeded()
+        
+        // Solicita permissão de notificação no Android 13+ (API 33+) se ainda não concedida
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            val hasPermission = ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.POST_NOTIFICATIONS
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (!hasPermission) {
+                notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
+        // Re-agenda todos os alarmes de medicamentos no início do app para garantir que estão registrados no AlarmManager
+        launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val db = AppDatabase.getDatabase(context)
+                val meds = db.tesseraDao().getAllMedications().first()
+                for (med in meds) {
+                    com.example.notifications.AlarmScheduler.scheduleMedicationAlarm(context, med.name, med.dosage, med.time)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     LaunchedEffect(Unit) {

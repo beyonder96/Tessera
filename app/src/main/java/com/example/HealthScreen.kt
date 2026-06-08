@@ -799,7 +799,10 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
             text = { Text("Deseja realmente excluir o medicamento \"${medicationToDelete?.name}\"?", color = OnBackgroundDark.copy(alpha = 0.8f)) },
             confirmButton = {
                 TextButton(onClick = {
-                    medicationToDelete?.let { viewModel.deleteMedication(it) }
+                    medicationToDelete?.let { 
+                        viewModel.deleteMedication(it)
+                        com.example.notifications.AlarmScheduler.cancelMedicationAlarm(context, it.name)
+                    }
                     medicationToDelete = null
                 }) {
                     Text("EXCLUIR", color = Color(0xFFFF5252), fontWeight = FontWeight.Bold)

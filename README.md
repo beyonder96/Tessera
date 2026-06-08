@@ -18,6 +18,7 @@ Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.bui
 ## 🚀 Novidades da Versão 1.1.0 ✨
 * 🌀 **Animações de Scroll Premium**: Adicionamos efeitos dinâmicos de fade-in e fade-out na aba Hoje baseados no posicionamento vertical real de cada widget durante a rolagem.
 * ⚡ **Vibe Minimalista/Premium**: Substituímos os antigos emojis por ícones vetoriais refinados e discretos do Material Design, salvando dados textuais e recuperando-os dinamicamente.
+* 🩺 **Notificações Exatas e Interativas**: Correção e upgrade do fluxo de alarmes para medicamentos usando alarmes exatos (`setExactAndAllowWhileIdle`), persistência após boot do dispositivo (`BootReceiver`), solicitação de permissão de notificações ativa ao iniciar o app, e botão de ação rápida **"Marcar como tomado"** diretamente no banner pop-up.
 * 🗑️ **Exclusão de Medicamentos**: Adicionamos ícones de lixeira e caixa de diálogo (`AlertDialog`) com confirmação de segurança para exclusão direta na aba Saúde.
 * 🩺 **Notificações Inteligentes**: Removemos os parênteses vazios indesejados nas mensagens de alerta de medicamentos quando a dosagem está em branco.
 * 📱 **Correção de Widgets Android (Glance)**: Corrigimos o travamento infinito de "Carregando..." dos widgets na tela inicial, movendo todas as buscas ao banco de dados Room para a thread de I/O assíncrona (`Dispatchers.IO`).
