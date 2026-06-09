@@ -80,11 +80,13 @@ fun DailyScreen(
     val bankAccounts by viewModel.allBankAccounts.collectAsStateWithLifecycle(initialValue = emptyList())
     val medications by viewModel.allMedications.collectAsStateWithLifecycle(initialValue = emptyList())
     val weatherState by viewModel.weatherState.collectAsStateWithLifecycle(initialValue = null)
+    val dailyBriefingText by viewModel.dailyBriefingText.collectAsStateWithLifecycle(initialValue = null)
 
     // Local Chat Message list and input states
     var chatInputText by remember { mutableStateOf("") }
     var chatMessages by remember { mutableStateOf(listOf<ChatMessage>()) }
     var isThinking by remember { mutableStateOf(false) }
+    var activeMindSession by remember { mutableStateOf<Pair<String, String>?>(null) }
 
 
 
@@ -113,7 +115,7 @@ fun DailyScreen(
 
     // Load user profile name if exists, fallback to dynamic request defaults
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", Context.MODE_PRIVATE) }
-    val userName = remember { sharedPrefs.getString("user_profile_name", "Maria") ?: "Maria" }
+    val userName = remember { sharedPrefs.getString("user_name", "Kenned") ?: "Kenned" }
 
     // Calculations for the dynamic summary
     val totalIncome = transactions.filter { it.isIncome }.sumOf { it.value }
@@ -147,7 +149,7 @@ fun DailyScreen(
         if (latestSleepRecord != null) {
             val cal = Calendar.getInstance().apply { timeInMillis = latestSleepRecord.endTime }
             String.format(Locale.US, "%02d:%02d", cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE))
-        } else "04:30"
+        } else "05:30"
     }
 
     val activeTasksText = remember(habits) {
@@ -159,13 +161,14 @@ fun DailyScreen(
         }
     }
 
-    val personalizedAISummary = remember(sleepText, activeTasksText) {
+    val personalizedAISummary = dailyBriefingText ?: remember(sleepText, activeTasksText) {
         "Você dormiu $sleepText. $activeTasksText"
     }
 
     // Cascade animation entry triggers
     var animateItems by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
+        viewModel.refreshAIInsightsAndMetric()
         delay(80)
         animateItems = true
     }
@@ -280,7 +283,7 @@ fun DailyScreen(
                     .weight(1f)
                     .verticalScroll(scrollState)
                     .padding(horizontal = 24.dp)
-                    .padding(bottom = 60.dp),
+                    .padding(bottom = 140.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -409,11 +412,19 @@ fun DailyScreen(
                         )
 
                         // 5. FOOTER - QUIET THE MIND CAROUSEL
-                        QuietTheMindSection()
+                        QuietTheMindSection(onSessionClick = { activeMindSession = it })
                     }
                 }
             }
         }
+    }
+
+    if (activeMindSession != null) {
+        QuietTheMindPlayerDialog(
+            sessionTitle = activeMindSession!!.first,
+            imageUrl = activeMindSession!!.second,
+            onDismiss = { activeMindSession = null }
+        )
     }
 }
 
@@ -489,13 +500,31 @@ fun HeaderGreetingSection(
                             color = Color.White
                         )
                     }
-                    Text(
-                        text = tempVal,
-                        fontSize = 20.sp,
-                        fontFamily = FontFamily.Serif,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = tempVal,
+                            fontSize = 20.sp,
+                            fontFamily = FontFamily.Serif,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.LocationOn,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.6f),
+                                modifier = Modifier.size(10.dp)
+                            )
+                            Text(
+                                text = weatherState?.city ?: "São Paulo",
+                                fontSize = 10.sp,
+                                color = Color.White.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
                 }
 
                 // Semicircle celestial arc path drawn inside Canvas
@@ -1111,7 +1140,7 @@ fun ConnectivityDock(
 
 // 6. QuietTheMindSection (Footer Image Carousel)
 @Composable
-fun QuietTheMindSection() {
+fun QuietTheMindSection(onSessionClick: (Pair<String, String>) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1160,6 +1189,7 @@ fun QuietTheMindSection() {
                         .clip(RoundedCornerShape(20.dp))
                         .background(Color(0x05FFFFFF))
                         .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(20.dp))
+                        .clickable { onSessionClick(Pair(title, imageUrl)) }
                 ) {
                     AsyncImage(
                         model = imageUrl,
@@ -1196,6 +1226,232 @@ fun QuietTheMindSection() {
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+// 7. QuietTheMindPlayerDialog Component
+@Composable
+fun QuietTheMindPlayerDialog(
+    sessionTitle: String,
+    imageUrl: String,
+    onDismiss: () -> Unit
+) {
+    var isPlaying by remember { mutableStateOf(true) }
+    var timeLeftSeconds by remember { mutableStateOf(300) } // 5 minutes default
+    
+    // Timer ticking
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            while (timeLeftSeconds > 0) {
+                delay(1000)
+                timeLeftSeconds--
+            }
+            isPlaying = false
+        }
+    }
+    
+    // Breathing state: 0 = inhale, 1 = hold, 2 = exhale, 3 = hold
+    var breathingPhase by remember { mutableStateOf(0) }
+    var breathingText by remember { mutableStateOf("Inspire") }
+    
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            while (timeLeftSeconds > 0) {
+                // Inhale: 4s
+                breathingPhase = 0
+                breathingText = "Inspire"
+                delay(4000)
+                
+                // Hold: 4s
+                breathingPhase = 1
+                breathingText = "Segure"
+                delay(4000)
+                
+                // Exhale: 4s
+                breathingPhase = 2
+                breathingText = "Expire"
+                delay(4000)
+                
+                // Hold: 4s
+                breathingPhase = 3
+                breathingText = "Segure"
+                delay(4000)
+            }
+        }
+    }
+    
+    val breathingScale by animateFloatAsState(
+        targetValue = when (breathingPhase) {
+            0 -> 1.5f
+            1 -> 1.5f
+            2 -> 1.0f
+            else -> 1.0f
+        },
+        animationSpec = tween(
+            durationMillis = 4000,
+            easing = LinearEasing
+        ),
+        label = "BreathingScale"
+    )
+    
+    Dialog(onDismissRequest = onDismiss) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .wrapContentHeight()
+                .clip(RoundedCornerShape(32.dp))
+                .background(Color(0xFF0F0E17).copy(alpha = 0.95f))
+                .border(1.dp, Color(0x26FFFFFF), RoundedCornerShape(32.dp))
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "QUIET THE MIND",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFA5D6A7),
+                        letterSpacing = 1.5.sp
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Fechar",
+                            tint = Color.White.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+                
+                // Session title & Image
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = sessionTitle,
+                        fontSize = 24.sp,
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "Sessão de relaxamento ativa",
+                        fontSize = 12.sp,
+                        color = Color.White.copy(alpha = 0.5f)
+                    )
+                }
+                
+                // Interactive Breathing Circle
+                Box(
+                    modifier = Modifier
+                        .size(180.dp)
+                        .padding(20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Outer pulsating halo
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .scale(breathingScale)
+                            .clip(CircleShape)
+                            .background(Color(0x1FA5D6A7))
+                            .border(1.5.dp, Color(0x66A5D6A7), CircleShape)
+                    )
+                    
+                    // Inner core circle
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = breathingText,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White
+                        )
+                    }
+                }
+                
+                // Timer Text
+                val minutes = timeLeftSeconds / 60
+                val seconds = timeLeftSeconds % 60
+                val timeFormatted = String.format(Locale.US, "%02d:%02d", minutes, seconds)
+                Text(
+                    text = timeFormatted,
+                    fontSize = 32.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                
+                // Control buttons
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(24.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Select time
+                    IconButton(
+                        onClick = {
+                            timeLeftSeconds = (timeLeftSeconds + 60).coerceAtMost(900)
+                        },
+                        modifier = Modifier
+                            .size(44.dp)
+                            .background(Color(0x0DFFFFFF), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Adicionar 1 min",
+                            tint = Color.White
+                        )
+                    }
+                    
+                    // Play / Pause
+                    FloatingActionButton(
+                        onClick = { isPlaying = !isPlaying },
+                        containerColor = Color(0xFFA5D6A7),
+                        contentColor = Color.Black,
+                        shape = CircleShape,
+                        modifier = Modifier.size(56.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (isPlaying) "Pausar" else "Iniciar",
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                    
+                    // Reset to 5:00
+                    IconButton(
+                        onClick = {
+                            timeLeftSeconds = 300
+                            isPlaying = false
+                        },
+                        modifier = Modifier
+                            .size(44.dp)
+                            .background(Color(0x0DFFFFFF), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Reiniciar",
+                            tint = Color.White
+                        )
+                    }
+                }
+                
+                Text(
+                    text = "Acompanhe o ritmo para acalmar a mente.",
+                    fontSize = 11.sp,
+                    color = Color.White.copy(alpha = 0.5f),
+                    textAlign = TextAlign.Center
+                )
             }
         }
     }

@@ -31,6 +31,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -382,7 +383,7 @@ fun TesseraApp() {
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 alignment = Alignment.TopCenter,
-                modifier = Modifier.fillMaxSize().blur(20.dp)
+                modifier = Modifier.fillMaxSize()
             )
             Box(
                 modifier = Modifier
@@ -627,6 +628,8 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
     val stepsRecords by mainViewModel.allStepsRecords.collectAsState(initial = emptyList())
     val marketItems by mainViewModel.pendingMarketItems.collectAsState(initial = emptyList())
     val medications by mainViewModel.allMedications.collectAsState(initial = emptyList())
+    val habits by mainViewModel.allHabits.collectAsState(initial = emptyList())
+    val sleepRecords by mainViewModel.allSleepRecords.collectAsState(initial = emptyList())
     
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
     var isBiometricEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("biometric_enabled", false)) }
@@ -769,18 +772,16 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
                     .scrollFadeInOut()
             ) {
                 TopMetricsRow(
-                    patrimony = realPatrimony,
-                    netWorth = realBalance,
-                    totalIncome = realIncome,
-                    totalExpense = realExpense,
-                    habits = emptyList<com.example.data.Habit>(),
-                    latestWeight = 75.2,
+                    habits = habits,
+                    sleepRecords = sleepRecords,
                     todaySteps = todaySteps,
                     onNavigate = onNavigate
                 )
             }
             
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+            ActivityDetectionCard()
+            Spacer(modifier = Modifier.height(24.dp))
             
             Box(
                 modifier = Modifier
@@ -860,85 +861,86 @@ fun TopHeader(onOpenSettings: () -> Unit, onOpenChat: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp),
+            .padding(horizontal = 24.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
+        // Menu button on left (3 horizontal lines) with a small blue indicator dot
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clickable { onOpenSettings() },
+            contentAlignment = Alignment.Center
+        ) {
+            Box(modifier = Modifier.size(20.dp)) {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(vertical = 3.dp),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Box(modifier = Modifier.fillMaxWidth(0.85f).height(1.8.dp).background(Color.White))
+                    Box(modifier = Modifier.fillMaxWidth().height(1.8.dp).background(Color.White))
+                    Box(modifier = Modifier.fillMaxWidth(0.65f).height(1.8.dp).background(Color.White))
+                }
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF4FC3F7))
+                        .align(Alignment.TopEnd)
+                )
+            }
+        }
+
+        // Central title "ŌURA"
         Text(
-            text = "Olá, $userName",
+            text = "ŌURA",
+            fontSize = 24.sp,
             fontFamily = FontFamily.SansSerif,
-            fontSize = 22.sp,
+            fontWeight = FontWeight.Normal,
             color = Color.White,
-            fontWeight = FontWeight.Light
+            letterSpacing = 4.sp,
+            textAlign = TextAlign.Center
         )
 
+        // Right buttons (Share and Target/Biometrics)
         Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // AI Chat Button
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(Color(0x1F71D7CD))
-                    .border(1.dp, Color(0x6671D7CD), CircleShape)
-                    .bounceClick(onOpenChat),
-                contentAlignment = Alignment.Center
+            IconButton(
+                onClick = {
+                    Toast.makeText(context, "Link de exportação gerado!", Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier.size(36.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.AutoAwesome,
-                    contentDescription = "Tessera AI Chat",
-                    tint = Color(0xFF71D7CD),
-                    modifier = Modifier.size(18.dp)
+                    imageVector = Icons.Default.Upload,
+                    contentDescription = "Compartilhar",
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
-            // Profile Image (click to change photo)
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(Color(0x0AFFFFFF))
-                    .border(1.dp, Color(0x1AFFFFFF), CircleShape)
-                    .bounceClick {
-                        launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                    },
-                contentAlignment = Alignment.Center
+            IconButton(
+                onClick = onOpenChat,
+                modifier = Modifier.size(36.dp)
             ) {
-                if (profileUri != null) {
-                    AsyncImage(
-                        model = profileUri,
-                        contentDescription = "Profile",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize().clip(CircleShape)
+                Canvas(modifier = Modifier.size(20.dp)) {
+                    drawCircle(
+                        color = Color.White,
+                        radius = size.minDimension / 2f,
+                        style = Stroke(width = 1.5.dp.toPx())
                     )
-                } else {
-                    Icon(
-                        imageVector = Icons.Outlined.AccountCircle,
-                        contentDescription = "Profile",
-                        tint = Color.White.copy(alpha = 0.8f),
-                        modifier = Modifier.size(22.dp)
+                    drawCircle(
+                        color = Color.White,
+                        radius = size.minDimension / 3.5f,
+                        style = Stroke(width = 1.5.dp.toPx())
+                    )
+                    drawCircle(
+                        color = Color.White,
+                        radius = 2.dp.toPx()
                     )
                 }
-            }
-
-            // Settings Button
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(Color(0x0AFFFFFF))
-                    .border(1.dp, Color(0x1AFFFFFF), CircleShape)
-                    .bounceClick(onOpenSettings),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Settings,
-                    contentDescription = "Configurações",
-                    tint = Color.White.copy(alpha = 0.8f),
-                    modifier = Modifier.size(18.dp)
-                )
             }
         }
     }
@@ -946,38 +948,37 @@ fun TopHeader(onOpenSettings: () -> Unit, onOpenChat: () -> Unit) {
 
 @Composable
 fun TopMetricsRow(
-    patrimony: Double,
-    netWorth: Double,
-    totalIncome: Double,
-    totalExpense: Double,
     habits: List<com.example.data.Habit>,
-    latestWeight: Double,
+    sleepRecords: List<com.example.data.SleepRecord>,
     todaySteps: Long,
     onNavigate: (String) -> Unit
 ) {
-    val context = LocalContext.current
-    val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
-    
-    // Widget 1 (Financeiro)
-    var financeIndex by remember { mutableStateOf(0) }
-    LaunchedEffect(Unit) {
-        while(true) {
-            kotlinx.coroutines.delay(5 * 60 * 1000L)
-            financeIndex = (financeIndex + 1) % 4
-        }
+    val readinessScore = remember(habits, sleepRecords) {
+        val habitFactor = if (habits.isNotEmpty()) (habits.count { it.isCompleted }.toFloat() / habits.size * 20).toInt() else 10
+        val latestSleepRecord = sleepRecords.lastOrNull()
+        val latestSleep = latestSleepRecord?.durationHours ?: 7.5
+        val sleepFactor = if (latestSleep == 0.0) 40 else (latestSleep.coerceIn(4.0, 10.0) * 8).toInt()
+        (40 + habitFactor + sleepFactor).coerceIn(50, 99)
     }
 
-    // Widget 2 (Saúde)
-    var healthIndex by remember { mutableStateOf(0) }
-    LaunchedEffect(Unit) {
-        while(true) {
-            kotlinx.coroutines.delay(5 * 60 * 1000L)
-            healthIndex = (healthIndex + 1) % 3
+    val sleepScore = remember(sleepRecords) {
+        val latestSleepRecord = sleepRecords.lastOrNull()
+        val latestSleep = latestSleepRecord?.durationHours ?: 7.5
+        val sleepEfficiency = if (latestSleep == 0.0) 92
+        else {
+            val base = 88 + (latestSleep % 1.0 * 8).toInt()
+            base.coerceIn(60, 98)
         }
+        sleepEfficiency
     }
 
-    // Widget 4 (Apartamento)
-    val aptProgress = sharedPrefs.getFloat("apartment_progress", 0f)
+    val activityScore = remember(todaySteps) {
+        if (todaySteps == 0L) 81 else ((todaySteps.toFloat() / 10000f) * 100).toInt().coerceIn(10, 100)
+    }
+
+    val heartRate = remember(todaySteps) {
+        if (todaySteps == 0L) 93 else (72 + (todaySteps % 23).toInt()).coerceIn(60, 120)
+    }
 
     var isRowVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -993,79 +994,362 @@ fun TopMetricsRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Widget 1 (Financeiro) with smooth crossfade rotation!
-            Box(modifier = Modifier.width(76.dp)) {
-                Crossfade(targetState = financeIndex, animationSpec = tween(500), label = "FinanceRotation") { idx ->
-                    val valIdx = when(idx) {
-                        0 -> patrimony
-                        1 -> netWorth
-                        2 -> totalIncome
-                        else -> totalExpense
-                    }
-                    val labelIdx = when(idx) {
-                        0 -> "PATRIMÔNIO"
-                        1 -> "SALDO"
-                        2 -> "RECEITAS"
-                        else -> "DESPESAS"
-                    }
-                    val iconIdx = when(idx) {
-                        0 -> Icons.Outlined.AccountBalance
-                        1 -> Icons.Outlined.AccountBalanceWallet
-                        2 -> Icons.Outlined.ArrowUpward
-                        else -> Icons.Outlined.ArrowDownward
-                    }
-                    val formattedIdx = if (valIdx >= 1000) "${(valIdx / 1000).toInt()}k" else valIdx.toInt().toString()
-                    MetricItem(iconIdx, formattedIdx, labelIdx, onClick = { onNavigate("finance") })
-                }
-            }
+            OuraMetricItem(
+                iconType = "readiness",
+                value = readinessScore.toString(),
+                label = "Readiness",
+                onClick = { onNavigate("health") }
+            )
+            OuraMetricItem(
+                iconType = "sleep",
+                value = sleepScore.toString(),
+                label = "Sleep",
+                onClick = { onNavigate("health") }
+            )
+            OuraMetricItem(
+                iconType = "activity",
+                value = activityScore.toString(),
+                label = "Activity",
+                onClick = { onNavigate("health") }
+            )
+            OuraMetricItem(
+                iconType = "heart",
+                value = heartRate.toString(),
+                label = "Heart rate",
+                onClick = { onNavigate("health") }
+            )
+        }
+    }
+}
 
-            // Widget 2 (Saúde) with smooth crossfade rotation!
-            Box(modifier = Modifier.width(76.dp)) {
-                Crossfade(targetState = healthIndex, animationSpec = tween(500), label = "HealthRotation") { idx ->
-                    val iconIdx = when (idx) {
-                        0 -> Icons.Outlined.Bedtime
-                        1 -> Icons.Outlined.MonitorWeight
-                        else -> Icons.Outlined.DirectionsWalk
+@Composable
+fun OuraMetricItem(
+    iconType: String,
+    value: String,
+    label: String,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable { onClick() }
+    ) {
+        Box(
+            modifier = Modifier
+                .size(76.dp)
+                .clip(CircleShape)
+                .background(Color(0x0CFFFFFF))
+                .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                // Icon at the top
+                when (iconType) {
+                    "readiness" -> {
+                        Icon(
+                            imageVector = Icons.Default.Spa,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.8f),
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
-                    val valIdx = when (idx) {
-                        0 -> "8.2h"
-                        1 -> String.format(java.util.Locale("pt", "BR"), "%.1f", latestWeight)
-                        else -> todaySteps.toString()
+                    "sleep" -> {
+                        Canvas(modifier = Modifier.size(14.dp)) {
+                            val w = size.width
+                            val h = size.height
+                            val path = Path().apply {
+                                moveTo(0f, h)
+                                lineTo(w, h)
+                                lineTo(w, h * 0.3f)
+                                lineTo(w * 0.75f, h * 0.6f)
+                                lineTo(w * 0.5f, h * 0.1f)
+                                lineTo(w * 0.25f, h * 0.6f)
+                                lineTo(0f, h * 0.3f)
+                                close()
+                            }
+                            drawPath(path, color = Color.White.copy(alpha = 0.8f))
+                        }
                     }
-                    val labelIdx = when (idx) {
-                        0 -> "SONO"
-                        1 -> "PESO"
-                        else -> "PASSOS"
+                    "activity" -> {
+                        Icon(
+                            imageVector = Icons.Default.Whatshot,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.8f),
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
-                    val progressIdx = when (idx) {
-                        0 -> 0.82f
-                        1 -> (latestWeight / 120.0f).toFloat().coerceIn(0f, 1f)
-                        else -> (todaySteps.toFloat() / 10000f).coerceIn(0f, 1f)
+                    "heart" -> {
+                        Icon(
+                            imageVector = Icons.Default.Favorite,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.8f),
+                            modifier = Modifier.size(14.dp)
+                        )
                     }
-                    val colorIdx = when (idx) {
-                        0 -> PrimaryTeal
-                        1 -> TertiaryPurple
-                        else -> Color(0xFF4D96FF)
-                    }
-                    MetricItemWithProgress(iconIdx, valIdx, labelIdx, colorIdx, progressIdx, onClick = { onNavigate("health") })
                 }
-            }
-
-            // Widget 3 (Daily Brief - Pulsing Neon)
-            Box(modifier = Modifier.width(76.dp)) {
-                MetricItemWithNeonPulse(
-                    icon = Icons.Outlined.AutoAwesome,
-                    value = "NOW",
-                    label = "DAILY",
-                    glowColor = Color(0xFF71D7CD),
-                    onClick = { onNavigate("daily") }
+                
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                // Value in the middle
+                Text(
+                    text = value,
+                    fontSize = 22.sp,
+                    fontFamily = FontFamily.SansSerif,
+                    fontWeight = FontWeight.Normal,
+                    color = Color.White
                 )
             }
+        }
+        
+        Spacer(modifier = Modifier.height(6.dp))
+        
+        // Label underneath the circle
+        Text(
+            text = label,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.SansSerif,
+            fontWeight = FontWeight.Light,
+            color = Color.White.copy(alpha = 0.7f)
+        )
+    }
+}
 
-            // Widget 4 (Apartamento)
-            MetricItemWithProgress(Icons.Outlined.Construction, "${(aptProgress * 100).toInt()}%", "OBRA", SecondaryGold, aptProgress, onClick = { onNavigate("apartment") })
+@Composable
+fun ActivityDetectionCard() {
+    var isVisible by remember { mutableStateOf(true) }
+    var isConfirmed by remember { mutableStateOf(false) }
+
+    if (!isVisible) return
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Small header row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF4FC3F7))
+                )
+                Text(
+                    text = "2 activities detected",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.6f),
+                modifier = Modifier.size(16.dp)
+            )
+        }
+
+        // Glassmorphic card
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color(0x1F000000))
+                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(24.dp))
+                .padding(20.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                // First row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(Color.White),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Whatshot,
+                                contentDescription = null,
+                                tint = Color.Black,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                        Text(
+                            text = "Disc sports",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    IconButton(
+                        onClick = { isVisible = false },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Fechar",
+                            tint = Color.White.copy(alpha = 0.6f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                // Second row: Details
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "10:58",
+                        color = Color.White.copy(alpha = 0.6f),
+                        fontSize = 13.sp
+                    )
+                    Text(
+                        text = "•",
+                        color = Color.White.copy(alpha = 0.3f),
+                        fontSize = 13.sp
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AccessTime,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.6f),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "20m",
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 13.sp
+                        )
+                    }
+                    Text(
+                        text = "•",
+                        color = Color.White.copy(alpha = 0.3f),
+                        fontSize = 13.sp
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Whatshot,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.6f),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "137 Cal",
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 13.sp
+                        )
+                    }
+                    Text(
+                        text = "•",
+                        color = Color.White.copy(alpha = 0.3f),
+                        fontSize = 13.sp
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FavoriteBorder,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.6f),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "119 bpm",
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+
+                // Third row: buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Confirm button
+                    Button(
+                        onClick = { isConfirmed = true },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isConfirmed) Color(0x34C759FF) else Color(0x1FFFFFFF),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.width(140.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = if (isConfirmed) "Confirmado" else "Confirm",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    // Edit button
+                    TextButton(
+                        onClick = { /* Edit action */ }
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "Edit",
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -1378,6 +1662,7 @@ fun HeroMetric(metric: com.example.viewmodel.TesseraViewModel.DynamicHeroMetric?
                         modifier = Modifier
                             .align(Alignment.BottomStart)
                             .padding(start = 24.dp, bottom = 44.dp)
+                            .graphicsLayer { rotationZ = 45f }
                     )
                     Text(
                         text = targetText,
@@ -1388,6 +1673,7 @@ fun HeroMetric(metric: com.example.viewmodel.TesseraViewModel.DynamicHeroMetric?
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(end = 24.dp, bottom = 44.dp)
+                            .graphicsLayer { rotationZ = -45f }
                     )
                 }
 
@@ -1544,6 +1830,49 @@ fun MainContent(
     onNavigate: (String) -> Unit
 ) {
     val insights by mainViewModel.aiInsights.collectAsState(initial = emptyList())
+    val transactions by mainViewModel.allTransactions.collectAsState(initial = emptyList())
+    val bankAccounts by mainViewModel.allBankAccounts.collectAsState(initial = emptyList())
+    val marketItems by mainViewModel.pendingMarketItems.collectAsState(initial = emptyList())
+    val medications by mainViewModel.allMedications.collectAsState(initial = emptyList())
+    val habits by mainViewModel.allHabits.collectAsState(initial = emptyList())
+    val purchaseGoals by mainViewModel.allPurchaseGoals.collectAsState(initial = emptyList())
+    val routines by mainViewModel.allRoutines.collectAsState(initial = emptyList())
+    val pets by petViewModel.allPets.collectAsState(initial = emptyList())
+    val stepsRecords by mainViewModel.allStepsRecords.collectAsState(initial = emptyList())
+    val weightRecords by mainViewModel.allWeightRecords.collectAsState(initial = emptyList())
+    val healthProfile by mainViewModel.healthProfile.collectAsState(initial = null)
+
+    val todayStart = remember {
+        java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+    }
+    val todayEnd = remember {
+        java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 23)
+            set(java.util.Calendar.MINUTE, 59)
+            set(java.util.Calendar.SECOND, 59)
+            set(java.util.Calendar.MILLISECOND, 999)
+        }.timeInMillis
+    }
+    val todaySteps = remember(stepsRecords) {
+        stepsRecords.filter { it.startTime >= todayStart && it.endTime <= todayEnd }.sumOf { it.count }
+    }
+    val latestWeight = remember(weightRecords) {
+        weightRecords.lastOrNull()?.weightKg ?: 0.0
+    }
+    val bmi = remember(latestWeight, healthProfile) {
+        val heightCm = healthProfile?.heightCm ?: 0.0
+        if (heightCm > 0.0 && latestWeight > 0.0) {
+            val heightM = heightCm / 100.0
+            latestWeight / (heightM * heightM)
+        } else {
+            0.0
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -1603,6 +1932,40 @@ fun MainContent(
                 )
             }
         }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        HomeFinanceWidget(
+            transactions = transactions,
+            bankAccounts = bankAccounts,
+            onNavigate = onNavigate
+        )
+
+        HealthWidget(
+            medications = medications,
+            onToggleMedication = { mainViewModel.toggleMedicationTaken(it) },
+            latestWeight = latestWeight,
+            todaySteps = todaySteps,
+            bmi = bmi
+        )
+
+        GoalsWidget(
+            habits = habits,
+            purchaseGoals = purchaseGoals,
+            routines = routines,
+            onToggleHabit = { mainViewModel.toggleHabitCompleted(it) },
+            onNavigate = onNavigate
+        )
+
+        PetsCard(
+            pets = pets,
+            onNavigate = onNavigate
+        )
+
+        MarketCard(
+            items = marketItems,
+            onNavigate = onNavigate
+        )
     }
 }
 
