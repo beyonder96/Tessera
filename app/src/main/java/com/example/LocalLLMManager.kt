@@ -24,10 +24,13 @@ class LocalLLMManager(private val context: Context) {
 
         val candidatePaths = listOf(
             preferredPath,
+            File(context.getExternalFilesDir(null), "gemma-4-e2b-it-qat.bin").absolutePath,
             File(context.getExternalFilesDir(null), "gemma-2b-it-cpu-int4.bin").absolutePath,
             File(context.getExternalFilesDir(null), "gemma-2b-it.bin").absolutePath,
             File(context.getExternalFilesDir(null), "gemma-2b-it-gpu-int4.bin").absolutePath,
+            File(context.filesDir, "gemma-4-e2b-it-qat.bin").absolutePath,
             File(context.filesDir, "gemma-2b-it-cpu-int4.bin").absolutePath,
+            "/storage/emulated/0/Download/gemma-4-e2b-it-qat.bin",
             "/storage/emulated/0/Download/gemma-2b-it-cpu-int4.bin",
             "/storage/emulated/0/Download/gemma-2b-it.bin"
         )
@@ -63,17 +66,11 @@ class LocalLLMManager(private val context: Context) {
     // Envia a sua pergunta e gera a resposta
     suspend fun generateResponse(userPrompt: String): String {
         val systemPrompt = """
-            Você é a Tessera AI, uma assistente pessoal inteligente, elegante, super prestativa e integrada ao aplicativo Tessera do Kenned.
-            Você tem acesso em tempo real ao contexto local do usuário:
-            - Patrimônio Consolidado (Finanças)
-            - Compromissos e vacinas dos Pets
-            - Lista de compras do Mercado
-            - Medicamentos agendados e status de ingestão
-            
-            Use essas tabelas ativamente para responder:
-            - Se o usuário perguntar ou mencionar compras, receitas, ingredientes ou mercado, analise a lista de mercado e liste os itens e quantidades pendentes ou comprados. Sugira fazer as compras dos itens pendentes.
-            - Se o usuário perguntar sobre saúde, remédios, medicação ou horários de dosagem, analise os medicamentos do dia e faça alertas explícitos se houver algum pendente, ou parabenize-o se todos já foram tomados.
-            - Seja sempre direta, concisa, elegante e amigável. Responda em português brasileiro.
+            Você é a Tessera AI, uma companheira de conversação versátil, inteligente, elegante, natural e amigável integrada ao aplicativo Tessera do Kenned.
+            Você é capaz de conversar de forma fluida sobre qualquer assunto casual, responder curiosidades e debater temas gerais com naturalidade e flexibilidade.
+            Você tem acesso ao contexto local do usuário (Finanças/Patrimônio, Saúde/Medicamentos, Pets e Compras de Mercado), mas deve consultar e cruzar discretamente esses dados locais APENAS quando o assunto da conversa for relevante a eles.
+            Evite listar ou detalhar esses dados locais de forma intrusiva se o usuário estiver apenas jogando conversa fora, cumprimentando ou tratando de temas não relacionados.
+            Seja sempre direta, concisa, fluida, natural e amigável. Responda em português brasileiro.
         """.trimIndent()
         val prompt = "$systemPrompt\nUsuário: $userPrompt"
 
@@ -131,16 +128,10 @@ class LocalLLMManager(private val context: Context) {
                             "Olá Kenned! Analisando o status dos seus pets: $petsContext."
                         }
                         queryClean.contains("olá") || queryClean.contains("oi") || queryClean.contains("bom dia") || queryClean.contains("boa tarde") || queryClean.contains("boa noite") -> {
-                            "Olá Kenned! Sou a Tessera AI, sua assistente pessoal de IA. Estou monitorando seu status. Patrimônio: R$ $netWorth. Pets: $petsContext. Compras pendentes: $marketContext. Saúde: $medsContext. Como posso te apoiar hoje?"
+                            "Olá Kenned! Tudo bem com você? Sou a Tessera AI, sua companheira de conversação versátil. Como posso te ajudar hoje?"
                         }
                         else -> {
-                            val pendingItems = marketContext.split("; ").filter { it.contains("Pendente") }
-                            val pendingMeds = medsContext.split("; ").filter { it.contains("Pendente") }
-                            
-                            val healthAlert = if (pendingMeds.isNotEmpty()) " (Alerte: você possui medicamentos pendentes)" else ""
-                            val marketAlert = if (pendingItems.isNotEmpty()) " (Nota: você possui itens pendentes no mercado)" else ""
-                            
-                            "Entendido, Kenned! Como sua assistente inteligente Tessera AI, estou acompanhando seu painel. Seu patrimônio atual é de R$ $netWorth. Compromissos dos pets: $petsContext.$healthAlert$marketAlert. Se precisar de alguma ajuda específica com finanças, rotinas ou mercado, me informe!"
+                            "Com certeza, Kenned! Como sua assistente Tessera AI, posso conversar sobre qualquer assunto ou debater ideias com você. Se precisar consultar suas finanças, compras, saúde ou pets, basta me pedir!"
                         }
                     }
                 }

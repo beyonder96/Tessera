@@ -86,15 +86,7 @@ fun DailyScreen(
     var chatMessages by remember { mutableStateOf(listOf<ChatMessage>()) }
     var isThinking by remember { mutableStateOf(false) }
 
-    // Init Local LLM manager for the chat card
-    val llmManager = remember {
-        try {
-            val preferredPath = "/storage/emulated/0/Download/gemma-2b-it-cpu-int4.bin"
-            LocalLLMManager(context).apply { startInference(preferredPath) }
-        } catch (e: Exception) {
-            null
-        }
-    }
+
 
     // Time calculations
     val calendar = Calendar.getInstance()
@@ -339,8 +331,13 @@ fun DailyScreen(
                                         Pergunta do usuário: "$userText"
                                     """.trimIndent()
                                     
-                                    val response = if (llmManager?.isLocalActive == true) {
-                                        llmManager.generateResponse(hiddenContext)
+                                    val response = if (viewModel.isLocalLLMActive) {
+                                        try {
+                                            viewModel.generateAIResponse(hiddenContext)
+                                        } catch (e: Exception) {
+                                            e.printStackTrace()
+                                            "A IA local não pôde responder."
+                                        }
                                     } else {
                                         kotlinx.coroutines.delay(1200)
                                         val cleanText = userText.lowercase()

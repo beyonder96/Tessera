@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -345,13 +346,20 @@ fun ManageRoutineDialog(
     var stepDurationSecs by remember { mutableStateOf("0") }
     var selectedStepIcon by remember { mutableStateOf("Spa") }
     
-    Dialog(onDismissRequest = onDismiss) {
+    var currentStepQuestions by remember { mutableStateOf<List<String>>(emptyList()) }
+    var newQuestionText by remember { mutableStateOf("") }
+    
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         Card(
             colors = CardDefaults.cardColors(containerColor = Color(0xFF0F0F0F)),
             shape = RoundedCornerShape(24.dp),
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxWidth(0.95f)
                 .border(1.dp, Color(0x1FFFFFFF), RoundedCornerShape(24.dp))
+                .imePadding()
         ) {
             Column(
                 modifier = Modifier
@@ -378,7 +386,12 @@ fun ManageRoutineDialog(
                 Column {
                     Text("ÍCONE DA ROTINA", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0x66FFFFFF))
                     Spacer(modifier = Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
                         iconOptions.forEach { iconName ->
                             val isSel = selectedIcon == iconName
                             val icon = getChronosIcon(iconName)
@@ -422,6 +435,23 @@ fun ManageRoutineDialog(
                                 Column {
                                     Text(step.title, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                                     Text("${step.durationSeconds}s", color = Color(0xFF81928F), fontSize = 11.sp)
+                                    
+                                    // Show checklist questions if present
+                                    if (step.checkQuestions.isNotBlank()) {
+                                        val questionList = step.checkQuestions.split("\n").filter { it.isNotBlank() }
+                                        if (questionList.isNotEmpty()) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            questionList.forEach { q ->
+                                                Text(
+                                                    text = "? $q",
+                                                    color = Color(0xFF71D7CD),
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    modifier = Modifier.padding(start = 8.dp)
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
                             
@@ -502,12 +532,14 @@ fun ManageRoutineDialog(
                             )
                         }
                         
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("ÍCONE DO PASSO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF81928F))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
                                 iconOptions.forEach { iconName ->
                                     val isSel = selectedStepIcon == iconName
                                     val icon = getChronosIcon(iconName)
@@ -524,23 +556,104 @@ fun ManageRoutineDialog(
                                     }
                                 }
                             }
+                        }
+                        
+                        // Checklist Questions Input
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("PERGUNTAS DE VERIFICAÇÃO (OPCIONAL)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF81928F))
                             
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedTextField(
+                                    value = newQuestionText,
+                                    onValueChange = { newQuestionText = it },
+                                    label = { Text("Ex: Desligou as luzes?", color = Color(0x44FFFFFF), fontSize = 11.sp) },
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = Color(0xFF71D7CD),
+                                        unfocusedBorderColor = Color(0x1AFFFFFF),
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White
+                                    ),
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true
+                                )
+                                Button(
+                                    onClick = {
+                                        if (newQuestionText.isNotBlank()) {
+                                            currentStepQuestions = currentStepQuestions + newQuestionText.trim()
+                                            newQuestionText = ""
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF71D7CD).copy(alpha = 0.2f)),
+                                    contentPadding = PaddingValues(horizontal = 12.dp)
+                                ) {
+                                    Text("+ Pergunta", color = Color(0xFF71D7CD), fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                }
+                            }
+                            
+                            if (currentStepQuestions.isNotEmpty()) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 4.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    currentStepQuestions.forEachIndexed { qIdx, question ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .background(Color(0x05FFFFFF), RoundedCornerShape(8.dp))
+                                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "- $question",
+                                                color = Color(0xFFBDC9C6),
+                                                fontSize = 12.sp,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            IconButton(
+                                                onClick = {
+                                                    currentStepQuestions = currentStepQuestions.filterIndexed { idx, _ -> idx != qIdx }
+                                                },
+                                                modifier = Modifier.size(20.dp)
+                                            ) {
+                                                Icon(Icons.Default.Close, contentDescription = "Remover", tint = Color(0xFFEF4444), modifier = Modifier.size(12.dp))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
                             Button(
                                 onClick = {
                                     val mins = stepDurationMins.toIntOrNull() ?: 0
                                     val secs = stepDurationSecs.toIntOrNull() ?: 0
                                     val totalSecs = mins * 60 + secs
                                     if (stepTitle.isNotBlank() && totalSecs > 0) {
+                                        val serializedQuestions = currentStepQuestions.joinToString("\n")
                                         steps = steps + RoutineStep(
                                             routineId = routine?.id ?: 0,
                                             title = stepTitle,
                                             durationSeconds = totalSecs,
                                             iconName = selectedStepIcon,
-                                            orderIndex = steps.size
+                                            orderIndex = steps.size,
+                                            checkQuestions = serializedQuestions
                                         )
                                         stepTitle = ""
                                         stepDurationMins = "2"
                                         stepDurationSecs = "0"
+                                        currentStepQuestions = emptyList()
+                                        newQuestionText = ""
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF71D7CD))
@@ -605,6 +718,15 @@ fun RoutinePlayerView(
     var secondsLeft by remember(currentStep) { mutableStateOf(currentStep.durationSeconds) }
     var isTimerRunning by remember { mutableStateOf(true) }
 
+    val allChecklistQuestions = remember(steps) {
+        steps.flatMap { step ->
+            step.checkQuestions.split("\n").filter { it.isNotBlank() }
+        }
+    }
+
+    var showChecklistScreen by remember { mutableStateOf(false) }
+    var checkedQuestions by remember { mutableStateOf(setOf<String>()) }
+
     LaunchedEffect(currentStep, isTimerRunning) {
         if (isTimerRunning) {
             while (secondsLeft > 0) {
@@ -615,8 +737,12 @@ fun RoutinePlayerView(
             if (currentStepIndex < steps.size - 1) {
                 currentStepIndex++
             } else {
-                viewModel.completeRoutine(routine)
-                onStopRoutine()
+                if (allChecklistQuestions.isNotEmpty()) {
+                    showChecklistScreen = true
+                } else {
+                    viewModel.completeRoutine(routine)
+                    onStopRoutine()
+                }
             }
         }
     }
@@ -627,161 +753,291 @@ fun RoutinePlayerView(
 
     val stepIcon = getChronosIcon(currentStep.iconName)
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 20.dp)
-            .padding(bottom = 120.dp), // Adjust for navigation overlap
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
-    ) {
-        // Top Header
+    if (showChecklistScreen) {
         Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 120.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(top = 24.dp)
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = routine.name.uppercase(),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF71D7CD),
-                letterSpacing = 2.sp
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Passo ${currentStepIndex + 1} de ${steps.size}",
-                fontSize = 13.sp,
-                color = Color(0xFF81928F)
-            )
-        }
-
-        // Circular Timer Display
-        Box(
-            modifier = Modifier.size(260.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                drawArc(
-                    color = Color(0x0CFFFFFF),
-                    startAngle = -90f,
-                    sweepAngle = 360f,
-                    useCenter = false,
-                    style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
-                )
-                drawArc(
+            // Top Header
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(top = 24.dp)
+            ) {
+                Text(
+                    text = routine.name.uppercase(),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
                     color = Color(0xFF71D7CD),
-                    startAngle = -90f,
-                    sweepAngle = animatedProgress * 360f,
-                    useCenter = false,
-                    style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
+                    letterSpacing = 2.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Verificação Final",
+                    fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 22.sp,
+                    color = Color.White
+                )
+                Text(
+                    text = "Responda às perguntas associadas aos passos.",
+                    fontSize = 13.sp,
+                    color = Color(0xFF81928F),
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
 
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    imageVector = stepIcon,
-                    contentDescription = null,
-                    tint = Color(0xFF71D7CD),
-                    modifier = Modifier.size(48.dp)
-                )
+            // Checklist Items Scrollable List
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                allChecklistQuestions.forEach { question ->
+                    val isChecked = checkedQuestions.contains(question)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0x0AFFFFFF))
+                            .border(0.5.dp, if (isChecked) Color(0xFF71D7CD).copy(alpha = 0.3f) else Color(0x14FFFFFF), RoundedCornerShape(16.dp))
+                            .clickable {
+                                checkedQuestions = if (isChecked) {
+                                    checkedQuestions - question
+                                } else {
+                                    checkedQuestions + question
+                                }
+                            }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .border(2.dp, if (isChecked) Color(0xFF71D7CD) else Color(0xFF81928F), CircleShape)
+                                .background(if (isChecked) Color(0xFF71D7CD) else Color.Transparent),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isChecked) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = question,
+                            fontSize = 15.sp,
+                            color = if (isChecked) Color.White else Color(0xFFBDC9C6),
+                            fontWeight = if (isChecked) FontWeight.SemiBold else FontWeight.Normal,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
+            // Bottom Buttons
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Button(
+                    onClick = {
+                        viewModel.completeRoutine(routine)
+                        onStopRoutine()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF71D7CD)),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                ) {
+                    Text(
+                        text = "Concluir Rotina",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                }
+                
                 Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = currentStep.title,
-                    fontFamily = FontFamily.Serif,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 24.sp,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = String.format("%02d:%02d", secondsLeft / 60, secondsLeft % 60),
-                    fontSize = 44.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
+                
+                TextButton(onClick = onStopRoutine) {
+                    Text("Sair sem concluir", color = Color.White.copy(alpha = 0.6f))
+                }
             }
         }
-
-        // Controls and Mute Button
+    } else {
         Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 120.dp), // Adjust for navigation overlap
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(bottom = 20.dp)
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Ambient Sound Toggle
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0x0AFFFFFF))
-                    .border(0.5.dp, Color(0x14FFFFFF), RoundedCornerShape(16.dp))
-                    .clickable {
-                        isWhiteNoisePlaying = !isWhiteNoisePlaying
-                        if (isWhiteNoisePlaying) noisePlayer.start() else noisePlayer.stop()
-                    }
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
+            // Top Header
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(top = 24.dp)
             ) {
-                Icon(
-                    imageVector = if (isWhiteNoisePlaying) Icons.Outlined.VolumeUp else Icons.Outlined.VolumeMute,
-                    contentDescription = "Som Relaxante",
-                    tint = if (isWhiteNoisePlaying) Color(0xFF71D7CD) else Color(0xFF81928F),
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if (isWhiteNoisePlaying) "Som Relaxante Ativo" else "Ativar Som Relaxante",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isWhiteNoisePlaying) Color.White else Color(0xFF81928F)
+                    text = routine.name.uppercase(),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF71D7CD),
+                    letterSpacing = 2.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Passo ${currentStepIndex + 1} de ${steps.size}",
+                    fontSize = 13.sp,
+                    color = Color(0xFF81928F)
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Player Commands
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(24.dp),
-                verticalAlignment = Alignment.CenterVertically
+            // Circular Timer Display
+            Box(
+                modifier = Modifier.size(260.dp),
+                contentAlignment = Alignment.Center
             ) {
-                // Cancel/Stop
-                IconButton(
-                    onClick = onStopRoutine,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(Color(0x0CFFFFFF), CircleShape)
-                ) {
-                    Icon(Icons.Outlined.Close, contentDescription = "Cancelar", tint = Color.White)
-                }
-
-                // Play / Pause
-                IconButton(
-                    onClick = { isTimerRunning = !isTimerRunning },
-                    modifier = Modifier
-                        .size(64.dp)
-                        .background(Color(0xFF71D7CD), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = if (isTimerRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = "Controle",
-                        tint = Color.Black,
-                        modifier = Modifier.size(32.dp)
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    drawArc(
+                        color = Color(0x0CFFFFFF),
+                        startAngle = -90f,
+                        sweepAngle = 360f,
+                        useCenter = false,
+                        style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
+                    )
+                    drawArc(
+                        color = Color(0xFF71D7CD),
+                        startAngle = -90f,
+                        sweepAngle = animatedProgress * 360f,
+                        useCenter = false,
+                        style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
                     )
                 }
 
-                // Skip Step
-                IconButton(
-                    onClick = {
-                        if (currentStepIndex < steps.size - 1) {
-                            currentStepIndex++
-                        } else {
-                            viewModel.completeRoutine(routine)
-                            onStopRoutine()
-                        }
-                    },
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = stepIcon,
+                        contentDescription = null,
+                        tint = Color(0xFF71D7CD),
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = currentStep.title,
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 24.sp,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = String.format("%02d:%02d", secondsLeft / 60, secondsLeft % 60),
+                        fontSize = 44.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            }
+
+            // Controls and Mute Button
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(bottom = 20.dp)
+            ) {
+                // Ambient Sound Toggle
+                Row(
                     modifier = Modifier
-                        .size(48.dp)
-                        .background(Color(0x0CFFFFFF), CircleShape)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0x0AFFFFFF))
+                        .border(0.5.dp, Color(0x14FFFFFF), RoundedCornerShape(16.dp))
+                        .clickable {
+                            isWhiteNoisePlaying = !isWhiteNoisePlaying
+                            if (isWhiteNoisePlaying) noisePlayer.start() else noisePlayer.stop()
+                        }
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.SkipNext, contentDescription = "Pular", tint = Color.White)
+                    Icon(
+                        imageVector = if (isWhiteNoisePlaying) Icons.Outlined.VolumeUp else Icons.Outlined.VolumeMute,
+                        contentDescription = "Som Relaxante",
+                        tint = if (isWhiteNoisePlaying) Color(0xFF71D7CD) else Color(0xFF81928F),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isWhiteNoisePlaying) "Som Relaxante Ativo" else "Ativar Som Relaxante",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isWhiteNoisePlaying) Color.White else Color(0xFF81928F)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Player Commands
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(24.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Cancel/Stop
+                    IconButton(
+                        onClick = onStopRoutine,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(Color(0x0CFFFFFF), CircleShape)
+                    ) {
+                        Icon(Icons.Outlined.Close, contentDescription = "Cancelar", tint = Color.White)
+                    }
+
+                    // Play / Pause
+                    IconButton(
+                        onClick = { isTimerRunning = !isTimerRunning },
+                        modifier = Modifier
+                            .size(64.dp)
+                            .background(Color(0xFF71D7CD), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = if (isTimerRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = "Controle",
+                            tint = Color.Black,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+
+                    // Skip Step
+                    IconButton(
+                        onClick = {
+                            if (currentStepIndex < steps.size - 1) {
+                                currentStepIndex++
+                            } else {
+                                if (allChecklistQuestions.isNotEmpty()) {
+                                    showChecklistScreen = true
+                                } else {
+                                    viewModel.completeRoutine(routine)
+                                    onStopRoutine()
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(Color(0x0CFFFFFF), CircleShape)
+                    ) {
+                        Icon(Icons.Default.SkipNext, contentDescription = "Pular", tint = Color.White)
+                    }
                 }
             }
         }

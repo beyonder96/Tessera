@@ -8,10 +8,18 @@
 
 Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.build-outputs/`:
 
-* **[📥 app-release-1.1.0.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.1.0.apk)**  
+* **[📥 app-release-1.2.0.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.2.0.apk)**  
   *Versão final de produção. Otimizada (~12.2 MB), com minificação de código (R8/ProGuard), remoção automática de logs de depuração/prints de console e compressão extrema de assets (PNG Crunching).*
-* **[📥 app-debug-1.1.0.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.1.0.apk)**  
+* **[📥 app-debug-1.2.0.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.2.0.apk)**  
   *Versão para testes contendo ferramentas de depuração ativas.*
+
+---
+
+## 🚀 Novidades da Versão 1.2.0 ✨
+* 📱 **Refatoração Visual Oura Style (Aba Hoje)**: Implementada uma imagem de fundo de paisagem com desfoque e sobreposição escura em todo o app. Redesenhada a barra superior de forma minimalista com saudação personalizada e foto de perfil à direita. O arco central `HeroMetric` foi recriado para seguir o estilo estrito da Oura (ticks, gradientes, ícone circular centralizado e legendas).
+* 🤖 **IA Dinâmica & Fallback Real**: Centralização do ciclo de vida da IA Gemma 4 local dentro do `TesseraViewModel` (evitando recarregamento pesado de memória), integração com a UI e inclusão de um algoritmo de fallback local de alta fidelidade para gerar insights contextuais de saúde, finanças, compras e pets diretamente do banco Room quando a IA estiver offline.
+* 💎 **Vidro Líquido (Glassmorphism)**: Substituição dos painéis antigos na Home por uma pilha vertical de cards de insights decorados com o `PremiumGlassModifier` (vidro fosco premium, desfoque e bordas delicadas).
+* 🏠 **Visual Global Coeso**: Refatoração completa da tela do apartamento (`ApartmentScreen.kt`) para adotar a imagem de fundo translúcida global, cards em glassmorphism e tipografia sem serifa (`FontFamily.SansSerif`).
 
 ---
 
@@ -93,8 +101,8 @@ Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.bui
 ```text
 Tessera/
 ├── .build-outputs/       # Diretório de APKs compilados e prontos para uso
-│   ├── app-debug-1.1.0.apk # Versão de testes com logs ativos
-│   └── app-release-1.1.0.apk # Versão final de produção assinada
+│   ├── app-debug-1.2.0.apk # Versão de testes com logs ativos
+│   └── app-release-1.2.0.apk # Versão final de produção assinada
 ├── app/                  # Módulo principal Android (Código Kotlin & Jetpack Compose)
 │   ├── src/main/java/    # Arquivos de código-fonte
 │   └── proguard-rules.pro# Regras de minificação R8/ProGuard

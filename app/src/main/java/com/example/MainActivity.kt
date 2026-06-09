@@ -174,7 +174,7 @@ fun TesseraApp() {
     val context = LocalContext.current
     val database = remember { AppDatabase.getDatabase(context) }
     val repository = remember { TesseraRepository(database.tesseraDao()) }
-    val viewModel: TesseraViewModel = viewModel(factory = TesseraViewModelFactory(repository))
+    val viewModel: TesseraViewModel = viewModel(factory = TesseraViewModelFactory(repository, context))
     val petViewModel: PetViewModel = viewModel(factory = PetViewModelFactory(repository))
 
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
@@ -367,21 +367,29 @@ fun TesseraApp() {
     var isFabExpanded by remember { mutableStateOf(false) }
     var fabHoveredItem by remember { mutableStateOf<String?>(null) }
 
+    val backgroundUri = remember {
+        sharedPrefs.getString("home_background_uri", "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop")
+            ?: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"
+    }
+
     Scaffold(
         containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { innerPadding ->
-        Box(modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF151E20), // Dark teal/slate top
-                        Color(0xFF070909)  // Pitch black bottom
-                    )
-                )
+        Box(modifier = Modifier.fillMaxSize()) {
+            AsyncImage(
+                model = backgroundUri,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                alignment = Alignment.TopCenter,
+                modifier = Modifier.fillMaxSize().blur(20.dp)
             )
-        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0x99070909))
+            )
+
             val contentBlur by animateDpAsState(if (isFabExpanded) 32.dp else 0.dp, tween(300))
             Box(modifier = Modifier.fillMaxSize().blur(contentBlur)) {
                 NavHost(navController = navController, startDestination = "home", modifier = Modifier.fillMaxSize()) {
@@ -613,7 +621,7 @@ fun getDatabaseSizeInKB(context: android.content.Context): String {
 @Composable
 fun HomeScreen(onNavigate: (String) -> Unit) {
     val context = LocalContext.current
-    val mainViewModel: TesseraViewModel = viewModel(factory = com.example.viewmodel.TesseraViewModelFactory(com.example.data.TesseraRepository(com.example.data.AppDatabase.getDatabase(context).tesseraDao())))
+    val mainViewModel: TesseraViewModel = viewModel(factory = com.example.viewmodel.TesseraViewModelFactory(com.example.data.TesseraRepository(com.example.data.AppDatabase.getDatabase(context).tesseraDao()), context))
     val petViewModel: PetViewModel = viewModel(factory = com.example.viewmodel.PetViewModelFactory(com.example.data.TesseraRepository(com.example.data.AppDatabase.getDatabase(context).tesseraDao())))
     val petEvents by mainViewModel.allPetEvents.collectAsState(initial = emptyList())
     val stepsRecords by mainViewModel.allStepsRecords.collectAsState(initial = emptyList())
@@ -666,40 +674,8 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF070909))
     ) {
         val chatSheetBlur by animateDpAsState(if (showChatSheet) 20.dp else 0.dp, label = "ChatSheetBlur")
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .blur(chatSheetBlur)
-        ) {
-            val blurRadius = (scrollState.value * 0.04f).coerceIn(0f, 16f).dp
-            AsyncImage(
-            model = backgroundUri,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            alignment = Alignment.TopCenter,
-            modifier = Modifier
-                .fillMaxSize()
-                .blur(blurRadius)
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colorStops = arrayOf(
-                            0.0f to Color(0x00070909),
-                            0.15f to Color(0x11070909),
-                            0.45f to Color(0xAA070909),
-                            0.70f to Color(0xFF070909),
-                            1.0f to Color(0xFF070909)
-                        )
-                    )
-                )
-        )
 
         // Ambient Breathing Glow
         val calendarForTheme = java.util.Calendar.getInstance()
@@ -713,10 +689,10 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
 
         val infiniteTransition = rememberInfiniteTransition(label = "GlowBreathe")
         val glowAlpha by infiniteTransition.animateFloat(
-            initialValue = 0.08f,
-            targetValue = 0.20f,
+            initialValue = 0.05f,
+            targetValue = 0.15f,
             animationSpec = infiniteRepeatable(
-                animation = tween(4000, easing = LinearEasing),
+                animation = tween(4000, easing = EaseInOutSine),
                 repeatMode = RepeatMode.Reverse
             ),
             label = "GlowAlpha"
@@ -752,6 +728,7 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .blur(chatSheetBlur)
                 .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -791,18 +768,13 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
                     }
                     .scrollFadeInOut()
             ) {
-                val habits by mainViewModel.allHabits.collectAsState(initial = emptyList<com.example.data.Habit>())
-                val weightRecords by mainViewModel.allWeightRecords.collectAsState(initial = emptyList())
-
-                val latestWeight = weightRecords.lastOrNull()?.weightKg ?: 75.2
-
                 TopMetricsRow(
                     patrimony = realPatrimony,
                     netWorth = realBalance,
                     totalIncome = realIncome,
                     totalExpense = realExpense,
-                    habits = habits,
-                    latestWeight = latestWeight,
+                    habits = emptyList<com.example.data.Habit>(),
+                    latestWeight = 75.2,
                     todaySteps = todaySteps,
                     onNavigate = onNavigate
                 )
@@ -823,8 +795,8 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
                     }
                     .scrollFadeInOut()
             ) {
-                val habits by mainViewModel.allHabits.collectAsState(initial = emptyList<com.example.data.Habit>())
-                HeroMetric(habits, onNavigate)
+                val heroMetricState by mainViewModel.heroMetric.collectAsState(initial = null)
+                HeroMetric(heroMetricState, onNavigate)
             }
             
             Spacer(modifier = Modifier.height(32.dp))
@@ -833,7 +805,6 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
             Spacer(modifier = Modifier.height(140.dp))
         }
     }
-}
 
     if (showChatSheet) {
         TesseraChatSheet(
@@ -841,7 +812,8 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
             netWorth = netWorth,
             petEvents = petEvents,
             marketItems = marketItems,
-            medications = medications
+            medications = medications,
+            viewModel = mainViewModel
         )
     }
 }
@@ -851,6 +823,7 @@ fun TopHeader(onOpenSettings: () -> Unit, onOpenChat: () -> Unit) {
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
     var profileUri by remember { mutableStateOf<Uri?>(null) }
+    val userName = remember { sharedPrefs.getString("user_name", "Kenned") ?: "Kenned" }
 
     LaunchedEffect(Unit) {
         val savedUriStr = sharedPrefs.getString("user_profile_uri", null)
@@ -870,7 +843,7 @@ fun TopHeader(onOpenSettings: () -> Unit, onOpenChat: () -> Unit) {
                     val profileFile = java.io.File(context.filesDir, "user_profile_photo.jpg")
                     profileFile.outputStream().use { outputStream ->
                         inputStream.copyTo(outputStream)
-                    }
+                      }
                     val localUri = Uri.fromFile(profileFile)
                     profileUri = localUri
                     sharedPrefs.edit().putString("user_profile_uri", localUri.toString()).apply()
@@ -883,160 +856,89 @@ fun TopHeader(onOpenSettings: () -> Unit, onOpenChat: () -> Unit) {
             }
         }
     }
-    
-    var isHeaderVisible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        isHeaderVisible = true
-    }
 
-    AnimatedVisibility(
-        visible = isHeaderVisible,
-        enter = fadeIn(tween(800)) + slideInVertically(initialOffsetY = { -30 }, animationSpec = tween(800, easing = FastOutSlowInEasing))
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
+        Text(
+            text = "Olá, $userName",
+            fontFamily = FontFamily.SansSerif,
+            fontSize = 22.sp,
+            color = Color.White,
+            fontWeight = FontWeight.Light
+        )
+
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            // AI Chat Button
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color(0x1F71D7CD))
+                    .border(1.dp, Color(0x6671D7CD), CircleShape)
+                    .bounceClick(onOpenChat),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(Color(0x0AFFFFFF))
-                        .border(1.dp, Color(0x1AFFFFFF), CircleShape)
-                        .bounceClick {
-                            launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (profileUri != null) {
-                        AsyncImage(
-                            model = profileUri,
-                            contentDescription = "Profile",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize().clip(CircleShape)
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Outlined.AccountCircle,
-                            contentDescription = "Profile",
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
+                Icon(
+                    imageVector = Icons.Outlined.AutoAwesome,
+                    contentDescription = "Tessera AI Chat",
+                    tint = Color(0xFF71D7CD),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
 
-                val calendar = java.util.Calendar.getInstance()
-                val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
-                val greeting = when (hour) {
-                    in 0..11 -> "Bom dia"
-                    in 12..17 -> "Boa tarde"
-                    else -> "Boa noite"
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "$greeting, Kenned",
-                        fontFamily = FontFamily.Serif,
-                        fontSize = 20.sp,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.Normal
+            // Profile Image (click to change photo)
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color(0x0AFFFFFF))
+                    .border(1.dp, Color(0x1AFFFFFF), CircleShape)
+                    .bounceClick {
+                        launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                if (profileUri != null) {
+                    AsyncImage(
+                        model = profileUri,
+                        contentDescription = "Profile",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize().clip(CircleShape)
                     )
-
-                    val timeIcon = when (hour) {
-                        in 5..11 -> Icons.Outlined.WbSunny
-                        in 12..17 -> Icons.Outlined.LightMode
-                        in 18..22 -> Icons.Outlined.Nightlight
-                        else -> Icons.Outlined.Bedtime
-                    }
-                    val iconColor = when (hour) {
-                        in 5..11 -> Color(0xFFFFB74D)
-                        in 12..17 -> Color(0xFFFFD54F)
-                        in 18..22 -> Color(0xFFB39DDB)
-                        else -> Color(0xFF81D4FA)
-                    }
-
-                    val rotationTransition = rememberInfiniteTransition(label = "IconAnim")
-                    val rotationAngle by if (hour in 5..17) {
-                        rotationTransition.animateFloat(
-                            initialValue = 0f,
-                            targetValue = 360f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(20000, easing = LinearEasing)
-                            ),
-                            label = "SunRotate"
-                        )
-                    } else {
-                        rotationTransition.animateFloat(
-                            initialValue = -10f,
-                            targetValue = 10f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(3000, easing = FastOutSlowInEasing),
-                                repeatMode = RepeatMode.Reverse
-                            ),
-                            label = "MoonSway"
-                        )
-                    }
-
+                } else {
                     Icon(
-                        imageVector = timeIcon,
-                        contentDescription = null,
-                        tint = iconColor,
-                        modifier = Modifier
-                            .size(18.dp)
-                            .graphicsLayer {
-                                rotationZ = rotationAngle
-                            }
+                        imageVector = Icons.Outlined.AccountCircle,
+                        contentDescription = "Profile",
+                        tint = Color.White.copy(alpha = 0.8f),
+                        modifier = Modifier.size(22.dp)
                     )
                 }
             }
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+            // Settings Button
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color(0x0AFFFFFF))
+                    .border(1.dp, Color(0x1AFFFFFF), CircleShape)
+                    .bounceClick(onOpenSettings),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(Color(0x1F71D7CD))
-                        .border(1.dp, Color(0x6671D7CD), CircleShape)
-                        .bounceClick(onOpenChat),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.AutoAwesome,
-                        contentDescription = "Tessera AI Chat",
-                        tint = Color(0xFF71D7CD),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(Color(0x0AFFFFFF))
-                        .border(1.dp, Color(0x1AFFFFFF), CircleShape)
-                        .bounceClick(onOpenSettings),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Settings,
-                        contentDescription = "Configurações",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Outlined.Settings,
+                    contentDescription = "Configurações",
+                    tint = Color.White.copy(alpha = 0.8f),
+                    modifier = Modifier.size(18.dp)
+                )
             }
         }
     }
@@ -1179,8 +1081,8 @@ fun MetricItem(icon: ImageVector, value: String, label: String, onClick: () -> U
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0x24FFFFFF), // Reflective top gloss
-                            Color(0x05FFFFFF)  // Frosted clear base
+                            Color(0x24FFFFFF),
+                            Color(0x05FFFFFF)
                         )
                     )
                 )
@@ -1188,8 +1090,8 @@ fun MetricItem(icon: ImageVector, value: String, label: String, onClick: () -> U
                     width = 1.dp,
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            Color(0x40FFFFFF), // Bright top edge bevel shine
-                            Color(0x0AFFFFFF)  // Faded bottom edge
+                            Color(0x40FFFFFF),
+                            Color(0x0AFFFFFF)
                         )
                     ),
                     shape = CircleShape
@@ -1198,20 +1100,20 @@ fun MetricItem(icon: ImageVector, value: String, label: String, onClick: () -> U
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 4.dp)) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurface)
+                Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = value,
                     fontSize = displayFontSize,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = Color.White,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
         }
         Spacer(modifier = Modifier.height(12.dp))
-        Text(label, fontSize = 9.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(label, fontSize = 9.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.5f))
     }
 }
 
@@ -1266,20 +1168,20 @@ fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, prog
                 )
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 4.dp)) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurface)
+                Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = value,
                     fontSize = displayFontSize,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = Color.White,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
         }
         Spacer(modifier = Modifier.height(12.dp))
-        Text(label, fontSize = 9.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(label, fontSize = 9.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.5f))
     }
 }
 
@@ -1301,29 +1203,16 @@ fun MetricItemWithNeonPulse(
         ),
         label = "PulseGlow"
     )
-    val pulseScaleVal by infiniteTransition.animateFloat(
-        initialValue = 1.0f,
-        targetValue = 1.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "PulseScale"
-    )
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
                 .size(72.dp)
-                .graphicsLayer {
-                    scaleX = pulseScaleVal
-                    scaleY = pulseScaleVal
-                }
                 .clip(CircleShape)
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            glowColor.copy(alpha = 0.15f * pulseGlowVal),
+                            Color(0x24FFFFFF),
                             Color(0x05FFFFFF)
                         )
                     )
@@ -1332,8 +1221,8 @@ fun MetricItemWithNeonPulse(
                     width = 1.dp,
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            glowColor.copy(alpha = 0.8f * pulseGlowVal),
-                            glowColor.copy(alpha = 0.15f)
+                            glowColor.copy(alpha = pulseGlowVal),
+                            glowColor.copy(alpha = 0.05f)
                         )
                     ),
                     shape = CircleShape
@@ -1341,37 +1230,12 @@ fun MetricItemWithNeonPulse(
                 .bounceClick { onClick() },
             contentAlignment = Alignment.Center
         ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                drawCircle(
-                    color = glowColor,
-                    radius = (size.minDimension / 2) - 1.dp.toPx(),
-                    style = Stroke(width = 6.dp.toPx() * pulseGlowVal, cap = StrokeCap.Round),
-                    alpha = 0.1f * pulseGlowVal
-                )
-                drawCircle(
-                    color = glowColor,
-                    radius = (size.minDimension / 2) - 1.dp.toPx(),
-                    style = Stroke(width = 3.dp.toPx() * pulseGlowVal, cap = StrokeCap.Round),
-                    alpha = 0.25f * pulseGlowVal
-                )
-                drawCircle(
-                    color = glowColor,
-                    radius = (size.minDimension / 2) - 1.dp.toPx(),
-                    style = Stroke(width = 1.dp.toPx(), cap = StrokeCap.Round),
-                    alpha = 0.8f
-                )
-            }
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 4.dp)) {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = glowColor
-                )
+                Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = glowColor)
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = value,
-                    fontSize = 13.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
                     maxLines = 1,
@@ -1380,42 +1244,23 @@ fun MetricItemWithNeonPulse(
             }
         }
         Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = label,
-            fontSize = 9.sp,
-            letterSpacing = 1.sp,
-            fontWeight = FontWeight.Bold,
-            color = glowColor.copy(alpha = 0.7f + 0.3f * pulseGlowVal)
-        )
+        Text(label, fontSize = 9.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.5f))
     }
 }
 
 @Composable
-fun HeroMetric(habits: List<com.example.data.Habit>, onNavigate: (String) -> Unit) {
-    val completedHabits = habits.count { it.isCompleted }
-    val totalHabits = habits.size
-    val habitScore = if (totalHabits > 0) ((completedHabits.toFloat() / totalHabits) * 100).toInt() else 0
-    val habitProgressValue = if (totalHabits > 0) completedHabits.toFloat() / totalHabits else 0f
+fun HeroMetric(metric: com.example.viewmodel.TesseraViewModel.DynamicHeroMetric?, onNavigate: (String) -> Unit) {
+    if (metric == null) return
 
-    val title = "HÁBITOS DIÁRIOS"
-    val value = if (totalHabits > 0) "$completedHabits/$totalHabits" else "0"
-    val subtitle = "Rituais de Hoje"
-    val subtext = if (totalHabits > 0) {
-        if (completedHabits == totalHabits) {
-            "Excelente! Todos os hábitos de hoje foram concluídos."
-        } else {
-            "Você completou $completedHabits de $totalHabits hábitos diários!\nMantenha o foco."
-        }
-    } else {
-        "Nenhum hábito cadastrado para hoje.\nToque para configurar."
+    val progressValue = if (metric.target > 0f) (metric.value / metric.target).coerceIn(0f, 1f) else 0f
+    val progressColor = try {
+        Color(android.graphics.Color.parseColor(metric.colorHex))
+    } catch (e: Exception) {
+        PrimaryTeal
     }
-    
-    val icon = Icons.Outlined.CheckCircle
-    val progressValue = habitProgressValue
-    val progressColor = PrimaryTeal
 
     var animationStarted by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { animationStarted = true }
+    LaunchedEffect(metric) { animationStarted = true }
     
     val animatedProgress by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (animationStarted) progressValue else 0f,
@@ -1428,6 +1273,19 @@ fun HeroMetric(habits: List<com.example.data.Habit>, onNavigate: (String) -> Uni
         isHeroVisible = true
     }
 
+    val iconVector = when (metric.iconName) {
+        "DirectionsWalk" -> Icons.Outlined.DirectionsWalk
+        "CheckCircle" -> Icons.Outlined.CheckCircle
+        "Timer" -> Icons.Outlined.Timer
+        "AttachMoney" -> Icons.Outlined.AttachMoney
+        "LocalMall" -> Icons.Outlined.LocalMall
+        "WaterDrop" -> Icons.Outlined.WaterDrop
+        "Pets" -> Icons.Outlined.Pets
+        "Medication" -> Icons.Outlined.Medication
+        "Warning" -> Icons.Outlined.Warning
+        else -> Icons.Outlined.Info
+    }
+
     AnimatedVisibility(
         visible = isHeroVisible,
         enter = fadeIn(tween(800)) + scaleIn(initialScale = 0.95f, animationSpec = tween(800, easing = FastOutSlowInEasing))
@@ -1436,28 +1294,37 @@ fun HeroMetric(habits: List<com.example.data.Habit>, onNavigate: (String) -> Uni
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .clickable { onNavigate("goals") }
+                .clickable {
+                    val target = when (metric.name) {
+                        "RITUAIS DIÁRIOS" -> "goals"
+                        "PASSOS COMPLETADOS" -> "health"
+                        "COMPRAS PENDENTES" -> "market"
+                        "BALANÇO FINANCEIRO" -> "finance"
+                        else -> "goals"
+                    }
+                    onNavigate(target)
+                }
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(180.dp),
+                    .height(200.dp),
                 contentAlignment = Alignment.BottomCenter
             ) {
-                val topOfArcY = 180.dp - (maxWidth / 2)
+                val topOfArcY = 200.dp - (maxWidth / 2)
 
                 Canvas(modifier = Modifier.fillMaxSize()) {
-                    val strokeWidth = 3.dp.toPx()
-                    val startAngle = 155f
-                    val sweepAngle = 230f
-                    val arcRectSize = Size(size.width, size.width)
-                    val topLeft = Offset(0f, size.height - size.width / 2)
+                    val strokeWidth = 2.dp.toPx()
+                    val startAngle = 160f
+                    val sweepAngle = 220f
+                    val arcRectSize = Size(size.width * 0.85f, size.width * 0.85f)
+                    val topLeft = Offset(size.width * 0.075f, size.height - (size.width * 0.85f) / 1.7f)
 
+                    // Draw thin elegant background track
                     drawArc(
-                        color = Color(0x33DFE3E2),
+                        color = Color.White.copy(alpha = 0.15f),
                         startAngle = startAngle,
                         sweepAngle = sweepAngle,
                         useCenter = false,
@@ -1465,86 +1332,106 @@ fun HeroMetric(habits: List<com.example.data.Habit>, onNavigate: (String) -> Uni
                         size = arcRectSize,
                         topLeft = topLeft
                     )
+
+                    // Draw thick subtle glow underlay for active progress
+                    drawArc(
+                        color = progressColor.copy(alpha = 0.12f),
+                        startAngle = startAngle,
+                        sweepAngle = sweepAngle * animatedProgress,
+                        useCenter = false,
+                        style = Stroke(width = strokeWidth * 3f, cap = StrokeCap.Round),
+                        size = arcRectSize,
+                        topLeft = topLeft
+                    )
+
+                    // Draw thin bright progress track
                     drawArc(
                         color = progressColor,
                         startAngle = startAngle,
                         sweepAngle = sweepAngle * animatedProgress,
                         useCenter = false,
-                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+                        style = Stroke(width = strokeWidth * 1.5f, cap = StrokeCap.Round),
                         size = arcRectSize,
                         topLeft = topLeft
                     )
 
-                    val centerVector = Offset(size.width / 2, size.height)
-                    val radius = size.width / 2
-
-                    val angles = listOf(155f, 212.5f, 270f, 327.5f, 25f)
+                    // Draw little tick dots along the arc (5 dots like Oura Ring app)
+                    val radius = (size.width * 0.85f) / 2
+                    val angles = listOf(160f, 215f, 270f, 325f, 20f)
                     for (angle in angles) {
                         val angleRad = Math.toRadians(angle.toDouble())
-                        val x = centerVector.x + radius * Math.cos(angleRad).toFloat()
-                        val y = centerVector.y + radius * Math.sin(angleRad).toFloat()
-                        drawCircle(color = Color(0xFFDFE3E2), radius = 2.dp.toPx(), center = Offset(x, y))
+                        val x = size.width / 2 + radius * Math.cos(angleRad).toFloat()
+                        val y = size.height - (size.width * 0.85f) / 1.7f + radius + radius * Math.sin(angleRad).toFloat()
+                        drawCircle(color = Color.White.copy(alpha = 0.4f), radius = 2.5.dp.toPx(), center = Offset(x, y))
                     }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .offset(y = topOfArcY - 12.dp)
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .background(Color(0x1AFFFFFF)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        icon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(12.dp)
+                // Values at ends of the arc (0 and Target)
+                val targetText = if (metric.target >= 1000f) "${(metric.target/1000).toInt()}k" else "${metric.target.toInt()}"
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Text(
+                        text = "0",
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.SansSerif,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White.copy(alpha = 0.5f),
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(start = 24.dp, bottom = 44.dp)
+                    )
+                    Text(
+                        text = targetText,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.SansSerif,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White.copy(alpha = 0.5f),
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 24.dp, bottom = 44.dp)
                     )
                 }
 
+                // Center circular icon button and text underneath (Oura Style)
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(bottom = 24.dp)
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp)
                 ) {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x1F000000))
+                            .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = iconVector,
+                            contentDescription = null,
+                            tint = progressColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
                     Text(
-                        text = title,
+                        text = metric.label.uppercase(),
+                        fontFamily = FontFamily.SansSerif,
                         fontSize = 10.sp,
                         letterSpacing = 2.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = Color.White.copy(alpha = 0.5f),
                         fontWeight = FontWeight.SemiBold
                     )
-                    val heroFontSize = if (value.length > 5) 28.sp else if (value.length > 3) 44.sp else 62.sp
-                    val heroLineHeight = if (value.length > 5) 36.sp else if (value.length > 3) 50.sp else 72.sp
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = value,
-                        fontFamily = FontFamily.Serif,
-                        fontSize = heroFontSize,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.Normal,
-                        lineHeight = heroLineHeight
+                        text = if (metric.value % 1f == 0f) "${metric.value.toInt()}" else "${metric.value}",
+                        fontFamily = FontFamily.SansSerif,
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
                     )
                 }
             }
-            
-            Spacer(modifier = Modifier.height(32.dp))
-            Text(
-                text = subtitle,
-                fontFamily = FontFamily.Serif,
-                fontSize = 30.sp,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Normal
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = subtext,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                fontSize = 15.sp,
-                lineHeight = 22.sp
-            )
         }
     }
 }
@@ -1554,204 +1441,166 @@ data class ModuleConfig(val id: String, val name: String, var isVisible: Boolean
 
 @androidx.compose.material3.ExperimentalMaterial3Api
 @Composable
-fun MainContent(netWorth: Double, petEvents: List<com.example.data.PetEvent>, mainViewModel: com.example.viewmodel.TesseraViewModel, petViewModel: com.example.viewmodel.PetViewModel, onNavigate: (String) -> Unit) {
-    val context = LocalContext.current
-    val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
-    var showEditSheet by remember { mutableStateOf(false) }
+fun InsightCardComponent(card: com.example.viewmodel.TesseraViewModel.InsightCard, onAction: () -> Unit, onClick: () -> Unit) {
+    var isDismissed by remember { mutableStateOf(false) }
+    if (isDismissed) return
 
-    val defaultModules = listOf(
-        ModuleConfig("finance", "Finanças", true, 0),
-        ModuleConfig("market", "Mercado", true, 1),
-        ModuleConfig("pets", "Petz", true, 2),
-        ModuleConfig("health", "Saúde", false, 3),
-        ModuleConfig("goals", "Foco & Rotinas", false, 4)
-    )
+    val iconVector = when (card.iconName) {
+        "DirectionsWalk" -> Icons.Outlined.DirectionsWalk
+        "CheckCircle" -> Icons.Outlined.CheckCircle
+        "Timer" -> Icons.Outlined.Timer
+        "AttachMoney" -> Icons.Outlined.AttachMoney
+        "LocalMall" -> Icons.Outlined.LocalMall
+        "WaterDrop" -> Icons.Outlined.WaterDrop
+        "Pets" -> Icons.Outlined.Pets
+        "Medication" -> Icons.Outlined.Medication
+        "Warning" -> Icons.Outlined.Warning
+        else -> Icons.Outlined.Info
+    }
 
-    var modules by remember {
-        mutableStateOf(
-            run {
-                val savedString = sharedPrefs.getString("modules_order", null)
-                if (savedString != null) {
-                    try {
-                        val parsed = savedString.split("|").mapNotNull { part ->
-                            val parts = part.split(",")
-                            if (parts.size == 4) {
-                                if (parts[0] == "system") null
-                                else {
-                                    val name = if (parts[0] == "health") "Saúde" else parts[1]
-                                    ModuleConfig(parts[0], name, parts[2].toBoolean(), parts[3].toInt())
-                                }
-                            } else null
-                        }
-                        if (parsed.isNotEmpty()) {
-                            parsed.sortedBy { it.order }.mapIndexed { i, m -> m.copy(order = i) }
-                        } else defaultModules
-                    } catch (e: Exception) {
-                        defaultModules
-                    }
-                } else {
-                    defaultModules
+    val accentColor = when (card.category) {
+        "health" -> Color(0xFF34C759)
+        "finance" -> Color(0xFF007AFF)
+        "market" -> Color(0xFFFF3B30)
+        "pets" -> Color(0xFFFF9500)
+        else -> Color(0xFF71D7CD)
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(PremiumGlassModifier)
+            .clickable { onClick() }
+            .padding(20.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(accentColor.copy(alpha = 0.12f))
+                        .border(1.dp, accentColor.copy(alpha = 0.3f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = iconVector,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text(
+                        text = card.title.uppercase(),
+                        fontFamily = FontFamily.SansSerif,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = accentColor,
+                        letterSpacing = 1.5.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = card.description,
+                        fontFamily = FontFamily.SansSerif,
+                        fontSize = 14.sp,
+                        color = Color.White.copy(alpha = 0.85f),
+                        lineHeight = 20.sp
+                    )
                 }
             }
-        )
+            IconButton(
+                onClick = { 
+                    isDismissed = true 
+                    onAction()
+                },
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Fechar",
+                    tint = Color.White.copy(alpha = 0.4f),
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
     }
+}
 
-    fun saveModules(newModules: List<ModuleConfig>) {
-        modules = newModules
-        val str = newModules.joinToString("|") { "${it.id},${it.name},${it.isVisible},${it.order}" }
-        sharedPrefs.edit().putString("modules_order", str).apply()
-    }
+@Composable
+fun MainContent(
+    netWorth: Double,
+    petEvents: List<com.example.data.PetEvent>,
+    mainViewModel: com.example.viewmodel.TesseraViewModel,
+    petViewModel: com.example.viewmodel.PetViewModel,
+    onNavigate: (String) -> Unit
+) {
+    val insights by mainViewModel.aiInsights.collectAsState(initial = emptyList())
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        val visibleModules = remember { modules.filter { it.isVisible }.sortedBy { it.order } }
-        visibleModules.forEachIndexed { index, module ->
-            var isVisible by remember { mutableStateOf(false) }
-            LaunchedEffect(module.id) {
-                kotlinx.coroutines.delay(index * 120L)
-                isVisible = true
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "INSIGHTS RELEVANTES",
+                fontFamily = FontFamily.SansSerif,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White.copy(alpha = 0.4f),
+                letterSpacing = 1.5.sp
+            )
+            IconButton(onClick = { mainViewModel.refreshAIInsightsAndMetric() }, modifier = Modifier.size(24.dp)) {
+                Icon(Icons.Default.Refresh, contentDescription = "Atualizar", tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(14.dp))
             }
-            AnimatedVisibility(
-                visible = isVisible,
-                enter = fadeIn(animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)) + 
-                        slideInVertically(
-                            initialOffsetY = { 60 },
-                            animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
-                        )
+        }
+
+        if (insights.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(PremiumGlassModifier)
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Box(modifier = Modifier.fillMaxWidth().scrollFadeInOut()) {
-                    when (module.id) {
-                        "finance" -> {
-                            val transactions by mainViewModel.allTransactions.collectAsState()
-                            val bankAccounts by mainViewModel.allBankAccounts.collectAsState(initial = emptyList())
-                            HomeFinanceWidget(transactions, bankAccounts, onNavigate)
-                        }
-                        "market" -> {
-                            val marketItems by mainViewModel.pendingMarketItems.collectAsState()
-                            MarketCard(marketItems, onNavigate)
-                        }
-                        "pets" -> {
-                            val pets by petViewModel.allPets.collectAsState(initial = emptyList())
-                            PetsCard(pets, onNavigate)
-                        }
-                        "health" -> {
-                            val medications by mainViewModel.allMedications.collectAsState()
-                            val weightRecords by mainViewModel.allWeightRecords.collectAsState(initial = emptyList())
-                            val stepsRecords by mainViewModel.allStepsRecords.collectAsState(initial = emptyList())
-                            val healthProfile by mainViewModel.healthProfile.collectAsState(initial = null)
-
-                            val latestWeight = weightRecords.lastOrNull()?.weightKg ?: 0.0
-                            val heightCm = healthProfile?.heightCm ?: 0.0
-                            val height = if (heightCm > 0.0) heightCm / 100.0 else 1.75
-                            val bmi = if (latestWeight > 0.0 && height > 0.0) latestWeight / (height * height) else 0.0
-
-                            val todayStart = java.util.Calendar.getInstance().apply {
-                                set(java.util.Calendar.HOUR_OF_DAY, 0)
-                                set(java.util.Calendar.MINUTE, 0)
-                                set(java.util.Calendar.SECOND, 0)
-                                set(java.util.Calendar.MILLISECOND, 0)
-                            }.timeInMillis
-                            val todayEnd = java.util.Calendar.getInstance().apply {
-                                set(java.util.Calendar.HOUR_OF_DAY, 23)
-                                set(java.util.Calendar.MINUTE, 59)
-                                set(java.util.Calendar.SECOND, 59)
-                                set(java.util.Calendar.MILLISECOND, 999)
-                            }.timeInMillis
-                            val todaySteps = stepsRecords.filter { it.startTime >= todayStart && it.endTime <= todayEnd }.sumOf { it.count }
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .bounceClick { onNavigate("health") }
-                            ) {
-                                HealthWidget(
-                                    medications = medications,
-                                    onToggleMedication = { med -> mainViewModel.toggleMedicationTaken(med) },
-                                    latestWeight = latestWeight,
-                                    todaySteps = todaySteps,
-                                    bmi = bmi
-                                )
-                            }
-                        }
-                        "goals" -> {
-                            val habits by mainViewModel.allHabits.collectAsState(initial = emptyList())
-                            val purchaseGoals by mainViewModel.allPurchaseGoals.collectAsState(initial = emptyList())
-                            val routines by mainViewModel.allRoutines.collectAsState(initial = emptyList())
-                            GoalsWidget(
-                                habits = habits,
-                                purchaseGoals = purchaseGoals,
-                                routines = routines,
-                                onToggleHabit = { habit -> mainViewModel.toggleHabitCompleted(habit) },
-                                onNavigate = { route ->
-                                    if (route == "goals") {
-                                        mainViewModel.selectedGoalsTab = 0
-                                    }
-                                    onNavigate(route)
-                                }
-                            )
-                        }
-                    }
-                }
+                Text(
+                    text = "Carregando insights do dia...",
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = 14.sp
+                )
             }
-        }
-        
-        OutlinedButton(
-            onClick = { showEditSheet = true },
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33FFFFFF))
-        ) {
-            Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Editar Widgets")
-        }
-    }
-
-    if (showEditSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showEditSheet = false },
-            containerColor = Color(0xFF131817)
-        ) {
-            Column(modifier = Modifier.padding(24.dp).padding(bottom = 32.dp)) {
-                Text("Editar Widgets", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                modules.sortedBy { it.order }.forEachIndexed { index, module ->
-                    ModuleToggleWithOrder(
-                        name = module.name,
-                        isVisible = module.isVisible,
-                        isFirst = index == 0,
-                        isLast = index == modules.size - 1,
-                        onToggle = { isChecked ->
-                            val newModules = modules.map { if (it.id == module.id) it.copy(isVisible = isChecked) else it }
-                            saveModules(newModules)
-                        },
-                        onMoveUp = {
-                            if (index > 0) {
-                                val sorted = modules.sortedBy { it.order }.toMutableList()
-                                val temp = sorted[index]
-                                sorted[index] = sorted[index - 1]
-                                sorted[index - 1] = temp
-                                sorted.forEachIndexed { i, m -> m.order = i }
-                                saveModules(sorted)
-                            }
-                        },
-                        onMoveDown = {
-                            if (index < modules.size - 1) {
-                                val sorted = modules.sortedBy { it.order }.toMutableList()
-                                val temp = sorted[index]
-                                sorted[index] = sorted[index + 1]
-                                sorted[index + 1] = temp
-                                sorted.forEachIndexed { i, m -> m.order = i }
-                                saveModules(sorted)
-                            }
+        } else {
+            insights.forEach { card ->
+                InsightCardComponent(
+                    card = card,
+                    onAction = {
+                        // Action on close
+                    },
+                    onClick = {
+                        val target = when (card.category) {
+                            "health" -> "health"
+                            "finance" -> "finance"
+                            "market" -> "market"
+                            "pets" -> "petz"
+                            else -> "goals"
                         }
-                    )
-                }
+                        onNavigate(target)
+                    }
+                )
             }
         }
     }
@@ -3549,7 +3398,8 @@ fun TesseraChatSheet(
     netWorth: Double,
     petEvents: List<com.example.data.PetEvent>,
     marketItems: List<com.example.data.MarketItem>,
-    medications: List<com.example.data.Medication>
+    medications: List<com.example.data.Medication>,
+    viewModel: TesseraViewModel
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -3560,16 +3410,6 @@ fun TesseraChatSheet(
     var messages by remember { mutableStateOf(listOf(ChatMessage("msg_0", "Olá! Como posso ajudar você hoje?", false))) }
     var isThinking by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
-
-    // Try to load model
-    val modelPath = "/storage/emulated/0/Download/gemma-2b-it-cpu-int4.bin"
-    val llmManager = remember { 
-        try {
-            LocalLLMManager(context).apply { startInference(modelPath) } 
-        } catch (e: Exception) {
-            null
-        }
-    }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -3625,9 +3465,9 @@ fun TesseraChatSheet(
                         Text("Tessera AI", fontFamily = FontFamily.Serif, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                         Spacer(modifier = Modifier.width(8.dp))
                         
-                        val isLocalActive = llmManager?.isLocalActive == true
+                        val isLocalActive = viewModel.isLocalLLMActive
                         val badgeColor = if (isLocalActive) Color(0xFF34C759) else Color(0xFFFF9500)
-                        val badgeText = if (isLocalActive) "Gemma 2B Local" else "Simulada (Offline)"
+                        val badgeText = if (isLocalActive) "Gemma 4 Local" else "Simulada (Offline)"
 
                         Box(
                             modifier = Modifier
@@ -3655,10 +3495,10 @@ fun TesseraChatSheet(
                         }
                     }
                     Text(
-                        text = if (llmManager?.isLocalActive == true) "IA executando localmente no seu dispositivo" else "Clique no badge para ativar o Gemma 2B",
+                        text = if (viewModel.isLocalLLMActive) "IA executando localmente no seu dispositivo" else "Clique no badge para ativar o Gemma 4",
                         fontSize = 12.sp,
-                        color = if (llmManager?.isLocalActive == true) PrimaryTeal.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.5f),
-                        modifier = Modifier.clickable { if (llmManager?.isLocalActive != true) showHelpDialog = true }
+                        color = if (viewModel.isLocalLLMActive) PrimaryTeal.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.5f),
+                        modifier = Modifier.clickable { if (!viewModel.isLocalLLMActive) showHelpDialog = true }
                     )
                 }
             }
@@ -3787,26 +3627,26 @@ fun TesseraChatSheet(
                             isThinking = true
                             
                             coroutineScope.launch {
-                                if (llmManager != null) {
-                                    val petsString = if (petEvents.isEmpty()) "Nenhum compromisso pendente hoje." else petEvents.joinToString("; ") { "${it.petName}: ${it.title} (${if(it.isCompleted) "Concluído" else "Pendente"})" }
-                                    val marketString = if (marketItems.isEmpty()) "Nenhuma compra pendente." else marketItems.joinToString("; ") { "${it.name} (${it.quantity} ${it.unit})${if (it.isChecked || it.isBought) " (Comprado)" else " (Pendente)"}" }
-                                    val medsString = if (medications.isEmpty()) "Nenhum medicamento agendado." else medications.joinToString("; ") { "${it.name} (${it.dosage}) às ${it.time} - ${if (it.isTaken) "Tomado" else "Pendente"}" }
+                                val petsString = if (petEvents.isEmpty()) "Nenhum compromisso pendente hoje." else petEvents.joinToString("; ") { "${it.petName}: ${it.title} (${if(it.isCompleted) "Concluído" else "Pendente"})" }
+                                val marketString = if (marketItems.isEmpty()) "Nenhuma compra pendente." else marketItems.joinToString("; ") { "${it.name} (${it.quantity} ${it.unit})${if (it.isChecked || it.isBought) " (Comprado)" else " (Pendente)"}" }
+                                val medsString = if (medications.isEmpty()) "Nenhum medicamento agendado." else medications.joinToString("; ") { "${it.name} (${it.dosage}) às ${it.time} - ${if (it.isTaken) "Tomado" else "Pendente"}" }
 
-                                    val hiddenContext = """
-                                        [Contexto] Nome do Usuário: Kenned
-                                        [Contexto] Patrimônio consolidado: R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", netWorth)}
-                                        [Contexto] Compromissos dos Pets: $petsString
-                                        [Contexto] Lista de Compras (Mercado): $marketString
-                                        [Contexto] Medicamentos e Remédios: $medsString
-                                        
-                                        Pergunta do usuário: "$userText"
-                                    """.trimIndent()
-                                    val response = llmManager.generateResponse(hiddenContext)
-                                    messages = messages + ChatMessage("resp_$msgId", response, false)
-                                } else {
-                                    kotlinx.coroutines.delay(1500)
-                                    messages = messages + ChatMessage("resp_$msgId", "A IA local não pôde ser iniciada.", false)
+                                val hiddenContext = """
+                                    [Contexto] Nome do Usuário: Kenned
+                                    [Contexto] Patrimônio consolidado: R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", netWorth)}
+                                    [Contexto] Compromissos dos Pets: $petsString
+                                    [Contexto] Lista de Compras (Mercado): $marketString
+                                    [Contexto] Medicamentos e Remédios: $medsString
+                                    
+                                    Pergunta do usuário: "$userText"
+                                """.trimIndent()
+                                val response = try {
+                                    viewModel.generateAIResponse(hiddenContext)
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                    "A IA local não pôde responder."
                                 }
+                                messages = messages + ChatMessage("resp_$msgId", response, false)
                                 isThinking = false
                             }
                         },

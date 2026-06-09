@@ -218,5 +218,6 @@ data class RoutineStep(
     val title: String,
     val durationSeconds: Int,
     val iconName: String,
-    val orderIndex: Int
+    val orderIndex: Int,
+    val checkQuestions: String = ""
 )

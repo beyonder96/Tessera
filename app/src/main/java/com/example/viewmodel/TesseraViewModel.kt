@@ -1,5 +1,7 @@
 package com.example.viewmodel
 
+import android.content.Context
+import com.example.LocalLLMManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -31,7 +33,42 @@ import java.util.Calendar
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 
-class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() {
+class TesseraViewModel(
+    private val repository: TesseraRepository,
+    private val applicationContext: Context
+) : ViewModel() {
+
+    data class InsightCard(
+        val id: String,
+        val title: String,
+        val description: String,
+        val iconName: String,
+        val category: String
+    )
+
+    data class DynamicHeroMetric(
+        val name: String,
+        val label: String,
+        val value: Float,
+        val target: Float,
+        val iconName: String,
+        val colorHex: String
+    )
+
+    private val _aiInsights = MutableStateFlow<List<InsightCard>>(emptyList())
+    val aiInsights: StateFlow<List<InsightCard>> = _aiInsights.asStateFlow()
+
+    private val _heroMetric = MutableStateFlow<DynamicHeroMetric?>(null)
+    val heroMetric: StateFlow<DynamicHeroMetric?> = _heroMetric.asStateFlow()
+
+    val localLLMManager = LocalLLMManager(applicationContext)
+
+    val isLocalLLMActive: Boolean
+        get() = localLLMManager.isLocalActive
+
+    suspend fun generateAIResponse(userPrompt: String): String {
+        return localLLMManager.generateResponse(userPrompt)
+    }
 
     // Weather structures
     data class WeatherInfo(
@@ -46,6 +83,10 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
 
     init {
         fetchWeather()
+        viewModelScope.launch(Dispatchers.IO) {
+            localLLMManager.startInference("/storage/emulated/0/Download/gemma-4-e2b-it-qat.bin")
+            refreshAIInsightsAndMetric()
+        }
     }
 
     fun fetchWeather() {
@@ -165,6 +206,209 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
         cal.set(Calendar.SECOND, 59)
         cal.set(Calendar.MILLISECOND, 999)
         return cal.timeInMillis
+    }
+
+    fun refreshAIInsightsAndMetric() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val habits = repository.allHabits.first()
+                val marketItems = repository.pendingMarketItems.first()
+                val transactions = repository.allTransactions.first()
+                val petEvents = repository.allPetEvents.first()
+                val medications = repository.allMedications.first()
+                val steps = repository.allStepsRecords.first()
+                
+                val todayStart = getStartOfToday()
+                val todayEnd = getEndOfToday()
+                val todaySteps = steps.filter { it.startTime >= todayStart && it.endTime <= todayEnd }.sumOf { it.count }
+                
+                val completedHabits = habits.count { it.isCompleted }
+                val totalHabits = habits.size
+                
+                val pendingMeds = medications.count { !it.isTaken }
+                val totalMeds = medications.size
+
+                val pendingMarketCount = marketItems.size
+                
+                val realIncome = transactions.filter { it.isIncome }.sumOf { it.value }
+                val realExpense = transactions.filter { !it.isIncome }.sumOf { it.value }
+                val realBalance = realIncome - realExpense
+
+                // Fallback metric
+                val fallbackMetric = when {
+                    totalHabits > 0 && completedHabits < totalHabits -> {
+                        DynamicHeroMetric(
+                            name = "RITUAIS DIÁRIOS",
+                            label = "HÁBITOS DE HOJE",
+                            value = completedHabits.toFloat(),
+                            target = totalHabits.toFloat(),
+                            iconName = "CheckCircle",
+                            colorHex = "#71D7CD"
+                        )
+                    }
+                    todaySteps < 10000 -> {
+                        DynamicHeroMetric(
+                            name = "PASSOS COMPLETADOS",
+                            label = "PASSOS DIÁRIOS",
+                            value = todaySteps.toFloat(),
+                            target = 10000f,
+                            iconName = "DirectionsWalk",
+                            colorHex = "#34C759"
+                        )
+                    }
+                    pendingMarketCount > 0 -> {
+                        DynamicHeroMetric(
+                            name = "COMPRAS PENDENTES",
+                            label = "ITENS NO MERCADO",
+                            value = (marketItems.size - pendingMarketCount).toFloat(),
+                            target = marketItems.size.toFloat(),
+                            iconName = "LocalMall",
+                            colorHex = "#FF3B30"
+                        )
+                    }
+                    else -> {
+                        DynamicHeroMetric(
+                            name = "BALANÇO FINANCEIRO",
+                            label = "SALDO DE HOJE",
+                            value = realBalance.toFloat().coerceAtLeast(0f),
+                            target = 5000f,
+                            iconName = "AttachMoney",
+                            colorHex = "#007AFF"
+                        )
+                    }
+                }
+
+                // Fallback insights
+                val fallbackInsights = mutableListOf<InsightCard>()
+                if (pendingMeds > 0) {
+                    fallbackInsights.add(
+                        InsightCard(
+                            id = "med_insight",
+                            title = "Dica de Saúde",
+                            description = "Você tem $pendingMeds medicamentos pendentes hoje. Lembre-se de tomá-los para manter seu tratamento em dia.",
+                            iconName = "Medication",
+                            category = "health"
+                        )
+                    )
+                }
+                if (pendingMarketCount > 0) {
+                    fallbackInsights.add(
+                        InsightCard(
+                            id = "market_insight",
+                            title = "Alerta de Compras",
+                            description = "Há $pendingMarketCount itens pendentes na sua lista de mercado. Aproveite para completá-la.",
+                            iconName = "LocalMall",
+                            category = "market"
+                        )
+                    )
+                }
+                if (realExpense > 500.0) {
+                    fallbackInsights.add(
+                        InsightCard(
+                            id = "finance_insight",
+                            title = "Alerta Financeiro",
+                            description = "Seus gastos acumulados hoje são de R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", realExpense)}. Mantenha o foco nas metas financeiras.",
+                            iconName = "AttachMoney",
+                            category = "finance"
+                        )
+                    )
+                }
+                if (petEvents.any { !it.isCompleted }) {
+                    val pendingPets = petEvents.count { !it.isCompleted }
+                    fallbackInsights.add(
+                        InsightCard(
+                            id = "pets_insight",
+                            title = "Lembrete Pet",
+                            description = "Há $pendingPets compromissos com pets pendentes para hoje. Marie e Churchill contam com você!",
+                            iconName = "Pets",
+                            category = "pets"
+                        )
+                    )
+                }
+                if (fallbackInsights.size < 3) {
+                    fallbackInsights.add(
+                        InsightCard(
+                            id = "general_insight",
+                            title = "Foco Mental",
+                            description = "Hoje é um excelente dia para iniciar uma sessão de Pomodoro de 25 minutos. Reduza distrações e concentre-se.",
+                            iconName = "Timer",
+                            category = "goals"
+                        )
+                    )
+                }
+
+                // Try to use AI if active
+                if (localLLMManager.isLocalActive) {
+                    val prompt = """
+                        Você é a Tessera AI analisando os dados locais do Kenned:
+                        - Passos de hoje: $todaySteps/10000
+                        - Hábitos diários: $completedHabits/$totalHabits concluídos
+                        - Saldo atual: R$ $realBalance
+                        - Itens pendentes no mercado: $pendingMarketCount
+                        - Medicamentos pendentes hoje: $pendingMeds
+                        
+                        Determine a métrica prioritária de hoje (responda no formato METRIC: [PASSOS|HABITOS|FINANCAS|MERCADO] | META: [META_VALOR] | VALOR: [VALOR_VALOR] | ICONE: [DirectionsWalk|CheckCircle|AttachMoney|LocalMall]).
+                        Gere também exatamente 3 cards de insights no formato:
+                        CARD 1: [TITULO] | [DESCRICAO] | [ICONE: Medication|LocalMall|AttachMoney|Pets|Timer] | [CATEGORIA: health|market|finance|pets|goals]
+                        CARD 2: ...
+                        CARD 3: ...
+                    """.trimIndent()
+                    
+                    val aiResponse = localLLMManager.generateResponse(prompt)
+                    var parsedMetric: DynamicHeroMetric? = null
+                    val parsedInsights = mutableListOf<InsightCard>()
+
+                    try {
+                        val lines = aiResponse.split("\n")
+                        for (line in lines) {
+                            if (line.startsWith("METRIC:")) {
+                                val parts = line.substringAfter("METRIC:").split("|").map { it.trim() }
+                                val mName = parts[0]
+                                val mMeta = parts.find { it.startsWith("META:") }?.substringAfter("META:")?.toFloatOrNull() ?: 100f
+                                val mVal = parts.find { it.startsWith("VALOR:") }?.substringAfter("VALOR:")?.toFloatOrNull() ?: 0f
+                                val mIcon = parts.find { it.startsWith("ICONE:") }?.substringAfter("ICONE:") ?: "CheckCircle"
+                                
+                                val (name, label, color) = when (mName) {
+                                    "PASSOS" -> Triple("PASSOS COMPLETADOS", "PASSOS DIÁRIOS", "#34C759")
+                                    "HABITOS" -> Triple("RITUAIS DIÁRIOS", "HÁBITOS DE HOJE", "#71D7CD")
+                                    "MERCADO" -> Triple("COMPRAS PENDENTES", "ITENS NO MERCADO", "#FF3B30")
+                                    else -> Triple("BALANÇO FINANCEIRO", "SALDO DE HOJE", "#007AFF")
+                                }
+                                parsedMetric = DynamicHeroMetric(name, label, mVal, mMeta, mIcon, color)
+                            } else if (line.startsWith("CARD")) {
+                                val content = line.substringAfter(":").trim()
+                                val parts = content.split("|").map { it.trim() }
+                                if (parts.size >= 4) {
+                                    parsedInsights.add(
+                                        InsightCard(
+                                            id = "ai_insight_${parsedInsights.size}",
+                                            title = parts[0],
+                                            description = parts[1],
+                                            iconName = parts[2],
+                                            category = parts[3]
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+
+                    if (parsedMetric != null && parsedInsights.isNotEmpty()) {
+                        _heroMetric.value = parsedMetric
+                        _aiInsights.value = parsedInsights.take(3)
+                        return@launch
+                    }
+                }
+
+                _heroMetric.value = fallbackMetric
+                _aiInsights.value = fallbackInsights.take(3)
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     val allMedications: StateFlow<List<Medication>> = combine(
@@ -593,6 +837,7 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
             val newCompleted = !habit.isCompleted
             val newStreak = if (newCompleted) habit.streak + 1 else maxOf(0, habit.streak - 1)
             repository.updateHabit(habit.copy(isCompleted = newCompleted, streak = newStreak))
+            refreshAIInsightsAndMetric()
         }
     }
 
@@ -665,6 +910,7 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
             } else {
                 logs.forEach { repository.deleteMedicationLog(it) }
             }
+            refreshAIInsightsAndMetric()
         }
     }
 
@@ -775,11 +1021,14 @@ class TesseraViewModel(private val repository: TesseraRepository) : ViewModel() 
     }
 }
 
-class TesseraViewModelFactory(private val repository: TesseraRepository) : ViewModelProvider.Factory {
+class TesseraViewModelFactory(
+    private val repository: TesseraRepository,
+    private val context: Context
+) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(TesseraViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return TesseraViewModel(repository) as T
+            return TesseraViewModel(repository, context.applicationContext) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

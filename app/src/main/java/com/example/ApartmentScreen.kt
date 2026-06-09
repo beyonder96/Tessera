@@ -3,7 +3,6 @@ package com.example
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Construction
@@ -11,7 +10,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -19,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
+import com.example.ui.components.PremiumGlassModifier
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,7 +32,7 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(BackgroundDark)
+            .background(Color.Transparent)
             .padding(24.dp)
             .statusBarsPadding()
     ) {
@@ -43,14 +42,15 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
             modifier = Modifier.fillMaxWidth()
         ) {
             IconButton(onClick = onHomeClick) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Voltar", tint = OnBackgroundDark)
+                Icon(Icons.Default.ArrowBack, contentDescription = "Voltar", tint = Color.White)
             }
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "Apartamento",
-                fontFamily = FontFamily.Serif,
+                fontFamily = FontFamily.SansSerif,
+                fontWeight = FontWeight.Light,
                 fontSize = 28.sp,
-                color = OnBackgroundDark
+                color = Color.White
             )
         }
         
@@ -69,8 +69,9 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "Em construção",
+                fontFamily = FontFamily.SansSerif,
                 fontSize = 18.sp,
-                color = OnBackgroundDark.copy(alpha = 0.7f),
+                color = Color.White.copy(alpha = 0.7f),
                 letterSpacing = 1.sp
             )
             
@@ -80,21 +81,22 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(SurfaceVariantDark)
+                    .then(PremiumGlassModifier)
                     .padding(24.dp)
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = "Evolução de Obra",
+                        fontFamily = FontFamily.SansSerif,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = OnBackgroundDark
+                        color = Color.White
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "${(progress * 100).toInt()}%",
-                        fontFamily = FontFamily.Serif,
+                        fontFamily = FontFamily.SansSerif,
+                        fontWeight = FontWeight.Light,
                         fontSize = 48.sp,
                         color = PrimaryTeal
                     )
