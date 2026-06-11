@@ -1192,21 +1192,30 @@ fun OuraMetricItem(
 }
 
 @Composable
-fun ActivityDetectionCard() {
-    var isVisible by remember { mutableStateOf(true) }
-    var isConfirmed by remember { mutableStateOf(false) }
-
-    var activityName by remember { mutableStateOf("Disc sports") }
-    var timeText by remember { mutableStateOf("10:58") }
-    var durationText by remember { mutableStateOf("20m") }
-    var caloriesText by remember { mutableStateOf("137 Cal") }
-    var bpmText by remember { mutableStateOf("119 bpm") }
-
+fun RelevantInsightsSection(
+    todaySteps: Long,
+    medications: List<com.example.data.Medication>,
+    habits: List<com.example.data.Habit>,
+    pets: List<com.example.data.PetEntity>,
+    netWorth: Double,
+    mainViewModel: com.example.viewmodel.TesseraViewModel
+) {
+    var isActivityVisible by remember { mutableStateOf(true) }
+    var isActivityConfirmed by remember { mutableStateOf(false) }
+    
+    val stepsFactor = todaySteps.coerceAtLeast(0L)
+    val calcDuration = (stepsFactor / 120).coerceIn(10L, 90L)
+    val calcCalories = (stepsFactor * 0.045f).toInt()
+    val calcBpm = 108 + (stepsFactor % 20).toInt()
+    
+    var activityName by remember(todaySteps) { mutableStateOf(if (todaySteps > 0) "Caminhada Ativa" else "Atividade Leve") }
+    var durationText by remember(todaySteps) { mutableStateOf("${calcDuration}m") }
+    var caloriesText by remember(todaySteps) { mutableStateOf("${calcCalories} Cal") }
+    var bpmText by remember(todaySteps) { mutableStateOf("${calcBpm} bpm") }
+    var timeText by remember { mutableStateOf("11:45") }
+    
     var showEditDialog by remember { mutableStateOf(false) }
-
     val context = LocalContext.current
-
-    if (!isVisible) return
 
     if (showEditDialog) {
         var tempName by remember { mutableStateOf(activityName) }
@@ -1217,30 +1226,14 @@ fun ActivityDetectionCard() {
 
         AlertDialog(
             onDismissRequest = { showEditDialog = false },
-            title = {
-                Text(
-                    text = "Editar Atividade",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
-                )
-            },
+            title = { Text("Editar Atividade", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp) },
             text = {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(
                         value = tempName,
                         onValueChange = { tempName = it },
                         label = { Text("Nome da Atividade", color = Color.White.copy(alpha = 0.6f)) },
                         textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF4FC3F7),
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                            focusedLabelColor = Color(0xFF4FC3F7),
-                            unfocusedLabelColor = Color.White.copy(alpha = 0.6f)
-                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
@@ -1248,12 +1241,6 @@ fun ActivityDetectionCard() {
                         onValueChange = { tempTime = it },
                         label = { Text("Horário", color = Color.White.copy(alpha = 0.6f)) },
                         textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF4FC3F7),
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                            focusedLabelColor = Color(0xFF4FC3F7),
-                            unfocusedLabelColor = Color.White.copy(alpha = 0.6f)
-                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
@@ -1261,12 +1248,6 @@ fun ActivityDetectionCard() {
                         onValueChange = { tempDuration = it },
                         label = { Text("Duração", color = Color.White.copy(alpha = 0.6f)) },
                         textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF4FC3F7),
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                            focusedLabelColor = Color(0xFF4FC3F7),
-                            unfocusedLabelColor = Color.White.copy(alpha = 0.6f)
-                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
@@ -1274,12 +1255,6 @@ fun ActivityDetectionCard() {
                         onValueChange = { tempCalories = it },
                         label = { Text("Calorias", color = Color.White.copy(alpha = 0.6f)) },
                         textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF4FC3F7),
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                            focusedLabelColor = Color(0xFF4FC3F7),
-                            unfocusedLabelColor = Color.White.copy(alpha = 0.6f)
-                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
@@ -1287,12 +1262,6 @@ fun ActivityDetectionCard() {
                         onValueChange = { tempBpm = it },
                         label = { Text("Frequência Cardíaca (BPM)", color = Color.White.copy(alpha = 0.6f)) },
                         textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF4FC3F7),
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                            focusedLabelColor = Color(0xFF4FC3F7),
-                            unfocusedLabelColor = Color.White.copy(alpha = 0.6f)
-                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -1308,7 +1277,7 @@ fun ActivityDetectionCard() {
                         showEditDialog = false
                         Toast.makeText(context, "Atividade atualizada!", Toast.LENGTH_SHORT).show()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4FC3F7))
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal)
                 ) {
                     Text("Salvar", color = Color.Black, fontWeight = FontWeight.Bold)
                 }
@@ -1318,236 +1287,156 @@ fun ActivityDetectionCard() {
                     Text("Cancelar", color = Color.White.copy(alpha = 0.6f))
                 }
             },
-            containerColor = Color(0xFF1A1D1E),
-            textContentColor = Color.White,
-            titleContentColor = Color.White
+            containerColor = Color(0xFF1A1D1E)
         )
     }
 
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // Small header row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
+        if (isActivityVisible) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(PrimaryTeal))
+                        Text(text = "Atividade física detectada", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    }
+                    Icon(imageVector = Icons.Default.Info, contentDescription = null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(16.dp))
+                }
+
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF4FC3F7))
-                )
-                Text(
-                    text = "2 activities detected",
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                )
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(Color(0x1F000000))
+                        .border(0.5.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(24.dp))
+                        .padding(20.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
+                                    Icon(imageVector = Icons.Default.Whatshot, contentDescription = null, tint = Color.Black, modifier = Modifier.size(14.dp))
+                                }
+                                Text(text = activityName, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                            IconButton(onClick = { isActivityVisible = false }, modifier = Modifier.size(24.dp)) {
+                                Icon(imageVector = Icons.Default.Close, contentDescription = "Fechar", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                            }
+                        }
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = timeText, color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                            Text(text = "•", color = Color.White.copy(alpha = 0.3f), fontSize = 13.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(imageVector = Icons.Default.AccessTime, contentDescription = null, tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(14.dp))
+                                Text(text = durationText, color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                            }
+                            Text(text = "•", color = Color.White.copy(alpha = 0.3f), fontSize = 13.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(imageVector = Icons.Default.Whatshot, contentDescription = null, tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(14.dp))
+                                Text(text = caloriesText, color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                            }
+                            Text(text = "•", color = Color.White.copy(alpha = 0.3f), fontSize = 13.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(imageVector = Icons.Default.FavoriteBorder, contentDescription = null, tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(14.dp))
+                                Text(text = bpmText, color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                            }
+                        }
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Button(
+                                onClick = {
+                                    isActivityConfirmed = true
+                                    Toast.makeText(context, "Atividade confirmada com sucesso!", Toast.LENGTH_SHORT).show()
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isActivityConfirmed) Color(0xFF34C759) else Color(0x1FFFFFFF),
+                                    contentColor = if (isActivityConfirmed) Color.Black else Color.White
+                                ),
+                                shape = RoundedCornerShape(20.dp),
+                                modifier = Modifier.width(140.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp))
+                                    Text(text = if (isActivityConfirmed) "Confirmado" else "Confirm", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            TextButton(onClick = { showEditDialog = true }) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Icon(imageVector = Icons.Default.Edit, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                                    Text(text = "Edit", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
             }
-            Icon(
-                imageVector = Icons.Default.Info,
-                contentDescription = null,
-                tint = Color.White.copy(alpha = 0.6f),
-                modifier = Modifier.size(16.dp)
+        }
+
+        val pendingMeds = medications.count { !it.isTaken }
+        if (pendingMeds > 0) {
+            InsightGlassCard(
+                title = "Lembrete de Saúde",
+                description = "Você ainda tem $pendingMeds medicamentos programados para hoje. Manter os horários ajuda na sua biologia de energia.",
+                icon = Icons.Default.Medication,
+                tint = Color(0xFF34C759)
             )
         }
 
-        // Glassmorphic card
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(24.dp))
-                .background(Color(0x1F000000))
-                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(24.dp))
-                .padding(20.dp)
+        val completedHabits = habits.count { it.isCompleted }
+        val totalHabits = habits.size
+        if (totalHabits > 0) {
+            val percentage = (completedHabits.toFloat() / totalHabits.toFloat() * 100).toInt()
+            InsightGlassCard(
+                title = "Ritmos e Rituais",
+                description = "Você completou $completedHabits de $totalHabits rituais diários ($percentage%). Alinhar hábitos fortalece seu energy rhythm.",
+                icon = Icons.Default.AutoAwesome,
+                tint = Color(0xFFFFD700)
+            )
+        }
+    }
+}
+
+@Composable
+fun InsightGlassCard(
+    title: String,
+    description: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    tint: Color
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(Color(0x0CFFFFFF))
+            .border(0.5.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp))
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                // First row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                                .background(Color.White),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Whatshot,
-                                contentDescription = null,
-                                tint = Color.Black,
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
-                        Text(
-                            text = activityName,
-                            color = Color.White,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    IconButton(
-                        onClick = { isVisible = false },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Fechar",
-                            tint = Color.White.copy(alpha = 0.6f),
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-
-                // Second row: Details
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = timeText,
-                        color = Color.White.copy(alpha = 0.6f),
-                        fontSize = 13.sp
-                    )
-                    Text(
-                        text = "•",
-                        color = Color.White.copy(alpha = 0.3f),
-                        fontSize = 13.sp
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AccessTime,
-                            contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.6f),
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text(
-                            text = durationText,
-                            color = Color.White.copy(alpha = 0.6f),
-                            fontSize = 13.sp
-                        )
-                    }
-                    Text(
-                        text = "•",
-                        color = Color.White.copy(alpha = 0.3f),
-                        fontSize = 13.sp
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Whatshot,
-                            contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.6f),
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text(
-                            text = caloriesText,
-                            color = Color.White.copy(alpha = 0.6f),
-                            fontSize = 13.sp
-                        )
-                    }
-                    Text(
-                        text = "•",
-                        color = Color.White.copy(alpha = 0.3f),
-                        fontSize = 13.sp
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FavoriteBorder,
-                            contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.6f),
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text(
-                            text = bpmText,
-                            color = Color.White.copy(alpha = 0.6f),
-                            fontSize = 13.sp
-                        )
-                    }
-                }
-
-                // Third row: buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Confirm button
-                    Button(
-                        onClick = {
-                            isConfirmed = true
-                            Toast.makeText(context, "Atividade confirmada com sucesso!", Toast.LENGTH_SHORT).show()
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isConfirmed) Color(0x34C759FF) else Color(0x1FFFFFFF),
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(20.dp),
-                        modifier = Modifier.width(140.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Text(
-                                text = if (isConfirmed) "Confirmado" else "Confirm",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-
-                    // Edit button
-                    TextButton(
-                        onClick = { showEditDialog = true }
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Text(
-                                text = "Edit",
-                                color = Color.White,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(tint.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(imageVector = icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = description, color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp, lineHeight = 18.sp)
             }
         }
     }
@@ -2119,7 +2008,14 @@ fun MainContent(
             }
         }
 
-        ActivityDetectionCard()
+        RelevantInsightsSection(
+            todaySteps = todaySteps,
+            medications = medications,
+            habits = habits,
+            pets = pets,
+            netWorth = netWorth,
+            mainViewModel = mainViewModel
+        )
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -3942,27 +3838,20 @@ fun PremiumGridTile(
     }
 }
 
-data class OrbParticle3D(
-    val originalX: Float,
-    val originalY: Float,
-    val originalZ: Float,
-    val color: Color
-)
-
 fun formatStyledChatText(text: String): AnnotatedString {
     return buildAnnotatedString {
         var i = 0
         while (i < text.length) {
             val nextStar = text.indexOf('*', i)
             if (nextStar == -1) {
-                appendWithLightning(text.substring(i))
+                appendKeywordsStyled(text.substring(i))
                 break
             }
-            appendWithLightning(text.substring(i, nextStar))
+            appendKeywordsStyled(text.substring(i, nextStar))
             
             val secondStar = text.indexOf('*', nextStar + 1)
             if (secondStar == -1) {
-                appendWithLightning(text.substring(nextStar))
+                appendKeywordsStyled(text.substring(nextStar))
                 break
             }
             
@@ -3974,34 +3863,39 @@ fun formatStyledChatText(text: String): AnnotatedString {
                     color = Color.White
                 )
             ) {
-                appendWithLightning(styledSegment)
+                appendKeywordsStyled(styledSegment)
             }
             i = secondStar + 1
         }
     }
 }
 
-private fun AnnotatedString.Builder.appendWithLightning(subText: String) {
+private fun AnnotatedString.Builder.appendKeywordsStyled(subText: String) {
     if (subText.isEmpty()) return
-    val keywords = listOf("rhythm", "ritmo")
-    val words = subText.split(" ")
-    words.forEachIndexed { idx, word ->
-        val cleanedWord = word.replace(",", "").replace(".", "").replace("!", "").replace("?", "").trim()
-        val isKeyword = keywords.any { it.equals(cleanedWord, ignoreCase = true) }
-        
-        if (isKeyword) {
+    val pattern = Regex("(\\benergy\\s+rhythms?\\b|\\benergy\\s+ritmos?\\b|\\brhythms?\\b|\\britmos?\\b|\\bpredictable\\s+biology\\b|\\bbiology\\b|\\bbiologia\\b)", RegexOption.IGNORE_CASE)
+    var lastIdx = 0
+    pattern.findAll(subText).forEach { match ->
+        if (match.range.first > lastIdx) {
+            append(subText.substring(lastIdx, match.range.first))
+        }
+        val matchValue = match.value
+        val lower = matchValue.lowercase()
+        if (lower.contains("rhythm") || lower.contains("ritmo")) {
             withStyle(SpanStyle(color = Color(0xFFFFD700), fontWeight = FontWeight.Bold)) {
                 append("⚡ ")
             }
-            withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
-                append(word)
+            withStyle(SpanStyle(fontStyle = FontStyle.Italic, fontWeight = FontWeight.Medium, color = Color.White)) {
+                append(matchValue)
             }
         } else {
-            append(word)
+            withStyle(SpanStyle(fontStyle = FontStyle.Italic, fontWeight = FontWeight.Medium, color = Color.White)) {
+                append(matchValue)
+            }
         }
-        if (idx < words.size - 1) {
-            append(" ")
-        }
+        lastIdx = match.range.last + 1
+    }
+    if (lastIdx < subText.length) {
+        append(subText.substring(lastIdx))
     }
 }
 
@@ -4022,7 +3916,7 @@ fun TesseraChatSheet(
     
     // UI states
     var showInputField by remember { mutableStateOf(false) }
-    var currentResponseText by remember { mutableStateOf("Olá, Kenned! *But every person has their own unique *energy rhythm*, and it's not random it's a predictable *biology*.* Como posso te ajudar hoje?") }
+    var currentResponseText by remember { mutableStateOf("Olá Kenned! But every person has their own unique *energy rhythm*, and it's not random it's a predictable *biology*. Como posso te ajudar hoje?") }
     var displayedResponseText by remember { mutableStateOf("") }
     var isTypingFinished by remember { mutableStateOf(false) }
     var isThinking by remember { mutableStateOf(false) }
@@ -4040,36 +3934,6 @@ fun TesseraChatSheet(
             kotlinx.coroutines.delay(100L) // Adjust speed (100ms per word is perfect)
         }
         isTypingFinished = true
-    }
-
-    // Initialize 3D particles on a sphere for the Orb
-    val particles = remember {
-        val list = mutableListOf<OrbParticle3D>()
-        val random = java.util.Random()
-        val radius = 100f
-        for (i in 0 until 380) {
-            val theta = random.nextFloat() * 2f * Math.PI.toFloat()
-            val phi = acos(2f * random.nextFloat() - 1f)
-            val x = radius * sin(phi) * cos(theta)
-            val y = radius * sin(phi) * sin(theta)
-            val z = radius * cos(phi)
-
-            // Split Y axis for different copper/orange top vs silver/white bottom colors (like Oura/reference image)
-            val isTop = y < 0
-            val color = if (isTop) {
-                // Glowy copper/orange
-                val r = 210 + random.nextInt(45)
-                val g = 110 + random.nextInt(50)
-                val b = 30 + random.nextInt(30)
-                Color(r, g, b)
-            } else {
-                // Glowy silver/white
-                val gray = 210 + random.nextInt(45)
-                Color(gray, gray, gray)
-            }
-            list.add(OrbParticle3D(x, y, z, color))
-        }
-        list
     }
 
     // Orb rotation transition loops
@@ -4102,17 +3966,6 @@ fun TesseraChatSheet(
         label = "Pulse"
     )
     
-    // Background Dynamic Emerald green offset
-    val animateGreenOffset by infiniteTransition.animateFloat(
-        initialValue = 0.85f,
-        targetValue = 1.15f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(4000, easing = EaseInOutSine),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "GreenOffset"
-    )
-    
     // Bottom Light Flare Intensity
     val flareIntensity by infiniteTransition.animateFloat(
         initialValue = 0.25f,
@@ -4137,14 +3990,7 @@ fun TesseraChatSheet(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colorStops = arrayOf(
-                            0f to Color(0xFF070909),
-                            animateGreenOffset to Color(0xFF073C20) // Deep black to premium emerald green
-                        )
-                    )
-                )
+                .background(Color.Black)
         ) {
             val screenWidth = maxWidth
             val screenHeight = maxHeight
@@ -4229,7 +4075,7 @@ fun TesseraChatSheet(
                         .fillMaxWidth(),
                     contentAlignment = Alignment.Center
                 ) {
-                    // Custom 3D Particle Orb drawing
+                    // Futuristic Core Orb drawing
                     Canvas(
                         modifier = Modifier.size(240.dp)
                     ) {
@@ -4237,48 +4083,121 @@ fun TesseraChatSheet(
                         val canvasHeight = size.height
                         val centerX = canvasWidth / 2f
                         val centerY = canvasHeight / 2f
-                        val scale = pulseFactor
-                        val radY = Math.toRadians(angleY.toDouble()).toFloat()
-                        val radX = Math.toRadians(angleX.toDouble()).toFloat()
-
-                        // 1. Rotate and scale each particle
-                        val projected = particles.map { p ->
-                            // Rotation around Y axis
-                            val x1 = p.originalX * cos(radY) - p.originalZ * sin(radY)
-                            val z1 = p.originalX * sin(radY) + p.originalZ * cos(radY)
-
-                            // Rotation around X axis
-                            val y2 = p.originalY * cos(radX) - z1 * sin(radX)
-                            val z2 = p.originalY * sin(radX) + p.originalZ * cos(radX)
-
-                            val xScaled = x1 * scale
-                            val yScaled = y2 * scale
+                        
+                        val baseRadius = 70.dp.toPx()
+                        val pulseRadius = baseRadius * pulseFactor
+                        
+                        // 1. Draw outer neon/radial glow around the core
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    Color(0x77E07A5F), // Copper/Orange glow
+                                    Color(0x33F4F1DE), // Silver/White glow
+                                    Color.Transparent
+                                ),
+                                center = Offset(centerX, centerY),
+                                radius = pulseRadius * 1.6f
+                            ),
+                            radius = pulseRadius * 1.6f,
+                            center = Offset(centerX, centerY)
+                        )
+                        
+                        // 2. Draw the main gradient-filled glass core (Orange/Copper top, Silver/White bottom)
+                        drawCircle(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color(0xFFE07A5F), // Copper/Orange
+                                    Color(0xFFF4F1DE)  // Silver/White
+                                ),
+                                start = Offset(centerX, centerY - pulseRadius),
+                                end = Offset(centerX, centerY + pulseRadius)
+                            ),
+                            radius = pulseRadius,
+                            center = Offset(centerX, centerY)
+                        )
+                        
+                        // 3. Draw inner glass reflection highlight for 3D depth
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.5f),
+                                    Color.Transparent
+                                ),
+                                center = Offset(centerX - pulseRadius * 0.35f, centerY - pulseRadius * 0.35f),
+                                radius = pulseRadius * 0.7f
+                            ),
+                            radius = pulseRadius,
+                            center = Offset(centerX, centerY)
+                        )
+                        
+                        // 4. Draw orbital rings (rotated ellipses) with orbiting electrons
+                        val timeMs = System.currentTimeMillis()
+                        val numOrbits = 3
+                        for (i in 0 until numOrbits) {
+                            val angleOffset = i * (360f / numOrbits)
+                            // Speed of orbit
+                            val speedMultiplier = if (isThinking) 3f else 1f
+                            val currentAngle = (angleY * speedMultiplier + angleOffset) % 360f
+                            val rad = Math.toRadians(currentAngle.toDouble())
                             
-                            // Dynamic turbulence displacement waves
-                            val waveOffset = sin(p.originalY * 0.08f + System.currentTimeMillis() * 0.005f) * (if (isThinking) 16f else 4f)
-                            val finalX = xScaled + (xScaled / 100f) * waveOffset
-                            val finalY = yScaled + (yScaled / 100f) * waveOffset
+                            val rx = pulseRadius * 1.35f
+                            val ry = pulseRadius * 0.45f
                             
-                            Triple(finalX + centerX, finalY + centerY, z2) to p.color
-                        }
-
-                        // 2. Sort by depth Z so back particles render first
-                        val sorted = projected.sortedBy { it.first.third }
-
-                        // 3. Draw particles with depth-based sizing and transparency
-                        sorted.forEach { (pos, color) ->
-                            val (px, py, pz) = pos
-                            // Project depth (-100 to 100 range) to 0..1 scale
-                            val zNormalized = ((pz + 100f) / 200f).coerceIn(0f, 1f)
+                            val path = androidx.compose.ui.graphics.Path().apply {
+                                addOval(
+                                    androidx.compose.ui.geometry.Rect(
+                                        left = centerX - rx,
+                                        top = centerY - ry,
+                                        right = centerX + rx,
+                                        bottom = centerY + ry
+                                    )
+                                )
+                            }
                             
-                            val sizePx = 1.dp.toPx() + 3.dp.toPx() * zNormalized
-                            val alpha = 0.2f + 0.8f * zNormalized
-                            
-                            drawCircle(
-                                color = color.copy(alpha = alpha),
-                                radius = sizePx,
-                                center = Offset(px, py)
+                            drawContext.canvas.save()
+                            // Rotate each orbital plane by 45 degrees relative to each other
+                            drawContext.canvas.translate(centerX, centerY)
+                            drawContext.canvas.rotate(45f * (i - 1))
+                            drawContext.canvas.translate(-centerX, -centerY)
+                            drawPath(
+                                path = path,
+                                color = Color.White.copy(alpha = 0.2f),
+                                style = Stroke(width = 1.dp.toPx())
                             )
+                            
+                            // Calculate electron coordinates on this ellipse
+                            val electronX = centerX + rx * cos(rad).toFloat()
+                            val electronY = centerY + ry * sin(rad).toFloat()
+                            
+                            // Electron halo/glow
+                            drawCircle(
+                                color = Color(0xFFFFD700).copy(alpha = 0.5f),
+                                radius = 6.dp.toPx(),
+                                center = Offset(electronX, electronY)
+                            )
+                            // Electron center node
+                            drawCircle(
+                                color = Color.White,
+                                radius = 3.dp.toPx(),
+                                center = Offset(electronX, electronY)
+                            )
+                            drawContext.canvas.restore()
+                        }
+                        
+                        // 5. If thinking, draw expanding neural wave ripple circles
+                        if (isThinking) {
+                            val count = 2
+                            for (j in 0 until count) {
+                                val progress = ((timeMs + j * 600) % 1200) / 1200f
+                                val ringRadius = pulseRadius * (1f + progress * 0.9f)
+                                val alpha = (1f - progress) * 0.6f
+                                drawCircle(
+                                    color = Color(0xFFFFD700).copy(alpha = alpha),
+                                    radius = ringRadius,
+                                    center = Offset(centerX, centerY),
+                                    style = Stroke(width = 1.5.dp.toPx())
+                                )
+                            }
                         }
                     }
                 }

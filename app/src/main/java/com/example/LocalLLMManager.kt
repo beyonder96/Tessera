@@ -98,7 +98,7 @@ class LocalLLMManager(private val context: Context) {
 
                     when {
                         queryClean.contains("patrimônio") || queryClean.contains("saldo") || queryClean.contains("finança") || queryClean.contains("dinheiro") || queryClean.contains("quanto tenho") || queryClean.contains("capital") -> {
-                            "Olá Kenned! Analisei suas finanças locais: seu patrimônio consolidado atual é de R$ $netWorth. Seu saldo e seus lançamentos estão sob controle no painel financeiro do app."
+                            "Olá Kenned! Analisei suas finanças locais: seu *patrimônio* consolidado atual é de R$ $netWorth. Manter o equilíbrio financeiro ajuda no seu *energy rhythm* geral."
                         }
                         queryClean.contains("compra") || queryClean.contains("mercado") || queryClean.contains("adquirir") || queryClean.contains("comprar") || queryClean.contains("ingrediente") || queryClean.contains("receita") -> {
                             val pendingItems = marketContext.split("; ")
@@ -106,9 +106,9 @@ class LocalLLMManager(private val context: Context) {
                                 .map { it.substringBefore(" (Pendente)") }
                             
                             val advice = if (pendingItems.isNotEmpty()) {
-                                "Vejo que você tem os seguintes itens pendentes na sua lista de compras de mercado: ${pendingItems.joinToString(", ")}. Recomendo comprá-los na sua próxima ida ao mercado!"
+                                "Vejo que você tem itens pendentes na sua lista de mercado: ${pendingItems.joinToString(", ")}. Abastecer o corpo no momento certo faz parte da sua *predictable biology*."
                             } else {
-                                "Todos os itens da sua lista de mercado já foram marcados como comprados!"
+                                "Todos os itens da sua lista de mercado foram comprados! Isso mantém seu *energy rhythm* abastecido e saudável."
                             }
                             "Olá Kenned! $advice"
                         }
@@ -118,20 +118,20 @@ class LocalLLMManager(private val context: Context) {
                                 .map { it.substringBefore(" - Pendente") }
                             
                             val advice = if (pendingMeds.isNotEmpty()) {
-                                "Atenção, Kenned! Você tem medicamentos pendentes para hoje: ${pendingMeds.joinToString(", ")}. Lembre-se de tomá-los no horário correto para manter seu tratamento em dia!"
+                                "Atenção Kenned: você tem medicamentos pendentes hoje: ${pendingMeds.joinToString(", ")}. Tomá-los é vital para regular sua *predictable biology*."
                             } else {
-                                "Parabéns, Kenned! Todos os seus medicamentos agendados para hoje já constam como tomados."
+                                "Parabéns, Kenned! Todos os seus medicamentos diários constam como tomados, alinhando sua *biology* interna com sucesso."
                             }
                             "Olá Kenned! $advice"
                         }
                         queryClean.contains("pet") || queryClean.contains("marie") || queryClean.contains("churchill") || queryClean.contains("vacina") || queryClean.contains("consulta") || queryClean.contains("rotina") -> {
-                            "Olá Kenned! Analisando o status dos seus pets: $petsContext."
+                            "Olá Kenned! Analisando o status dos seus pets: $petsContext. Cuidar de quem amamos traz harmonia e paz ao seu *energy rhythm* diário."
                         }
                         queryClean.contains("olá") || queryClean.contains("oi") || queryClean.contains("bom dia") || queryClean.contains("boa tarde") || queryClean.contains("boa noite") -> {
-                            "Olá Kenned! Tudo bem com você? Sou a Tessera AI, sua companheira de conversação versátil. Como posso te ajudar hoje?"
+                            "Olá Kenned! Sou a Tessera AI. Sabia que cada pessoa possui seu próprio *energy rhythm* único? E isso não é aleatório, é uma *predictable biology*!"
                         }
                         else -> {
-                            "Com certeza, Kenned! Como sua assistente Tessera AI, posso conversar sobre qualquer assunto ou debater ideias com você. Se precisar consultar suas finanças, compras, saúde ou pets, basta me pedir!"
+                            "Com certeza, Kenned! Como sua assistente Tessera AI, posso conversar sobre qualquer assunto. Se quiser podemos alinhar seu *energy rhythm* e examinar sua *predictable biology* hoje!"
                         }
                     }
                 }

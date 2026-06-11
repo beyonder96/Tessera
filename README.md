@@ -8,18 +8,18 @@
 
 Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.build-outputs/`:
 
-* **[📥 app-release-1.3.2.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.3.2.apk)**  
+* **[📥 app-release-1.3.4.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.3.4.apk)**  
   *Versão final de produção. Otimizada (~12.2 MB), com minificação de código (R8/ProGuard), remoção automática de logs de depuração/prints de console e compressão extrema de assets (PNG Crunching).*
-* **[📥 app-debug-1.3.2.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.3.2.apk)**  
+* **[📥 app-debug-1.3.4.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.3.4.apk)**  
   *Versão para testes contendo ferramentas de depuração ativas.*
 
 ---
 
-## 🚀 Novidades da Versão 1.3.2 ✨
-* 🌌 **Experiência de Chat Tessera AI Imersiva**: Redesenho completo do assistente com fundo em degradê sutil e dinâmico que flui de preto profundo para verde-esmeralda vibrante.
-* 🔮 **Orbe de Partículas 3D**: Renderização de esfera rotatória 3D (metade cobre/laranja, metade prateada) que reage ativamente (velocidade, pulsação, turbulência) quando a IA processa.
-* ⚡ **Efeito de Escrita e Formatação**: Exibição palavra por palavra sequencial com formatação automática em itálico para textos entre asteriscos (`*`) e adição automática do ícone de relâmpago amarelo (`⚡`) antes do termo `rhythm` e `ritmo`.
-* 🌟 **Botão "Next" e Glow**: Botão "Next" retangular com cantos arredondados sobre um Glow radial amarelo-esverdeado no rodapé da tela, abrindo o campo de texto estilo frosted glass e pílulas de atalho horizontal.
+## 🚀 Novidades da Versão 1.3.4 ✨
+* 📈 **Insights Relevantes Dinâmicos**: Substituição do placeholder genérico por insights reais gerados a partir do banco de dados do usuário (estatísticas de caminhada ativa calculadas com base em passos reais, quantidade de medicamentos pendentes e taxa de conclusão de rituais). Botões de **Confirm** e **Edit** 100% funcionais.
+* 🌌 **Chat Tessera com Fundo Preto**: O fundo do assistente de IA foi alterado para preto puro (`Color.Black`) para máximo contraste e visual imersivo.
+* 🔮 **Futuristic Core Orb**: Novo orbe no chat composto por um núcleo centralizado com gradiente cobre/laranja e prateado/branco (estilo vidro 3D), 3 órbitas finas elípticas com elétrons girando ao redor e anéis de pulso de frequência emitidos quando a IA está processando.
+* ⚡ **Destaque de Texto via Regex**: Parser robusto de palavras-chave (`rhythm`, `ritmo`, `predictable biology`, `biology`, etc.) que destaca os termos em itálico e negrito, inserindo um ícone de relâmpago (`⚡ `) antes de qualquer menção de ritmo. Atualizado nas respostas offline simuladas da IA.
 
 ---
 
@@ -109,8 +109,8 @@ Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.bui
 ```text
 Tessera/
 ├── .build-outputs/       # Diretório de APKs compilados e prontos para uso
-│   ├── app-debug-1.3.2.apk # Versão de testes com logs ativos
-│   └── app-release-1.3.2.apk # Versão final de produção assinada
+│   ├── app-debug-1.3.4.apk # Versão de testes com logs ativos
+│   └── app-release-1.3.4.apk # Versão final de produção assinada
 ├── app/                  # Módulo principal Android (Código Kotlin & Jetpack Compose)
 │   ├── src/main/java/    # Arquivos de código-fonte
 │   └── proguard-rules.pro# Regras de minificação R8/ProGuard
