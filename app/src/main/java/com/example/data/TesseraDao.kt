@@ -192,6 +192,15 @@ interface TesseraDao {
     @Query("DELETE FROM routine_steps WHERE routineId = :routineId")
     suspend fun clearStepsForRoutine(routineId: Int)
 
+    @androidx.room.Transaction
+    suspend fun saveRoutineWithSteps(routine: Routine, steps: List<RoutineStep>) {
+        val routineId = insertRoutine(routine).toInt()
+        clearStepsForRoutine(routineId)
+        steps.forEachIndexed { index, step ->
+            insertRoutineStep(step.copy(id = 0, routineId = routineId, orderIndex = index))
+        }
+    }
+
     @Delete
     suspend fun deleteRoutine(routine: Routine)
 }

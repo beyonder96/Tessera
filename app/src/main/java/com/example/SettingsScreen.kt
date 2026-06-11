@@ -30,6 +30,8 @@ import coil.compose.AsyncImage
 import com.example.ui.theme.PrimaryTeal
 import com.example.ui.theme.SecondaryGold
 import com.example.ui.components.PremiumGlassModifier
+import com.example.ui.components.bounceClick
+import androidx.compose.ui.draw.blur
 import com.example.data.AppDatabase
 import com.example.viewmodel.TesseraViewModel
 import androidx.health.connect.client.HealthConnectClient
@@ -46,6 +48,7 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
+    val userName = remember { sharedPrefs.getString("user_name", "Kenned") ?: "Kenned" }
     val packageInfo = remember {
         try {
             context.packageManager.getPackageInfo(context.packageName, 0)
@@ -164,309 +167,440 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
             }
         }
     }
-
-    Scaffold(
-        containerColor = Color(0xFF040505),
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = {
-            TopAppBar(
-                title = { 
-                    Text(
-                        "Configurações", 
-                        fontFamily = FontFamily.Serif, 
-                        fontWeight = FontWeight.SemiBold, 
-                        fontSize = 28.sp, 
-                        color = Color.White 
-                    ) 
-                },
-                navigationIcon = { 
-                    IconButton(onClick = onBack) { 
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar", tint = Color.White.copy(alpha = 0.7f)) 
-                    } 
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-            )
-        }
-    ) { innerPadding ->
-        LazyColumn(
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Blurred background image matching the home screen's set background photo
+        AsyncImage(
+            model = backgroundUri,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize().blur(28.dp)
+        )
+        // Elegant overlay with deep dark gradient for maximum contrast and readable UI
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
-            contentPadding = PaddingValues(bottom = 80.dp, top = 16.dp)
-        ) {
-            item {
-                SectionTitle("PERSONALIZAÇÃO", SecondaryGold)
-                Column(
-                    modifier = PremiumGlassModifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Text("Plano de Fundo da Home", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
-                    
-                    androidx.compose.foundation.lazy.LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        val presets = listOf(
-                            Pair("Montanha", "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"),
-                            Pair("Aurora", "https://images.unsplash.com/photo-1531366936337-7c912a4589a7?q=80&w=800&auto=format&fit=crop"),
-                            Pair("Nebulosa", "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=800&auto=format&fit=crop"),
-                            Pair("Veludo", "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop"),
-                            Pair("Estrelado", "https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?q=80&w=800&auto=format&fit=crop")
+                .background(
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xEE070909),
+                            Color(0xFC070909)
                         )
-                        
-                        items(presets.size) { index ->
-                            val (name, url) = presets[index]
-                            val isSelected = backgroundUri == url
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
+                    )
+                )
+        )
+
+        Scaffold(
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            topBar = {
+                TopAppBar(
+                    title = { 
+                        Text(
+                            "Configurações", 
+                            fontFamily = FontFamily.SansSerif, 
+                            fontWeight = FontWeight.Bold, 
+                            fontSize = 24.sp, 
+                            color = Color.White,
+                            letterSpacing = 1.sp
+                        ) 
+                    },
+                    navigationIcon = { 
+                        IconButton(
+                            onClick = onBack,
+                            modifier = Modifier.bounceClick { onBack() }
+                        ) { 
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack, 
+                                "Voltar", 
+                                tint = Color.White.copy(alpha = 0.8f)
+                            ) 
+                        } 
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+                )
+            }
+        ) { innerPadding ->
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
+                contentPadding = PaddingValues(bottom = 80.dp, top = 16.dp)
+            ) {
+                // User Profile Header Card
+                item {
+                    val profileUriStr = remember { sharedPrefs.getString("user_profile_uri", null) }
+                    val profileUri = remember(profileUriStr) { profileUriStr?.let { Uri.parse(it) } }
+
+                    Row(
+                        modifier = PremiumGlassModifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (profileUri != null) {
+                            AsyncImage(
+                                model = profileUri,
+                                contentDescription = "Foto de perfil",
                                 modifier = Modifier
-                                    .width(80.dp)
-                                    .clickable {
-                                        backgroundUri = url
-                                        sharedPrefs.edit().putString("home_background_uri", url).apply()
-                                    }
+                                    .size(64.dp)
+                                    .clip(CircleShape)
+                                    .border(2.dp, SecondaryGold, CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.08f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(70.dp)
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .border(
-                                            width = if (isSelected) 2.dp else 1.dp,
-                                            color = if (isSelected) SecondaryGold else Color(0x33FFFFFF),
-                                            shape = RoundedCornerShape(16.dp)
-                                        )
-                                ) {
-                                    AsyncImage(
-                                        model = url,
-                                        contentDescription = name,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = name,
-                                    fontSize = 11.sp,
-                                    color = if (isSelected) SecondaryGold else Color.White.copy(alpha=0.6f),
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                Icon(
+                                    Icons.Outlined.Person,
+                                    contentDescription = null,
+                                    tint = Color.White.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(32.dp)
                                 )
                             }
                         }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                text = "Olá, $userName!",
+                                color = Color.White,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.SansSerif
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Membro Tessera Premium",
+                                color = SecondaryGold,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 1.sp
+                            )
+                        }
                     }
+                }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                item {
+                    SectionTitle("PERSONALIZAÇÃO", SecondaryGold)
+                    Column(
+                        modifier = PremiumGlassModifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
+                        Text("Plano de Fundo da Home", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                        
+                        // Current background preview card
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(130.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AsyncImage(
+                                model = backgroundUri,
+                                contentDescription = "Preview do plano de fundo",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                            // Gradient overlay for visual aesthetics and text contrast
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))
+                                        )
+                                    )
+                            )
+                            Text(
+                                text = "Fundo Atual da Home",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .padding(12.dp)
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    galleryLauncher.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = SecondaryGold, contentColor = Color.Black),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier.weight(1.5f).height(48.dp).bounceClick {
+                                    galleryLauncher.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                }
+                            ) {
+                                Icon(Icons.Outlined.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Sua Galeria", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    val defaultUrl = "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"
+                                    backgroundUri = defaultUrl
+                                    sharedPrefs.edit().putString("home_background_uri", defaultUrl).apply()
+                                    Toast.makeText(context, "Fundo padrão restaurado!", Toast.LENGTH_SHORT).show()
+                                },
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33FFFFFF)),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier.weight(1f).height(48.dp).bounceClick {
+                                    val defaultUrl = "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"
+                                    backgroundUri = defaultUrl
+                                    sharedPrefs.edit().putString("home_background_uri", defaultUrl).apply()
+                                    Toast.makeText(context, "Fundo padrão restaurado!", Toast.LENGTH_SHORT).show()
+                                }
+                            ) {
+                                Text("Restaurar", color = Color.White, fontSize = 13.sp)
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    SectionTitle("PRIVACIDADE E SEGURANÇA", PrimaryTeal)
+                    Column(
+                        modifier = PremiumGlassModifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .bounceClick {
+                                    isBiometricEnabled = !isBiometricEnabled
+                                    sharedPrefs.edit().putBoolean("biometric_enabled", isBiometricEnabled).apply()
+                                },
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(PrimaryTeal.copy(alpha=0.15f)), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Outlined.Fingerprint, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
+                                }
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column {
+                                    Text("Desbloqueio Biométrico", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text("Exigir digital ou face ID ao abrir o app", fontSize = 12.sp, color = Color.White.copy(alpha=0.6f))
+                                }
+                            }
+                            Switch(
+                                checked = isBiometricEnabled,
+                                onCheckedChange = { 
+                                    isBiometricEnabled = it
+                                    sharedPrefs.edit().putBoolean("biometric_enabled", it).apply()
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = PrimaryTeal,
+                                    uncheckedThumbColor = Color.White.copy(alpha=0.7f),
+                                    uncheckedTrackColor = Color(0x33FFFFFF),
+                                    uncheckedBorderColor = Color.Transparent
+                                )
+                            )
+                        }
+
+                        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x0AFFFFFF)))
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .bounceClick {
+                                    val isEnabled = healthProfile?.isHealthConnectEnabled != true
+                                    if (isEnabled) {
+                                        coroutineScope.launch {
+                                            try {
+                                                val providerPackageName = "com.google.android.apps.healthdata"
+                                                val availabilityStatus = HealthConnectClient.getSdkStatus(context, providerPackageName)
+                                                if (availabilityStatus == HealthConnectClient.SDK_AVAILABLE) {
+                                                    val client = HealthConnectClient.getOrCreate(context)
+                                                    val granted = client.permissionController.getGrantedPermissions()
+                                                    if (granted.containsAll(requiredReadPermissions)) {
+                                                        viewModel.updateHealthProfile(
+                                                            heightCm = healthProfile?.heightCm ?: 0.0,
+                                                            targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
+                                                            isHealthConnectEnabled = true
+                                                        )
+                                                        Toast.makeText(context, "Sincronização ativada!", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        requestPermissions.launch(permissions)
+                                                    }
+                                                } else {
+                                                    Toast.makeText(context, "Saúde Connect indisponível no sistema", Toast.LENGTH_LONG).show()
+                                                }
+                                            } catch (e: Exception) {
+                                                e.printStackTrace()
+                                                requestPermissions.launch(permissions)
+                                            }
+                                        }
+                                    } else {
+                                        viewModel.updateHealthProfile(
+                                            heightCm = healthProfile?.heightCm ?: 0.0,
+                                            targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
+                                            isHealthConnectEnabled = false
+                                        )
+                                        Toast.makeText(context, "Sincronização desativada", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(PrimaryTeal.copy(alpha=0.15f)), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Outlined.Sync, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
+                                }
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column {
+                                    Text("Google Health Connect", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        if (healthProfile?.isHealthConnectEnabled == true) "Sincronização ativa" else "Sincronizar passos, peso e sono",
+                                        fontSize = 12.sp,
+                                        color = Color.White.copy(alpha=0.6f)
+                                    )
+                                }
+                            }
+                            Switch(
+                                checked = healthProfile?.isHealthConnectEnabled == true,
+                                onCheckedChange = { isEnabled ->
+                                    if (isEnabled) {
+                                        coroutineScope.launch {
+                                            try {
+                                                val providerPackageName = "com.google.android.apps.healthdata"
+                                                val availabilityStatus = HealthConnectClient.getSdkStatus(context, providerPackageName)
+                                                if (availabilityStatus == HealthConnectClient.SDK_AVAILABLE) {
+                                                    val client = HealthConnectClient.getOrCreate(context)
+                                                    val granted = client.permissionController.getGrantedPermissions()
+                                                    if (granted.containsAll(requiredReadPermissions)) {
+                                                        viewModel.updateHealthProfile(
+                                                            heightCm = healthProfile?.heightCm ?: 0.0,
+                                                            targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
+                                                            isHealthConnectEnabled = true
+                                                        )
+                                                        Toast.makeText(context, "Sincronização ativada!", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        requestPermissions.launch(permissions)
+                                                    }
+                                                } else {
+                                                    Toast.makeText(context, "Saúde Connect indisponível no sistema", Toast.LENGTH_LONG).show()
+                                                }
+                                            } catch (e: Exception) {
+                                                e.printStackTrace()
+                                                requestPermissions.launch(permissions)
+                                            }
+                                        }
+                                    } else {
+                                        viewModel.updateHealthProfile(
+                                            heightCm = healthProfile?.heightCm ?: 0.0,
+                                            targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
+                                            isHealthConnectEnabled = false
+                                        )
+                                        Toast.makeText(context, "Sincronização desativada", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = PrimaryTeal,
+                                    uncheckedThumbColor = Color.White.copy(alpha=0.7f),
+                                    uncheckedTrackColor = Color(0x33FFFFFF),
+                                    uncheckedBorderColor = Color.Transparent
+                                )
+                            )
+                        }
+                    }
+                }
+
+                item {
+                    SectionTitle("DADOS E BACKUP", Color(0xFFE57373))
+                    Column(
+                        modifier = PremiumGlassModifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // DB Stats
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            StatRow("Status do Banco:", "Conectado", PrimaryTeal)
+                            StatRow("Tamanho Local:", getDatabaseSizeInKB(context), Color.White)
+                            StatRow("Transações Registradas:", "${transactions.size}", Color.White)
+                            StatRow("Eventos de Petz:", "${petEvents.size}", Color.White)
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
+                        Spacer(modifier = Modifier.height(8.dp))
+
                         Button(
                             onClick = {
-                                galleryLauncher.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                viewModel.seedDemoData()
+                                Toast.makeText(context, "Dados de demonstração carregados com sucesso!", Toast.LENGTH_SHORT).show()
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = SecondaryGold, contentColor = Color.Black),
                             shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier.weight(1f).height(48.dp)
+                            modifier = Modifier.fillMaxWidth().height(52.dp).bounceClick {
+                                viewModel.seedDemoData()
+                                Toast.makeText(context, "Dados de demonstração carregados com sucesso!", Toast.LENGTH_SHORT).show()
+                            }
                         ) {
-                            Icon(Icons.Outlined.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Outlined.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Sua Galeria", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text("Importar Dados de Demonstração", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        Button(
+                            onClick = { exportDatabaseLauncher.launch("tessera_backup.db") },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373), contentColor = Color.Black),
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier.fillMaxWidth().height(52.dp).bounceClick {
+                                exportDatabaseLauncher.launch("tessera_backup.db")
+                            }
+                        ) {
+                            Icon(Icons.Outlined.CloudUpload, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Exportar Nuvem / Armazenamento", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         }
 
                         OutlinedButton(
-                            onClick = {
-                                val defaultUrl = "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"
-                                backgroundUri = defaultUrl
-                                sharedPrefs.edit().putString("home_background_uri", defaultUrl).apply()
-                            },
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33FFFFFF)),
+                            onClick = { importDatabaseLauncher.launch(arrayOf("*/*")) },
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE57373).copy(alpha=0.4f)),
                             shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier.weight(1f).height(48.dp)
+                            modifier = Modifier.fillMaxWidth().height(52.dp).bounceClick {
+                                importDatabaseLauncher.launch(arrayOf("*/*"))
+                            }
                         ) {
-                            Text("Restaurar", color = Color.White, fontSize = 13.sp)
+                            Icon(Icons.Outlined.CloudDownload, contentDescription = null, tint = Color(0xFFE57373), modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Restaurar Arquivo de Backup", color = Color(0xFFE57373), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
-            }
-
-            item {
-                SectionTitle("PRIVACIDADE E SEGURANÇA", PrimaryTeal)
-                Column(
-                    modifier = PremiumGlassModifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                            Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(PrimaryTeal.copy(alpha=0.15f)), contentAlignment = Alignment.Center) {
-                                Icon(Icons.Outlined.Fingerprint, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
-                            }
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column {
-                                Text("Desbloqueio Biométrico", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color.White)
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text("Exigir digital ou face ID ao abrir o app", fontSize = 12.sp, color = Color.White.copy(alpha=0.6f))
-                            }
-                        }
-                        Switch(
-                            checked = isBiometricEnabled,
-                            onCheckedChange = { 
-                                isBiometricEnabled = it
-                                sharedPrefs.edit().putBoolean("biometric_enabled", it).apply()
-                            },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = PrimaryTeal,
-                                uncheckedThumbColor = Color.White.copy(alpha=0.7f),
-                                uncheckedTrackColor = Color(0x33FFFFFF),
-                                uncheckedBorderColor = Color.Transparent
-                            )
-                        )
+                
+                item {
+                    Spacer(modifier = Modifier.height(40.dp))
+                    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("TESSERA", fontFamily = FontFamily.SansSerif, fontSize = 14.sp, color = Color.White.copy(alpha=0.3f), letterSpacing = 3.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("v$appVersionName", fontSize = 11.sp, color = Color.White.copy(alpha=0.2f))
                     }
-
-                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x0AFFFFFF)))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                            Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(PrimaryTeal.copy(alpha=0.15f)), contentAlignment = Alignment.Center) {
-                                Icon(Icons.Outlined.Sync, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
-                            }
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column {
-                                Text("Google Health Connect", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color.White)
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    if (healthProfile?.isHealthConnectEnabled == true) "Sincronização ativa" else "Sincronizar passos, peso e sono",
-                                    fontSize = 12.sp,
-                                    color = Color.White.copy(alpha=0.6f)
-                                )
-                            }
-                        }
-                        Switch(
-                            checked = healthProfile?.isHealthConnectEnabled == true,
-                            onCheckedChange = { isEnabled ->
-                                if (isEnabled) {
-                                    coroutineScope.launch {
-                                        try {
-                                            val providerPackageName = "com.google.android.apps.healthdata"
-                                            val availabilityStatus = HealthConnectClient.getSdkStatus(context, providerPackageName)
-                                            if (availabilityStatus == HealthConnectClient.SDK_AVAILABLE) {
-                                                val client = HealthConnectClient.getOrCreate(context)
-                                                val granted = client.permissionController.getGrantedPermissions()
-                                                if (granted.containsAll(requiredReadPermissions)) {
-                                                    viewModel.updateHealthProfile(
-                                                        heightCm = healthProfile?.heightCm ?: 0.0,
-                                                        targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
-                                                        isHealthConnectEnabled = true
-                                                    )
-                                                    Toast.makeText(context, "Sincronização ativada!", Toast.LENGTH_SHORT).show()
-                                                } else {
-                                                    requestPermissions.launch(permissions)
-                                                }
-                                            } else {
-                                                Toast.makeText(context, "Saúde Connect indisponível no sistema", Toast.LENGTH_LONG).show()
-                                            }
-                                        } catch (e: Exception) {
-                                            e.printStackTrace()
-                                            requestPermissions.launch(permissions)
-                                        }
-                                    }
-                                } else {
-                                    viewModel.updateHealthProfile(
-                                        heightCm = healthProfile?.heightCm ?: 0.0,
-                                        targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
-                                        isHealthConnectEnabled = false
-                                    )
-                                    Toast.makeText(context, "Sincronização desativada", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = PrimaryTeal,
-                                uncheckedThumbColor = Color.White.copy(alpha=0.7f),
-                                uncheckedTrackColor = Color(0x33FFFFFF),
-                                uncheckedBorderColor = Color.Transparent
-                            )
-                        )
-                    }
-                }
-            }
-
-            item {
-                SectionTitle("DADOS E BACKUP", Color(0xFFE57373))
-                Column(
-                    modifier = PremiumGlassModifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    // DB Stats
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        StatRow("Status do Banco:", "Conectado", PrimaryTeal)
-                        StatRow("Tamanho Local:", getDatabaseSizeInKB(context), Color.White)
-                        StatRow("Transações Registradas:", "${transactions.size}", Color.White)
-                        StatRow("Eventos de Petz:", "${petEvents.size}", Color.White)
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Button(
-                        onClick = {
-                            viewModel.seedDemoData()
-                            Toast.makeText(context, "Dados de demonstração carregados com sucesso!", Toast.LENGTH_SHORT).show()
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = SecondaryGold, contentColor = Color.Black),
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth().height(52.dp)
-                    ) {
-                        Icon(Icons.Outlined.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Importar Dados de Demonstração", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    }
-
-                    Button(
-                        onClick = { exportDatabaseLauncher.launch("tessera_backup.db") },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373), contentColor = Color.Black),
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth().height(52.dp)
-                    ) {
-                        Icon(Icons.Outlined.CloudUpload, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Exportar Nuvem / Armazenamento", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    }
-
-                    OutlinedButton(
-                        onClick = { importDatabaseLauncher.launch(arrayOf("*/*")) },
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE57373).copy(alpha=0.4f)),
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth().height(52.dp)
-                    ) {
-                        Icon(Icons.Outlined.CloudDownload, contentDescription = null, tint = Color(0xFFE57373), modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Restaurar Arquivo de Backup", color = Color(0xFFE57373), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-            }
-            
-            item {
-                Spacer(modifier = Modifier.height(40.dp))
-                Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("TESSERA", fontFamily = FontFamily.Serif, fontSize = 14.sp, color = Color.White.copy(alpha=0.3f), letterSpacing = 3.sp)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("v$appVersionName", fontSize = 11.sp, color = Color.White.copy(alpha=0.2f))
                 }
             }
         }

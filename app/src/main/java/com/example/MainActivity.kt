@@ -14,6 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -42,6 +43,13 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.runtime.saveable.rememberSaveable
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.acos
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.remember
@@ -368,9 +376,24 @@ fun TesseraApp() {
     var isFabExpanded by remember { mutableStateOf(false) }
     var fabHoveredItem by remember { mutableStateOf<String?>(null) }
 
-    val backgroundUri = remember {
-        sharedPrefs.getString("home_background_uri", "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop")
-            ?: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"
+    var backgroundUri by remember {
+        mutableStateOf(
+            sharedPrefs.getString("home_background_uri", "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop")
+                ?: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"
+        )
+    }
+
+    androidx.compose.runtime.DisposableEffect(sharedPrefs) {
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == "home_background_uri") {
+                backgroundUri = sharedPrefs.getString("home_background_uri", "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop")
+                    ?: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"
+            }
+        }
+        sharedPrefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose {
+            sharedPrefs.unregisterOnSharedPreferenceChangeListener(listener)
+        }
     }
 
     Scaffold(
@@ -630,6 +653,8 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
     val medications by mainViewModel.allMedications.collectAsState(initial = emptyList())
     val habits by mainViewModel.allHabits.collectAsState(initial = emptyList())
     val sleepRecords by mainViewModel.allSleepRecords.collectAsState(initial = emptyList())
+    val weightRecords by mainViewModel.allWeightRecords.collectAsState(initial = emptyList())
+    val latestWeight = remember(weightRecords) { weightRecords.lastOrNull()?.weightKg ?: 70.0 }
     
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
     var isBiometricEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("biometric_enabled", false)) }
@@ -772,15 +797,16 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
                     .scrollFadeInOut()
             ) {
                 TopMetricsRow(
-                    habits = habits,
-                    sleepRecords = sleepRecords,
+                    patrimony = realPatrimony,
+                    netWorth = netWorth,
+                    totalIncome = totalIncome,
+                    totalExpense = totalExpense,
                     todaySteps = todaySteps,
+                    latestWeight = latestWeight,
                     onNavigate = onNavigate
                 )
             }
             
-            Spacer(modifier = Modifier.height(24.dp))
-            ActivityDetectionCard()
             Spacer(modifier = Modifier.height(24.dp))
             
             Box(
@@ -865,35 +891,22 @@ fun TopHeader(onOpenSettings: () -> Unit, onOpenChat: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Menu button on left (3 horizontal lines) with a small blue indicator dot
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clickable { onOpenSettings() },
-            contentAlignment = Alignment.Center
+        // Menu button on left (Gear style settings)
+        IconButton(
+            onClick = { onOpenSettings() },
+            modifier = Modifier.size(36.dp)
         ) {
-            Box(modifier = Modifier.size(20.dp)) {
-                Column(
-                    modifier = Modifier.fillMaxSize().padding(vertical = 3.dp),
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Box(modifier = Modifier.fillMaxWidth(0.85f).height(1.8.dp).background(Color.White))
-                    Box(modifier = Modifier.fillMaxWidth().height(1.8.dp).background(Color.White))
-                    Box(modifier = Modifier.fillMaxWidth(0.65f).height(1.8.dp).background(Color.White))
-                }
-                Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF4FC3F7))
-                        .align(Alignment.TopEnd)
-                )
-            }
+            Icon(
+                imageVector = Icons.Default.Settings,
+                contentDescription = "Configurações",
+                tint = Color.White,
+                modifier = Modifier.size(22.dp)
+            )
         }
 
-        // Central title "ŌURA"
+        // Central title "TESSERA"
         Text(
-            text = "ŌURA",
+            text = "TESSERA",
             fontSize = 24.sp,
             fontFamily = FontFamily.SansSerif,
             fontWeight = FontWeight.Normal,
@@ -902,23 +915,35 @@ fun TopHeader(onOpenSettings: () -> Unit, onOpenChat: () -> Unit) {
             textAlign = TextAlign.Center
         )
 
-        // Right buttons (Share and Target/Biometrics)
+        // Right buttons (Photo upload and Target/Biometrics)
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(
                 onClick = {
-                    Toast.makeText(context, "Link de exportação gerado!", Toast.LENGTH_SHORT).show()
+                    launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 },
                 modifier = Modifier.size(36.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Upload,
-                    contentDescription = "Compartilhar",
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
+                if (profileUri != null) {
+                    AsyncImage(
+                        model = profileUri,
+                        contentDescription = "Foto de perfil",
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .border(1.dp, Color.White.copy(alpha = 0.5f), CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.PhotoCamera,
+                        contentDescription = "Upload Foto de Perfil",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
 
             IconButton(
@@ -948,37 +973,37 @@ fun TopHeader(onOpenSettings: () -> Unit, onOpenChat: () -> Unit) {
 
 @Composable
 fun TopMetricsRow(
-    habits: List<com.example.data.Habit>,
-    sleepRecords: List<com.example.data.SleepRecord>,
+    patrimony: Double,
+    netWorth: Double,
+    totalIncome: Double,
+    totalExpense: Double,
     todaySteps: Long,
+    latestWeight: Double,
     onNavigate: (String) -> Unit
 ) {
-    val readinessScore = remember(habits, sleepRecords) {
-        val habitFactor = if (habits.isNotEmpty()) (habits.count { it.isCompleted }.toFloat() / habits.size * 20).toInt() else 10
-        val latestSleepRecord = sleepRecords.lastOrNull()
-        val latestSleep = latestSleepRecord?.durationHours ?: 7.5
-        val sleepFactor = if (latestSleep == 0.0) 40 else (latestSleep.coerceIn(4.0, 10.0) * 8).toInt()
-        (40 + habitFactor + sleepFactor).coerceIn(50, 99)
-    }
-
-    val sleepScore = remember(sleepRecords) {
-        val latestSleepRecord = sleepRecords.lastOrNull()
-        val latestSleep = latestSleepRecord?.durationHours ?: 7.5
-        val sleepEfficiency = if (latestSleep == 0.0) 92
-        else {
-            val base = 88 + (latestSleep % 1.0 * 8).toInt()
-            base.coerceIn(60, 98)
+    val context = LocalContext.current
+    val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
+    
+    // Widget 1 (Financeiro)
+    var financeIndex by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        while(true) {
+            kotlinx.coroutines.delay(5 * 60 * 1000L)
+            financeIndex = (financeIndex + 1) % 4
         }
-        sleepEfficiency
     }
 
-    val activityScore = remember(todaySteps) {
-        if (todaySteps == 0L) 81 else ((todaySteps.toFloat() / 10000f) * 100).toInt().coerceIn(10, 100)
+    // Widget 2 (Saúde)
+    var healthIndex by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        while(true) {
+            kotlinx.coroutines.delay(5 * 60 * 1000L)
+            healthIndex = (healthIndex + 1) % 3
+        }
     }
 
-    val heartRate = remember(todaySteps) {
-        if (todaySteps == 0L) 93 else (72 + (todaySteps % 23).toInt()).coerceIn(60, 120)
-    }
+    // Widget 4 (Apartamento)
+    val aptProgress = sharedPrefs.getFloat("apartment_progress", 0.75f)
 
     var isRowVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -997,30 +1022,77 @@ fun TopMetricsRow(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            OuraMetricItem(
-                iconType = "readiness",
-                value = readinessScore.toString(),
-                label = "Readiness",
-                onClick = { onNavigate("health") }
-            )
-            OuraMetricItem(
-                iconType = "sleep",
-                value = sleepScore.toString(),
-                label = "Sleep",
-                onClick = { onNavigate("health") }
-            )
-            OuraMetricItem(
-                iconType = "activity",
-                value = activityScore.toString(),
-                label = "Activity",
-                onClick = { onNavigate("health") }
-            )
-            OuraMetricItem(
-                iconType = "heart",
-                value = heartRate.toString(),
-                label = "Heart rate",
-                onClick = { onNavigate("health") }
-            )
+            // Widget 1 (Finanças) with smooth crossfade rotation!
+            Box(modifier = Modifier.width(76.dp)) {
+                Crossfade(targetState = financeIndex, animationSpec = tween(500), label = "FinanceRotation") { idx ->
+                    val valIdx = when(idx) {
+                        0 -> patrimony
+                        1 -> netWorth
+                        2 -> totalIncome
+                        else -> totalExpense
+                    }
+                    val labelIdx = when(idx) {
+                        0 -> "PATRIMÔNIO"
+                        1 -> "SALDO"
+                        2 -> "RECEITAS"
+                        else -> "DESPESAS"
+                    }
+                    val iconIdx = when(idx) {
+                        0 -> Icons.Outlined.AccountBalance
+                        1 -> Icons.Outlined.AccountBalanceWallet
+                        2 -> Icons.Outlined.ArrowUpward
+                        else -> Icons.Outlined.ArrowDownward
+                    }
+                    val formattedIdx = if (valIdx >= 1000) "${(valIdx / 1000).toInt()}k" else valIdx.toInt().toString()
+                    MetricItem(iconIdx, formattedIdx, labelIdx, onClick = { onNavigate("finance") })
+                }
+            }
+
+            // Widget 2 (Saúde) with smooth crossfade rotation!
+            Box(modifier = Modifier.width(76.dp)) {
+                Crossfade(targetState = healthIndex, animationSpec = tween(500), label = "HealthRotation") { idx ->
+                    val iconIdx = when (idx) {
+                        0 -> Icons.Outlined.Bedtime
+                        1 -> Icons.Outlined.MonitorWeight
+                        else -> Icons.Outlined.DirectionsWalk
+                    }
+                    val valIdx = when (idx) {
+                        0 -> "8.2h"
+                        1 -> String.format(java.util.Locale("pt", "BR"), "%.1f", latestWeight)
+                        else -> todaySteps.toString()
+                    }
+                    val labelIdx = when (idx) {
+                        0 -> "SONO"
+                        1 -> "PESO"
+                        else -> "PASSOS"
+                    }
+                    val progressIdx = when (idx) {
+                        0 -> 0.82f
+                        1 -> (latestWeight / 120.0f).toFloat().coerceIn(0f, 1f)
+                        else -> (todaySteps.toFloat() / 10000f).coerceIn(0f, 1f)
+                    }
+                    val colorIdx = when (idx) {
+                        0 -> PrimaryTeal
+                        1 -> TertiaryPurple
+                        else -> Color(0xFF4D96FF)
+                    }
+                    MetricItemWithProgress(iconIdx, valIdx, labelIdx, colorIdx, progressIdx, onClick = { onNavigate("health") })
+                }
+            }
+
+            // Widget 3 (Daily Brief - Pulsing Neon)
+            Box(modifier = Modifier.width(76.dp)) {
+                MetricItemWithNeonPulse(
+                    icon = Icons.Outlined.AutoAwesome,
+                    value = "NOW",
+                    label = "DAILY",
+                    glowColor = Color(0xFF71D7CD),
+                    onClick = { onNavigate("daily") }
+                )
+            }
+
+            // Widget 4 (Apartamento)
+            MetricItemWithProgress(Icons.Outlined.Construction, "${(aptProgress * 100).toInt()}%", "OBRA", SecondaryGold, aptProgress, onClick = { onNavigate("apartment") })
         }
     }
 }
@@ -1124,12 +1196,136 @@ fun ActivityDetectionCard() {
     var isVisible by remember { mutableStateOf(true) }
     var isConfirmed by remember { mutableStateOf(false) }
 
+    var activityName by remember { mutableStateOf("Disc sports") }
+    var timeText by remember { mutableStateOf("10:58") }
+    var durationText by remember { mutableStateOf("20m") }
+    var caloriesText by remember { mutableStateOf("137 Cal") }
+    var bpmText by remember { mutableStateOf("119 bpm") }
+
+    var showEditDialog by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+
     if (!isVisible) return
 
+    if (showEditDialog) {
+        var tempName by remember { mutableStateOf(activityName) }
+        var tempTime by remember { mutableStateOf(timeText) }
+        var tempDuration by remember { mutableStateOf(durationText) }
+        var tempCalories by remember { mutableStateOf(caloriesText) }
+        var tempBpm by remember { mutableStateOf(bpmText) }
+
+        AlertDialog(
+            onDismissRequest = { showEditDialog = false },
+            title = {
+                Text(
+                    text = "Editar Atividade",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = tempName,
+                        onValueChange = { tempName = it },
+                        label = { Text("Nome da Atividade", color = Color.White.copy(alpha = 0.6f)) },
+                        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF4FC3F7),
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                            focusedLabelColor = Color(0xFF4FC3F7),
+                            unfocusedLabelColor = Color.White.copy(alpha = 0.6f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = tempTime,
+                        onValueChange = { tempTime = it },
+                        label = { Text("Horário", color = Color.White.copy(alpha = 0.6f)) },
+                        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF4FC3F7),
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                            focusedLabelColor = Color(0xFF4FC3F7),
+                            unfocusedLabelColor = Color.White.copy(alpha = 0.6f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = tempDuration,
+                        onValueChange = { tempDuration = it },
+                        label = { Text("Duração", color = Color.White.copy(alpha = 0.6f)) },
+                        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF4FC3F7),
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                            focusedLabelColor = Color(0xFF4FC3F7),
+                            unfocusedLabelColor = Color.White.copy(alpha = 0.6f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = tempCalories,
+                        onValueChange = { tempCalories = it },
+                        label = { Text("Calorias", color = Color.White.copy(alpha = 0.6f)) },
+                        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF4FC3F7),
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                            focusedLabelColor = Color(0xFF4FC3F7),
+                            unfocusedLabelColor = Color.White.copy(alpha = 0.6f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = tempBpm,
+                        onValueChange = { tempBpm = it },
+                        label = { Text("Frequência Cardíaca (BPM)", color = Color.White.copy(alpha = 0.6f)) },
+                        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF4FC3F7),
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                            focusedLabelColor = Color(0xFF4FC3F7),
+                            unfocusedLabelColor = Color.White.copy(alpha = 0.6f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        activityName = tempName
+                        timeText = tempTime
+                        durationText = tempDuration
+                        caloriesText = tempCalories
+                        bpmText = tempBpm
+                        showEditDialog = false
+                        Toast.makeText(context, "Atividade atualizada!", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4FC3F7))
+                ) {
+                    Text("Salvar", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditDialog = false }) {
+                    Text("Cancelar", color = Color.White.copy(alpha = 0.6f))
+                }
+            },
+            containerColor = Color(0xFF1A1D1E),
+            textContentColor = Color.White,
+            titleContentColor = Color.White
+        )
+    }
+
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // Small header row
@@ -1198,7 +1394,7 @@ fun ActivityDetectionCard() {
                             )
                         }
                         Text(
-                            text = "Disc sports",
+                            text = activityName,
                             color = Color.White,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.SemiBold
@@ -1224,7 +1420,7 @@ fun ActivityDetectionCard() {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "10:58",
+                        text = timeText,
                         color = Color.White.copy(alpha = 0.6f),
                         fontSize = 13.sp
                     )
@@ -1244,7 +1440,7 @@ fun ActivityDetectionCard() {
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
-                            text = "20m",
+                            text = durationText,
                             color = Color.White.copy(alpha = 0.6f),
                             fontSize = 13.sp
                         )
@@ -1265,7 +1461,7 @@ fun ActivityDetectionCard() {
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
-                            text = "137 Cal",
+                            text = caloriesText,
                             color = Color.White.copy(alpha = 0.6f),
                             fontSize = 13.sp
                         )
@@ -1286,7 +1482,7 @@ fun ActivityDetectionCard() {
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
-                            text = "119 bpm",
+                            text = bpmText,
                             color = Color.White.copy(alpha = 0.6f),
                             fontSize = 13.sp
                         )
@@ -1301,7 +1497,10 @@ fun ActivityDetectionCard() {
                 ) {
                     // Confirm button
                     Button(
-                        onClick = { isConfirmed = true },
+                        onClick = {
+                            isConfirmed = true
+                            Toast.makeText(context, "Atividade confirmada com sucesso!", Toast.LENGTH_SHORT).show()
+                        },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (isConfirmed) Color(0x34C759FF) else Color(0x1FFFFFFF),
                             contentColor = Color.White
@@ -1328,7 +1527,7 @@ fun ActivityDetectionCard() {
 
                     // Edit button
                     TextButton(
-                        onClick = { /* Edit action */ }
+                        onClick = { showEditDialog = true }
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -1452,7 +1651,29 @@ fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, prog
                 )
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 4.dp)) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
+                if (icon == Icons.Outlined.Bedtime) {
+                    // Draw custom crown icon
+                    Canvas(modifier = Modifier.size(14.dp)) {
+                        val w = size.width
+                        val h = size.height
+                        val path = Path().apply {
+                            moveTo(w * 0.1f, h * 0.85f)
+                            lineTo(w * 0.9f, h * 0.85f)
+                            lineTo(w * 0.9f, h * 0.45f)
+                            lineTo(w * 0.7f, h * 0.65f)
+                            lineTo(w * 0.5f, h * 0.25f)
+                            lineTo(w * 0.3f, h * 0.65f)
+                            lineTo(w * 0.1f, h * 0.45f)
+                            close()
+                        }
+                        drawPath(path, color = Color.White.copy(alpha = 0.8f))
+                        drawCircle(color = Color.White.copy(alpha = 0.8f), radius = 1.dp.toPx(), center = Offset(w * 0.1f, h * 0.45f))
+                        drawCircle(color = Color.White.copy(alpha = 0.8f), radius = 1.dp.toPx(), center = Offset(w * 0.5f, h * 0.25f))
+                        drawCircle(color = Color.White.copy(alpha = 0.8f), radius = 1.dp.toPx(), center = Offset(w * 0.9f, h * 0.45f))
+                    }
+                } else {
+                    Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
+                }
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = value,
@@ -1898,40 +2119,7 @@ fun MainContent(
             }
         }
 
-        if (insights.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .then(PremiumGlassModifier)
-                    .padding(24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Carregando insights do dia...",
-                    color = Color.White.copy(alpha = 0.5f),
-                    fontSize = 14.sp
-                )
-            }
-        } else {
-            insights.forEach { card ->
-                InsightCardComponent(
-                    card = card,
-                    onAction = {
-                        // Action on close
-                    },
-                    onClick = {
-                        val target = when (card.category) {
-                            "health" -> "health"
-                            "finance" -> "finance"
-                            "market" -> "market"
-                            "pets" -> "petz"
-                            else -> "goals"
-                        }
-                        onNavigate(target)
-                    }
-                )
-            }
-        }
+        ActivityDetectionCard()
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -3754,6 +3942,69 @@ fun PremiumGridTile(
     }
 }
 
+data class OrbParticle3D(
+    val originalX: Float,
+    val originalY: Float,
+    val originalZ: Float,
+    val color: Color
+)
+
+fun formatStyledChatText(text: String): AnnotatedString {
+    return buildAnnotatedString {
+        var i = 0
+        while (i < text.length) {
+            val nextStar = text.indexOf('*', i)
+            if (nextStar == -1) {
+                appendWithLightning(text.substring(i))
+                break
+            }
+            appendWithLightning(text.substring(i, nextStar))
+            
+            val secondStar = text.indexOf('*', nextStar + 1)
+            if (secondStar == -1) {
+                appendWithLightning(text.substring(nextStar))
+                break
+            }
+            
+            val styledSegment = text.substring(nextStar + 1, secondStar)
+            withStyle(
+                SpanStyle(
+                    fontStyle = FontStyle.Italic,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White
+                )
+            ) {
+                appendWithLightning(styledSegment)
+            }
+            i = secondStar + 1
+        }
+    }
+}
+
+private fun AnnotatedString.Builder.appendWithLightning(subText: String) {
+    if (subText.isEmpty()) return
+    val keywords = listOf("rhythm", "ritmo")
+    val words = subText.split(" ")
+    words.forEachIndexed { idx, word ->
+        val cleanedWord = word.replace(",", "").replace(".", "").replace("!", "").replace("?", "").trim()
+        val isKeyword = keywords.any { it.equals(cleanedWord, ignoreCase = true) }
+        
+        if (isKeyword) {
+            withStyle(SpanStyle(color = Color(0xFFFFD700), fontWeight = FontWeight.Bold)) {
+                append("⚡ ")
+            }
+            withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
+                append(word)
+            }
+        } else {
+            append(word)
+        }
+        if (idx < words.size - 1) {
+            append(" ")
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TesseraChatSheet(
@@ -3765,267 +4016,462 @@ fun TesseraChatSheet(
     viewModel: TesseraViewModel
 ) {
     val context = LocalContext.current
+    val density = LocalDensity.current
     val coroutineScope = rememberCoroutineScope()
     var prompt by remember { mutableStateOf("") }
     
-    // Model for chat messages
-    data class ChatMessage(val id: String, val text: String, val isUser: Boolean)
-    var messages by remember { mutableStateOf(listOf(ChatMessage("msg_0", "Olá! Como posso ajudar você hoje?", false))) }
+    // UI states
+    var showInputField by remember { mutableStateOf(false) }
+    var currentResponseText by remember { mutableStateOf("Olá, Kenned! *But every person has their own unique *energy rhythm*, and it's not random it's a predictable *biology*.* Como posso te ajudar hoje?") }
+    var displayedResponseText by remember { mutableStateOf("") }
+    var isTypingFinished by remember { mutableStateOf(false) }
     var isThinking by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
+
+    // Sequential word-by-word reveal typing animation
+    LaunchedEffect(currentResponseText) {
+        isTypingFinished = false
+        displayedResponseText = ""
+        val words = currentResponseText.split(" ")
+        var accumulated = ""
+        for (i in words.indices) {
+            accumulated += (if (i == 0) "" else " ") + words[i]
+            displayedResponseText = accumulated
+            kotlinx.coroutines.delay(100L) // Adjust speed (100ms per word is perfect)
+        }
+        isTypingFinished = true
+    }
+
+    // Initialize 3D particles on a sphere for the Orb
+    val particles = remember {
+        val list = mutableListOf<OrbParticle3D>()
+        val random = java.util.Random()
+        val radius = 100f
+        for (i in 0 until 380) {
+            val theta = random.nextFloat() * 2f * Math.PI.toFloat()
+            val phi = acos(2f * random.nextFloat() - 1f)
+            val x = radius * sin(phi) * cos(theta)
+            val y = radius * sin(phi) * sin(theta)
+            val z = radius * cos(phi)
+
+            // Split Y axis for different copper/orange top vs silver/white bottom colors (like Oura/reference image)
+            val isTop = y < 0
+            val color = if (isTop) {
+                // Glowy copper/orange
+                val r = 210 + random.nextInt(45)
+                val g = 110 + random.nextInt(50)
+                val b = 30 + random.nextInt(30)
+                Color(r, g, b)
+            } else {
+                // Glowy silver/white
+                val gray = 210 + random.nextInt(45)
+                Color(gray, gray, gray)
+            }
+            list.add(OrbParticle3D(x, y, z, color))
+        }
+        list
+    }
+
+    // Orb rotation transition loops
+    val infiniteTransition = rememberInfiniteTransition(label = "OrbRotation")
+    val angleY by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(if (isThinking) 2500 else 8000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "RotationY"
+    )
+    val angleX by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(if (isThinking) 4000 else 12000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "RotationX"
+    )
+    val pulseFactor by infiniteTransition.animateFloat(
+        initialValue = 0.93f,
+        targetValue = 1.07f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(if (isThinking) 300 else 1200, easing = EaseInOutSine),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Pulse"
+    )
+    
+    // Background Dynamic Emerald green offset
+    val animateGreenOffset by infiniteTransition.animateFloat(
+        initialValue = 0.85f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = EaseInOutSine),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "GreenOffset"
+    )
+    
+    // Bottom Light Flare Intensity
+    val flareIntensity by infiniteTransition.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 0.45f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = EaseInOutSine),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "FlareIntensity"
+    )
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color(0xB3070909), // 70% opacity for premium frosted glass effect
-        scrimColor = Color(0x1F000000), // Subtle shadow to let the blurred background shine through
-        modifier = Modifier.fillMaxHeight(0.95f) // Taller sheet
+        containerColor = Color.Transparent, // Let our premium gradient shine through
+        scrimColor = Color(0x66000000),
+        dragHandle = null,
+        modifier = Modifier.fillMaxHeight(0.98f)
     ) {
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 8.dp)
-                .imePadding()
-        ) {
-            // Header
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = GlassModifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-                    .padding(16.dp)
-            ) {
-                val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition()
-                val pulseAlpha by infiniteTransition.animateFloat(
-                    initialValue = 0.4f,
-                    targetValue = 1f,
-                    animationSpec = androidx.compose.animation.core.infiniteRepeatable(
-                        animation = tween(1500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
-                        repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+                .background(
+                    Brush.verticalGradient(
+                        colorStops = arrayOf(
+                            0f to Color(0xFF070909),
+                            animateGreenOffset to Color(0xFF073C20) // Deep black to premium emerald green
+                        )
                     )
                 )
-                
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(Color(0x1A85D6C5))
-                        .border(1.dp, Color(0x3385D6C5).copy(alpha = pulseAlpha), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Outlined.AutoAwesome, 
-                        contentDescription = null, 
-                        tint = PrimaryTeal.copy(alpha = pulseAlpha), 
-                        modifier = Modifier.size(24.dp)
+        ) {
+            val screenWidth = maxWidth
+            val screenHeight = maxHeight
+            
+            // Background bottom yellow-green light flare
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp)
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        Brush.radialGradient(
+                            colorStops = arrayOf(
+                                0f to Color(0xFFC5E871).copy(alpha = flareIntensity),
+                                0.4f to Color(0xFF1E824C).copy(alpha = flareIntensity * 0.4f),
+                                1f to Color.Transparent
+                            ),
+                            center = Offset(x = constraints.maxWidth / 2f, y = constraints.maxHeight.toFloat()),
+                            radius = with(density) { 280.dp.toPx() }
+                        )
                     )
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Tessera AI", fontFamily = FontFamily.Serif, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        
-                        val isLocalActive = viewModel.isLocalLLMActive
-                        val badgeColor = if (isLocalActive) Color(0xFF34C759) else Color(0xFFFF9500)
-                        val badgeText = if (isLocalActive) "Gemma 4 Local" else "Simulada (Offline)"
+            )
 
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp)
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .imePadding()
+            ) {
+                // Header (Top bar with close & AI badge)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp, bottom = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Fechar",
+                            tint = Color.White.copy(alpha = 0.6f)
+                        )
+                    }
+                    
+                    // Tessera AI Badge
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0x11FFFFFF))
+                            .border(0.5.dp, Color(0x1F85D6C5), RoundedCornerShape(12.dp))
+                            .clickable { showHelpDialog = true }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        val isLocalActive = viewModel.isLocalLLMActive
+                        val dotColor = if (isLocalActive) Color(0xFF34C759) else Color(0xFFFF9500)
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(badgeColor.copy(alpha = 0.15f))
-                                .border(1.dp, badgeColor.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
-                                .clickable { showHelpDialog = true }
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(dotColor)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (isLocalActive) "Gemma 2B Local" else "Simulada (Offline)",
+                            fontSize = 11.sp,
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Orb display region (Upper-middle)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Custom 3D Particle Orb drawing
+                    Canvas(
+                        modifier = Modifier.size(240.dp)
+                    ) {
+                        val canvasWidth = size.width
+                        val canvasHeight = size.height
+                        val centerX = canvasWidth / 2f
+                        val centerY = canvasHeight / 2f
+                        val scale = pulseFactor
+                        val radY = Math.toRadians(angleY.toDouble()).toFloat()
+                        val radX = Math.toRadians(angleX.toDouble()).toFloat()
+
+                        // 1. Rotate and scale each particle
+                        val projected = particles.map { p ->
+                            // Rotation around Y axis
+                            val x1 = p.originalX * cos(radY) - p.originalZ * sin(radY)
+                            val z1 = p.originalX * sin(radY) + p.originalZ * cos(radY)
+
+                            // Rotation around X axis
+                            val y2 = p.originalY * cos(radX) - z1 * sin(radX)
+                            val z2 = p.originalY * sin(radX) + p.originalZ * cos(radX)
+
+                            val xScaled = x1 * scale
+                            val yScaled = y2 * scale
+                            
+                            // Dynamic turbulence displacement waves
+                            val waveOffset = sin(p.originalY * 0.08f + System.currentTimeMillis() * 0.005f) * (if (isThinking) 16f else 4f)
+                            val finalX = xScaled + (xScaled / 100f) * waveOffset
+                            val finalY = yScaled + (yScaled / 100f) * waveOffset
+                            
+                            Triple(finalX + centerX, finalY + centerY, z2) to p.color
+                        }
+
+                        // 2. Sort by depth Z so back particles render first
+                        val sorted = projected.sortedBy { it.first.third }
+
+                        // 3. Draw particles with depth-based sizing and transparency
+                        sorted.forEach { (pos, color) ->
+                            val (px, py, pz) = pos
+                            // Project depth (-100 to 100 range) to 0..1 scale
+                            val zNormalized = ((pz + 100f) / 200f).coerceIn(0f, 1f)
+                            
+                            val sizePx = 1.dp.toPx() + 3.dp.toPx() * zNormalized
+                            val alpha = 0.2f + 0.8f * zNormalized
+                            
+                            drawCircle(
+                                color = color.copy(alpha = alpha),
+                                radius = sizePx,
+                                center = Offset(px, py)
+                            )
+                        }
+                    }
+                }
+
+                // Text Display & Action Region (Lower half)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(28.dp)
+                ) {
+                    
+                    if (isThinking) {
+                        // Thinking state display
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color(0x0AFFFFFF))
+                                .border(0.5.dp, Color(0x1AFFFFFF), RoundedCornerShape(16.dp))
+                                .padding(horizontal = 20.dp, vertical = 10.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(badgeColor)
+                                val pulseAnim = rememberInfiniteTransition(label = "PulseText")
+                                val alpha by pulseAnim.animateFloat(
+                                    initialValue = 0.4f, targetValue = 1f,
+                                    animationSpec = infiniteRepeatable(
+                                        animation = tween(650, easing = FastOutSlowInEasing),
+                                        repeatMode = RepeatMode.Reverse
+                                    ),
+                                    label = "Alpha"
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    Icons.Outlined.AutoAwesome, 
+                                    contentDescription = null, 
+                                    tint = PrimaryTeal.copy(alpha = alpha), 
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = badgeText,
-                                    fontSize = 10.sp,
-                                    color = badgeColor,
-                                    fontWeight = FontWeight.Bold
+                                    text = "Aguardando biologia interna...", 
+                                    color = PrimaryTeal.copy(alpha = alpha), 
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
                         }
-                    }
-                    Text(
-                        text = if (viewModel.isLocalLLMActive) "IA executando localmente no seu dispositivo" else "Clique no badge para ativar o Gemma 4",
-                        fontSize = 12.sp,
-                        color = if (viewModel.isLocalLLMActive) PrimaryTeal.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.5f),
-                        modifier = Modifier.clickable { if (!viewModel.isLocalLLMActive) showHelpDialog = true }
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Chat Messages
-            androidx.compose.foundation.lazy.LazyColumn(
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(messages.size, key = { messages[it].id }) { index ->
-                    val message = messages[index]
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = androidx.compose.animation.slideInVertically(initialOffsetY = { it / 2 }) + fadeIn(),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
+                    } else if (!showInputField) {
+                        // Conversational text display
+                        Text(
+                            text = formatStyledChatText(displayedResponseText),
+                            color = Color.White,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Medium,
+                            fontFamily = FontFamily.SansSerif,
+                            lineHeight = 28.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        )
+                        
+                        // Next Action Button floating over yellow-green base light
+                        Button(
+                            onClick = { showInputField = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E824C)),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier
+                                .fillMaxWidth(0.85f)
+                                .height(56.dp)
+                        ) {
+                            Text(
+                                text = "Next",
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    } else {
+                        // User input region (Frosted Glass text box)
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            Box(
+                            // Suggestion quick pills
+                            Row(
                                 modifier = Modifier
-                                    .fillMaxWidth(0.85f)
-                                    .clip(RoundedCornerShape(
-                                        topStart = 20.dp, 
-                                        topEnd = 20.dp, 
-                                        bottomStart = if (message.isUser) 20.dp else 4.dp, 
-                                        bottomEnd = if (message.isUser) 4.dp else 20.dp
-                                    ))
-                                    .then(
-                                        if (message.isUser) {
-                                            Modifier.background(Brush.linearGradient(listOf(PrimaryTeal, Color(0xFF0A84FF))))
-                                        } else {
-                                            Modifier
-                                                .background(Color(0x1AFFFFFF))
-                                                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(
-                                                    topStart = 20.dp, topEnd = 20.dp, 
-                                                    bottomStart = 4.dp, bottomEnd = 20.dp
-                                                ))
-                                        }
-                                    )
-                                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Text(
-                                    text = message.text, 
-                                    color = if (message.isUser) Color.Black else Color.White, 
-                                    fontSize = 15.sp,
-                                    lineHeight = 22.sp
+                                val suggestions = listOf(
+                                    "Como está meu sono?",
+                                    "Dicas de foco hoje",
+                                    "Qual meu patrimônio?",
+                                    "Lembrete dos remédios"
                                 )
-                            }
-                        }
-                    }
-                }
-                
-                if (isThinking) {
-                    item {
-                        AnimatedVisibility(
-                            visible = true,
-                            enter = fadeIn() + scaleIn(initialScale = 0.8f)
-                        ) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(20.dp, 20.dp, 4.dp, 20.dp))
-                                        .background(Color(0x1AFFFFFF))
-                                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(20.dp, 20.dp, 4.dp, 20.dp))
-                                        .padding(horizontal = 16.dp, vertical = 14.dp)
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        val pulseAnim = androidx.compose.animation.core.rememberInfiniteTransition()
-                                        val alpha by pulseAnim.animateFloat(
-                                            initialValue = 0.3f, targetValue = 1f,
-                                            animationSpec = androidx.compose.animation.core.infiniteRepeatable(
-                                                animation = tween(600, easing = androidx.compose.animation.core.FastOutLinearInEasing),
-                                                repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
-                                            )
-                                        )
-                                        Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = PrimaryTeal.copy(alpha = alpha), modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text("Processando...", color = PrimaryTeal.copy(alpha = alpha), fontSize = 13.sp)
+                                suggestions.forEach { sug ->
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(18.dp))
+                                            .background(Color(0x0CFFFFFF))
+                                            .border(0.5.dp, Color(0x1F85D6C5), RoundedCornerShape(18.dp))
+                                            .clickable {
+                                                prompt = sug
+                                            }
+                                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                                    ) {
+                                        Text(sug, color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp, fontWeight = FontWeight.Medium)
                                     }
                                 }
                             }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(Color(0x1AFFFFFF))
+                                    .border(0.5.dp, Color(0x2BFFFFFF), RoundedCornerShape(24.dp))
+                                    .padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(modifier = Modifier.weight(1f)) {
+                                    if (prompt.isEmpty()) {
+                                        Text("Mensagem...", color = Color(0x80FFFFFF), fontSize = 15.sp)
+                                    }
+                                    androidx.compose.foundation.text.BasicTextField(
+                                        value = prompt,
+                                        onValueChange = { prompt = it },
+                                        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 15.sp),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        maxLines = 4,
+                                        cursorBrush = androidx.compose.ui.graphics.SolidColor(PrimaryTeal)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(CircleShape)
+                                        .background(if (prompt.isNotBlank()) PrimaryTeal else Color(0x22FFFFFF))
+                                        .clickable(enabled = prompt.isNotBlank()) {
+                                            val userPrompt = prompt
+                                            prompt = ""
+                                            showInputField = false
+                                            isThinking = true
+                                            
+                                            coroutineScope.launch {
+                                                val petsString = if (petEvents.isEmpty()) "Nenhum compromisso pendente hoje." else petEvents.joinToString("; ") { "${it.petName}: ${it.title} (${if(it.isCompleted) "Concluído" else "Pendente"})" }
+                                                val marketString = if (marketItems.isEmpty()) "Nenhuma compra pendente." else marketItems.joinToString("; ") { "${it.name} (${it.quantity} ${it.unit})${if (it.isChecked || it.isBought) " (Comprado)" else " (Pendente)"}" }
+                                                val medsString = if (medications.isEmpty()) "Nenhum medicamento agendado." else medications.joinToString("; ") { "${it.name} (${it.dosage}) às ${it.time} - ${if (it.isTaken) "Tomado" else "Pendente"}" }
+
+                                                val hiddenContext = """
+                                                    [Contexto] Nome do Usuário: Kenned
+                                                    [Contexto] Patrimônio consolidado: R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", netWorth)}
+                                                    [Contexto] Compromissos dos Pets: $petsString
+                                                    [Contexto] Lista de Compras (Mercado): $marketString
+                                                    [Contexto] Medicamentos e Remédios: $medsString
+                                                    
+                                                    Importante: Destaque palavras-chave importantes sobre biologia, energia e finanças entre asteriscos (ex: *energy rhythm*, *predictable biology*, *investimentos*, *sono*). Fale de forma premium e inspiradora direta ao Kenned.
+                                                    
+                                                    Pergunta do usuário: "$userPrompt"
+                                                """.trimIndent()
+                                                
+                                                val response = try {
+                                                    viewModel.generateAIResponse(hiddenContext)
+                                                } catch (e: Exception) {
+                                                    e.printStackTrace()
+                                                    "A IA local não pôde responder devido a um erro."
+                                                }
+                                                currentResponseText = response
+                                                isThinking = false
+                                            }
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.Send, 
+                                        contentDescription = "Enviar", 
+                                        tint = if (prompt.isNotBlank()) Color.Black else Color.White.copy(alpha=0.5f),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
                         }
                     }
-                }
-            }
-
-            // Input Area
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 24.dp, top = 8.dp)
-                    .clip(RoundedCornerShape(28.dp))
-                    .background(Color(0x1AFFFFFF))
-                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(28.dp))
-                    .padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(modifier = Modifier.weight(1f)) {
-                    if (prompt.isEmpty()) {
-                        Text("Mensagem...", color = Color(0x80FFFFFF), fontSize = 15.sp)
-                    }
-                    androidx.compose.foundation.text.BasicTextField(
-                        value = prompt,
-                        onValueChange = { prompt = it },
-                        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 15.sp),
-                        modifier = Modifier.fillMaxWidth(),
-                        maxLines = 4,
-                        cursorBrush = androidx.compose.ui.graphics.SolidColor(PrimaryTeal)
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(if (prompt.isNotBlank() && !isThinking) PrimaryTeal else Color(0x33FFFFFF))
-                        .clickable(enabled = prompt.isNotBlank() && !isThinking) {
-                            val userText = prompt
-                            prompt = ""
-                            val msgId = System.currentTimeMillis().toString()
-                            messages = messages + ChatMessage(msgId, userText, true)
-                            isThinking = true
-                            
-                            coroutineScope.launch {
-                                val petsString = if (petEvents.isEmpty()) "Nenhum compromisso pendente hoje." else petEvents.joinToString("; ") { "${it.petName}: ${it.title} (${if(it.isCompleted) "Concluído" else "Pendente"})" }
-                                val marketString = if (marketItems.isEmpty()) "Nenhuma compra pendente." else marketItems.joinToString("; ") { "${it.name} (${it.quantity} ${it.unit})${if (it.isChecked || it.isBought) " (Comprado)" else " (Pendente)"}" }
-                                val medsString = if (medications.isEmpty()) "Nenhum medicamento agendado." else medications.joinToString("; ") { "${it.name} (${it.dosage}) às ${it.time} - ${if (it.isTaken) "Tomado" else "Pendente"}" }
-
-                                val hiddenContext = """
-                                    [Contexto] Nome do Usuário: Kenned
-                                    [Contexto] Patrimônio consolidado: R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", netWorth)}
-                                    [Contexto] Compromissos dos Pets: $petsString
-                                    [Contexto] Lista de Compras (Mercado): $marketString
-                                    [Contexto] Medicamentos e Remédios: $medsString
-                                    
-                                    Pergunta do usuário: "$userText"
-                                """.trimIndent()
-                                val response = try {
-                                    viewModel.generateAIResponse(hiddenContext)
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                    "A IA local não pôde responder."
-                                }
-                                messages = messages + ChatMessage("resp_$msgId", response, false)
-                                isThinking = false
-                            }
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.Send, 
-                        contentDescription = "Enviar", 
-                        tint = if (prompt.isNotBlank() && !isThinking) Color.Black else Color.White.copy(alpha=0.5f),
-                        modifier = Modifier.size(20.dp)
-                    )
                 }
             }
         }
     }
 
+    // Help Dialog
     if (showHelpDialog) {
         AlertDialog(
             onDismissRequest = { showHelpDialog = false },

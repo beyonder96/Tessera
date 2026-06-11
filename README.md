@@ -8,10 +8,18 @@
 
 Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.build-outputs/`:
 
-* **[📥 app-release-1.3.0.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.3.0.apk)**  
+* **[📥 app-release-1.3.2.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.3.2.apk)**  
   *Versão final de produção. Otimizada (~12.2 MB), com minificação de código (R8/ProGuard), remoção automática de logs de depuração/prints de console e compressão extrema de assets (PNG Crunching).*
-* **[📥 app-debug-1.3.0.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.3.0.apk)**  
+* **[📥 app-debug-1.3.2.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.3.2.apk)**  
   *Versão para testes contendo ferramentas de depuração ativas.*
+
+---
+
+## 🚀 Novidades da Versão 1.3.2 ✨
+* 🌌 **Experiência de Chat Tessera AI Imersiva**: Redesenho completo do assistente com fundo em degradê sutil e dinâmico que flui de preto profundo para verde-esmeralda vibrante.
+* 🔮 **Orbe de Partículas 3D**: Renderização de esfera rotatória 3D (metade cobre/laranja, metade prateada) que reage ativamente (velocidade, pulsação, turbulência) quando a IA processa.
+* ⚡ **Efeito de Escrita e Formatação**: Exibição palavra por palavra sequencial com formatação automática em itálico para textos entre asteriscos (`*`) e adição automática do ícone de relâmpago amarelo (`⚡`) antes do termo `rhythm` e `ritmo`.
+* 🌟 **Botão "Next" e Glow**: Botão "Next" retangular com cantos arredondados sobre um Glow radial amarelo-esverdeado no rodapé da tela, abrindo o campo de texto estilo frosted glass e pílulas de atalho horizontal.
 
 ---
 
@@ -101,8 +109,8 @@ Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.bui
 ```text
 Tessera/
 ├── .build-outputs/       # Diretório de APKs compilados e prontos para uso
-│   ├── app-debug-1.3.0.apk # Versão de testes com logs ativos
-│   └── app-release-1.3.0.apk # Versão final de produção assinada
+│   ├── app-debug-1.3.2.apk # Versão de testes com logs ativos
+│   └── app-release-1.3.2.apk # Versão final de produção assinada
 ├── app/                  # Módulo principal Android (Código Kotlin & Jetpack Compose)
 │   ├── src/main/java/    # Arquivos de código-fonte
 │   └── proguard-rules.pro# Regras de minificação R8/ProGuard

@@ -1056,11 +1056,7 @@ class TesseraViewModel(
 
     fun saveRoutineWithSteps(routine: Routine, steps: List<RoutineStep>) {
         viewModelScope.launch {
-            val routineId = repository.insertRoutine(routine).toInt()
-            repository.clearStepsForRoutine(routineId)
-            steps.forEachIndexed { index, step ->
-                repository.insertRoutineStep(step.copy(routineId = routineId, orderIndex = index))
-            }
+            repository.saveRoutineWithSteps(routine, steps)
         }
     }
 

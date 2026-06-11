@@ -34,10 +34,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
         
-        <receiver android:name=".notifications.MedicationReceiver" android:exported="false" />
+        <receiver android:name="com.example.notifications.MedicationReceiver" android:exported="false" />
         
         <receiver
-            android:name=".notifications.BootReceiver"
+            android:name="com.example.notifications.BootReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
@@ -48,7 +48,7 @@
         
         <!-- App Widget Receivers -->
         <receiver
-            android:name=".widget.DailyWidgetReceiver"
+            android:name="com.example.widget.DailyWidgetReceiver"
             android:exported="true"
             android:label="Tessera Daily">
             <intent-filter>
@@ -60,7 +60,7 @@
         </receiver>
 
         <receiver
-            android:name=".widget.FinanceWidgetReceiver"
+            android:name="com.example.widget.FinanceWidgetReceiver"
             android:exported="true"
             android:label="Tessera Finanças">
             <intent-filter>
@@ -72,7 +72,7 @@
         </receiver>
 
         <receiver
-            android:name=".widget.MarketWidgetReceiver"
+            android:name="com.example.widget.MarketWidgetReceiver"
             android:exported="true"
             android:label="Tessera Mercado">
             <intent-filter>
@@ -84,7 +84,7 @@
         </receiver>
 
         <receiver
-            android:name=".widget.PetsWidgetReceiver"
+            android:name="com.example.widget.PetsWidgetReceiver"
             android:exported="true"
             android:label="Tessera Petz">
             <intent-filter>
@@ -96,7 +96,7 @@
         </receiver>
 
         <receiver
-            android:name=".widget.HealthWidgetReceiver"
+            android:name="com.example.widget.HealthWidgetReceiver"
             android:exported="true"
             android:label="Tessera Saúde">
             <intent-filter>
@@ -108,7 +108,7 @@
         </receiver>
 
         <receiver
-            android:name=".widget.GoalsWidgetReceiver"
+            android:name="com.example.widget.GoalsWidgetReceiver"
             android:exported="true"
             android:label="Tessera Metas">
             <intent-filter>
@@ -120,7 +120,7 @@
         </receiver>
         
         <activity
-            android:name=".MainActivity"
+            android:name="com.example.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.MyApplication">

@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -1671,10 +1672,12 @@ fun AnimatedCardContainer(
     delayMillis: Int = 0,
     content: @Composable () -> Unit
 ) {
-    var visible by remember { mutableStateOf(false) }
+    var visible by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(delayMillis.toLong())
-        visible = true
+        if (!visible) {
+            kotlinx.coroutines.delay(delayMillis.toLong())
+            visible = true
+        }
     }
     androidx.compose.animation.AnimatedVisibility(
         visible = visible,
@@ -1685,3 +1688,4 @@ fun AnimatedCardContainer(
         content()
     }
 }
+
