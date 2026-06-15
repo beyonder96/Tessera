@@ -8,10 +8,16 @@
 
 Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.build-outputs/`:
 
-* **[📥 app-release-1.3.4.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.3.4.apk)**  
-  *Versão final de produção. Otimizada (~12.2 MB), com minificação de código (R8/ProGuard), remoção automática de logs de depuração/prints de console e compressão extrema de assets (PNG Crunching).*
-* **[📥 app-debug-1.3.4.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.3.4.apk)**  
+* **[📥 app-release-1.3.5.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.3.5.apk)**  
+  *Versão final de produção. Otimizada (~12.9 MB), com minificação de código (R8/ProGuard), remoção automática de logs de depuração/prints de console e compressão extrema de assets (PNG Crunching).*
+* **[📥 app-debug-1.3.5.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.3.5.apk)**  
   *Versão para testes contendo ferramentas de depuração ativas.*
+
+---
+
+## 🚀 Novidades da Versão 1.3.5 ✨
+* 📚 **Catálogo Completo de Recursos**: Mapeamento minucioso e documentação de todas as funcionalidades de saúde, finanças, hábitos, pets, compras e segurança.
+* 🏷️ **Versão 1.3.5**: Incremento oficial do build (`versionCode` 7) e atualização dos arquivos binários finais.
 
 ---
 
@@ -43,36 +49,80 @@ Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.bui
 
 ## 🌟 Principais Funcionalidades
 
-### 🐾 1. Painel Petz (Estética Premium)
-* **Ficha Técnica em Glassmorphism:** Dados consolidados do pet com badges industriais monoespaçados (Sexo, RGA, Microchip e Status de Castração).
-* **Scroll Imersivo:** Foto de topo fixa que aplica desfoque (blur) dinâmico e progressivo conforme o scroll, sem distorcer ou dar zoom na imagem.
-* **Readiness Ring (Vitalidade):** Gráfico circular no estilo *Oura Ring* desenhado sob medida via Canvas com degradês e brilho reativo baseado nas vacinas e peso do pet.
-* **Agendador de Rotinas:** Seletor de horário integrado com relógio analógico nativo do Material 3 (`TimePicker`).
+### 🤖 1. IA Local & Chat Contextual (Tessera AI)
+* **Assistência Local Avançada**: Ciclo de vida integrado da IA local Gemma (2B) gerenciado no ViewModel com carregamento assíncrono inteligente.
+* **Algoritmo de Fallback Local**: Caso a IA esteja offline ou não suportada no aparelho, um motor heurístico avançado gera respostas contextuais com base nas tabelas do banco de dados local.
+* **Injeção de Contexto de Room**: Dados reais de patrimônio, rituais, lista de compras e status de medicamentos são injetados de forma segura e transparente no prompt para respostas hiper-personalizadas.
+* **Orbe Futurista 3D (Core Orb)**: Interface de carregamento do assistente projetada sob medida no Canvas contendo um orbe central cobre/laranja estilo vidro translúcido, cercado por 3 anéis orbitais com elétrons brilhantes ativos e ondas senoidais reativas de ressonância emitidas quando a IA está "pensando".
+* **Destaque Dinâmico via Regex**: Parser inteligente que encontra conceitos biológicos e financeiros (como `rhythm`, `ritmo`, `predictable biology`, etc.), aplicando estilo itálico, negrito e adicionando um marcador neon em formato de raio (`⚡`).
+* **Reveal Efeito de Digitação**: Animação suave e cadenciada palavra-a-palavra que melhora a legibilidade.
+* **Atalhos Rápidos**: Menu de sugestões de perguntas baseadas no contexto de sono, foco, finanças e remédios do usuário.
 
-### 🩺 2. Módulo de Saúde Inteligente & Leve
-* **Sincronização Health Connect Automática:**
-  * **Permissão Unificada:** Checagem em segundo plano que ativa o sincronismo silencioso automaticamente se a permissão já foi dada, sem banners repetitivos.
-  * **Histórico Inteligente de Peso:** Filtro dinâmico contra duplicidades que registra o peso histórico apenas mediante variação relevante (> 0.05 kg).
-  * **Resgate Inteligente de Altura:** Busca estendida em lote de até 5 anos para encontrar o último registro de altura no Health Connect e calcular o **IMC automático** com status colorido.
-* **Design Leve com Luzes Ambientais:** Fundo escuro premium decorado com luzes de neon difusas (verde-menta e roxo) e animações de entrada em cascata (*staggered fade-in*) para um visual relaxante.
-* **Anel de Passos Neon Glow:** Arco circular luminoso composto por múltiplas camadas de glow e cursor com halo azul brilhante na ponta do progresso diário.
+### 📱 2. Aba Hoje (Painel Principal Circadiano)
+* **Design Oura Style Premium**: Interface translúcida sobreposta a um fundo fotográfico com efeito de desfoque atmosférico. Barra superior minimalista contendo saudação dinâmica baseada no horário do dia (Bom dia, Boa tarde, Boa noite, Boa madrugada) e avatar do usuário com borda dourada.
+* **Arco Oura central (HeroMetric)**: Canvas circular calibrado que exibe graficamente o índice de prontidão do usuário por meio de múltiplos "ticks", gradiente progressivo de progresso e ícone centralizador.
+* **Glow Respirante Circadiano**: Gradiente radial pulsante que altera de cor dinamicamente para refletir o período do dia (alvorecer, meio-dia, crepúsculo e noite).
+* **Widgets Glassmorphism**: Cards informativos de alta fidelidade visual que usam o modificador de vidro líquido premium com bordas e desfoque nativos.
+* **Scroll Inteligente de GPU**: Animações de entrada e posicionamento calculadas diretamente pela placa de vídeo via modificador `.graphicsLayer` garantindo estabilidade a 120 FPS.
+* **Módulo Acalmar a Mente**: Seletor de exercícios de meditação/respiração guiados com player e contagem regressiva reativa.
 
-### 🏠 3. Experiência de Uso na Aba Hoje (Home)
-* **Performance de Scroll Otimizada:** Parâmetros de animação delegados diretamente à GPU através do `.graphicsLayer`, mantendo a fluidez de renderização em 120 FPS.
-* **Glow Respirante Circadiano:** Efeito de pulsação suave em degradê radial que ajusta a tonalidade em tempo real baseado no horário do dia (alvorecer, meio-dia, crepúsculo e noite).
-* **Micro-animações do Tempo:** Ícones de saudação que rotacionam (Sol) ou balançam (Lua) dinamicamente.
-* **Efeito Mola (Bounce Click):** Feedback físico de clique elástico aplicado a todos os botões e cartões da interface.
+### 🩺 3. Módulo de Saúde & Integração Health Connect
+* **Google Health Connect Integrado**: Fluxo que detecta silenciosamente e sincroniza dados em segundo plano.
+* **Recuperação Retroativa de Altura**: Busca em lote no histórico de até 5 anos para obter a última altura registrada no sistema e realizar o cálculo em tempo real do **IMC** (Índice de Massa Corporal), com cartões de classificação coloridos.
+* **Registrador Inteligente de Peso**: Mecanismo de redução de duplicados que armazena um novo registro somente sob variação maior que 0.05 kg. Histórico visualizado em um gráfico linear de evolução contendo linha horizontal da meta estipulada pelo usuário.
+* **Anel de Passos Neon Glow**: Arco luminoso com múltiplas camadas de glow e cursor com halo azul que se ajusta à meta de passos.
+* **Mapeador de Sono**: Registro da qualidade e duração do último período de descanso, associado a um gráfico de barras com a evolução histórica de noites dormidas.
+* **Gerenciador de Medicamentos**: Lista de medicamentos cadastrados com dosagem, recorrência e marcação de tomada com confirmação rápida.
+* **Alarmes Exatos & Boot Recovery**: Agenda lembretes e notificações exatas no Android (`setExactAndAllowWhileIdle`) persistentes a reinicializações de sistema via receiver de boot (`BootReceiver`).
 
-### 🤖 4. IA Local Contextual (Tessera AI)
-* **Injeção de Contexto de Tabelas Locais:** O prompt da inteligência artificial local é alimentado em tempo real com o estado dos medicamentos agendados (`Medication`) e itens de mercado (`MarketItem`).
-* **Fallback Inteligente:** O assistente de IA responde com precisão contextual e lógica reativa sobre as tarefas diárias pendentes, mesmo em modo offline.
+### 💸 4. Controle Financeiro & Contabilidade Local
+* **Painel Patrimonial consolidado**: Resumo dinâmico de receitas, despesas, saldo líquido e patrimônio de todas as contas cadastradas.
+* **Pontuação Financeira (Financial Score Ring)**: Gráfico de anel que mede a saúde financeira do usuário relacionando percentualmente a renda ativa contra os gastos correntes.
+* **Gráficos de Evolução Suave**: Gráfico de linha que renderiza o fluxo histórico e a evolução das finanças.
+* **Gráfico de Pizza das Categorias**: Análise gráfica que separa despesas por finalidade (alimentação, lazer, transporte, saúde, etc.).
+* **Carrossel de Cartões de Crédito**: Carrossel 3D exibindo cartões com bandeiras, limites, saldos parciais e designs personalizados baseados em cores hexadecimais.
+* **Gestão de Contas Bancárias**: Listagem de saldo individual de contas correntes e poupança.
+* **Transações Recorrentes**: Agendamento de receitas e despesas futuras automáticas.
+* **Diálogos de Ajuste**: Fluxos modais para inclusão de transações com calendário nativo, cadastro de novos cartões/contas bancárias e conciliação de saldos.
+
+### 🎯 5. Foco, Hábitos (Rituais) & Rotinas Chronos
+* **Hábitos Diários (Rituais)**: Cadastro de tarefas com streaks (sequência de dias consecutivos cumpridos) e interruptor rápido de finalização com feedback tátil.
+* **Metas de Compras (Desejos)**: Criação de metas financeiras para itens de desejo, com barra de progresso do valor economizado, adição rápida de depósitos e controle de edição.
+* **Módulo Chronos**: Sistema de rotinas complexas estruturadas (ex: Rotina da Manhã) divididas em etapas sequenciais com ícones, títulos e durações estimadas.
+  * *Player de Rotinas:* Reprodutor interativo que gerencia a transição de etapas, tempo restante com cronômetro interno regressivo ativo, suporte a pause/play e encerramento com animação festiva.
+* **Módulo Focus (Pomodoro)**: Cronômetro clássico com tempos de foco e descanso customizáveis.
+  * *Som Ambiente Integrado:* Reprodução de sons de relaxamento nativos (chuva, cafeteria, ondas e ruído branco) usando `AudioTrack` para melhor isolamento acústico.
+  * *Categorias Customizadas:* Organização de sessões de foco por atividade cadastradas e persistidas localmente.
+
+### 🐾 6. Perfil & Vitalidade Petz
+* **Identificação Premium**: Ficha técnica do pet em estilo Glassmorphism monoespaçado contendo sexo, idade calculada dinamicamente com base na data de nascimento, RGA (registro geral do animal) com máscara de 7 dígitos e número do microchip de 15 dígitos.
+* **Readiness Ring Animal**: Canvas interativo que mede e exibe o grau de vitalidade do pet de forma visual com gradiente brilhante baseado no status das vacinas e peso ideal.
+* **Evolução de Peso do Pet**: Gráfico de histórico de pesagem para acompanhamento veterinário.
+* **Timeline de Compromissos**: Histórico e lista linear de lembretes e tarefas voltados ao pet.
+* **Agendador de Rotinas do Pet**: Cadastro de horários com o relógio circular analógico `TimePicker` do Material Design 3.
+* **Diálogos Sanitários**: Gerenciamento detalhado de medicamentos, datas de vacinas aplicadas e próximas doses pendentes.
+
+### 🛒 7. Módulo de Mercado & Compras
+* **Modo Planejamento**: Lista de itens a comprar com quantidade, unidades de medida customizadas (kg, g, unidade, L, ml) e histórico de compras anteriores.
+* **Modo Compras (Carrinho)**: Interface otimizada para o momento de ir ao mercado. Permite riscar itens e colocá-los no carrinho, digitar ou ajustar o preço real do produto em tempo real e visualizar o somatório total estimado de forma imediata na barra superior.
+* **Finalização de Compra**: Fluxo de checkout que limpa o carrinho e transfere itens comprados para a aba de histórico.
+
+### 🏠 8. Meu Apartamento (Aba Obras)
+* **Controle de Evolução**: Painel indicando a porcentagem de conclusão de reformas ou montagem do apartamento, controlado por meio de um slider com persistência em cache SharedPreferences de forma simples e intuitiva.
+
+### ⚙️ 9. Configurações Globais & Segurança
+* **Personalização de Fundo**: Troca da imagem de fundo global do app selecionando qualquer arquivo de foto diretamente da galeria de fotos do usuário via `PickVisualMedia`, com opção de restaurar o papel de parede clássico.
+* **Segurança Biométrica**: Opção de exigir desbloqueio biométrico (sensor de impressão digital ou reconhecimento facial do Android) na inicialização do aplicativo para proteger dados financeiros e de saúde.
+* **Estatísticas e Tamanho do Banco**: Informações detalhadas do banco Room local (conexão ativa, quantidade de tabelas/linhas registradas e tamanho exato ocupado em KB).
+* **Seed de Demonstração**: Carrega o aplicativo instantaneamente com dados mockados em todas as telas para visualização completa de gráficos e tabelas de exemplo.
+* **Exportação & Importação de Backups**: Permite extrair o banco de dados local `.db` completo para compartilhamento ou backup seguro. O fluxo de restauração limpa arquivos temporários do SQLite (removendo arquivos de log WAL `.db-wal` e `.db-shm` antes da cópia) para prevenir qualquer tipo de corrupção ou perda de dados.
 
 ---
 
 ## 🛠️ Como Compilar e Buildar
 
 ### Pré-requisitos
-* **Android SDK** (API level 34+)
+* **Android SDK** (API level 36, minor level 1)
 * **JDK 17**
 
 ### Configuração do Ambiente
@@ -109,8 +159,8 @@ Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.bui
 ```text
 Tessera/
 ├── .build-outputs/       # Diretório de APKs compilados e prontos para uso
-│   ├── app-debug-1.3.4.apk # Versão de testes com logs ativos
-│   └── app-release-1.3.4.apk # Versão final de produção assinada
+│   ├── app-debug-1.3.5.apk # Versão de testes com logs ativos
+│   └── app-release-1.3.5.apk # Versão final de produção assinada
 ├── app/                  # Módulo principal Android (Código Kotlin & Jetpack Compose)
 │   ├── src/main/java/    # Arquivos de código-fonte
 │   └── proguard-rules.pro# Regras de minificação R8/ProGuard

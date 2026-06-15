@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -383,6 +384,27 @@ fun TesseraApp() {
         )
     }
 
+    val backgroundPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val bgFile = java.io.File(context.filesDir, "custom_home_background.jpg")
+                    bgFile.outputStream().use { outputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                    val localUri = Uri.fromFile(bgFile)
+                    backgroundUri = localUri.toString()
+                    sharedPrefs.edit().putString("home_background_uri", localUri.toString()).apply()
+                    Toast.makeText(context, "Plano de fundo atualizado!", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     androidx.compose.runtime.DisposableEffect(sharedPrefs) {
         val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             if (key == "home_background_uri") {
@@ -513,7 +535,12 @@ fun TesseraApp() {
                     onExpandedChange = { isFabExpanded = it },
                     onHoveredItemChange = { fabHoveredItem = it },
                     currentRoute = currentRoute,
-                    onNavigate = navigateAction
+                    onNavigate = navigateAction,
+                    onCameraClick = {
+                        backgroundPickerLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    }
                 )
             }
             } // Fecha o Box do blur
@@ -3538,12 +3565,78 @@ fun AISummaryWidget(
 }
 
 @Composable
+fun CircularNavButton(
+    icon: ImageVector,
+    contentDescription: String,
+    isActive: Boolean,
+    activeColor: Color = Color.White,
+    activeIconColor: Color = Color.Black,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier.size(56.dp)
+    ) {
+        // Ambient shadow/glow
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(2.dp)
+                .blur(8.dp)
+                .background(
+                    if (isActive) activeColor.copy(alpha = 0.3f) else Color(0x55000000),
+                    CircleShape
+                )
+        )
+
+        // Actual Button
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(CircleShape)
+                .background(
+                    if (isActive) {
+                        SolidColor(activeColor)
+                    } else {
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color(0x2BFFFFFF), // Glossy top glare (Liquid Glass)
+                                Color(0x06FFFFFF)  // Translucent base
+                            )
+                        )
+                    }
+                )
+                .border(
+                    width = 1.dp,
+                    brush = Brush.verticalGradient(
+                        colors = if (isActive) {
+                            listOf(Color.White.copy(alpha = 0.6f), Color.White.copy(alpha = 0.2f))
+                        } else {
+                            listOf(Color(0x59FFFFFF), Color(0x08FFFFFF))
+                        }
+                    ),
+                    shape = CircleShape
+                )
+                .bounceClick { onClick() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = if (isActive) activeIconColor else Color.White,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+    }
+}
+
+@Composable
 fun BottomNavBar(
     isExpanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     onHoveredItemChange: (String?) -> Unit,
     currentRoute: String = "home",
-    onNavigate: (String) -> Unit = {}
+    onNavigate: (String) -> Unit = {},
+    onCameraClick: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier
@@ -3553,89 +3646,63 @@ fun BottomNavBar(
         contentAlignment = Alignment.BottomCenter
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.wrapContentSize(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Main Tabs Capsule Container with ambient glow
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(68.dp)
-            ) {
-                // Ambient Glow (Soft blurred shadow for elegant contrast)
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 6.dp, vertical = 3.dp)
-                        .blur(10.dp)
-                        .background(Color(0x7F000000), RoundedCornerShape(34.dp))
-                )
-                
-                // Actual Capsule
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(34.dp))
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color(0xD9222625), // 85% opacity sleek top slate
-                                    Color(0xFA121414)  // 98% opacity rich deep slate
-                                )
-                            )
-                        )
-                        .border(
-                            width = 1.dp,
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color(0x40FFFFFF), // Premium glossy top highlight
-                                    Color(0x10FFFFFF)  // Faint bottom edge
-                                )
-                            ),
-                            shape = RoundedCornerShape(34.dp)
-                        )
-                        .padding(horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    NavItem(Icons.Outlined.LightMode, "Hoje", currentRoute == "home") { onNavigate("home") }
-                    NavItem(Icons.Outlined.AccountBalanceWallet, "Finanças", currentRoute == "finance") { onNavigate("finance") }
-                    NavItem(Icons.Outlined.Storefront, "Mercado", currentRoute == "market") { onNavigate("market") }
-                }
-            }
+            // 1. Hoje Tab Button
+            CircularNavButton(
+                icon = Icons.Outlined.LightMode,
+                contentDescription = "Hoje",
+                isActive = currentRoute == "home",
+                onClick = { onNavigate("home") }
+            )
 
-            // Detached Action (+) Button Container with ambient glow
+            // 2. Finanças Tab Button
+            CircularNavButton(
+                icon = Icons.Outlined.AccountBalanceWallet,
+                contentDescription = "Finanças",
+                isActive = currentRoute == "finance",
+                onClick = { onNavigate("finance") }
+            )
+
+            // 3. Mercado Tab Button
+            CircularNavButton(
+                icon = Icons.Outlined.Storefront,
+                contentDescription = "Mercado",
+                isActive = currentRoute == "market",
+                onClick = { onNavigate("market") }
+            )
+
+            // 4. ADD / PLUS Button (Toggles menu)
             Box(
-                modifier = Modifier.size(68.dp)
+                modifier = Modifier.size(56.dp)
             ) {
-                // Ambient Glow (Soft blurred shadow/glow for elegant contrast)
+                // Ambient Glow
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(3.dp)
-                        .blur(10.dp)
+                        .padding(2.dp)
+                        .blur(8.dp)
                         .background(
-                            if (isExpanded) PrimaryTeal.copy(alpha = 0.4f) else Color(0x7F000000),
+                            if (isExpanded) PrimaryTeal.copy(alpha = 0.3f) else Color(0x55000000),
                             CircleShape
                         )
                 )
 
-                // Actual Button
+                // Button
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(CircleShape)
                         .background(
                             if (isExpanded) {
-                                Brush.verticalGradient(
-                                    colors = listOf(PrimaryTeal, PrimaryTeal.copy(alpha = 0.8f))
-                                )
+                                SolidColor(PrimaryTeal)
                             } else {
                                 Brush.verticalGradient(
                                     colors = listOf(
-                                        Color(0xD9222625),
-                                        Color(0xFA121414)
+                                        Color(0x2BFFFFFF), // Glossy top glare (Liquid Glass)
+                                        Color(0x06FFFFFF)  // Translucent base
                                     )
                                 )
                             }
@@ -3646,12 +3713,12 @@ fun BottomNavBar(
                                 colors = if (isExpanded) {
                                     listOf(Color.White.copy(alpha = 0.6f), Color.White.copy(alpha = 0.2f))
                                 } else {
-                                    listOf(Color(0x40FFFFFF), Color(0x10FFFFFF))
+                                    listOf(Color(0x59FFFFFF), Color(0x08FFFFFF))
                                 }
                             ),
                             shape = CircleShape
                         )
-                        .clickable { onExpandedChange(!isExpanded) },
+                        .bounceClick { onExpandedChange(!isExpanded) },
                     contentAlignment = Alignment.Center
                 ) {
                     val iconRotation by animateFloatAsState(
@@ -3661,13 +3728,21 @@ fun BottomNavBar(
                     Icon(
                         Icons.Default.Add, 
                         contentDescription = "Add", 
-                        tint = if (isExpanded) Color.Black else MaterialTheme.colorScheme.onSurface,
+                        tint = if (isExpanded) Color.Black else Color.White,
                         modifier = Modifier
-                            .size(24.dp)
+                            .size(22.dp)
                             .rotate(iconRotation)
                     )
                 }
             }
+
+            // 5. CAMERA Button (Launches background picker)
+            CircularNavButton(
+                icon = Icons.Outlined.PhotoCamera,
+                contentDescription = "Câmera / Plano de Fundo",
+                isActive = false,
+                onClick = onCameraClick
+            )
         }
     }
 }
