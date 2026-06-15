@@ -8,20 +8,16 @@
 
 Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.build-outputs/`:
 
-* **[📥 app-release-1.3.5.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.3.5.apk)**  
-  *Versão final de produção. Otimizada (~12.9 MB), com minificação de código (R8/ProGuard), remoção automática de logs de depuração/prints de console e compressão extrema de assets (PNG Crunching).*
-* **[📥 app-debug-1.3.5.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.3.5.apk)**  
+* **[📥 app-release-1.3.6.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.3.6.apk)**  
+  *Versão final de produção. Otimizada (~12.2 MB), com minificação de código (R8/ProGuard), remoção automática de logs de depuração/prints de console e compressão extrema de assets (PNG Crunching).* 
+* **[📥 app-debug-1.3.6.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.3.6.apk)**  
   *Versão para testes contendo ferramentas de depuração ativas.*
 
 ---
 
-## 🚀 Novidades da Versão 1.3.5 ✨
-* 📚 **Catálogo Completo de Recursos**: Mapeamento minucioso e documentação de todas as funcionalidades de saúde, finanças, hábitos, pets, compras e segurança.
-* 🏷️ **Versão 1.3.5**: Incremento oficial do build (`versionCode` 7) e atualização dos arquivos binários finais.
-
----
-
-## 🚀 Novidades da Versão 1.3.4 ✨
+## 🚀 Novidades da Versão 1.3.6 ✨
+* 📦 **Artefatos de distribuição atualizados**: README revisado e APKs disponibilizados na versão 1.3.6 para download direto.
+* 🔧 **Versionamento alinhado**: a configuração do app foi atualizada para a versão 1.3.6 e o código interno de versão foi incrementado.
 * 📈 **Insights Relevantes Dinâmicos**: Substituição do placeholder genérico por insights reais gerados a partir do banco de dados do usuário (estatísticas de caminhada ativa calculadas com base em passos reais, quantidade de medicamentos pendentes e taxa de conclusão de rituais). Botões de **Confirm** e **Edit** 100% funcionais.
 * 🌌 **Chat Tessera com Fundo Preto**: O fundo do assistente de IA foi alterado para preto puro (`Color.Black`) para máximo contraste e visual imersivo.
 * 🔮 **Futuristic Core Orb**: Novo orbe no chat composto por um núcleo centralizado com gradiente cobre/laranja e prateado/branco (estilo vidro 3D), 3 órbitas finas elípticas com elétrons girando ao redor e anéis de pulso de frequência emitidos quando a IA está processando.
@@ -159,8 +155,8 @@ Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.bui
 ```text
 Tessera/
 ├── .build-outputs/       # Diretório de APKs compilados e prontos para uso
-│   ├── app-debug-1.3.5.apk # Versão de testes com logs ativos
-│   └── app-release-1.3.5.apk # Versão final de produção assinada
+│   ├── app-debug-1.3.6.apk # Versão de testes com logs ativos
+│   └── app-release-1.3.6.apk # Versão final de produção assinada
 ├── app/                  # Módulo principal Android (Código Kotlin & Jetpack Compose)
 │   ├── src/main/java/    # Arquivos de código-fonte
 │   └── proguard-rules.pro# Regras de minificação R8/ProGuard
