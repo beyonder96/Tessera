@@ -418,17 +418,24 @@ fun TesseraApp() {
         }
     }
 
+    var homeScrollOffset by remember { mutableStateOf(0) }
+
     Scaffold(
         containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize()) {
+            val homeScrollBlur = if (currentRoute == "home") {
+                (homeScrollOffset * 0.04f).coerceIn(0f, 16f).dp
+            } else {
+                0.dp
+            }
             AsyncImage(
                 model = backgroundUri,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 alignment = Alignment.TopCenter,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize().blur(homeScrollBlur)
             )
             Box(
                 modifier = Modifier
@@ -440,7 +447,10 @@ fun TesseraApp() {
             Box(modifier = Modifier.fillMaxSize().blur(contentBlur)) {
                 NavHost(navController = navController, startDestination = "home", modifier = Modifier.fillMaxSize()) {
                 composable("home") {
-                    HomeScreen(onNavigate = navigateAction)
+                    HomeScreen(
+                        onNavigate = navigateAction,
+                        onScrollChange = { homeScrollOffset = it }
+                    )
                 }
                 composable("settings") {
                     SettingsScreen(viewModel = viewModel, onBack = { 
@@ -670,7 +680,7 @@ fun getDatabaseSizeInKB(context: android.content.Context): String {
 }
 
 @Composable
-fun HomeScreen(onNavigate: (String) -> Unit) {
+fun HomeScreen(onNavigate: (String) -> Unit, onScrollChange: (Int) -> Unit) {
     val context = LocalContext.current
     val mainViewModel: TesseraViewModel = viewModel(factory = com.example.viewmodel.TesseraViewModelFactory(com.example.data.TesseraRepository(com.example.data.AppDatabase.getDatabase(context).tesseraDao()), context))
     val petViewModel: PetViewModel = viewModel(factory = com.example.viewmodel.PetViewModelFactory(com.example.data.TesseraRepository(com.example.data.AppDatabase.getDatabase(context).tesseraDao())))
@@ -707,6 +717,9 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
     }
 
     val scrollState = rememberScrollState()
+    LaunchedEffect(scrollState.value) {
+        onScrollChange(scrollState.value)
+    }
 
     val todayStart = java.util.Calendar.getInstance().apply {
         set(java.util.Calendar.HOUR_OF_DAY, 0)
@@ -729,6 +742,7 @@ fun HomeScreen(onNavigate: (String) -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .then(PremiumGlassModifier)
     ) {
         val chatSheetBlur by animateDpAsState(if (showChatSheet) 20.dp else 0.dp, label = "ChatSheetBlur")
 
@@ -1218,256 +1232,7 @@ fun OuraMetricItem(
     }
 }
 
-@Composable
-fun RelevantInsightsSection(
-    todaySteps: Long,
-    medications: List<com.example.data.Medication>,
-    habits: List<com.example.data.Habit>,
-    pets: List<com.example.data.PetEntity>,
-    netWorth: Double,
-    mainViewModel: com.example.viewmodel.TesseraViewModel
-) {
-    var isActivityVisible by remember { mutableStateOf(true) }
-    var isActivityConfirmed by remember { mutableStateOf(false) }
-    
-    val stepsFactor = todaySteps.coerceAtLeast(0L)
-    val calcDuration = (stepsFactor / 120).coerceIn(10L, 90L)
-    val calcCalories = (stepsFactor * 0.045f).toInt()
-    val calcBpm = 108 + (stepsFactor % 20).toInt()
-    
-    var activityName by remember(todaySteps) { mutableStateOf(if (todaySteps > 0) "Caminhada Ativa" else "Atividade Leve") }
-    var durationText by remember(todaySteps) { mutableStateOf("${calcDuration}m") }
-    var caloriesText by remember(todaySteps) { mutableStateOf("${calcCalories} Cal") }
-    var bpmText by remember(todaySteps) { mutableStateOf("${calcBpm} bpm") }
-    var timeText by remember { mutableStateOf("11:45") }
-    
-    var showEditDialog by remember { mutableStateOf(false) }
-    val context = LocalContext.current
 
-    if (showEditDialog) {
-        var tempName by remember { mutableStateOf(activityName) }
-        var tempTime by remember { mutableStateOf(timeText) }
-        var tempDuration by remember { mutableStateOf(durationText) }
-        var tempCalories by remember { mutableStateOf(caloriesText) }
-        var tempBpm by remember { mutableStateOf(bpmText) }
-
-        AlertDialog(
-            onDismissRequest = { showEditDialog = false },
-            title = { Text("Editar Atividade", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(
-                        value = tempName,
-                        onValueChange = { tempName = it },
-                        label = { Text("Nome da Atividade", color = Color.White.copy(alpha = 0.6f)) },
-                        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = tempTime,
-                        onValueChange = { tempTime = it },
-                        label = { Text("Horário", color = Color.White.copy(alpha = 0.6f)) },
-                        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = tempDuration,
-                        onValueChange = { tempDuration = it },
-                        label = { Text("Duração", color = Color.White.copy(alpha = 0.6f)) },
-                        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = tempCalories,
-                        onValueChange = { tempCalories = it },
-                        label = { Text("Calorias", color = Color.White.copy(alpha = 0.6f)) },
-                        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = tempBpm,
-                        onValueChange = { tempBpm = it },
-                        label = { Text("Frequência Cardíaca (BPM)", color = Color.White.copy(alpha = 0.6f)) },
-                        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        activityName = tempName
-                        timeText = tempTime
-                        durationText = tempDuration
-                        caloriesText = tempCalories
-                        bpmText = tempBpm
-                        showEditDialog = false
-                        Toast.makeText(context, "Atividade atualizada!", Toast.LENGTH_SHORT).show()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal)
-                ) {
-                    Text("Salvar", color = Color.Black, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showEditDialog = false }) {
-                    Text("Cancelar", color = Color.White.copy(alpha = 0.6f))
-                }
-            },
-            containerColor = Color(0xFF1A1D1E)
-        )
-    }
-
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
-        if (isActivityVisible) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(PrimaryTeal))
-                        Text(text = "Atividade física detectada", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                    }
-                    Icon(imageVector = Icons.Default.Info, contentDescription = null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(16.dp))
-                }
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(Color(0x1F000000))
-                        .border(0.5.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(24.dp))
-                        .padding(20.dp)
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
-                                    Icon(imageVector = Icons.Default.Whatshot, contentDescription = null, tint = Color.Black, modifier = Modifier.size(14.dp))
-                                }
-                                Text(text = activityName, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                            IconButton(onClick = { isActivityVisible = false }, modifier = Modifier.size(24.dp)) {
-                                Icon(imageVector = Icons.Default.Close, contentDescription = "Fechar", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
-                            }
-                        }
-
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = timeText, color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
-                            Text(text = "•", color = Color.White.copy(alpha = 0.3f), fontSize = 13.sp)
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Icon(imageVector = Icons.Default.AccessTime, contentDescription = null, tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(14.dp))
-                                Text(text = durationText, color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
-                            }
-                            Text(text = "•", color = Color.White.copy(alpha = 0.3f), fontSize = 13.sp)
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Icon(imageVector = Icons.Default.Whatshot, contentDescription = null, tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(14.dp))
-                                Text(text = caloriesText, color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
-                            }
-                            Text(text = "•", color = Color.White.copy(alpha = 0.3f), fontSize = 13.sp)
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Icon(imageVector = Icons.Default.FavoriteBorder, contentDescription = null, tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(14.dp))
-                                Text(text = bpmText, color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
-                            }
-                        }
-
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Button(
-                                onClick = {
-                                    isActivityConfirmed = true
-                                    Toast.makeText(context, "Atividade confirmada com sucesso!", Toast.LENGTH_SHORT).show()
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isActivityConfirmed) Color(0xFF34C759) else Color(0x1FFFFFFF),
-                                    contentColor = if (isActivityConfirmed) Color.Black else Color.White
-                                ),
-                                shape = RoundedCornerShape(20.dp),
-                                modifier = Modifier.width(140.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp))
-                                    Text(text = if (isActivityConfirmed) "Confirmado" else "Confirm", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-
-                            TextButton(onClick = { showEditDialog = true }) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Icon(imageVector = Icons.Default.Edit, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
-                                    Text(text = "Edit", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        val pendingMeds = medications.count { !it.isTaken }
-        if (pendingMeds > 0) {
-            InsightGlassCard(
-                title = "Lembrete de Saúde",
-                description = "Você ainda tem $pendingMeds medicamentos programados para hoje. Manter os horários ajuda na sua biologia de energia.",
-                icon = Icons.Default.Medication,
-                tint = Color(0xFF34C759)
-            )
-        }
-
-        val completedHabits = habits.count { it.isCompleted }
-        val totalHabits = habits.size
-        if (totalHabits > 0) {
-            val percentage = (completedHabits.toFloat() / totalHabits.toFloat() * 100).toInt()
-            InsightGlassCard(
-                title = "Ritmos e Rituais",
-                description = "Você completou $completedHabits de $totalHabits rituais diários ($percentage%). Alinhar hábitos fortalece seu energy rhythm.",
-                icon = Icons.Default.AutoAwesome,
-                tint = Color(0xFFFFD700)
-            )
-        }
-    }
-}
-
-@Composable
-fun InsightGlassCard(
-    title: String,
-    description: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    tint: Color
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .background(Color(0x0CFFFFFF))
-            .border(0.5.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp))
-            .padding(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(tint.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(imageVector = icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(text = description, color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp, lineHeight = 18.sp)
-            }
-        }
-    }
-}
 
 @Composable
 fun MetricItem(icon: ImageVector, value: String, label: String, onClick: () -> Unit) {
@@ -2017,35 +1782,6 @@ fun MainContent(
             .padding(horizontal = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "INSIGHTS RELEVANTES",
-                fontFamily = FontFamily.SansSerif,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White.copy(alpha = 0.4f),
-                letterSpacing = 1.5.sp
-            )
-            IconButton(onClick = { mainViewModel.refreshAIInsightsAndMetric() }, modifier = Modifier.size(24.dp)) {
-                Icon(Icons.Default.Refresh, contentDescription = "Atualizar", tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(14.dp))
-            }
-        }
-
-        RelevantInsightsSection(
-            todaySteps = todaySteps,
-            medications = medications,
-            habits = habits,
-            pets = pets,
-            netWorth = netWorth,
-            mainViewModel = mainViewModel
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
         HomeFinanceWidget(
             transactions = transactions,
             bankAccounts = bankAccounts,
@@ -3735,14 +3471,6 @@ fun BottomNavBar(
                     )
                 }
             }
-
-            // 5. CAMERA Button (Launches background picker)
-            CircularNavButton(
-                icon = Icons.Outlined.PhotoCamera,
-                contentDescription = "Câmera / Plano de Fundo",
-                isActive = false,
-                onClick = onCameraClick
-            )
         }
     }
 }

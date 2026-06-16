@@ -1,23 +1,16 @@
 package com.example
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
-import android.content.res.Configuration
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -26,64 +19,39 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import coil.compose.AsyncImage
+import com.example.ui.components.PremiumGlassModifier
+import com.example.ui.theme.PrimaryTeal
 import kotlinx.coroutines.delay
 import java.util.Random
-import java.util.UUID
+import kotlin.math.roundToInt
 
-// Local Focus Category data model
-data class FocusCategory(
-    val id: String,
-    val name: String,
-    val durationMinutes: Int,
-    val colorHex: String
-)
-
-// parseHexColor is defined in FinanceScreen.kt (same package, public)
-
-// SharedPreferences loaders/savers
-private fun loadFocusCategories(prefs: SharedPreferences): List<FocusCategory> {
-    val serialized = prefs.getString("categories_list", null)
-    if (serialized == null) {
-        return listOf(
-            FocusCategory("1", "Estudos", 50, "#D7B4F3"),
-            FocusCategory("2", "Trabalho", 25, "#71D7CD"),
-            FocusCategory("3", "Oração", 15, "#F9A826")
-        )
-    }
-    return try {
-        serialized.split("||").filter { it.isNotBlank() }.map { item ->
-            val parts = item.split("::")
-            FocusCategory(parts[0], parts[1], parts[2].toInt(), parts[3])
-        }
-    } catch (e: Exception) {
-        listOf(
-            FocusCategory("1", "Estudos", 50, "#D7B4F3"),
-            FocusCategory("2", "Trabalho", 25, "#71D7CD"),
-            FocusCategory("3", "Oração", 15, "#F9A826")
-        )
-    }
+// Focus Mode Types
+enum class FocusMode(val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    FOCUS_TIMER("Focus Timer", Icons.Outlined.CenterFocusStrong),
+    QUICK_NAP("Quick Nap", Icons.Outlined.DoNotDisturbOn),
+    BREATHING("Breathing", Icons.Outlined.Eco)
 }
 
-private fun saveFocusCategories(prefs: SharedPreferences, list: List<FocusCategory>) {
-    val serialized = list.joinToString("||") { "${it.id}::${it.name}::${it.durationMinutes}::${it.colorHex}" }
-    prefs.edit().putString("categories_list", serialized).apply()
-}
-
-// Stereo Binaural Beats Player (4Hz Theta wave for focus + rain background)
+// Binaural beats sound player (4Hz Theta wave for focus)
 class FocusSoundPlayer {
     private var audioTrack: AudioTrack? = null
     private var isPlaying = false
@@ -128,17 +96,17 @@ class FocusSoundPlayer {
                 var time = 0L
                 while (isPlaying) {
                     for (i in 0 until buffer.size step 2) {
-                        // Soft brown noise (waterfall/rain)
-                        val whiteL = random.nextGaussian().toFloat() * 600f
-                        val whiteR = random.nextGaussian().toFloat() * 600f
+                        // Soft brown noise simulating serene ocean waves
+                        val whiteL = random.nextGaussian().toFloat() * 550f
+                        val whiteR = random.nextGaussian().toFloat() * 550f
                         
                         lastLeft = (lastLeft * 0.98f) + (whiteL * 0.05f)
                         lastRight = (lastRight * 0.98f) + (whiteR * 0.05f)
                         
                         // Binaural sine hum with dynamic volume swells (6-second cycle)
                         val swell = 0.5f + 0.3f * Math.sin(2.0 * Math.PI * time / (sampleRateF * 6f)).toFloat()
-                        val sineL = Math.sin(phaseLeft.toDouble()).toFloat() * 1200f * swell
-                        val sineR = Math.sin(phaseRight.toDouble()).toFloat() * 1200f * swell
+                        val sineL = Math.sin(phaseLeft.toDouble()).toFloat() * 1100f * swell
+                        val sineR = Math.sin(phaseRight.toDouble()).toFloat() * 1100f * swell
                         
                         phaseLeft += phaseIncLeft
                         if (phaseLeft > 2f * Math.PI.toFloat()) phaseLeft -= 2f * Math.PI.toFloat()
@@ -177,595 +145,630 @@ class FocusSoundPlayer {
 
 @Composable
 fun PomodoroScreen() {
-    val context = LocalContext.current
-    val sharedPrefs = remember(context) { context.getSharedPreferences("tessera_focus_prefs", Context.MODE_PRIVATE) }
+    var selectedMode by remember { mutableStateOf(FocusMode.FOCUS_TIMER) }
     
-    // Load categories
-    var categories by remember { mutableStateOf(loadFocusCategories(sharedPrefs)) }
-    var selectedCategory by remember(categories) { mutableStateOf(categories.firstOrNull() ?: FocusCategory("1", "Estudos", 50, "#D7B4F3")) }
+    // Duration ranges: Focus (1..120 min), Nap (5..60 min), Breathing (1..15 min)
+    val durationRange = when (selectedMode) {
+        FocusMode.FOCUS_TIMER -> 1f..120f
+        FocusMode.QUICK_NAP -> 5f..60f
+        FocusMode.BREATHING -> 1f..15f
+    }
     
-    var showManageDialog by remember { mutableStateOf(false) }
+    // Default durations
+    var focusDuration by remember { mutableStateOf(25) }
+    var napDuration by remember { mutableStateOf(20) }
+    var breathingDuration by remember { mutableStateOf(3) }
     
-    val targetSeconds = selectedCategory.durationMinutes * 60
-    var secondsLeft by remember(selectedCategory) { mutableStateOf(targetSeconds) }
+    val currentDuration = when (selectedMode) {
+        FocusMode.FOCUS_TIMER -> focusDuration
+        FocusMode.QUICK_NAP -> napDuration
+        FocusMode.BREATHING -> breathingDuration
+    }
+    
+    val updateDuration: (Int) -> Unit = { value ->
+        when (selectedMode) {
+            FocusMode.FOCUS_TIMER -> focusDuration = value
+            FocusMode.QUICK_NAP -> napDuration = value
+            FocusMode.BREATHING -> breathingDuration = value
+        }
+    }
+    
     var isRunning by remember { mutableStateOf(false) }
-
-    // Sound player
+    var secondsLeft by remember { mutableStateOf(0) }
+    
+    var selectedSoundscape by remember { mutableStateOf("Ocean") }
+    var focusModeType by remember { mutableStateOf("Goal Timer") }
+    
+    var showSoundscapeDialog by remember { mutableStateOf(false) }
+    
     val focusSoundPlayer = remember { FocusSoundPlayer() }
-    var isSoundPlaying by remember { mutableStateOf(false) }
-
+    
     DisposableEffect(Unit) {
         onDispose {
             focusSoundPlayer.stop()
         }
     }
 
-    LaunchedEffect(isRunning, selectedCategory) {
-        if (isRunning) {
-            while (secondsLeft > 0) {
-                delay(1000L)
-                secondsLeft--
-            }
-            isRunning = false
-        }
-    }
-
-    val progress = (secondsLeft.toFloat() / targetSeconds.toFloat()).coerceIn(0f, 1f)
-    val animatedProgress by animateFloatAsState(targetValue = progress, animationSpec = tween(1000, easing = LinearEasing))
-
-    val accentColor = parseHexColor(selectedCategory.colorHex)
-
-    // Canvas rotation/glow animation
-    val infiniteTransition = rememberInfiniteTransition(label = "Glow")
-    val rotationAngle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(6000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ), label = "Rotation"
-    )
-    val pulseGlow by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.15f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ), label = "Pulse"
-    )
-
-    // Detect Orientation
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-
-    if (isLandscape) {
-        // LANDSCAPE LAYOUT
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 120.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        // 1. Header Toolbar
         Row(
             modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFF000000))
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(24.dp),
+                .fillMaxWidth()
+                .padding(top = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left: Immersive Timer Ring
-            Box(
-                modifier = Modifier
-                    .weight(1.2f)
-                    .fillMaxHeight(),
-                contentAlignment = Alignment.Center
-            ) {
-                Canvas(modifier = Modifier.size(200.dp)) {
-                    val strokeWidth = 5.dp.toPx()
-                    drawArc(
-                        color = Color(0xFF111111),
-                        startAngle = -90f,
-                        sweepAngle = 360f,
-                        useCenter = false,
-                        style = Stroke(width = strokeWidth)
-                    )
-                    val glowAlpha = (0.15f * pulseGlow).coerceIn(0f, 1f)
-                    drawArc(
-                        color = accentColor.copy(alpha = glowAlpha),
-                        startAngle = -90f + rotationAngle,
-                        sweepAngle = animatedProgress * 360f,
-                        useCenter = false,
-                        style = Stroke(width = strokeWidth * 2.2f, cap = StrokeCap.Round)
-                    )
-                    drawArc(
-                        color = accentColor,
-                        startAngle = -90f,
-                        sweepAngle = animatedProgress * 360f,
-                        useCenter = false,
-                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                    )
-                }
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = String.format("%02d:%02d", secondsLeft / 60, secondsLeft % 60),
-                        fontFamily = FontFamily.Serif,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 40.sp,
-                        color = Color.White
-                    )
-                }
+            IconButton(onClick = {}, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    imageVector = Icons.Default.TrendingUp,
+                    contentDescription = "Estatísticas",
+                    tint = Color.White.copy(alpha = 0.6f)
+                )
             }
-
-            // Right: Category selection, controls, audio toggle, and manage options
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .padding(vertical = 4.dp),
-                verticalArrangement = Arrangement.SpaceBetween,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "FOCUS: ${selectedCategory.name.uppercase()}",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = accentColor,
-                        letterSpacing = 2.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
-                    IconButton(onClick = { showManageDialog = true }, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.Settings, contentDescription = "Gerenciar", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
-                    }
-                }
-
-                // Audio toggle
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFF141414))
-                        .clickable {
-                            isSoundPlaying = !isSoundPlaying
-                            if (isSoundPlaying) focusSoundPlayer.start() else focusSoundPlayer.stop()
-                        }
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = if (isSoundPlaying) Icons.Outlined.VolumeUp else Icons.Outlined.VolumeMute,
-                        contentDescription = "Som",
-                        tint = if (isSoundPlaying) accentColor else Color(0xFF555555),
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = if (isSoundPlaying) "Binaural Ativo" else "Binaural Focus",
-                        fontSize = 11.sp,
-                        color = if (isSoundPlaying) Color.White else Color(0xFF666666)
-                    )
-                }
-
-                // Controls
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = {
-                            isRunning = false
-                            secondsLeft = targetSeconds
-                        },
-                        modifier = Modifier
-                            .size(36.dp)
-                            .background(Color(0xFF111111), CircleShape)
-                    ) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Reset", tint = Color.White, modifier = Modifier.size(16.dp))
-                    }
-
-                    IconButton(
-                        onClick = { isRunning = !isRunning },
-                        modifier = Modifier
-                            .size(52.dp)
-                            .background(accentColor, CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = if (isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = "Controle",
-                            tint = Color.Black,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
+            Text(
+                text = "Focus",
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 20.sp,
+                color = Color.White,
+                modifier = Modifier.weight(1f),
+                textAlign = TextAlign.Center
+            )
+            IconButton(onClick = {}, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    imageVector = Icons.Default.Tune,
+                    contentDescription = "Configurações",
+                    tint = Color.White.copy(alpha = 0.6f)
+                )
             }
         }
-    } else {
-        // PORTRAIT LAYOUT
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 120.dp) // Fix FAB overlap
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(28.dp)
-        ) {
-            // Header
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(top = 16.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Spacer(modifier = Modifier.width(32.dp)) // Offset to keep text centered
-                    Text(
-                        text = "FOCUS",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = accentColor,
-                        letterSpacing = 3.sp,
-                        modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Center
-                    )
-                    IconButton(onClick = { showManageDialog = true }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Settings, contentDescription = "Gerenciar", tint = Color.White.copy(alpha = 0.5f))
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(12.dp))
 
-                // Scrollable category row
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(Color(0xFF141414))
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    categories.forEach { cat ->
-                        val isSel = selectedCategory.id == cat.id
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(if (isSel) Color(0xFF222222) else Color.Transparent)
-                                .clickable { 
-                                    selectedCategory = cat
-                                    isRunning = false
-                                }
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                        ) {
+        // 2. "Now for you" Carousel
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "✨ Now for you",
+                fontSize = 13.sp,
+                color = Color.White.copy(alpha = 0.5f),
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.align(Alignment.Start)
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                FocusMode.values().forEach { mode ->
+                    val isSelected = selectedMode == mode
+                    Box(
+                        modifier = Modifier
+                            .width(135.dp)
+                            .height(76.dp)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(if (isSelected) Color(0x3DFFFFFF) else Color(0x0CFFFFFF))
+                            .border(
+                                width = if (isSelected) 1.5.dp else 0.5.dp,
+                                color = if (isSelected) Color(0xFF8AB4F8) else Color(0x1AFFFFFF),
+                                shape = RoundedCornerShape(18.dp)
+                            )
+                            .clickable {
+                                selectedMode = mode
+                                isRunning = false
+                            }
+                            .padding(12.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(
+                                imageVector = mode.icon,
+                                contentDescription = mode.title,
+                                tint = if (isSelected) Color(0xFF8AB4F8) else Color.White.copy(alpha = 0.6f),
+                                modifier = Modifier.size(20.dp)
+                            )
                             Text(
-                                text = cat.name,
-                                color = if (isSel) Color.White else Color(0xFF666666),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
+                                text = mode.title,
+                                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.5f),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
                 }
             }
+        }
 
-            // Circular Timer
-            Box(
-                modifier = Modifier.size(230.dp),
-                contentAlignment = Alignment.Center
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 3. Selection Minutes Text
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "$currentDuration min",
+                fontFamily = FontFamily.SansSerif,
+                fontWeight = FontWeight.Light,
+                fontSize = 44.sp,
+                color = Color.White
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 4. TimeRuler Scale
+            TimeRuler(
+                value = currentDuration,
+                onValueChange = updateDuration,
+                range = durationRange,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "${selectedMode.title.substringBefore(" ")} >",
+                fontSize = 13.sp,
+                color = Color.White.copy(alpha = 0.4f),
+                fontWeight = FontWeight.Medium
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 5. Soundscape / Mode Card
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .then(PremiumGlassModifier)
+                .background(Color(0x05FFFFFF))
+                .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(24.dp))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min)
+                    .padding(vertical = 18.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val strokeWidth = 6.dp.toPx()
-                    drawArc(
-                        color = Color(0xFF111111),
-                        startAngle = -90f,
-                        sweepAngle = 360f,
-                        useCenter = false,
-                        style = Stroke(width = strokeWidth)
-                    )
-                    val glowAlpha2 = (0.15f * pulseGlow).coerceIn(0f, 1f)
-                    drawArc(
-                        color = accentColor.copy(alpha = glowAlpha2),
-                        startAngle = -90f + rotationAngle,
-                        sweepAngle = animatedProgress * 360f,
-                        useCenter = false,
-                        style = Stroke(width = strokeWidth * 2.2f, cap = StrokeCap.Round)
-                    )
-                    drawArc(
-                        color = accentColor,
-                        startAngle = -90f,
-                        sweepAngle = animatedProgress * 360f,
-                        useCenter = false,
-                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                    )
-                }
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = String.format("%02d:%02d", secondsLeft / 60, secondsLeft % 60),
-                        fontFamily = FontFamily.Serif,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 44.sp,
-                        color = Color.White
-                    )
-                    Text(
-                        text = "Foco ativado em ${selectedCategory.name}",
-                        fontSize = 11.sp,
-                        color = Color(0xFF555555),
-                        letterSpacing = 1.sp
-                    )
-                }
-            }
-
-            // Controls & Audio Option
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(bottom = 12.dp)
-            ) {
-                // Binaural Sound Toggle
+                // Left Column: Soundscape Selection
                 Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFF141414))
-                        .border(0.5.dp, Color(0x14FFFFFF), RoundedCornerShape(16.dp))
-                        .clickable {
-                            isSoundPlaying = !isSoundPlaying
-                            if (isSoundPlaying) focusSoundPlayer.start() else focusSoundPlayer.stop()
-                        }
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .weight(1f)
+                        .clickable { showSoundscapeDialog = true }
+                        .padding(horizontal = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(
-                        imageVector = if (isSoundPlaying) Icons.Outlined.VolumeUp else Icons.Outlined.VolumeMute,
-                        contentDescription = "Som de Foco",
-                        tint = if (isSoundPlaying) accentColor else Color(0xFF555555),
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = if (isSoundPlaying) "Binaural 4Hz Ativado" else "Ativar Binaural Focus",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (isSoundPlaying) Color.White else Color(0xFF666666)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(32.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = {
-                            isRunning = false
-                            secondsLeft = targetSeconds
-                        },
+                    Box(
                         modifier = Modifier
-                            .size(48.dp)
-                            .background(Color(0xFF111111), CircleShape)
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .border(0.5.dp, Color.White.copy(alpha = 0.2f), CircleShape)
                     ) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Reiniciar", tint = Color.White, modifier = Modifier.size(20.dp))
+                        Image(
+                            painter = painterResource(id = R.drawable.ocean_focus_background),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
-
-                    IconButton(
-                        onClick = { isRunning = !isRunning },
-                        modifier = Modifier
-                            .size(68.dp)
-                            .background(accentColor, CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = if (isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = "Iniciar / Pausar",
-                            tint = Color.Black,
-                            modifier = Modifier.size(32.dp)
+                    Column {
+                        Text(
+                            text = selectedSoundscape,
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Soundscape",
+                            color = Color.White.copy(alpha = 0.4f),
+                            fontSize = 11.sp
                         )
                     }
                 }
+
+                // Divider
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(0.5.dp)
+                        .background(Color.White.copy(alpha = 0.15f))
+                )
+
+                // Right Column: Mode Type Info
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable {
+                            focusModeType = if (focusModeType == "Goal Timer") "Stopwatch" else "Goal Timer"
+                        }
+                        .padding(horizontal = 20.dp),
+                    horizontalAlignment = Alignment.Start,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = if (selectedMode == FocusMode.BREATHING) "Deep Breath" else focusModeType,
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = if (selectedMode == FocusMode.BREATHING) "Breathing exercise" else "Focus mode",
+                        color = Color.White.copy(alpha = 0.4f),
+                        fontSize = 11.sp
+                    )
+                }
             }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // 6. Start Button
+        Button(
+            onClick = {
+                secondsLeft = currentDuration * 60
+                isRunning = true
+                if (selectedSoundscape == "Ocean") {
+                    focusSoundPlayer.start()
+                }
+            },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFFD0E1FD), // Light blue-purple
+                contentColor = Color.Black
+            ),
+            shape = RoundedCornerShape(32.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(60.dp),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+        ) {
+            Text(
+                text = "Start",
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
         }
     }
 
-    if (showManageDialog) {
-        ManageFocusCategoriesDialog(
-            categories = categories,
-            onSave = { updatedList ->
-                categories = updatedList
-                saveFocusCategories(sharedPrefs, updatedList)
-                // Fallback to first if selected is deleted
-                if (updatedList.none { it.id == selectedCategory.id }) {
-                    selectedCategory = updatedList.firstOrNull() ?: FocusCategory("1", "Estudos", 50, "#D7B4F3")
-                } else {
-                    selectedCategory = updatedList.find { it.id == selectedCategory.id }!!
+    // Soundscape Selector Dialog
+    if (showSoundscapeDialog) {
+        AlertDialog(
+            onDismissRequest = { showSoundscapeDialog = false },
+            containerColor = Color(0xFF141918),
+            title = { Text("Select Soundscape", color = Color.White) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("Ocean", "Rain", "Silence").forEach { sound ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (selectedSoundscape == sound) Color(0x1AFFFFFF) else Color.Transparent)
+                                .clickable {
+                                    selectedSoundscape = sound
+                                    showSoundscapeDialog = false
+                                }
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(sound, color = Color.White, fontSize = 15.sp)
+                            if (selectedSoundscape == sound) {
+                                Icon(Icons.Default.Check, contentDescription = null, tint = PrimaryTeal)
+                            }
+                        }
+                    }
                 }
-                isRunning = false
             },
-            onDismiss = { showManageDialog = false }
+            confirmButton = {}
+        )
+    }
+
+    // 7. Active Focus Mode Fullscreen Dialog
+    if (isRunning) {
+        ActiveFocusDialog(
+            mode = selectedMode,
+            secondsLeft = secondsLeft,
+            soundscape = selectedSoundscape,
+            onTick = { secondsLeft-- },
+            onStop = {
+                isRunning = false
+                focusSoundPlayer.stop()
+            }
         )
     }
 }
 
+// Custom TimeRuler Scale Component
 @Composable
-fun ManageFocusCategoriesDialog(
-    categories: List<FocusCategory>,
-    onSave: (List<FocusCategory>) -> Unit,
-    onDismiss: () -> Unit
+fun TimeRuler(
+    value: Int,
+    onValueChange: (Int) -> Unit,
+    range: ClosedFloatingPointRange<Float>,
+    modifier: Modifier = Modifier
 ) {
-    var listState by remember { mutableStateOf(categories) }
-    var editingCategory by remember { mutableStateOf<FocusCategory?>(null) }
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(54.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxWidth().height(32.dp)) {
+            val width = size.width
+            val height = size.height
+            val numTicks = 25
+            val spacing = width / (numTicks - 1)
+            
+            for (i in 0 until numTicks) {
+                val x = i * spacing
+                val isCenter = i == numTicks / 2
+                val tickHeight = if (isCenter) height * 0.85f else height * 0.45f
+                val tickAlpha = if (isCenter) 1f else 0.22f
+                val tickColor = if (isCenter) Color(0xFF4285F4) else Color.White
+                
+                drawLine(
+                    color = tickColor.copy(alpha = tickAlpha),
+                    start = Offset(x, (height - tickHeight) / 2),
+                    end = Offset(x, (height + tickHeight) / 2),
+                    strokeWidth = if (isCenter) 3.dp.toPx() else 1.5.dp.toPx(),
+                    cap = StrokeCap.Round
+                )
+            }
+        }
+        
+        Slider(
+            value = value.toFloat(),
+            onValueChange = { onValueChange(it.roundToInt()) },
+            valueRange = range,
+            colors = SliderDefaults.colors(
+                thumbColor = Color.White,
+                activeTrackColor = Color.Transparent,
+                inactiveTrackColor = Color.Transparent,
+                activeTickColor = Color.Transparent,
+                inactiveTickColor = Color.Transparent
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+// Active Focus Dialog (Immersive fullscreen)
+@Composable
+fun ActiveFocusDialog(
+    mode: FocusMode,
+    secondsLeft: Int,
+    soundscape: String,
+    onTick: () -> Unit,
+    onStop: () -> Unit
+) {
+    var isMinimalView by remember { mutableStateOf(false) }
     
-    // Form states
-    var name by remember { mutableStateOf("") }
-    var durationMins by remember { mutableStateOf("25") }
-    val colorPalettes = listOf("#71D7CD", "#D7B4F3", "#F9A826", "#EF4444", "#3B82F6", "#10B981")
-    var selectedColor by remember { mutableStateOf(colorPalettes.first()) }
-    
-    LaunchedEffect(editingCategory) {
-        if (editingCategory != null) {
-            name = editingCategory!!.name
-            durationMins = editingCategory!!.durationMinutes.toString()
-            selectedColor = editingCategory!!.colorHex
+    // Countdown coroutine
+    LaunchedEffect(secondsLeft) {
+        if (secondsLeft > 0) {
+            delay(1000L)
+            onTick()
         } else {
-            name = ""
-            durationMins = "25"
-            selectedColor = colorPalettes.first()
+            onStop()
         }
     }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F0F0F)),
-            shape = RoundedCornerShape(24.dp),
+    val minutes = secondsLeft / 60
+    val seconds = secondsLeft % 60
+    val timeString = String.format("%02d:%02d", minutes, seconds)
+
+    Dialog(
+        onDismissRequest = {},
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false
+        )
+    ) {
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, Color(0x1FFFFFFF), RoundedCornerShape(24.dp))
+                .fillMaxSize()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    isMinimalView = !isMinimalView
+                }
         ) {
-            Column(
+            // Background Image (Serene Ocean sunset)
+            Image(
+                painter = painterResource(id = R.drawable.ocean_focus_background),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // Dark vignette overlay for depth
+            Box(
                 modifier = Modifier
-                    .padding(24.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(
-                    text = "Gerenciar Foco",
-                    fontFamily = FontFamily.Serif,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 20.sp,
-                    color = Color.White
-                )
-
-                if (editingCategory == null) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        listState.forEach { cat ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color(0x0CFFFFFF), RoundedCornerShape(12.dp))
-                                    .padding(12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(modifier = Modifier.size(12.dp).background(parseHexColor(cat.colorHex), CircleShape))
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(text = "${cat.name} (${cat.durationMinutes}m)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                }
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    IconButton(
-                                        onClick = { editingCategory = cat },
-                                        modifier = Modifier.size(24.dp)
-                                    ) {
-                                        Icon(Icons.Default.Edit, contentDescription = "Editar", tint = Color(0xFF71D7CD), modifier = Modifier.size(16.dp))
-                                    }
-                                    if (listState.size > 1) {
-                                        IconButton(
-                                            onClick = {
-                                                listState = listState.filter { it.id != cat.id }
-                                            },
-                                            modifier = Modifier.size(24.dp)
-                                        ) {
-                                            Icon(Icons.Default.Delete, contentDescription = "Excluir", tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Button(
-                            onClick = {
-                                editingCategory = FocusCategory(UUID.randomUUID().toString(), "", 25, colorPalettes.first())
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0x1AFFFFFF)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("+ Novo Canal de Foco", color = Color.White, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        OutlinedTextField(
-                            value = name,
-                            onValueChange = { name = it },
-                            label = { Text("Nome (ex: Estudos)", color = Color(0x66FFFFFF)) },
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = Color(0x1AFFFFFF), focusedTextColor = Color.White, unfocusedTextColor = Color.White),
-                            modifier = Modifier.fillMaxWidth()
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.25f),
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.35f)
+                            )
                         )
+                    )
+            )
 
-                        OutlinedTextField(
-                            value = durationMins,
-                            onValueChange = { durationMins = it.filter { c -> c.isDigit() } },
-                            label = { Text("Duração (Minutos)", color = Color(0x66FFFFFF)) },
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = Color(0x1AFFFFFF), focusedTextColor = Color.White, unfocusedTextColor = Color.White),
-                            modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            if (!isMinimalView) {
+                // ACTIVE COMMON VIEW
+                
+                // Top Header Toolbar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = soundscape,
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    IconButton(
+                        onClick = {},
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.12f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Tune,
+                            contentDescription = "Configuração do Foco",
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
                         )
-
-                        Text("COR DE FOCO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0x66FFFFFF))
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            colorPalettes.forEach { hex ->
-                                val col = parseHexColor(hex)
-                                val isSel = selectedColor == hex
-                                Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(col)
-                                        .border(if (isSel) 2.dp else 0.dp, Color.White, CircleShape)
-                                        .clickable { selectedColor = hex }
-                                )
-                            }
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            TextButton(onClick = { editingCategory = null }) {
-                                Text("Voltar", color = Color.White.copy(alpha = 0.6f))
-                            }
-                            Spacer(modifier = Modifier.weight(1f))
-                            Button(
-                                onClick = {
-                                    val duration = durationMins.toIntOrNull() ?: 25
-                                    if (name.isNotBlank() && duration > 0) {
-                                        val existingIndex = listState.indexOfFirst { it.id == editingCategory!!.id }
-                                        val updatedCat = editingCategory!!.copy(name = name, durationMinutes = duration, colorHex = selectedColor)
-                                        
-                                        listState = if (existingIndex >= 0) {
-                                            listState.toMutableList().apply { set(existingIndex, updatedCat) }
-                                        } else {
-                                            listState + updatedCat
-                                        }
-                                        editingCategory = null
-                                    }
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF71D7CD))
-                            ) {
-                                Text("Salvar", color = Color.Black, fontWeight = FontWeight.Bold)
-                            }
-                        }
                     }
                 }
 
-                if (editingCategory == null) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                // Breathing mode guided circle animation (Middle of screen)
+                if (mode == FocusMode.BREATHING) {
+                    val breathingAnim = rememberInfiniteTransition(label = "BreathingCycle")
+                    val scale by breathingAnim.animateFloat(
+                        initialValue = 0.7f,
+                        targetValue = 1.3f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(4000, easing = EaseInOutSine),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "Scale"
+                    )
+                    
+                    // Guided Text based on scale size
+                    val phaseText = when {
+                        scale > 1.15f -> "Segure..."
+                        scale < 0.85f -> "Segure..."
+                        scale > 1.0f -> "Expire..."
+                        else -> "Inspire..."
+                    }
+
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(24.dp)
                     ) {
-                        TextButton(onClick = onDismiss) {
-                            Text("Fechar", color = Color.White.copy(alpha = 0.6f))
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
-                        Button(
-                            onClick = {
-                                onSave(listState)
-                                onDismiss()
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF71D7CD))
+                        Box(
+                            modifier = Modifier
+                                .size(160.dp)
+                                .graphicsLayer {
+                                    scaleX = scale
+                                    scaleY = scale
+                                }
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.15f))
+                                .border(1.dp, Color.White.copy(alpha = 0.35f), CircleShape),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text("Aplicar", color = Color.Black, fontWeight = FontWeight.Bold)
+                            Box(
+                                modifier = Modifier
+                                    .size(110.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.2f))
+                            )
                         }
+                        Text(
+                            text = phaseText,
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 1.sp
+                        )
+                    }
+                }
+
+                // Bottom Left: Timer Display
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .navigationBarsPadding()
+                        .padding(horizontal = 24.dp, vertical = 28.dp),
+                    horizontalAlignment = Alignment.Start,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = timeString,
+                        fontFamily = FontFamily.SansSerif,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 44.sp,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "${mode.title.substringBefore(" ")} >",
+                        fontSize = 13.sp,
+                        color = Color.White.copy(alpha = 0.6f),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                // Bottom Right: Stop Button
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .navigationBarsPadding()
+                        .padding(horizontal = 24.dp, vertical = 28.dp)
+                        .size(60.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.15f))
+                        .border(1.dp, Color.White.copy(alpha = 0.25f), CircleShape)
+                        .clickable { onStop() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Square,
+                        contentDescription = "Stop",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            } else {
+                // IMMERSIVE MINIMALIST VIEW
+                Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = timeString,
+                        fontFamily = FontFamily.SansSerif,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 68.sp,
+                        color = Color.White
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.6f))
+                        )
+                        Text(
+                            text = mode.title.substringBefore(" "),
+                            fontSize = 14.sp,
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
             }

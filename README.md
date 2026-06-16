@@ -8,10 +8,17 @@
 
 Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.build-outputs/`:
 
-* **[📥 app-release-1.3.5.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.3.5.apk)**  
+* **[📥 app-release-1.3.7.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.3.7.apk)**  
   *Versão final de produção. Otimizada (~12.9 MB), com minificação de código (R8/ProGuard), remoção automática de logs de depuração/prints de console e compressão extrema de assets (PNG Crunching).*
-* **[📥 app-debug-1.3.5.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.3.5.apk)**  
+* **[📥 app-debug-1.3.7.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.3.7.apk)**  
   *Versão para testes contendo ferramentas de depuração ativas.*
+
+---
+
+## 🚀 Novidades da Versão 1.3.7 ✨
+* 🎨 **Aba Hoje Minimalista & Liquid Glass**: Simplificação do menu flutuante (BottomNavBar) para exatamente 4 botões (remoção do botão de câmera). Remoção da seção de insights contextuais e adição de efeito de desfoque dinâmico (blur) no plano de fundo durante a rolagem. Aplicação global do visual *Liquid Glass* (iOS 27) no painel.
+* 🧘 **Redesenho Completo do Foco (Aba Focus)**: Implementação do carrossel horizontal de modos ("✨ Now for you") contendo *Focus Timer*, *Quick Nap* e *Breathing*. Adição da escala horizontal deslizante de minutos (`TimeRuler`), card de soundscape ("Ocean") e modo de foco ativo imersivo (tela cheia com plano de fundo do mar) com suporte a visualizações comum e minimalista (alternados por toque) e exercício de respiração guiado.
+* 🏷️ **Versão 1.3.7**: Incremento oficial do build (`versionCode` 8) e atualização dos arquivos binários finais.
 
 ---
 
@@ -159,8 +166,8 @@ Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.bui
 ```text
 Tessera/
 ├── .build-outputs/       # Diretório de APKs compilados e prontos para uso
-│   ├── app-debug-1.3.5.apk # Versão de testes com logs ativos
-│   └── app-release-1.3.5.apk # Versão final de produção assinada
+│   ├── app-debug-1.3.7.apk # Versão de testes com logs ativos
+│   └── app-release-1.3.7.apk # Versão final de produção assinada
 ├── app/                  # Módulo principal Android (Código Kotlin & Jetpack Compose)
 │   ├── src/main/java/    # Arquivos de código-fonte
 │   └── proguard-rules.pro# Regras de minificação R8/ProGuard

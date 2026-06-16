@@ -14,8 +14,8 @@ android {
     applicationId = "com.aistudio.tessera.xtrkna"
     minSdk = 26
     targetSdk = 36
-    versionCode = 7
-    versionName = "1.3.5"
+    versionCode = 8
+    versionName = "1.3.7"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
