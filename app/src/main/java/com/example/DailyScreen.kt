@@ -45,6 +45,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.ui.components.PremiumGlassModifier
+import com.example.ui.components.SpotifyRecentlyPlayedWidget
 import com.example.ui.theme.*
 import com.example.viewmodel.TesseraViewModel
 import com.example.viewmodel.PetViewModel
@@ -388,28 +389,16 @@ fun DailyScreen(
 
                         // 4. CONNECTIVITY FLOATING DOCK/PILL
                         ConnectivityDock(
-                            onSpotifyClick = {
-                                try {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("spotify:open"))
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://open.spotify.com"))
-                                    context.startActivity(intent)
-                                }
-                            },
-                            onTwitterClick = {
-                                try {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("twitter://timeline"))
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://x.com"))
-                                    context.startActivity(intent)
-                                }
-                            },
                             onBellClick = {
                                 Toast.makeText(context, "Todas as notificações locais estão em dia.", Toast.LENGTH_SHORT).show()
                             }
                         )
+
+                        // 4.5 SPOTIFY RECENTLY PLAYED WIDGET
+                        SpotifyRecentlyPlayedWidget()
+                        
+                        // 4.6 X TIMELINE WIDGET
+                        com.example.ui.components.XTimelineWidget()
 
                         // 5. FOOTER - QUIET THE MIND CAROUSEL
                         QuietTheMindSection(onSessionClick = { activeMindSession = it })
@@ -1045,8 +1034,6 @@ fun InnerStateCard(
 // 5. ConnectivityDock Component
 @Composable
 fun ConnectivityDock(
-    onSpotifyClick: () -> Unit,
-    onTwitterClick: () -> Unit,
     onBellClick: () -> Unit
 ) {
     // Compact heavily blurred floating dock
@@ -1061,65 +1048,6 @@ fun ConnectivityDock(
             horizontalArrangement = Arrangement.spacedBy(28.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Custom drawn Spotify Icon
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .clickable { onSpotifyClick() },
-                contentAlignment = Alignment.Center
-            ) {
-                Canvas(modifier = Modifier.size(18.dp)) {
-                    drawCircle(
-                        color = Color.White.copy(alpha = 0.7f),
-                        radius = size.minDimension / 2,
-                        style = Stroke(width = 1.5.dp.toPx())
-                    )
-                    drawArc(
-                        color = Color.White.copy(alpha = 0.7f),
-                        startAngle = -140f,
-                        sweepAngle = 100f,
-                        useCenter = false,
-                        style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round),
-                        topLeft = Offset(2.dp.toPx(), 4.dp.toPx()),
-                        size = Size(size.width - 4.dp.toPx(), size.height - 4.dp.toPx())
-                    )
-                    drawArc(
-                        color = Color.White.copy(alpha = 0.7f),
-                        startAngle = -140f,
-                        sweepAngle = 100f,
-                        useCenter = false,
-                        style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round),
-                        topLeft = Offset(4.dp.toPx(), 7.dp.toPx()),
-                        size = Size(size.width - 8.dp.toPx(), size.height - 8.dp.toPx())
-                    )
-                }
-            }
-
-            // Custom drawn X (Twitter) Icon
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .clickable { onTwitterClick() },
-                contentAlignment = Alignment.Center
-            ) {
-                Canvas(modifier = Modifier.size(14.dp)) {
-                    drawLine(
-                        color = Color.White.copy(alpha = 0.7f),
-                        start = Offset(0f, 0f),
-                        end = Offset(size.width, size.height),
-                        strokeWidth = 1.8.dp.toPx(),
-                        cap = StrokeCap.Round
-                    )
-                    drawLine(
-                        color = Color.White.copy(alpha = 0.7f),
-                        start = Offset(size.width, 0f),
-                        end = Offset(0f, size.height),
-                        strokeWidth = 1.8.dp.toPx(),
-                        cap = StrokeCap.Round
-                    )
-                }
-            }
-
             // Bell notification icon
             Box(
                 modifier = Modifier
@@ -1456,3 +1384,4 @@ fun QuietTheMindPlayerDialog(
         }
     }
 }
+

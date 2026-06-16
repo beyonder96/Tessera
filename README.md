@@ -22,6 +22,12 @@ Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.bui
 
 ---
 
+## 🚀 Novidades da Versão 1.3.6 ✨
+* 📦 **Artefatos de distribuição atualizados**: README revisado e APKs disponibilizados na versão 1.3.6 para download direto.
+* 🔧 **Versionamento alinhado**: a configuração do app foi atualizada para a versão 1.3.6 e o código interno de versão foi incrementado.
+
+---
+
 ## 🚀 Novidades da Versão 1.3.5 ✨
 * 📚 **Catálogo Completo de Recursos**: Mapeamento minucioso e documentação de todas as funcionalidades de saúde, finanças, hábitos, pets, compras e segurança.
 * 🏷️ **Versão 1.3.5**: Incremento oficial do build (`versionCode` 7) e atualização dos arquivos binários finais.
