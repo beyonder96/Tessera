@@ -114,6 +114,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.components.OuraCircularProgress
+import com.example.ui.components.LocalGlassmorphismLevel
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -377,12 +379,8 @@ fun TesseraApp() {
     var isFabExpanded by remember { mutableStateOf(false) }
     var fabHoveredItem by remember { mutableStateOf<String?>(null) }
 
-    var backgroundUri by remember {
-        mutableStateOf(
-            sharedPrefs.getString("home_background_uri", "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop")
-                ?: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"
-        )
-    }
+    val backgroundUri by viewModel.homeBackgroundUri.collectAsState()
+    val currentGlassLevel by viewModel.glassmorphismLevel.collectAsState()
 
     val backgroundPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -395,8 +393,7 @@ fun TesseraApp() {
                         inputStream.copyTo(outputStream)
                     }
                     val localUri = Uri.fromFile(bgFile)
-                    backgroundUri = localUri.toString()
-                    sharedPrefs.edit().putString("home_background_uri", localUri.toString()).apply()
+                    viewModel.updateHomeBackgroundUri(localUri.toString())
                     Toast.makeText(context, "Plano de fundo atualizado!", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
@@ -405,53 +402,48 @@ fun TesseraApp() {
         }
     }
 
-    androidx.compose.runtime.DisposableEffect(sharedPrefs) {
-        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (key == "home_background_uri") {
-                backgroundUri = sharedPrefs.getString("home_background_uri", "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop")
-                    ?: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"
-            }
-        }
-        sharedPrefs.registerOnSharedPreferenceChangeListener(listener)
-        onDispose {
-            sharedPrefs.unregisterOnSharedPreferenceChangeListener(listener)
-        }
-    }
-
     var homeScrollOffset by remember { mutableStateOf(0) }
 
-    Scaffold(
-        containerColor = Color.Transparent,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
-    ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize()) {
-            val homeScrollBlur = if (currentRoute == "home") {
-                (homeScrollOffset * 0.04f).coerceIn(0f, 16f).dp
-            } else {
-                0.dp
-            }
-            AsyncImage(
-                model = backgroundUri,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                alignment = Alignment.TopCenter,
-                modifier = Modifier.fillMaxSize().blur(homeScrollBlur)
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0x99070909))
-            )
-
-            val contentBlur by animateDpAsState(if (isFabExpanded) 32.dp else 0.dp, tween(300))
-            Box(modifier = Modifier.fillMaxSize().blur(contentBlur)) {
-                NavHost(navController = navController, startDestination = "home", modifier = Modifier.fillMaxSize()) {
-                composable("home") {
-                    HomeScreen(
-                        onNavigate = navigateAction,
-                        onScrollChange = { homeScrollOffset = it }
-                    )
+    CompositionLocalProvider(LocalGlassmorphismLevel provides currentGlassLevel) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0)
+        ) { innerPadding ->
+            Box(modifier = Modifier.fillMaxSize()) {
+                val baseBlur = when (currentGlassLevel) {
+                    "Clear" -> 12.dp
+                    "Blur" -> 24.dp
+                    "Frosted" -> 36.dp
+                    else -> 36.dp
                 }
+                val homeScrollBlur = if (currentRoute == "home") {
+                    baseBlur + (homeScrollOffset * 0.04f).coerceIn(0f, 16f).dp
+                } else {
+                    baseBlur
+                }
+                AsyncImage(
+                    model = backgroundUri,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    alignment = Alignment.TopCenter,
+                    modifier = Modifier.fillMaxSize().blur(homeScrollBlur)
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0x99070909))
+                )
+
+                val contentBlur by animateDpAsState(if (isFabExpanded) 32.dp else 0.dp, tween(300))
+                Box(modifier = Modifier.fillMaxSize().blur(contentBlur)) {
+                    NavHost(navController = navController, startDestination = "home", modifier = Modifier.fillMaxSize()) {
+                    composable("home") {
+                        HomeScreen(
+                            viewModel = viewModel,
+                            onNavigate = navigateAction,
+                            onScrollChange = { homeScrollOffset = it }
+                        )
+                    }
                 composable("settings") {
                     SettingsScreen(viewModel = viewModel, onBack = { 
                         navController.popBackStack()
@@ -662,6 +654,7 @@ fun TesseraApp() {
             }
         }
     }
+    }
 }
 
 fun getDatabaseSizeInKB(context: android.content.Context): String {
@@ -680,9 +673,9 @@ fun getDatabaseSizeInKB(context: android.content.Context): String {
 }
 
 @Composable
-fun HomeScreen(onNavigate: (String) -> Unit, onScrollChange: (Int) -> Unit) {
+fun HomeScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScrollChange: (Int) -> Unit) {
     val context = LocalContext.current
-    val mainViewModel: TesseraViewModel = viewModel(factory = com.example.viewmodel.TesseraViewModelFactory(com.example.data.TesseraRepository(com.example.data.AppDatabase.getDatabase(context).tesseraDao()), context))
+    val mainViewModel = viewModel
     val petViewModel: PetViewModel = viewModel(factory = com.example.viewmodel.PetViewModelFactory(com.example.data.TesseraRepository(com.example.data.AppDatabase.getDatabase(context).tesseraDao())))
     val petEvents by mainViewModel.allPetEvents.collectAsState(initial = emptyList())
     val stepsRecords by mainViewModel.allStepsRecords.collectAsState(initial = emptyList())
@@ -708,13 +701,6 @@ fun HomeScreen(onNavigate: (String) -> Unit, onScrollChange: (Int) -> Unit) {
     val totalExpense = realExpense
     
     var showChatSheet by remember { mutableStateOf(false) }
-
-    var backgroundUri by remember {
-        mutableStateOf(
-            sharedPrefs.getString("home_background_uri", "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop")
-            ?: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"
-        )
-    }
 
     val scrollState = rememberScrollState()
     LaunchedEffect(scrollState.value) {

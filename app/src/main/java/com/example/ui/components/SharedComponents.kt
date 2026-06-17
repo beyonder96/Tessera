@@ -25,27 +25,48 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
 
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.composed
+
+val LocalGlassmorphismLevel = staticCompositionLocalOf { "Frosted" }
+
 // Shared GlassModifier for premium cards (Liquid Glass)
-val PremiumGlassModifier = Modifier
-    .clip(RoundedCornerShape(28.dp))
-    .background(
-        Brush.verticalGradient(
-            colors = listOf(
-                Color(0x2BFFFFFF), // Glossy top glare
-                Color(0x06FFFFFF)  // Highly translucent base
+val PremiumGlassModifier: Modifier
+    get() = Modifier.composed {
+        val level = LocalGlassmorphismLevel.current
+        
+        val (bgColors, borderColors) = when (level) {
+            "Clear" -> {
+                // Super transparent, high glossy border
+                listOf(Color(0x12FFFFFF), Color(0x02FFFFFF)) to
+                listOf(Color(0x8CFFFFFF), Color(0x0AFFFFFF))
+            }
+            "Blur" -> {
+                // Medium transparency, balanced border
+                listOf(Color(0x2BFFFFFF), Color(0x08FFFFFF)) to
+                listOf(Color(0x59FFFFFF), Color(0x08FFFFFF))
+            }
+            "Frosted" -> {
+                // Low transparency, frosted white, soft border
+                listOf(Color(0x52FFFFFF), Color(0x1AFFFFFF)) to
+                listOf(Color(0x99FFFFFF), Color(0x1EFFFFFF))
+            }
+            else -> {
+                // Fallback (same as Frosted)
+                listOf(Color(0x52FFFFFF), Color(0x1AFFFFFF)) to
+                listOf(Color(0x99FFFFFF), Color(0x1EFFFFFF))
+            }
+        }
+        
+        this
+            .clip(RoundedCornerShape(28.dp))
+            .background(Brush.verticalGradient(colors = bgColors))
+            .border(
+                width = 1.dp,
+                brush = Brush.verticalGradient(colors = borderColors),
+                shape = RoundedCornerShape(28.dp)
             )
-        )
-    )
-    .border(
-        width = 1.dp,
-        brush = Brush.verticalGradient(
-            colors = listOf(
-                Color(0x59FFFFFF), // Light catching bevel highlight at top
-                Color(0x08FFFFFF)  // Soft blend edge at bottom
-            )
-        ),
-        shape = RoundedCornerShape(28.dp)
-    )
+    }
 
 @Composable
 fun OuraCircularProgress(

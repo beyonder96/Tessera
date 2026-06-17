@@ -8,10 +8,19 @@
 
 Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.build-outputs/`:
 
-* **[📥 app-release-1.3.7.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.3.7.apk)**  
+* **[📥 app-release-1.3.8.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.3.8.apk)**  
   *Versão final de produção. Otimizada (~12.9 MB), com minificação de código (R8/ProGuard), remoção automática de logs de depuração/prints de console e compressão extrema de assets (PNG Crunching).*
-* **[📥 app-debug-1.3.7.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.3.7.apk)**  
+* **[📥 app-debug-1.3.8.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.3.8.apk)**  
   *Versão para testes contendo ferramentas de depuração ativas.*
+
+---
+
+## 🚀 Novidades da Versão 1.3.8 ✨
+* 🎨 **Glassmorphism Global e Inteligente (3 Níveis)**: Criação de um CompositionLocal reativo que propaga o nível de Glassmorphism selecionado globalmente no app. O modificador `PremiumGlassModifier` agora é dinâmico e suporta três estilos de vidro: **Frosted (Concept)** (jateado denso, branco fosco), **Clear (iOS)** (super translúcido, bordas reflexivas cristalinas) e **Blur (One UI)** (equilibrado, blur denso e cor integrada).
+* 🌌 **Seletor de Vidros em Configurações**: Adição de um seletor visual na tela de configurações com base na imagem de referência, contendo cards interativos em formato de vidro com previews ao vivo.
+* 🔄 **Atualizações de Plano de Fundo em Tempo Real**: Correção no fluxo de atualização do plano de fundo na `SettingsScreen` e `MainActivity`. Agora, ao trocar a imagem na galeria ou clicar em "Restaurar", o plano de fundo é atualizado de forma instantânea em todas as abas sem precisar fechar o app.
+* 🏗️ **Apartamento 3D Isométrico Futurista**: Redesenho completo do Canvas do apartamento para renderizar uma simulação de edifício tridimensional em perspectiva isométrica (duas faces texturizadas e sombreadas). Inclusão de partículas com Z-Order pseudo-3D (orbitando atrás e na frente do prédio), anéis holográficos orbitais pontilhados na base, guindaste laser interativo de construção com faíscas neon e telemetria monospace de alta tecnologia em tempo real.
+* 🏷️ **Versão 1.3.8**: Incremento oficial do build (`versionCode` 9) e geração do novo lote de APKs 1.3.8.
 
 ---
 
@@ -172,8 +181,8 @@ Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.bui
 ```text
 Tessera/
 ├── .build-outputs/       # Diretório de APKs compilados e prontos para uso
-│   ├── app-debug-1.3.7.apk # Versão de testes com logs ativos
-│   └── app-release-1.3.7.apk # Versão final de produção assinada
+│   ├── app-debug-1.3.8.apk # Versão de testes com logs ativos
+│   └── app-release-1.3.8.apk # Versão final de produção assinada
 ├── app/                  # Módulo principal Android (Código Kotlin & Jetpack Compose)
 │   ├── src/main/java/    # Arquivos de código-fonte
 │   └── proguard-rules.pro# Regras de minificação R8/ProGuard

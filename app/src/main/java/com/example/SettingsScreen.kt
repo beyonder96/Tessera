@@ -20,6 +20,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -59,12 +61,8 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
     val appVersionName = packageInfo?.versionName ?: "1.0.2"
     
     var isBiometricEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("biometric_enabled", false)) }
-    var backgroundUri by remember {
-        mutableStateOf(
-            sharedPrefs.getString("home_background_uri", "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop")
-            ?: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"
-        )
-    }
+    val backgroundUri by viewModel.homeBackgroundUri.collectAsState()
+    val currentGlassLevel by viewModel.glassmorphismLevel.collectAsState()
 
     val coroutineScope = rememberCoroutineScope()
     val healthProfile by viewModel.healthProfile.collectAsState(initial = null)
@@ -111,8 +109,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                         inputStream.copyTo(outputStream)
                     }
                     val localUri = Uri.fromFile(bgFile)
-                    backgroundUri = localUri.toString()
-                    sharedPrefs.edit().putString("home_background_uri", localUri.toString()).apply()
+                    viewModel.updateHomeBackgroundUri(localUri.toString())
                     Toast.makeText(context, "Fundo atualizado com sucesso", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
@@ -168,27 +165,6 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
         }
     }
     Box(modifier = Modifier.fillMaxSize()) {
-        // Blurred background image matching the home screen's set background photo
-        AsyncImage(
-            model = backgroundUri,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize().blur(28.dp)
-        )
-        // Elegant overlay with deep dark gradient for maximum contrast and readable UI
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    androidx.compose.ui.graphics.Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xEE070909),
-                            Color(0xFC070909)
-                        )
-                    )
-                )
-        )
-
         Scaffold(
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -355,20 +331,146 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                             OutlinedButton(
                                 onClick = {
                                     val defaultUrl = "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"
-                                    backgroundUri = defaultUrl
-                                    sharedPrefs.edit().putString("home_background_uri", defaultUrl).apply()
+                                    viewModel.updateHomeBackgroundUri(defaultUrl)
                                     Toast.makeText(context, "Fundo padrão restaurado!", Toast.LENGTH_SHORT).show()
                                 },
                                 border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33FFFFFF)),
                                 shape = RoundedCornerShape(14.dp),
                                 modifier = Modifier.weight(1f).height(48.dp).bounceClick {
                                     val defaultUrl = "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"
-                                    backgroundUri = defaultUrl
-                                    sharedPrefs.edit().putString("home_background_uri", defaultUrl).apply()
+                                    viewModel.updateHomeBackgroundUri(defaultUrl)
                                     Toast.makeText(context, "Fundo padrão restaurado!", Toast.LENGTH_SHORT).show()
                                 }
                             ) {
                                 Text("Restaurar", color = Color.White, fontSize = 13.sp)
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    SectionTitle("ESTILO DO GLASSMORPHISM", SecondaryGold)
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Frosted Concept - Card superior largo
+                        val isFrosted = currentGlassLevel == "Frosted"
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .clip(RoundedCornerShape(28.dp))
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = if (isFrosted) listOf(Color(0x52FFFFFF), Color(0x1AFFFFFF)) else listOf(Color(0x1CFFFFFF), Color(0x06FFFFFF))
+                                    )
+                                )
+                                .border(
+                                    width = if (isFrosted) 2.dp else 1.dp,
+                                    brush = SolidColor(if (isFrosted) SecondaryGold else Color.White.copy(alpha = 0.2f)),
+                                    shape = RoundedCornerShape(28.dp)
+                                )
+                                .clickable { viewModel.updateGlassmorphismLevel("Frosted") },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "Frosted",
+                                    color = Color.White,
+                                    fontSize = 28.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    letterSpacing = 1.sp
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Concept",
+                                    color = Color.White.copy(alpha = 0.6f),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Normal
+                                )
+                            }
+                        }
+
+                        // Clear e Blur - Cards inferiores lado a lado
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            // Clear: iOS
+                            val isClear = currentGlassLevel == "Clear"
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(110.dp)
+                                    .clip(RoundedCornerShape(28.dp))
+                                    .background(
+                                        Brush.verticalGradient(
+                                            colors = if (isClear) listOf(Color(0x24FFFFFF), Color(0x08FFFFFF)) else listOf(Color(0x0EFFFFFF), Color(0x02FFFFFF))
+                                        )
+                                    )
+                                    .border(
+                                        width = if (isClear) 2.dp else 1.dp,
+                                        brush = SolidColor(if (isClear) SecondaryGold else Color.White.copy(alpha = 0.15f)),
+                                        shape = RoundedCornerShape(28.dp)
+                                    )
+                                    .clickable { viewModel.updateGlassmorphismLevel("Clear") },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "Clear",
+                                        color = Color.White,
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "iOS",
+                                        color = Color.White.copy(alpha = 0.6f),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Normal
+                                    )
+                                }
+                            }
+
+                            // Blur: One UI
+                            val isBlur = currentGlassLevel == "Blur"
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(110.dp)
+                                    .clip(RoundedCornerShape(28.dp))
+                                    .background(
+                                        Brush.verticalGradient(
+                                            colors = if (isBlur) listOf(Color(0x3DFFFFFF), Color(0x12FFFFFF)) else listOf(Color(0x1DFFFFFF), Color(0x04FFFFFF))
+                                        )
+                                    )
+                                    .border(
+                                        width = if (isBlur) 2.dp else 1.dp,
+                                        brush = SolidColor(if (isBlur) SecondaryGold else Color.White.copy(alpha = 0.15f)),
+                                        shape = RoundedCornerShape(28.dp)
+                                    )
+                                    .clickable { viewModel.updateGlassmorphismLevel("Blur") },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "Blur",
+                                        color = Color.White,
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "One UI",
+                                        color = Color.White.copy(alpha = 0.6f),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Normal
+                                    )
+                                }
                             }
                         }
                     }

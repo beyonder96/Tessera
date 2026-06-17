@@ -84,6 +84,29 @@ class TesseraViewModel(
     private val _dailyBriefingText = MutableStateFlow<String?>(null)
     val dailyBriefingText: StateFlow<String?> = _dailyBriefingText.asStateFlow()
 
+    private val sharedPrefs = applicationContext.getSharedPreferences("tessera_prefs", Context.MODE_PRIVATE)
+
+    private val _homeBackgroundUri = MutableStateFlow(
+        sharedPrefs.getString("home_background_uri", "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop")
+            ?: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"
+    )
+    val homeBackgroundUri: StateFlow<String> = _homeBackgroundUri.asStateFlow()
+
+    private val _glassmorphismLevel = MutableStateFlow(
+        sharedPrefs.getString("glassmorphism_level", "Frosted") ?: "Frosted"
+    )
+    val glassmorphismLevel: StateFlow<String> = _glassmorphismLevel.asStateFlow()
+
+    fun updateHomeBackgroundUri(uri: String) {
+        sharedPrefs.edit().putString("home_background_uri", uri).apply()
+        _homeBackgroundUri.value = uri
+    }
+
+    fun updateGlassmorphismLevel(level: String) {
+        sharedPrefs.edit().putString("glassmorphism_level", level).apply()
+        _glassmorphismLevel.value = level
+    }
+
     init {
         fetchWeather()
         viewModelScope.launch(Dispatchers.IO) {
