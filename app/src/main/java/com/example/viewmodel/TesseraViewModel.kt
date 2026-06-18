@@ -1111,6 +1111,56 @@ class TesseraViewModel(
             repository.deleteRoutine(routine)
         }
     }
+
+    // Metro & Trem (ARTESP) Integration
+    private val metroService = com.example.data.MetroService.create()
+
+    private val _metroConcessionarias = MutableStateFlow<List<com.example.data.MetroEmpresaConfig>>(emptyList())
+    val metroConcessionarias: StateFlow<List<com.example.data.MetroEmpresaConfig>> = _metroConcessionarias.asStateFlow()
+
+    private val _isLoadingMetroConfig = MutableStateFlow(false)
+    val isLoadingMetroConfig: StateFlow<Boolean> = _isLoadingMetroConfig.asStateFlow()
+
+    private val _metroStatus = MutableStateFlow<List<com.example.data.MetroEmpresaStatus>>(emptyList())
+    val metroStatus: StateFlow<List<com.example.data.MetroEmpresaStatus>> = _metroStatus.asStateFlow()
+
+    private val _isLoadingMetroStatus = MutableStateFlow(false)
+    val isLoadingMetroStatus: StateFlow<Boolean> = _isLoadingMetroStatus.asStateFlow()
+
+    private val _metroError = MutableStateFlow<String?>(null)
+    val metroError: StateFlow<String?> = _metroError.asStateFlow()
+
+    fun fetchMetroConcessionarias() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isLoadingMetroConfig.value = true
+            _metroError.value = null
+            try {
+                val response = metroService.getConcessionarias()
+                _metroConcessionarias.value = response.empresas ?: emptyList()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _metroError.value = "Falha ao carregar linhas: ${e.localizedMessage ?: "erro de rede"}"
+            } finally {
+                _isLoadingMetroConfig.value = false
+            }
+        }
+    }
+
+    fun fetchMetroStatus() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isLoadingMetroStatus.value = true
+            _metroError.value = null
+            try {
+                val response = metroService.getStatus()
+                _metroStatus.value = response.empresas ?: emptyList()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _metroError.value = "Falha ao carregar status: ${e.localizedMessage ?: "erro de rede"}"
+            } finally {
+                _isLoadingMetroStatus.value = false
+            }
+        }
+    }
 }
 
 class TesseraViewModelFactory(

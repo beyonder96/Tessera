@@ -95,6 +95,9 @@ import com.example.viewmodel.PetViewModelFactory
 import com.example.data.PetEntity
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.window.Dialog
+import androidx.compose.material.icons.outlined.DirectionsTransit
+import com.example.data.getMetroLineColor
 import com.tessera.app.data.local.AppDatabase as TesseraDatabase
 import com.tessera.app.ui.viewmodel.HomeViewModel
 import com.tessera.app.data.local.entity.PetRoutineEntity
@@ -574,7 +577,10 @@ fun TesseraApp() {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(GlassModifier)
+                                .padding(vertical = 32.dp, horizontal = 20.dp)
                         ) {
                             val titleAlpha by animateFloatAsState(if (isFabExpanded) 1f else 0f, tween(300))
                             Text(
@@ -702,6 +708,44 @@ fun HomeScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScro
     
     var showChatSheet by remember { mutableStateOf(false) }
 
+    // Metro & Trem Alert States
+    var showMetroPopup by remember { mutableStateOf(false) }
+    val metroStatus by mainViewModel.metroStatus.collectAsState()
+    val isLoadingMetroStatus by mainViewModel.isLoadingMetroStatus.collectAsState()
+    val metroError by mainViewModel.metroError.collectAsState()
+
+    // LaunchedEffect periódico para monitorar horários programados
+    LaunchedEffect(Unit) {
+        while (true) {
+            val alertTimes = sharedPrefs.getStringSet("metro_alert_times", emptySet()) ?: emptySet()
+            val monitoredLines = sharedPrefs.getStringSet("metro_monitored_lines", emptySet()) ?: emptySet()
+            
+            if (alertTimes.isNotEmpty() && monitoredLines.isNotEmpty()) {
+                val calendar = java.util.Calendar.getInstance()
+                val currentHour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+                val currentMinute = calendar.get(java.util.Calendar.MINUTE)
+                val currentTimeStr = String.format(java.util.Locale.US, "%02d:%02d", currentHour, currentMinute)
+                
+                if (alertTimes.contains(currentTimeStr)) {
+                    val todayDateStr = String.format(java.util.Locale.US, "%04d-%02d-%02d", 
+                        calendar.get(java.util.Calendar.YEAR),
+                        calendar.get(java.util.Calendar.MONTH) + 1,
+                        calendar.get(java.util.Calendar.DAY_OF_MONTH)
+                    )
+                    val triggerKey = "${todayDateStr} ${currentTimeStr}"
+                    val lastTrigger = sharedPrefs.getString("metro_last_trigger", "")
+                    
+                    if (lastTrigger != triggerKey) {
+                        sharedPrefs.edit().putString("metro_last_trigger", triggerKey).apply()
+                        mainViewModel.fetchMetroStatus()
+                        showMetroPopup = true
+                    }
+                }
+            }
+            kotlinx.coroutines.delay(30000L) // Verifica a cada 30 segundos
+        }
+    }
+
     val scrollState = rememberScrollState()
     LaunchedEffect(scrollState.value) {
         onScrollChange(scrollState.value)
@@ -804,7 +848,11 @@ fun HomeScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScro
             ) {
                 TopHeader(
                     onOpenSettings = { onNavigate("settings") },
-                    onOpenChat = { showChatSheet = true }
+                    onOpenChat = { showChatSheet = true },
+                    onOpenMetro = {
+                        mainViewModel.fetchMetroStatus()
+                        showMetroPopup = true
+                    }
                 )
             }
             
@@ -870,10 +918,270 @@ fun HomeScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScro
             viewModel = mainViewModel
         )
     }
+
+    if (showMetroPopup) {
+        val monitoredLines = remember { sharedPrefs.getStringSet("metro_monitored_lines", emptySet()) ?: emptySet() }
+
+        Dialog(onDismissRequest = { showMetroPopup = false }) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.95f)
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(Color(0xFF070909).copy(alpha = 0.85f))
+                    .border(
+                        width = 1.dp,
+                        brush = Brush.verticalGradient(
+                            colors = listOf(Color.White.copy(alpha = 0.25f), Color.White.copy(alpha = 0.05f))
+                        ),
+                        shape = RoundedCornerShape(28.dp)
+                    )
+                    .padding(24.dp)
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF4FC3F7).copy(alpha = 0.15f))
+                                .border(1.dp, Color(0xFF4FC3F7).copy(alpha = 0.3f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.DirectionsTransit,
+                                contentDescription = null,
+                                tint = Color(0xFF4FC3F7),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Status Metroferroviário",
+                                color = Color.White,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.SansSerif
+                            )
+                            Text(
+                                text = "Situação das linhas em tempo real",
+                                color = Color.White.copy(alpha = 0.5f),
+                                fontSize = 12.sp
+                            )
+                        }
+                        IconButton(
+                            onClick = { showMetroPopup = false },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = "Fechar", tint = Color.White.copy(alpha = 0.6f))
+                        }
+                    }
+
+                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
+
+                    if (isLoadingMetroStatus) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(180.dp),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CircularProgressIndicator(color = Color(0xFF4FC3F7))
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("Buscando informações da ARTESP...", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp)
+                        }
+                    } else if (metroError != null) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(Icons.Outlined.Warning, contentDescription = null, tint = Color(0xFFE57373), modifier = Modifier.size(36.dp))
+                            Text(
+                                text = metroError ?: "Não foi possível carregar as informações.",
+                                color = Color(0xFFE57373),
+                                fontSize = 14.sp,
+                                textAlign = TextAlign.Center
+                            )
+                            Button(
+                                onClick = { mainViewModel.fetchMetroStatus() },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4FC3F7)),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Tentar Novamente", color = Color.Black, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    } else if (monitoredLines.isEmpty()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Nenhuma linha selecionada para monitoramento.",
+                                color = Color.White.copy(alpha = 0.6f),
+                                fontSize = 14.sp,
+                                textAlign = TextAlign.Center
+                            )
+                            Text(
+                                text = "Configure as linhas desejadas nas Configurações do app.",
+                                color = Color.White.copy(alpha = 0.4f),
+                                fontSize = 12.sp,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    } else {
+                        val allEmpresas = metroStatus
+                        val matchedLines = mutableListOf<Pair<String, com.example.data.MetroLinhaStatus>>()
+                        
+                        allEmpresas.forEach { empresa ->
+                            empresa.linhas?.forEach { linha ->
+                                val lineKey = "${empresa.id}_${linha.codigo}"
+                                if (monitoredLines.contains(lineKey)) {
+                                    matchedLines.add(empresa.nome to linha)
+                                }
+                            }
+                        }
+
+                        if (matchedLines.isEmpty()) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "Nenhuma linha selecionada está ativa na API.",
+                                    color = Color.White.copy(alpha = 0.6f),
+                                    fontSize = 14.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        } else {
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 300.dp)
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                matchedLines.forEach { (empresaNome, linha) ->
+                                    val lineColor = getMetroLineColor(linha.nome, linha.codigo)
+                                    val statusDetail = linha.status
+                                    val situacao = statusDetail?.situacao ?: "Sem informações"
+                                    val isNormal = statusDetail?.operacaoNormal ?: true
+                                    val atualizadoHa = statusDetail?.atualizadoHa ?: ""
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(16.dp))
+                                            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                                            .padding(16.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp, 40.dp)
+                                                .clip(RoundedCornerShape(3.dp))
+                                                .background(lineColor)
+                                        )
+                                        Spacer(modifier = Modifier.width(16.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = linha.nome,
+                                                color = Color.White,
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                text = empresaNome,
+                                                color = Color.White.copy(alpha = 0.4f),
+                                                fontSize = 11.sp
+                                            )
+                                        }
+                                        Column(
+                                            horizontalAlignment = Alignment.End,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(
+                                                        if (isNormal) Color(0xFF34C759).copy(alpha = 0.15f)
+                                                        else Color(0xFFFF9500).copy(alpha = 0.15f)
+                                                    )
+                                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                            ) {
+                                                Text(
+                                                    text = situacao,
+                                                    color = if (isNormal) Color(0xFF30D158) else Color(0xFFFF9F0A),
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                            if (atualizadoHa.isNotEmpty()) {
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(
+                                                    text = "há $atualizadoHa",
+                                                    color = Color.White.copy(alpha = 0.3f),
+                                                    fontSize = 9.sp
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { showMetroPopup = false },
+                            shape = RoundedCornerShape(14.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
+                            modifier = Modifier.weight(1f).height(48.dp)
+                        ) {
+                            Text("Fechar", color = Color.White, fontSize = 14.sp)
+                        }
+                        
+                        if (!isLoadingMetroStatus && monitoredLines.isNotEmpty()) {
+                            Button(
+                                onClick = { mainViewModel.fetchMetroStatus() },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4FC3F7)),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier.weight(1.5f).height(48.dp).bounceClick { mainViewModel.fetchMetroStatus() }
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.Black, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Atualizar", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
-fun TopHeader(onOpenSettings: () -> Unit, onOpenChat: () -> Unit) {
+fun TopHeader(onOpenSettings: () -> Unit, onOpenChat: () -> Unit, onOpenMetro: () -> Unit) {
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
     var profileUri by remember { mutableStateOf<Uri?>(null) }
@@ -971,6 +1279,18 @@ fun TopHeader(onOpenSettings: () -> Unit, onOpenChat: () -> Unit) {
                         modifier = Modifier.size(20.dp)
                     )
                 }
+            }
+
+            IconButton(
+                onClick = onOpenMetro,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.DirectionsTransit,
+                    contentDescription = "Status do Metrô",
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
             }
 
             IconButton(
@@ -3592,7 +3912,6 @@ fun PremiumGridTile(
             .aspectRatio(1f)
             .clip(RoundedCornerShape(28.dp))
             .then(GlassModifier)
-            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(28.dp))
             .clickable(onClick = onClick)
             .padding(20.dp)
     ) {
@@ -4591,4 +4910,3 @@ fun DailyBriefWidget(onClick: () -> Unit) {
         }
     }
 }
-

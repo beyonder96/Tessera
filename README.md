@@ -8,10 +8,19 @@
 
 Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.build-outputs/`:
 
-* **[📥 app-release-1.3.8.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.3.8.apk)**  
+* **[📥 app-release-1.3.9.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.3.9.apk)**  
   *Versão final de produção. Otimizada (~12.9 MB), com minificação de código (R8/ProGuard), remoção automática de logs de depuração/prints de console e compressão extrema de assets (PNG Crunching).*
-* **[📥 app-debug-1.3.8.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.3.8.apk)**  
+* **[📥 app-debug-1.3.9.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.3.9.apk)**  
   *Versão para testes contendo ferramentas de depuração ativas.*
+
+---
+
+## 🚀 Novidades da Versão 1.3.9 ✨
+* 🚇 **Integração da API Pública de Status Metroferroviário**: Conexão à API da ARTESP para buscar em tempo real a situação operacional das linhas de metrô e trem da região metropolitana de São Paulo.
+* 🕒 **Configuração de Horários de Alerta**: Nova seção no painel de configurações que possibilita definir múltiplos horários específicos para que a verificação de status metroferroviário seja feita de forma automática.
+* 🎛️ **Seleção de Linhas Monitoradas**: Checklist customizado para selecionar exatamente quais linhas (Metrô, CPTM, ViaQuatro, ViaMobilidade, etc.) devem ser exibidas no relatório operacional.
+* 🔮 **Pop-up Glassmorphic na HomeScreen**: Diálogo de vidro translúcido responsivo (com desfoque de fundo reativo ao nível global de glassmorphism do app) exibido automaticamente nos horários agendados ou por meio do novo botão de consulta manual no cabeçalho.
+* 🏷️ **Versão 1.3.9**: Incremento oficial do build (`versionCode` 10) e geração dos APKs 1.3.9 correspondentes.
 
 ---
 
@@ -181,8 +190,8 @@ Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.bui
 ```text
 Tessera/
 ├── .build-outputs/       # Diretório de APKs compilados e prontos para uso
-│   ├── app-debug-1.3.8.apk # Versão de testes com logs ativos
-│   └── app-release-1.3.8.apk # Versão final de produção assinada
+│   ├── app-debug-1.3.9.apk # Versão de testes com logs ativos
+│   └── app-release-1.3.9.apk # Versão final de produção assinada
 ├── app/                  # Módulo principal Android (Código Kotlin & Jetpack Compose)
 │   ├── src/main/java/    # Arquivos de código-fonte
 │   └── proguard-rules.pro# Regras de minificação R8/ProGuard

@@ -7,9 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,10 +32,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -135,6 +137,26 @@ fun PetzScreen(
     var showAddRoutineDialog by remember { mutableStateOf(false) }
     var healthCardToEdit by remember { mutableStateOf<String?>(null) }
 
+    var showAddPetDialog by remember { mutableStateOf(false) }
+    var isCreatingPet by remember { mutableStateOf(false) }
+    var creationProgress by remember { mutableStateOf(0f) }
+    var newPetNameForAnim by remember { mutableStateOf("") }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isCreatingPet) {
+        if (isCreatingPet) {
+            creationProgress = 0f
+            val totalSteps = 100
+            for (step in 1..totalSteps) {
+                kotlinx.coroutines.delay(18)
+                creationProgress = step.toFloat() / totalSteps
+            }
+            creationProgress = 1f
+            kotlinx.coroutines.delay(800)
+            isCreatingPet = false
+        }
+    }
+
     // Fetch weight history for this pet at the top level
     val weightHistory by if (activePet != null) {
         petViewModel.getWeightHistory(activePet.id)
@@ -181,21 +203,24 @@ fun PetzScreen(
                 Box(modifier = Modifier.fillMaxSize()) {
                     // Hero Image with Fade to Black
                     val scrollOffset = scrollState.value
-                    val blurRadius = (scrollOffset * 0.04f).coerceIn(0f, 16f).dp
+                    val baseBlur = (scrollOffset * 0.04f).coerceIn(0f, 16f)
+                    val blurRadius = (if (isCreatingPet) baseBlur + 16f else baseBlur).dp
 
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(450.dp)
                     ) {
-                        AsyncImage(
-                            model = currentPetImageModel,
-                            contentDescription = currentPet.name,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .blur(blurRadius)
-                        )
+                        key(currentPet.photoUri) {
+                            AsyncImage(
+                                model = currentPetImageModel,
+                                contentDescription = currentPet.name,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .blur(blurRadius)
+                            )
+                        }
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -206,6 +231,48 @@ fun PetzScreen(
                                     )
                                 )
                         )
+
+                        // Halo dourado brilhante flutuando para pets anjos
+                        if (currentPet.isAngel) {
+                            val haloTransition = rememberInfiniteTransition(label = "halo")
+                            val haloOffset by haloTransition.animateFloat(
+                                initialValue = -6f,
+                                targetValue = 6f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(1500, easing = FastOutSlowInEasing),
+                                    repeatMode = RepeatMode.Reverse
+                                ),
+                                label = "haloOffset"
+                            )
+                            
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 100.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Canvas(
+                                    modifier = Modifier
+                                        .size(width = 110.dp, height = 30.dp)
+                                        .graphicsLayer { translationY = haloOffset }
+                                ) {
+                                    drawOval(
+                                        brush = Brush.radialGradient(
+                                            colors = listOf(
+                                                Color(0xFFFFF6B2).copy(alpha = 0.8f),
+                                                Color(0xFFFFD700).copy(alpha = 0.2f),
+                                                Color.Transparent
+                                            ),
+                                            center = center
+                                        )
+                                    )
+                                    drawOval(
+                                        color = Color(0xFFFFD700),
+                                        style = Stroke(width = 2.dp.toPx())
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     // Main Content
@@ -225,14 +292,36 @@ fun PetzScreen(
                                 .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(24.dp))
                                 .padding(20.dp)
                         ) {
-                            Text(
-                                text = currentPet.name,
-                                fontFamily = FontFamily.Serif,
-                                fontWeight = FontWeight.Light,
-                                fontSize = 42.sp,
-                                color = Color.White,
-                                modifier = Modifier.padding(bottom = 4.dp)
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = currentPet.name,
+                                    fontFamily = FontFamily.Serif,
+                                    fontWeight = FontWeight.Light,
+                                    fontSize = 42.sp,
+                                    color = Color.White,
+                                    modifier = Modifier.padding(bottom = 4.dp)
+                                )
+                                if (currentPet.isAngel) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(Color(0xFFFFD700).copy(alpha = 0.15f))
+                                            .border(0.5.dp, Color(0xFFFFD700).copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = "👼 ANJO",
+                                            color = Color(0xFFFFF7C2),
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            letterSpacing = 1.sp
+                                        )
+                                    }
+                                }
+                            }
                             Text(
                                 text = "${currentPet.breed.uppercase()}  •  ${currentPetAgeStr.uppercase()}",
                                 fontFamily = FontFamily.SansSerif,
@@ -416,80 +505,244 @@ fun PetzScreen(
 
                         Spacer(modifier = Modifier.height(48.dp))
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        if (currentPet.isAngel) {
                             Text(
-                                text = "ROTINA DIÁRIA",
+                                text = "MEMÓRIA ETERNA",
                                 fontFamily = FontFamily.SansSerif,
                                 color = accentColor,
                                 fontSize = 12.sp,
                                 letterSpacing = 2.sp,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 16.dp)
                             )
-                            IconButton(onClick = { showAddRoutineDialog = true }) {
-                                Icon(Icons.Default.Add, contentDescription = "Add", tint = accentColor)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(Color.White.copy(alpha = 0.02f))
+                                    .border(0.5.dp, Color(0xFFFFD700).copy(alpha = 0.2f), RoundedCornerShape(16.dp))
+                                    .padding(20.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "👼",
+                                        fontSize = 32.sp,
+                                        modifier = Modifier.padding(bottom = 8.dp)
+                                    )
+                                    Text(
+                                        text = "${currentPet.name} brilha agora como uma estrela eterna. Agradecemos por cada momento de amor e carinho compartilhados.",
+                                        color = Color(0xFFFFF7C2),
+                                        fontSize = 14.sp,
+                                        fontFamily = FontFamily.Serif,
+                                        fontWeight = FontWeight.Light,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        lineHeight = 20.sp
+                                    )
+                                }
                             }
+                        } else {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "ROTINA DIÁRIA",
+                                    fontFamily = FontFamily.SansSerif,
+                                    color = accentColor,
+                                    fontSize = 12.sp,
+                                    letterSpacing = 2.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                IconButton(onClick = { showAddRoutineDialog = true }) {
+                                    Icon(Icons.Default.Add, contentDescription = "Add", tint = accentColor)
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            val filteredEvents = petEvents.filter { it.petName == currentPet.name }
+                            OuraTimeline(filteredEvents, accentColor, viewModel)
                         }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        val filteredEvents = petEvents.filter { it.petName == currentPet.name }
-                        OuraTimeline(filteredEvents, accentColor, viewModel)
 
                         Spacer(modifier = Modifier.height(120.dp))
                     }
 
-                    // Top Navigation
-                    Row(
+                    // ------------------- TOP BAR & COLLAPSE LOGIC -------------------
+                    val isCompact = scrollState.value > 180
+                    val normalAlpha by animateFloatAsState(targetValue = if (isCompact) 0f else 1f, animationSpec = tween(250), label = "normalAlpha")
+                    val compactAlpha by animateFloatAsState(targetValue = if (isCompact) 1f else 0f, animationSpec = tween(250), label = "compactAlpha")
+
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 48.dp, start = 16.dp, end = 16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(top = 48.dp, start = 16.dp, end = 16.dp)
                     ) {
-                        IconButton(
-                            onClick = onHomeClick,
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .background(Color.Black.copy(alpha = 0.3f))
-                        ) {
-                            Icon(Icons.Outlined.Home, contentDescription = "Home", tint = Color.White)
-                        }
-
-                        // Tab Selector
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(30.dp))
-                                .background(Color.Black.copy(alpha = 0.4f))
-                                .padding(4.dp)
-                        ) {
-                            pets.forEach { petItem ->
-                                val isSelected = petItem.name == selectedPetName
-                                Text(
-                                    text = petItem.name,
+                        // 1. Barra Normal (Seletor completo e botoes)
+                        if (normalAlpha > 0.05f) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .graphicsLayer {
+                                        alpha = normalAlpha
+                                        scaleX = 0.92f + (normalAlpha * 0.08f)
+                                        scaleY = 0.92f + (normalAlpha * 0.08f)
+                                    },
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(
+                                    onClick = onHomeClick,
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(26.dp))
-                                        .background(if (isSelected) Color.White.copy(alpha = 0.15f) else Color.Transparent)
-                                        .clickable { selectedPetName = petItem.name }
-                                        .padding(horizontal = 20.dp, vertical = 8.dp),
-                                    color = if (isSelected) Color.White else Color.Gray,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 14.sp
+                                        .clip(CircleShape)
+                                        .background(Color.Black.copy(alpha = 0.3f))
+                                ) {
+                                    Icon(Icons.Outlined.Home, contentDescription = "Home", tint = Color.White)
+                                }
+
+                                LiquidTabSelector(
+                                    pets = pets,
+                                    selectedPetName = selectedPetName,
+                                    onPetSelected = { selectedPetName = it },
+                                    accentColor = accentColor
                                 )
+
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    IconButton(
+                                        onClick = { petToEdit = currentPet },
+                                        modifier = Modifier
+                                            .clip(CircleShape)
+                                            .background(Color.Black.copy(alpha = 0.3f))
+                                    ) {
+                                        Icon(Icons.Outlined.Edit, contentDescription = "Edit", tint = Color.White)
+                                    }
+
+                                    IconButton(
+                                        onClick = { showAddPetDialog = true },
+                                        modifier = Modifier
+                                            .clip(CircleShape)
+                                            .background(Color.Black.copy(alpha = 0.3f))
+                                    ) {
+                                        Icon(Icons.Default.Add, contentDescription = "Add Pet", tint = Color.White)
+                                    }
+                                }
                             }
                         }
 
-                        IconButton(
-                            onClick = { petToEdit = currentPet },
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .background(Color.Black.copy(alpha = 0.3f))
-                        ) {
-                            Icon(Icons.Outlined.Edit, contentDescription = "Edit", tint = Color.White)
+                        // 2. Barra Compacta (Foto e Nome brilhante centralizado)
+                        if (compactAlpha > 0.05f) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .graphicsLayer {
+                                        alpha = compactAlpha
+                                        translationY = (1f - compactAlpha) * (-20f)
+                                    }
+                                    .clip(RoundedCornerShape(30.dp))
+                                    .background(Color.Black.copy(alpha = 0.6f))
+                                    .border(0.5.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(30.dp))
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(
+                                    onClick = onHomeClick,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(Icons.Outlined.Home, contentDescription = "Home", tint = Color.White, modifier = Modifier.size(18.dp))
+                                }
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    key(currentPet.photoUri) {
+                                        AsyncImage(
+                                            model = currentPetImageModel,
+                                            contentDescription = currentPet.name,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .size(26.dp)
+                                                .clip(CircleShape)
+                                                .border(1.dp, Color.White.copy(alpha = 0.4f), CircleShape)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(8.dp))
+
+                                    val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
+                                    val shimmerOffset by infiniteTransition.animateFloat(
+                                        initialValue = -400f,
+                                        targetValue = 400f,
+                                        animationSpec = infiniteRepeatable(
+                                            animation = tween(2000, easing = LinearEasing),
+                                            repeatMode = RepeatMode.Restart
+                                        ),
+                                        label = "shimmerOffset"
+                                    )
+
+                                    val nameGlowBrush = Brush.linearGradient(
+                                        colors = listOf(
+                                            Color.White,
+                                            accentColor,
+                                            Color.White,
+                                            accentColor,
+                                            Color.White
+                                        ),
+                                        start = Offset(shimmerOffset, 0f),
+                                        end = Offset(shimmerOffset + 150f, 150f)
+                                    )
+
+                                    Text(
+                                        text = currentPet.name,
+                                        style = TextStyle(
+                                            brush = nameGlowBrush,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
+                                            fontFamily = FontFamily.Serif
+                                        )
+                                    )
+                                }
+
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    IconButton(
+                                        onClick = { petToEdit = currentPet },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(Icons.Outlined.Edit, contentDescription = "Edit", tint = Color.White, modifier = Modifier.size(18.dp))
+                                    }
+
+                                    IconButton(
+                                        onClick = { showAddPetDialog = true },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(Icons.Default.Add, contentDescription = "Add Pet", tint = Color.White, modifier = Modifier.size(18.dp))
+                                    }
+                                }
+                            }
                         }
+                    }
+
+                    // Se for anjo, renderiza petalas caindo por cima de tudo
+                    if (currentPet.isAngel) {
+                        FallingPetalsAnimation()
+                    }
+
+                    // Animacao frontal de criacao
+                    if (isCreatingPet) {
+                        CreationOverlay(
+                            progress = creationProgress,
+                            petName = newPetNameForAnim,
+                            accentColor = accentColor
+                        )
                     }
                 }
             }
@@ -510,6 +763,46 @@ fun PetzScreen(
             onConfirm = { updatedPet ->
                 petViewModel.insertPet(updatedPet)
                 petToEdit = null
+            },
+            onDeleteClick = {
+                showDeleteConfirmation = true
+            }
+        )
+    }
+
+    // Delete Pet Confirmation Dialog
+    if (showDeleteConfirmation && activePet != null) {
+        DeletePetConfirmationDialog(
+            petName = activePet.name,
+            accentColor = if (activePet.name == "Marie") TertiaryPurple else PrimaryTeal,
+            onDismiss = { showDeleteConfirmation = false },
+            onConfirmDelete = {
+                petViewModel.deletePet(activePet)
+                showDeleteConfirmation = false
+                petToEdit = null
+            },
+            onConfirmAngel = {
+                petViewModel.insertPet(activePet.copy(isAngel = true))
+                showDeleteConfirmation = false
+                petToEdit = null
+            }
+        )
+    }
+
+    // Add Pet Dialog
+    if (showAddPetDialog) {
+        val pColor = if (selectedPetName == "Marie") TertiaryPurple else PrimaryTeal
+        AddPetDialog(
+            primaryColor = pColor,
+            petViewModel = petViewModel,
+            onDismiss = { showAddPetDialog = false },
+            onConfirm = { newPet, initialWeight ->
+                showAddPetDialog = false
+                newPetNameForAnim = newPet.name
+                isCreatingPet = true
+                petViewModel.insertPetWithInitialWeight(newPet, initialWeight) {
+                    selectedPetName = newPet.name
+                }
             }
         )
     }
@@ -690,7 +983,8 @@ fun EditPetDialog(
     primaryColor: Color,
     petViewModel: PetViewModel,
     onDismiss: () -> Unit,
-    onConfirm: (updatedPet: PetEntity) -> Unit
+    onConfirm: (updatedPet: PetEntity) -> Unit,
+    onDeleteClick: () -> Unit
 ) {
     var name by remember { mutableStateOf(pet.name) }
     var breed by remember { mutableStateOf(pet.breed) }
@@ -1007,8 +1301,17 @@ fun EditPetDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("CANCELAR", color = Color.Gray, letterSpacing = 1.sp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = onDeleteClick) {
+                    Text("EXCLUIR", color = Color(0xFFFF5252), letterSpacing = 1.sp, fontWeight = FontWeight.Bold)
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("CANCELAR", color = Color.Gray, letterSpacing = 1.sp)
+                }
             }
         },
         containerColor = Color(0xFF0A0A0A),
@@ -1642,6 +1945,806 @@ fun PetHealthDashboard(
                 isWarning = false,
                 accentColor = accentColor,
                 onClick = onNotesClick
+            )
+        }
+    }
+}
+
+// ---------------- NEW COMPOSABLES & ELASTIC LIQUID STUFF ----------------
+
+@Composable
+fun LiquidTabSelector(
+    pets: List<PetEntity>,
+    selectedPetName: String,
+    onPetSelected: (String) -> Unit,
+    accentColor: Color
+) {
+    val tabCoords = remember { mutableStateMapOf<Int, Pair<Float, Float>>() }
+    val selectedIndex = remember(pets, selectedPetName) {
+        pets.indexOfFirst { it.name == selectedPetName }.coerceAtLeast(0)
+    }
+
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val defaultWidth = with(density) { 80.dp.toPx() }
+    val defaultX = 0f
+
+    val targetX = tabCoords[selectedIndex]?.first ?: defaultX
+    val targetW = tabCoords[selectedIndex]?.second ?: defaultWidth
+
+    // Animação com mola macia e bouncy para movimento líquido
+    val animX by animateFloatAsState(
+        targetValue = targetX,
+        animationSpec = spring(
+            dampingRatio = 0.62f,
+            stiffness = 200f
+        ),
+        label = "liquidX"
+    )
+
+    val animW by animateFloatAsState(
+        targetValue = targetW,
+        animationSpec = spring(
+            dampingRatio = 0.65f,
+            stiffness = 200f
+        ),
+        label = "liquidW"
+    )
+
+    // Esticamento líquido com base na distância restante
+    val distance = targetX - animX
+    val stretch = (distance * 0.22f).coerceIn(-40f, 40f)
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(30.dp))
+            .background(Color.Black.copy(alpha = 0.4f))
+            .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(30.dp))
+            .padding(4.dp)
+    ) {
+        val indicatorWidthDp = with(density) { (animW + kotlin.math.abs(stretch)).toDp() }
+        val indicatorOffsetDp = with(density) { (animX + if (stretch < 0f) stretch else 0f).toDp() }
+
+        Box(
+            modifier = Modifier
+                .offset(x = indicatorOffsetDp, y = 0.dp)
+                .width(indicatorWidthDp)
+                .fillMaxHeight()
+                .clip(RoundedCornerShape(26.dp))
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.18f),
+                            Color.White.copy(alpha = 0.04f)
+                        )
+                    )
+                )
+                .border(
+                    width = 1.dp,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.35f),
+                            Color.White.copy(alpha = 0.08f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(26.dp)
+                )
+        )
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            pets.forEachIndexed { index, petItem ->
+                val isSelected = petItem.name == selectedPetName
+                Text(
+                    text = petItem.name,
+                    modifier = Modifier
+                        .onGloballyPositioned { coords ->
+                            val parent = coords.parentLayoutCoordinates
+                            if (parent != null) {
+                                val position = coords.positionInParent()
+                                tabCoords[index] = Pair(position.x, coords.size.width.toFloat())
+                            }
+                        }
+                        .clip(RoundedCornerShape(26.dp))
+                        .clickable { onPetSelected(petItem.name) }
+                        .padding(horizontal = 18.dp, vertical = 8.dp),
+                    color = if (isSelected) Color.White else Color.Gray,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 14.sp
+                )
+            }
+        }
+    }
+}
+
+data class Petal(
+    var x: Float,
+    var y: Float,
+    var size: Float,
+    var speed: Float,
+    var wind: Float,
+    var angle: Float,
+    var angleSpeed: Float,
+    var phase: Float
+)
+
+fun createRandomPetal(initialY: Boolean): Petal {
+    val random = java.util.Random()
+    val initialYVal = if (initialY) random.nextFloat() * 2000f else -50f
+    return Petal(
+        x = random.nextFloat() * 1080f,
+        y = initialYVal,
+        size = 12f + random.nextFloat() * 16f,
+        speed = 1.5f + random.nextFloat() * 3.5f,
+        wind = -0.8f + random.nextFloat() * 1.6f,
+        angle = random.nextFloat() * 360f,
+        angleSpeed = -2f + random.nextFloat() * 4f,
+        phase = random.nextFloat() * 10f
+    )
+}
+
+@Composable
+fun FallingPetalsAnimation() {
+    val petals = remember {
+        mutableStateListOf<Petal>().apply {
+            repeat(30) {
+                add(createRandomPetal(initialY = true))
+            }
+        }
+    }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "petals")
+    val time by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "time"
+    )
+
+    LaunchedEffect(time) {
+        petals.forEachIndexed { i, petal ->
+            petal.y += petal.speed
+            petal.angle += petal.angleSpeed
+            petal.x += petal.wind + (kotlin.math.sin(petal.y * 0.008 + petal.phase) * 0.6f).toFloat()
+
+            if (petal.y > 2200f || petal.x < -100f || petal.x > 1200f) {
+                petals[i] = createRandomPetal(initialY = false)
+            }
+        }
+    }
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val width = size.width
+        petals.forEach { petal ->
+            val drawX = (petal.x % width + width) % width
+            val drawY = petal.y
+
+            drawContext.canvas.save()
+            drawContext.canvas.translate(drawX, drawY)
+            drawContext.canvas.rotate(petal.angle)
+
+            val path = androidx.compose.ui.graphics.Path().apply {
+                moveTo(0f, -petal.size)
+                quadraticTo(petal.size * 0.6f, -petal.size * 0.2f, 0f, petal.size)
+                quadraticTo(-petal.size * 0.6f, -petal.size * 0.2f, 0f, -petal.size)
+                close()
+            }
+
+            drawPath(
+                path = path,
+                color = Color(0xFFFFC0CB).copy(alpha = 0.5f) // Rosa claro translúcido
+            )
+            drawContext.canvas.restore()
+        }
+    }
+}
+
+@Composable
+fun DeletePetConfirmationDialog(
+    petName: String,
+    accentColor: Color,
+    onDismiss: () -> Unit,
+    onConfirmDelete: () -> Unit,
+    onConfirmAngel: () -> Unit
+) {
+    var selectedReason by remember { mutableStateOf("") }
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Excluir Perfil de $petName",
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.Light,
+                color = Color.White
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Lamentamos que precise remover o perfil. Qual o motivo da remoção?",
+                    color = Color.Gray,
+                    fontSize = 14.sp
+                )
+                
+                val reasons = listOf(
+                    "Doação ou Novo Lar",
+                    "Falecimento (Luto)",
+                    "Outros Motivos"
+                )
+                
+                reasons.forEach { reason ->
+                    val isSelected = selectedReason == reason
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isSelected) accentColor.copy(alpha = 0.15f) else Color(0xFF111111))
+                            .border(0.5.dp, if (isSelected) accentColor else Color(0xFF222222), RoundedCornerShape(8.dp))
+                            .clickable { selectedReason = reason }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = isSelected,
+                            onClick = { selectedReason = reason },
+                            colors = RadioButtonDefaults.colors(
+                                selectedColor = accentColor,
+                                unselectedColor = Color.Gray
+                            )
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = reason,
+                            color = if (isSelected) Color.White else Color.Gray,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (selectedReason == "Falecimento (Luto)") {
+                        onConfirmAngel()
+                    } else {
+                        onConfirmDelete()
+                    }
+                },
+                enabled = selectedReason.isNotEmpty()
+            ) {
+                Text(
+                    text = "CONFIRMAR",
+                    color = if (selectedReason.isNotEmpty()) accentColor else Color.Gray,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("CANCELAR", color = Color.Gray)
+            }
+        },
+        containerColor = Color(0xFF0A0A0A),
+        shape = RoundedCornerShape(16.dp)
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddPetDialog(
+    primaryColor: Color,
+    petViewModel: PetViewModel,
+    onDismiss: () -> Unit,
+    onConfirm: (newPet: PetEntity, initialWeight: Double) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var breed by remember { mutableStateOf("") }
+    var birthDate by remember { mutableStateOf(System.currentTimeMillis()) }
+    var photoString by remember { mutableStateOf("") }
+    var rga by remember { mutableStateOf("") }
+    var microchip by remember { mutableStateOf("") }
+    var sex by remember { mutableStateOf(PetSex.MACHO) }
+    var isCastrated by remember { mutableStateOf(false) }
+    var initialWeightStr by remember { mutableStateOf("") }
+    var notes by remember { mutableStateOf("") }
+
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val fileName = "pet_photo_${name.lowercase().ifEmpty { "new" }}_${System.currentTimeMillis()}.jpg"
+                    val profileFile = java.io.File(context.filesDir, fileName)
+                    profileFile.outputStream().use { outputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                    val localUri = Uri.fromFile(profileFile)
+                    photoString = localUri.toString()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    val rgaError = remember(rga) { rga.isNotEmpty() && !petViewModel.validateRga(rga) }
+    val microchipError = remember(microchip) { microchip.isNotEmpty() && !petViewModel.validateMicrochip(microchip) }
+    val initialWeight = initialWeightStr.toDoubleOrNull() ?: 0.0
+    val canSave = name.trim().isNotEmpty() && breed.trim().isNotEmpty() &&
+            (rga.isEmpty() || petViewModel.validateRga(rga)) &&
+            (microchip.isEmpty() || petViewModel.validateMicrochip(microchip))
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Adicionar Novo Pet",
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.Light,
+                color = Color.White
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                val imageModel: Any = if (photoString.startsWith("file://")) {
+                    File(Uri.parse(photoString).path ?: "")
+                } else {
+                    photoString
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF111111))
+                        .clickable { launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (photoString.isNotEmpty()) {
+                        AsyncImage(
+                            model = imageModel,
+                            contentDescription = name,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Icon(Icons.Outlined.Pets, contentDescription = "Add Photo", tint = Color.DarkGray, modifier = Modifier.size(36.dp))
+                    }
+                }
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Nome") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = primaryColor,
+                        unfocusedBorderColor = Color(0xFF333333),
+                        focusedLabelColor = primaryColor,
+                        unfocusedLabelColor = Color.Gray
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = breed,
+                    onValueChange = { breed = it },
+                    label = { Text("Raça") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = primaryColor,
+                        unfocusedBorderColor = Color(0xFF333333),
+                        focusedLabelColor = primaryColor,
+                        unfocusedLabelColor = Color.Gray
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+                val birthDateFormatted = dateFormat.format(Date(birthDate))
+
+                OutlinedTextField(
+                    value = birthDateFormatted,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Data de Nascimento") },
+                    trailingIcon = {
+                        Icon(
+                            Icons.Default.CalendarToday,
+                            contentDescription = "Select Date",
+                            tint = primaryColor,
+                            modifier = Modifier.clickable {
+                                showDatePicker(context, birthDate) { selectedDate ->
+                                    birthDate = selectedDate
+                                }
+                            }
+                        )
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = primaryColor,
+                        unfocusedBorderColor = Color(0xFF333333),
+                        focusedLabelColor = primaryColor,
+                        unfocusedLabelColor = Color.Gray
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            showDatePicker(context, birthDate) { selectedDate ->
+                                birthDate = selectedDate
+                            }
+                        }
+                )
+
+                OutlinedTextField(
+                    value = initialWeightStr,
+                    onValueChange = { initialWeightStr = it },
+                    label = { Text("Peso Inicial (kg)") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = primaryColor,
+                        unfocusedBorderColor = Color(0xFF333333),
+                        focusedLabelColor = primaryColor,
+                        unfocusedLabelColor = Color.Gray
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Sexo",
+                        color = Color.Gray,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (sex == PetSex.MACHO) PrimaryTeal.copy(alpha = 0.2f) else Color(0xFF111111))
+                                .border(
+                                    width = 1.dp,
+                                    color = if (sex == PetSex.MACHO) PrimaryTeal else Color(0xFF333333),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .clickable { sex = PetSex.MACHO }
+                                .padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("MACHO", color = if (sex == PetSex.MACHO) Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (sex == PetSex.FEMEA) TertiaryPurple.copy(alpha = 0.2f) else Color(0xFF111111))
+                                .border(
+                                    width = 1.dp,
+                                    color = if (sex == PetSex.FEMEA) TertiaryPurple else Color(0xFF333333),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .clickable { sex = PetSex.FEMEA }
+                                .padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("FÊMEA", color = if (sex == PetSex.FEMEA) Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                    }
+                }
+
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Castrado",
+                        color = Color.Gray,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isCastrated) primaryColor.copy(alpha = 0.2f) else Color(0xFF111111))
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isCastrated) primaryColor else Color(0xFF333333),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .clickable { isCastrated = true }
+                                .padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Sim", color = if (isCastrated) Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (!isCastrated) primaryColor.copy(alpha = 0.2f) else Color(0xFF111111))
+                                .border(
+                                    width = 1.dp,
+                                    color = if (!isCastrated) primaryColor else Color(0xFF333333),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .clickable { isCastrated = false }
+                                .padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Não", color = if (!isCastrated) Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = formatRga(rga),
+                    onValueChange = { input ->
+                        val cleaned = input.filter { it.isDigit() }.take(7)
+                        rga = cleaned
+                    },
+                    label = { Text("RGA (Opcional)") },
+                    isError = rgaError,
+                    supportingText = {
+                        if (rgaError) {
+                            Text("Deve ter exatamente 7 dígitos numéricos.", color = MaterialTheme.colorScheme.error)
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = primaryColor,
+                        unfocusedBorderColor = Color(0xFF333333),
+                        focusedLabelColor = primaryColor,
+                        unfocusedLabelColor = Color.Gray
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = microchip,
+                    onValueChange = { microchip = it },
+                    label = { Text("Microchip (ISO, Opcional)") },
+                    isError = microchipError,
+                    supportingText = {
+                        if (microchipError) {
+                            Text("Deve ter exatamente 15 dígitos numéricos.", color = MaterialTheme.colorScheme.error)
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = primaryColor,
+                        unfocusedBorderColor = Color(0xFF333333),
+                        focusedLabelColor = primaryColor,
+                        unfocusedLabelColor = Color.Gray
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    label = { Text("Notas / Alergias") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = primaryColor,
+                        unfocusedBorderColor = Color(0xFF333333),
+                        focusedLabelColor = primaryColor,
+                        unfocusedLabelColor = Color.Gray
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (canSave) {
+                        val newPet = PetEntity(
+                            name = name,
+                            breed = breed,
+                            birthDate = birthDate,
+                            photoUri = photoString,
+                            rga = rga,
+                            microchip = microchip,
+                            sex = sex,
+                            isCastrated = isCastrated,
+                            notes = notes,
+                            lastV4VaccineDate = null,
+                            lastRaivaVaccineDate = null,
+                            isAngel = false
+                        )
+                        onConfirm(newPet, initialWeight)
+                    }
+                },
+                enabled = canSave
+            ) {
+                Text("CRIAR", color = if (canSave) primaryColor else Color.Gray, letterSpacing = 1.sp, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("CANCELAR", color = Color.Gray, letterSpacing = 1.sp)
+            }
+        },
+        containerColor = Color(0xFF0A0A0A),
+        shape = RoundedCornerShape(16.dp)
+    )
+}
+
+data class GlowParticle(
+    val angle: Double,
+    val distance: Float,
+    val size: Float,
+    val color: Color,
+    val speed: Float
+)
+
+@Composable
+fun CreationOverlay(
+    progress: Float,
+    petName: String,
+    accentColor: Color
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "creationGlow")
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rotation"
+    )
+
+    val particles = remember {
+        List(25) {
+            val angle = Math.random() * 2 * Math.PI
+            val distance = 120f + (Math.random() * 80f).toFloat()
+            val size = 4f + (Math.random() * 8f).toFloat()
+            val speed = 0.5f + (Math.random() * 1.5f).toFloat()
+            val color = if (Math.random() > 0.5) accentColor else Color.White
+            GlowParticle(angle, distance, size, color, speed)
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.7f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier.size(220.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val center = this.center
+                    
+                    rotate(rotation) {
+                        drawArc(
+                            color = accentColor.copy(alpha = 0.15f),
+                            startAngle = 0f,
+                            sweepAngle = 360f,
+                            useCenter = false,
+                            style = Stroke(width = 16f, cap = StrokeCap.Round)
+                        )
+                        
+                        drawArc(
+                            brush = Brush.sweepGradient(
+                                colors = listOf(accentColor, Color.White, accentColor.copy(alpha = 0.2f), accentColor),
+                                center = center
+                            ),
+                            startAngle = -90f,
+                            sweepAngle = progress * 360f,
+                            useCenter = false,
+                            style = Stroke(width = 8f, cap = StrokeCap.Round)
+                        )
+                    }
+
+                    particles.forEach { p ->
+                        val currentAngle = p.angle + (rotation * Math.PI / 180f) * p.speed
+                        val currentDistance = p.distance * (1f - progress * 0.7f)
+                        
+                        val x = center.x + (currentDistance * kotlin.math.cos(currentAngle)).toFloat()
+                        val y = center.y + (currentDistance * kotlin.math.sin(currentAngle)).toFloat()
+                        
+                        val finalX = if (progress >= 1f) {
+                            center.x + ((p.distance * 1.5f) * kotlin.math.cos(p.angle)).toFloat()
+                        } else x
+
+                        val finalY = if (progress >= 1f) {
+                            center.y + ((p.distance * 1.5f) * kotlin.math.sin(p.angle)).toFloat()
+                        } else y
+
+                        val alphaValue = if (progress >= 1f) {
+                            (1.2f - progress).coerceIn(0f, 1f)
+                        } else 0.8f
+
+                        drawCircle(
+                            color = p.color.copy(alpha = alphaValue),
+                            radius = if (progress >= 1f) p.size * 0.5f else p.size,
+                            center = Offset(finalX, finalY)
+                        )
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF151515).copy(alpha = 0.9f))
+                        .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Pets,
+                        contentDescription = null,
+                        tint = accentColor.copy(alpha = 0.3f + progress * 0.7f),
+                        modifier = Modifier.size((48f + progress * 12f).dp)
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Text(
+                text = "${(progress * 100).toInt()}%",
+                color = Color.White,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Light,
+                fontFamily = FontFamily.Serif
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            val statusMsg = when {
+                progress < 0.35f -> "Iniciando perfil de $petName..."
+                progress < 0.70f -> "Configurando ambiente e vacinas..."
+                progress < 0.98f -> "Finalizando cadastro do pet..."
+                else -> "Perfil construído! ✨"
+            }
+            
+            Text(
+                text = statusMsg.uppercase(),
+                color = accentColor,
+                fontSize = 11.sp,
+                letterSpacing = 1.5.sp,
+                fontWeight = FontWeight.Bold
             )
         }
     }

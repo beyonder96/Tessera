@@ -128,6 +128,16 @@ class PetViewModel(private val repository: TesseraRepository) : ViewModel() {
         }
     }
 
+    fun insertPetWithInitialWeight(pet: PetEntity, weight: Double, onCompleted: () -> Unit = {}) {
+        viewModelScope.launch {
+            val newId = repository.insertPet(pet).toInt()
+            if (weight > 0.0) {
+                repository.insertWeightHistory(PetWeightHistoryEntity(petId = newId, date = System.currentTimeMillis(), weight = weight))
+            }
+            onCompleted()
+        }
+    }
+
     fun deletePet(pet: PetEntity) {
         viewModelScope.launch {
             repository.deletePet(pet)

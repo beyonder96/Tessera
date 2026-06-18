@@ -41,11 +41,19 @@ import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.HeightRecord
 import androidx.health.connect.client.records.SleepSessionRecord
-import androidx.health.connect.client.records.StepsRecord as HCStepsRecord
 import androidx.health.connect.client.records.WeightRecord as HCWeightRecord
+import androidx.health.connect.client.records.StepsRecord as HCStepsRecord
 import kotlinx.coroutines.launch
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.AccessTime
+import com.example.data.getMetroLineColor
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
     val context = LocalContext.current
@@ -632,6 +640,335 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                 }
 
                 item {
+                    SectionTitle("STATUS METROFERROVIÁRIO", Color(0xFF4FC3F7))
+                    
+                    val showTimeDialog = remember { mutableStateOf(false) }
+                    val alertTimes = remember { 
+                        mutableStateOf(
+                            sharedPrefs.getStringSet("metro_alert_times", emptySet())
+                                ?.toList()
+                                ?.sorted() 
+                                ?: emptyList()
+                        ) 
+                    }
+                    val selectedLines = remember { 
+                        mutableStateOf(
+                            sharedPrefs.getStringSet("metro_monitored_lines", emptySet()) 
+                                ?: emptySet()
+                        ) 
+                    }
+
+                    val concessionarias by viewModel.metroConcessionarias.collectAsState()
+                    val isLoadingConfig by viewModel.isLoadingMetroConfig.collectAsState()
+                    val metroError by viewModel.metroError.collectAsState()
+
+                    LaunchedEffect(Unit) {
+                        viewModel.fetchMetroConcessionarias()
+                    }
+
+                    Column(
+                        modifier = PremiumGlassModifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(
+                                text = "Horários de Alerta",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "O pop-up de status do metrô e trem será exibido na tela inicial nos horários configurados.",
+                                fontSize = 12.sp,
+                                color = Color.White.copy(alpha = 0.6f)
+                            )
+                            
+                            if (alertTimes.value.isEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(12.dp))
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "Nenhum horário programado.",
+                                        fontSize = 13.sp,
+                                        color = Color.White.copy(alpha = 0.4f),
+                                        fontStyle = FontStyle.Italic
+                                    )
+                                }
+                            } else {
+                                FlowRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    alertTimes.value.forEach { time ->
+                                        Row(
+                                            modifier = Modifier
+                                                .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                                                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
+                                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(text = time, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Remover",
+                                                tint = Color.White.copy(alpha = 0.6f),
+                                                modifier = Modifier
+                                                    .size(14.dp)
+                                                    .clickable {
+                                                        val updated = alertTimes.value.toMutableList().apply { remove(time) }
+                                                        alertTimes.value = updated.sorted()
+                                                        sharedPrefs.edit().putStringSet("metro_alert_times", alertTimes.value.toSet()).apply()
+                                                        Toast.makeText(context, "Horário removido!", Toast.LENGTH_SHORT).show()
+                                                    }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Button(
+                                onClick = { showTimeDialog.value = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4FC3F7).copy(alpha = 0.2f), contentColor = Color(0xFF4FC3F7)),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(44.dp)
+                                    .border(1.dp, Color(0xFF4FC3F7).copy(alpha = 0.4f), RoundedCornerShape(14.dp))
+                                    .bounceClick { showTimeDialog.value = true }
+                            ) {
+                                Icon(Icons.Outlined.AccessTime, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Adicionar Horário", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x0AFFFFFF)))
+
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(
+                                text = "Linhas a Monitorar",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "Selecione as linhas que deseja acompanhar.",
+                                fontSize = 12.sp,
+                                color = Color.White.copy(alpha = 0.6f)
+                            )
+
+                            if (isLoadingConfig) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(100.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(color = Color(0xFF4FC3F7))
+                                }
+                            } else if (metroError != null) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = metroError ?: "Erro desconhecido",
+                                        color = Color(0xFFE57373),
+                                        fontSize = 13.sp,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    OutlinedButton(
+                                        onClick = { viewModel.fetchMetroConcessionarias() },
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF4FC3F7)),
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) {
+                                        Text("Tentar Novamente", color = Color(0xFF4FC3F7), fontSize = 12.sp)
+                                    }
+                                }
+                            } else {
+                                concessionarias.forEach { empresa ->
+                                    val linhas = empresa.linhas ?: emptyList()
+                                    if (linhas.isNotEmpty()) {
+                                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Text(
+                                                text = empresa.nome.uppercase(),
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White.copy(alpha = 0.5f),
+                                                letterSpacing = 1.sp,
+                                                modifier = Modifier.padding(top = 8.dp)
+                                            )
+                                            linhas.forEach { linha ->
+                                                val lineKey = "${empresa.id}_${linha.codigo}"
+                                                val isChecked = selectedLines.value.contains(lineKey)
+                                                val lineColor = getMetroLineColor(linha.nome, linha.codigo)
+
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .clickable {
+                                                            val updated = selectedLines.value.toMutableSet()
+                                                            if (isChecked) updated.remove(lineKey) else updated.add(lineKey)
+                                                            selectedLines.value = updated
+                                                            sharedPrefs.edit().putStringSet("metro_monitored_lines", updated).apply()
+                                                        }
+                                                        .padding(vertical = 8.dp, horizontal = 4.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(12.dp)
+                                                            .clip(CircleShape)
+                                                            .background(lineColor)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(12.dp))
+                                                    Text(
+                                                        text = linha.nome,
+                                                        color = Color.White,
+                                                        fontSize = 14.sp,
+                                                        fontWeight = FontWeight.Normal,
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                    Checkbox(
+                                                        checked = isChecked,
+                                                        onCheckedChange = { checked ->
+                                                            val updated = selectedLines.value.toMutableSet()
+                                                            if (checked) updated.add(lineKey) else updated.remove(lineKey)
+                                                            selectedLines.value = updated
+                                                            sharedPrefs.edit().putStringSet("metro_monitored_lines", updated).apply()
+                                                        },
+                                                        colors = CheckboxDefaults.colors(
+                                                            checkedColor = Color(0xFF4FC3F7),
+                                                            uncheckedColor = Color.White.copy(alpha = 0.4f),
+                                                            checkmarkColor = Color.Black
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (showTimeDialog.value) {
+                        var tempHour by remember { mutableStateOf(8) }
+                        var tempMinute by remember { mutableStateOf(0) }
+
+                        Dialog(onDismissRequest = { showTimeDialog.value = false }) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.9f)
+                                    .clip(RoundedCornerShape(28.dp))
+                                    .background(Color(0xFF1E2322).copy(alpha = 0.95f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(28.dp))
+                                    .padding(24.dp)
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                                ) {
+                                    Text(
+                                        text = "Adicionar Horário",
+                                        color = Color.White,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            IconButton(onClick = { tempHour = if (tempHour < 23) tempHour + 1 else 0 }) {
+                                                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Mais", tint = Color.White)
+                                            }
+                                            Text(
+                                                text = String.format("%02d", tempHour),
+                                                color = Color.White,
+                                                fontSize = 32.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            IconButton(onClick = { tempHour = if (tempHour > 0) tempHour - 1 else 23 }) {
+                                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Menos", tint = Color.White)
+                                            }
+                                        }
+
+                                        Text(
+                                            text = ":",
+                                            color = Color.White,
+                                            fontSize = 32.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 16.dp)
+                                        )
+
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            IconButton(onClick = { tempMinute = if (tempMinute < 59) tempMinute + 1 else 0 }) {
+                                                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Mais", tint = Color.White)
+                                            }
+                                            Text(
+                                                text = String.format("%02d", tempMinute),
+                                                color = Color.White,
+                                                fontSize = 32.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            IconButton(onClick = { tempMinute = if (tempMinute > 0) tempMinute - 1 else 59 }) {
+                                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Menos", tint = Color.White)
+                                            }
+                                        }
+                                    }
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        OutlinedButton(
+                                            onClick = { showTimeDialog.value = false },
+                                            shape = RoundedCornerShape(12.dp),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Text("Cancelar", color = Color.White)
+                                        }
+                                        Button(
+                                            onClick = {
+                                                val formattedTime = String.format("%02d:%02d", tempHour, tempMinute)
+                                                if (!alertTimes.value.contains(formattedTime)) {
+                                                    val updated = alertTimes.value.toMutableList().apply { add(formattedTime) }
+                                                    alertTimes.value = updated.sorted()
+                                                    sharedPrefs.edit().putStringSet("metro_alert_times", alertTimes.value.toSet()).apply()
+                                                    Toast.makeText(context, "Horário adicionado!", Toast.LENGTH_SHORT).show()
+                                                }
+                                                showTimeDialog.value = false
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4FC3F7)),
+                                            shape = RoundedCornerShape(12.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Text("Confirmar", color = Color.Black, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                item {
                     SectionTitle("DADOS E BACKUP", Color(0xFFE57373))
                     Column(
                         modifier = PremiumGlassModifier
@@ -731,5 +1068,3 @@ fun StatRow(label: String, value: String, valueColor: Color) {
         Text(value, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = valueColor)
     }
 }
-
-
