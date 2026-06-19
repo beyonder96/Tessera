@@ -518,6 +518,18 @@ fun TesseraApp() {
                         onNavigate = navigateAction
                     )
                 }
+                composable("wishes") {
+                    WishesScreen(
+                        onHomeClick = { 
+                            navController.navigate("home") {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        viewModel = viewModel
+                    )
+                }
             }
 
             Box(
@@ -612,7 +624,7 @@ fun TesseraApp() {
                                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
                                     Box(modifier = Modifier.weight(1f)) {
                                         PremiumGridTile(
-                                            title = "Saúde\n& Corpo",
+                                            title = "Saúde",
                                             icon = Icons.Outlined.MonitorHeart,
                                             iconColor = PrimaryTeal,
                                             alpha = itemsAlpha,
@@ -652,6 +664,19 @@ fun TesseraApp() {
                                             onClick = { navigateAction("petz"); isFabExpanded = false }
                                         )
                                     }
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        PremiumGridTile(
+                                            title = "Lista de\nDesejos",
+                                            icon = Icons.Outlined.Star,
+                                            iconColor = Color(0xFFF9A826),
+                                            alpha = itemsAlpha,
+                                            offsetY = itemsOffset,
+                                            onClick = { navigateAction("wishes"); isFabExpanded = false }
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.weight(1f))
                                 }
                             }
                         }
@@ -1098,7 +1123,7 @@ fun HomeScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScro
                                                 .background(lineColor)
                                         )
                                         Spacer(modifier = Modifier.width(16.dp))
-                                        Column(modifier = Modifier.weight(1f)) {
+                                        Column(modifier = Modifier.weight(1.3f)) {
                                             Text(
                                                 text = linha.nome,
                                                 color = Color.White,
@@ -1112,6 +1137,7 @@ fun HomeScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScro
                                             )
                                         }
                                         Column(
+                                            modifier = Modifier.weight(1f),
                                             horizontalAlignment = Alignment.End,
                                             verticalArrangement = Arrangement.Center
                                         ) {
@@ -1128,7 +1154,8 @@ fun HomeScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScro
                                                     text = situacao,
                                                     color = if (isNormal) Color(0xFF30D158) else Color(0xFFFF9F0A),
                                                     fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Bold
+                                                    fontWeight = FontWeight.Bold,
+                                                    textAlign = TextAlign.Center
                                                 )
                                             }
                                             if (atualizadoHa.isNotEmpty()) {

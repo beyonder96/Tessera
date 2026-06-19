@@ -968,6 +968,39 @@ class TesseraViewModel(
         }
     }
 
+    fun addFundsToPurchaseGoal(goal: PurchaseGoal, amount: Double, accountName: String) {
+        viewModelScope.launch {
+            repository.updatePurchaseGoal(goal.copy(currentValue = goal.currentValue + amount))
+            addTransaction(
+                title = "Aporte: ${goal.title}",
+                subtitle = "Reserva para Desejo",
+                value = amount,
+                isIncome = false,
+                category = "Desejos",
+                accountOrCardName = accountName,
+                isRealized = true
+            )
+        }
+    }
+
+    fun buyPurchaseGoal(goal: PurchaseGoal, accountName: String) {
+        viewModelScope.launch {
+            val remainingValue = (goal.targetValue - goal.currentValue).coerceAtLeast(0.0)
+            repository.updatePurchaseGoal(goal.copy(currentValue = goal.targetValue, isBought = true))
+            if (remainingValue > 0.0) {
+                addTransaction(
+                    title = "Compra: ${goal.title}",
+                    subtitle = "Conclusão de Desejo",
+                    value = remainingValue,
+                    isIncome = false,
+                    category = "Desejos",
+                    accountOrCardName = accountName,
+                    isRealized = true
+                )
+            }
+        }
+    }
+
     fun updatePurchaseGoal(goal: PurchaseGoal) {
         viewModelScope.launch {
             repository.updatePurchaseGoal(goal)

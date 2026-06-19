@@ -8,10 +8,18 @@
 
 Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.build-outputs/`:
 
-* **[📥 app-release-1.3.9.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.3.9.apk)**  
+* **[📥 app-release-1.4.0.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.4.0.apk)**  
   *Versão final de produção. Otimizada (~12.9 MB), com minificação de código (R8/ProGuard), remoção automática de logs de depuração/prints de console e compressão extrema de assets (PNG Crunching).*
-* **[📥 app-debug-1.3.9.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.3.9.apk)**  
+* **[📥 app-debug-1.4.0.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.4.0.apk)**  
   *Versão para testes contendo ferramentas de depuração ativas.*
+
+---
+
+## 🚀 Novidades da Versão 1.4.0 ✨
+* 💸 **Finanças Inteligente & Minimalista**: Redesenho completo com o card *Ralo-X do Adiantamento* em Liquid Glass e barra neon em degradê progressivo, card reativo de *Atenção ao fluxo* para vencimentos de contas nas próximas 48h, botões rápidos de ação com setas diagonais nativas (rotacionadas a 45 graus) e seção minimalista de *Próximos Débitos*. Remoção do score anterior e gráficos poluídos, mantendo contas e cartões colapsados por padrão.
+* 🏠 **Edifício Cilíndrico & Gatos em Órbita**: Nova arquitetura futurista para a tela de Apartamento. Lajes cilíndricas onduladas com pilares finos que surgem de baixo do terreno com efeito de mola elástica super fluido (`elasticOut`). Modelagem de gatos de cerâmica preta brilhante em órbitas espirais e senoidais ao redor do prédio com auras que ativam o brilho amarelo-âmbar pulsante de cada andar.
+* 🎛️ **Controle por Gesto em Fio de Ouro**: Substituição do slider clássico por um fio dourado brilhante correndo rente à borda inferior do card de vidro denso, controlado por arraste e toque horizontal na tela com tipografia extra-leve Montserrat.
+* 🏷️ **Versão 1.4.0**: Incremento oficial do build (`versionCode` 11) e geração do lote de APKs correspondente.
 
 ---
 
@@ -190,8 +198,8 @@ Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.bui
 ```text
 Tessera/
 ├── .build-outputs/       # Diretório de APKs compilados e prontos para uso
-│   ├── app-debug-1.3.9.apk # Versão de testes com logs ativos
-│   └── app-release-1.3.9.apk # Versão final de produção assinada
+│   ├── app-debug-1.4.0.apk # Versão de testes com logs ativos
+│   └── app-release-1.4.0.apk # Versão final de produção assinada
 ├── app/                  # Módulo principal Android (Código Kotlin & Jetpack Compose)
 │   ├── src/main/java/    # Arquivos de código-fonte
 │   └── proguard-rules.pro# Regras de minificação R8/ProGuard

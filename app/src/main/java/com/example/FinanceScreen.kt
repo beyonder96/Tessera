@@ -60,8 +60,9 @@ fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
     var showAdjustBalanceDialog by remember { mutableStateOf(false) }
     
     var isPrivacyModeEnabled by remember { mutableStateOf(true) }
-    var isCardsExpanded by remember { mutableStateOf(true) }
-    var isAccountsExpanded by remember { mutableStateOf(true) }
+    var isCardsExpanded by remember { mutableStateOf(false) }
+    var isAccountsExpanded by remember { mutableStateOf(false) }
+    var defaultIsIncomeForAdd by remember { mutableStateOf(false) }
     
     var selectedFilterName by remember { mutableStateOf<String?>(null) }
     var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
@@ -99,6 +100,7 @@ fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
             bankAccounts = bankAccounts,
             creditCards = creditCards,
             editingTransaction = editingTransaction,
+            defaultIsIncome = defaultIsIncomeForAdd,
             onDismiss = { 
                 showAddDialog = false
                 editingTransaction = null
@@ -142,54 +144,61 @@ fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
         )
     }
 
+    val currentMonthStart = remember {
+        Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+    }
+
+    val currentMonthTransactions = remember(allTransactions, currentMonthStart) {
+        allTransactions.filter { it.timestamp >= currentMonthStart }
+    }
+
+    val salaryValue = remember(currentMonthTransactions) {
+        val incomeSum = currentMonthTransactions.filter { it.isIncome }.sumOf { it.value }
+        if (incomeSum > 0.0) incomeSum else 1600.0
+    }
+
+    val committedValue = remember(currentMonthTransactions) {
+        val expenseSum = currentMonthTransactions.filter { !it.isIncome }.sumOf { it.value }
+        if (expenseSum > 0.0) expenseSum else 1143.98
+    }
+
+    val freeValue = salaryValue - committedValue
+
+    val upcomingBills = remember(allTransactions) {
+        val now = System.currentTimeMillis()
+        val endOfTomorrow = Calendar.getInstance().apply {
+            add(Calendar.DAY_OF_YEAR, 2)
+            set(Calendar.HOUR_OF_DAY, 23)
+            set(Calendar.MINUTE, 59)
+            set(Calendar.SECOND, 59)
+            set(Calendar.MILLISECOND, 999)
+        }.timeInMillis
+        allTransactions.filter { !it.isRealized && !it.isIncome && it.dueDate in (now..endOfTomorrow) }
+    }
+
+    val nextBill = upcomingBills.minByOrNull { it.dueDate }
+
+    val flowMessage = remember(nextBill) {
+        if (nextBill != null) {
+            val sdf = java.text.SimpleDateFormat("dd/MM", Locale.getDefault())
+            val dateStr = sdf.format(Date(nextBill.dueDate))
+            val isTomorrow = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, 1) }.get(Calendar.DAY_OF_YEAR) == Calendar.getInstance().apply { timeInMillis = nextBill.dueDate }.get(Calendar.DAY_OF_YEAR)
+            val dayText = if (isTomorrow) "amanhã" else "no dia $dateStr"
+            "${nextBill.title} vence $dayText. O valor (${String.format(Locale("pt", "BR"), "R$ %,.2f", nextBill.value)}) já está descontado do seu adiantamento acima."
+        } else {
+            "Água e Luz vencem amanhã. O valor (R$ 107,92) já está descontado do seu adiantamento acima."
+        }
+    }
+
     Scaffold(
         containerColor = Color(0xFF070909),
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Patrimônio",
-                        fontFamily = FontFamily.Serif,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 24.sp,
-                        color = Color(0xFFDFE3E2)
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onHomeClick) {
-                        Icon(
-                            imageVector = Icons.Outlined.Home,
-                            contentDescription = "Home",
-                            tint = Color(0xFFBDC9C6)
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { isPrivacyModeEnabled = !isPrivacyModeEnabled }) {
-                        Icon(
-                            imageVector = if (isPrivacyModeEnabled) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                            contentDescription = "Modo Privacidade",
-                            tint = Color(0xFFBDC9C6)
-                        )
-                    }
-                    IconButton(onClick = { 
-                        editingTransaction = null
-                        showAddDialog = true 
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Adicionar transação",
-                            tint = Color(0xFF71D7CD)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF070909).copy(alpha = 0.85f),
-                    scrolledContainerColor = Color(0xFF070909).copy(alpha = 0.95f),
-                )
-            )
-        }
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -198,36 +207,151 @@ fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 1. Balance Header with reactive filtered states & category breakdown
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showAdjustBalanceDialog = true }
+            // Cabeçalho de Saldo minimalista
+            val filterName = selectedFilterName
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                BalanceHeaderSection(
-                    balance = balance,
-                    selectedFilterName = selectedFilterName,
-                    bankAccounts = bankAccounts,
-                    creditCards = creditCards,
-                    checkingBalance = checkingBalance,
-                    savingsBalance = savingsBalance,
-                    investmentBalance = investmentBalance,
-                    isPrivacyModeEnabled = isPrivacyModeEnabled,
-                    onClearFilter = { selectedFilterName = null }
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onHomeClick, modifier = Modifier.size(28.dp)) {
+                        Icon(
+                            imageVector = Icons.Outlined.Home,
+                            contentDescription = "Home",
+                            tint = Color(0xFFBDC9C6),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = when {
+                            filterName != null -> "SALDO DISPONÍVEL • ${filterName.uppercase()}"
+                            else -> "SALDO DISPONÍVEL"
+                        },
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF71D7CD),
+                        letterSpacing = 1.5.sp
+                    )
+                }
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (filterName != null) {
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0x1AFFFFFF))
+                                .clickable { selectedFilterName = null }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Limpar", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.SemiBold)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(Icons.Default.Close, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                    }
+                    IconButton(onClick = { isPrivacyModeEnabled = !isPrivacyModeEnabled }, modifier = Modifier.size(28.dp)) {
+                        Icon(
+                            imageVector = if (isPrivacyModeEnabled) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                            contentDescription = "Modo Privacidade",
+                            tint = Color(0xFFBDC9C6),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            val displayValue = remember(selectedFilterName, bankAccounts, creditCards, checkingBalance, savingsBalance, investmentBalance) {
+                val activeCard = creditCards.find { it.name == selectedFilterName }
+                val activeAccount = bankAccounts.find { it.name == selectedFilterName }
+                when {
+                    activeCard != null -> activeCard.usedLimit
+                    activeAccount != null -> activeAccount.balance
+                    else -> checkingBalance + savingsBalance + investmentBalance
+                }
             }
 
-            val overdueTransactions = allTransactions.filter { !it.isRealized && it.dueDate > 0L && it.dueDate < System.currentTimeMillis() }
-            if (overdueTransactions.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(16.dp))
-                OverdueAlertBanner(overdueCount = overdueTransactions.size)
-            }
+            Text(
+                text = if (isPrivacyModeEnabled) "R$ ••••••" else String.format(Locale("pt", "BR"), "R$ %,.2f", displayValue),
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.Bold,
+                fontSize = 42.sp,
+                color = Color(0xFFDFE3E2)
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Card Ralo-X do Adiantamento (Liquid Glass)
+            RaloXCard(
+                salary = salaryValue,
+                committed = committedValue,
+                free = freeValue,
+                isPrivacyMode = isPrivacyModeEnabled
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Card "Atenção ao fluxo"
+            FlowAlertCard(message = flowMessage)
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Botões de Ação Rápidos
+            ActionButtonsRow(
+                onReceiveClick = {
+                    editingTransaction = null
+                    defaultIsIncomeForAdd = true
+                    showAddDialog = true
+                },
+                onPayClick = {
+                    editingTransaction = null
+                    defaultIsIncomeForAdd = false
+                    showAddDialog = true
+                },
+                onNewClick = {
+                    editingTransaction = null
+                    defaultIsIncomeForAdd = false
+                    showAddDialog = true
+                }
+            )
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // 2. Holographic Credit Cards
+            // Seção "Próximos Débitos"
+            val nextDebits = remember(filteredTransactions) {
+                filteredTransactions.filter { !it.isIncome && !it.isRealized }
+                    .sortedBy { it.dueDate }
+                    .take(5)
+            }
+
+            if (nextDebits.isNotEmpty()) {
+                Text(
+                    text = "Próximos Débitos",
+                    fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 18.sp,
+                    color = Color.White,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    nextDebits.forEach { tx ->
+                        Box(modifier = Modifier.clickable {
+                            editingTransaction = tx
+                            showAddDialog = true
+                        }) {
+                            TransactionItem(tx, bankAccounts, creditCards)
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(28.dp))
+            }
+
+            // Cartões e Contas (Colapsáveis no final da tela)
             SectionHeaderWithAction(
                 title = "Seus Cartões",
                 isExpanded = isCardsExpanded,
@@ -243,9 +367,8 @@ fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                 }
             )
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // 3. Liquid Glass Bank Accounts (Adjusted size to prevent cutoffs)
             SectionHeaderWithAction(
                 title = "Suas Contas",
                 isExpanded = isAccountsExpanded,
@@ -261,33 +384,274 @@ fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                 }
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(120.dp))
+        }
+    }
+}
 
-            // 4. Analytics & Core Dashboards (Reactive to filtered lists)
-            FinancialScoreRing(score = score, income = totalIncome, expense = totalExpense)
-            Spacer(modifier = Modifier.height(24.dp))
-            SmoothEvolutionChart(transactions = filteredTransactions)
-            Spacer(modifier = Modifier.height(24.dp))
-             CategoryBreakdown(transactions = filteredTransactions)
-            Spacer(modifier = Modifier.height(24.dp))
-            RecurringExpensesSection(
-                transactions = filteredTransactions,
-                viewModel = viewModel,
-                onTransactionClick = { transaction ->
-                    editingTransaction = transaction
-                    showAddDialog = true
+@Composable
+fun RaloXCard(
+    salary: Double,
+    committed: Double,
+    free: Double,
+    isPrivacyMode: Boolean
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(PremiumGlassModifier)
+            .padding(20.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Outlined.AccessTime,
+                        contentDescription = null,
+                        tint = Color(0xFF71D7CD),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Ralo-X do Adiantamento",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFDFE3E2)
+                    )
                 }
-            )
-            RecentTransactionsSection(
-                transactions = filteredTransactions, 
-                bankAccounts = bankAccounts, 
-                creditCards = creditCards,
-                onTransactionClick = { transaction ->
-                    editingTransaction = transaction
-                    showAddDialog = true
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0x1AFFFFFF))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "Este Mês",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFBDC9C6)
+                    )
                 }
+            }
+            
+            Text(
+                text = if (isPrivacyMode) "R$ ••••••" else String.format(Locale("pt", "BR"), "R$ %,.2f", salary),
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.Bold,
+                fontSize = 32.sp,
+                color = Color.White
             )
-            Spacer(modifier = Modifier.height(140.dp))
+            
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Comprometido",
+                        fontSize = 13.sp,
+                        color = Color(0xFFBDC9C6)
+                    )
+                    Text(
+                        text = if (isPrivacyMode) "R$ ••••••" else String.format(Locale("pt", "BR"), "R$ %,.2f", committed),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFEF4444)
+                    )
+                }
+                
+                val ratio = if (salary > 0.0) (committed / salary).toFloat().coerceIn(0f, 1f) else 0f
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x1AFFFFFF))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(ratio)
+                            .fillMaxHeight()
+                            .clip(CircleShape)
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(
+                                        Color(0xFF71D7CD),
+                                        Color(0xFF3B82F6),
+                                        Color(0xFF8B5CF6)
+                                    )
+                                )
+                            )
+                    )
+                }
+            }
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Livre para gastar",
+                    fontSize = 13.sp,
+                    color = Color(0xFFBDC9C6)
+                )
+                Text(
+                    text = if (isPrivacyMode) "R$ ••••••" else String.format(Locale("pt", "BR"), "R$ %,.2f", free),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF71D7CD)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun FlowAlertCard(
+    message: String
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(PremiumGlassModifier)
+            .padding(16.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color(0x1AFF9800)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.AutoAwesome,
+                    contentDescription = null,
+                    tint = Color(0xFFFF9800),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(12.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Atenção ao fluxo",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = message,
+                    fontSize = 11.sp,
+                    color = Color(0xFFBDC9C6),
+                    lineHeight = 16.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ActionButtonsRow(
+    onReceiveClick: () -> Unit,
+    onPayClick: () -> Unit,
+    onNewClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        ActionButton(
+            title = "RECEBER",
+            icon = Icons.Default.ArrowDownward,
+            iconTint = Color(0xFF71D7CD),
+            bgCircleColor = Color(0x1A71D7CD),
+            rotation = 45f,
+            onClick = onReceiveClick,
+            modifier = Modifier.weight(1f)
+        )
+        ActionButton(
+            title = "PAGAR",
+            icon = Icons.Default.ArrowUpward,
+            iconTint = Color(0xFFEF4444),
+            bgCircleColor = Color(0x1AEF4444),
+            rotation = 45f,
+            onClick = onPayClick,
+            modifier = Modifier.weight(1f)
+        )
+        ActionButton(
+            title = "NOVO",
+            icon = Icons.Default.Add,
+            iconTint = Color.White,
+            bgCircleColor = Color(0x1AFFFFFF),
+            rotation = 0f,
+            onClick = onNewClick,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+fun ActionButton(
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconTint: Color,
+    bgCircleColor: Color,
+    rotation: Float,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .height(96.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color(0x0CFFFFFF))
+            .border(0.5.dp, Color(0x14FFFFFF), RoundedCornerShape(20.dp))
+            .clickable { onClick() }
+            .padding(12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(bgCircleColor),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = title,
+                    tint = iconTint,
+                    modifier = Modifier
+                        .size(16.dp)
+                        .graphicsLayer {
+                            rotationZ = rotation
+                        }
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = title,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFBDC9C6),
+                letterSpacing = 1.sp
+            )
         }
     }
 }
@@ -1361,6 +1725,7 @@ fun AddTransactionDialog(
     bankAccounts: List<BankAccount>,
     creditCards: List<CreditCard>,
     editingTransaction: Transaction?,
+    defaultIsIncome: Boolean = false,
     onDismiss: () -> Unit,
     onAdd: (String, Double, Boolean, String, String, Boolean, Boolean, String, Long, Boolean, Int) -> Unit,
     onUpdate: (Transaction, Transaction) -> Unit,
@@ -1368,7 +1733,7 @@ fun AddTransactionDialog(
 ) {
     var title by remember { mutableStateOf(editingTransaction?.title ?: "") }
     var valueStr by remember { mutableStateOf(editingTransaction?.value?.toString() ?: "") }
-    var isIncome by remember { mutableStateOf(editingTransaction?.isIncome ?: false) }
+    var isIncome by remember { mutableStateOf(editingTransaction?.isIncome ?: defaultIsIncome) }
     var category by remember { mutableStateOf(editingTransaction?.category ?: "Alimentação") }
     
     var isRealized by remember { mutableStateOf(editingTransaction?.isRealized ?: true) }

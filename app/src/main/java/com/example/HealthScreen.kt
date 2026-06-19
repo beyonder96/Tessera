@@ -19,6 +19,13 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -256,6 +263,49 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
     var showSleepDialog by remember { mutableStateOf(false) }
     var showStepsDialog by remember { mutableStateOf(false) }
     var showMedicationDialog by remember { mutableStateOf(false) }
+    
+    val listState = rememberLazyListState()
+    val scrollFraction by remember {
+        derivedStateOf {
+            if (listState.firstVisibleItemIndex > 0) {
+                1f
+            } else {
+                (listState.firstVisibleItemScrollOffset.toFloat() / 250f).coerceIn(0f, 1f)
+            }
+        }
+    }
+
+    val infiniteHeartTransition = rememberInfiniteTransition(label = "HeartPulse")
+    val heartScale by infiniteHeartTransition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 1.25f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "HeartScale"
+    )
+
+    var showFullScreenAlertForMed by remember { mutableStateOf<Medication?>(null) }
+    var dismissedMedicationIds by remember { mutableStateOf(setOf<Int>()) }
+
+    LaunchedEffect(medications) {
+        val nowCal = Calendar.getInstance()
+        val currentMinutes = nowCal.get(Calendar.HOUR_OF_DAY) * 60 + nowCal.get(Calendar.MINUTE)
+        val pendingDueMed = medications.find { med ->
+            if (med.isTaken || dismissedMedicationIds.contains(med.id)) return@find false
+            val parts = med.time.split(":")
+            if (parts.size == 2) {
+                val medHour = parts[0].toIntOrNull() ?: 0
+                val medMin = parts[1].toIntOrNull() ?: 0
+                val medMinutes = medHour * 60 + medMin
+                currentMinutes >= medMinutes
+            } else false
+        }
+        if (pendingDueMed != null) {
+            showFullScreenAlertForMed = pendingDueMed
+        }
+    }
     var medicationToDelete by remember { mutableStateOf<Medication?>(null) }
 
     // Dialog: Registrar Peso / Dados de Perfil
@@ -865,20 +915,16 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                 Scaffold(
                     containerColor = Color.Transparent,
                     contentWindowInsets = WindowInsets(0, 0, 0, 0),
-                    topBar = {
-                        TopAppBar(
-                            title = { Text("Saúde", fontFamily = FontFamily.Serif, fontWeight = FontWeight.SemiBold, fontSize = 28.sp, color = OnBackgroundDark) },
-                            navigationIcon = { IconButton(onClick = onHomeClick) { Icon(Icons.Outlined.Home, "Home", tint = OnBackgroundDark.copy(alpha = 0.7f)) } },
-                            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-                        )
-                    }
+                    topBar = {}
                 ) { innerPadding ->
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 24.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        contentPadding = PaddingValues(bottom = 140.dp)
-                    ) {
-                        item { Spacer(modifier = Modifier.height(8.dp)) }
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            contentPadding = PaddingValues(top = 96.dp, bottom = 140.dp)
+                        ) {
+                            item { Spacer(modifier = Modifier.height(8.dp)) }
                         
                         // IMC & Weight Card
                         item {
@@ -936,6 +982,13 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                             }
                         }
 
+                        // Steps Chart Card
+                        item {
+                            AnimatedCardContainer(delayMillis = 250) {
+                                StepsChartCard(stepsRecords)
+                            }
+                        }
+
                         // Weight Chart Card
                         item {
                             AnimatedCardContainer(delayMillis = 300) {
@@ -963,8 +1016,21 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                                 Column(modifier = PremiumGlassModifier.fillMaxWidth().padding(24.dp)) {
                                     Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                         Text("CONTROLE DE REMÉDIOS", style = MaterialTheme.typography.labelSmall, color = OnBackgroundDark.copy(alpha = 0.7f), letterSpacing = 1.sp)
-                                        IconButton(onClick = { showMedicationDialog = true }, modifier = Modifier.size(24.dp)) {
-                                            Icon(Icons.Default.Add, "Adicionar", tint = PrimaryTeal, modifier = Modifier.size(20.dp))
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                            if (medications.isNotEmpty()) {
+                                                Text(
+                                                    text = "TESTAR POP-UP",
+                                                    color = SecondaryGold,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    modifier = Modifier.clickable {
+                                                        showFullScreenAlertForMed = medications.firstOrNull()
+                                                    }
+                                                )
+                                            }
+                                            IconButton(onClick = { showMedicationDialog = true }, modifier = Modifier.size(24.dp)) {
+                                                Icon(Icons.Default.Add, "Adicionar", tint = PrimaryTeal, modifier = Modifier.size(20.dp))
+                                            }
                                         }
                                     }
                                     Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
@@ -987,10 +1053,103 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                             }
                         }
                     }
+                        
+                        // Custom Floating Glass Header Overlay
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFF070909).copy(alpha = 0.85f * scrollFraction))
+                                .then(
+                                    if (scrollFraction > 0.05f) {
+                                        Modifier.border(
+                                            width = 0.5.dp,
+                                            brush = Brush.verticalGradient(
+                                                colors = listOf(
+                                                    Color.White.copy(alpha = 0.1f * scrollFraction),
+                                                    Color.Transparent
+                                                )
+                                            ),
+                                            shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
+                                        )
+                                    } else Modifier
+                                )
+                                .statusBarsPadding()
+                                .height(64.dp)
+                        ) {
+                            // Large left-aligned title
+                            Row(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Start
+                            ) {
+                                IconButton(onClick = onHomeClick) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Home,
+                                        contentDescription = "Home",
+                                        tint = OnBackgroundDark.copy(alpha = 0.7f)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Saúde",
+                                    fontFamily = FontFamily.Serif,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 28.sp,
+                                    color = OnBackgroundDark,
+                                    modifier = Modifier.alpha(1f - scrollFraction)
+                                )
+                            }
+
+                            // Small center-aligned title & pulsating heart
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.alpha(scrollFraction)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Favorite,
+                                        contentDescription = null,
+                                        tint = Color(0xFFFF5252),
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .graphicsLayer(
+                                                scaleX = heartScale,
+                                                scaleY = heartScale
+                                            )
+                                    )
+                                    Text(
+                                        text = "Saúde",
+                                        fontFamily = FontFamily.Serif,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 18.sp,
+                                        color = OnBackgroundDark
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
+            
+            // Pop-up de Medicamento de Tela Cheia
+            showFullScreenAlertForMed?.let { med ->
+                MedicationFullScreenAlert(
+                    med = med,
+                    onDismiss = {
+                        dismissedMedicationIds = dismissedMedicationIds + med.id
+                        showFullScreenAlertForMed = null
+                    },
+                    onTaken = {
+                        viewModel.toggleMedicationTaken(med)
+                        showFullScreenAlertForMed = null
+                    }
+                )
+            }
         }
-
 
 @Composable
 fun BmiCard(profile: HealthProfile?, latestWeight: WeightRecord?) {
@@ -1262,15 +1421,69 @@ fun StepsCard(stepsCount: Long, onRegisterClick: () -> Unit) {
 
 @Composable
 fun WeightChartCard(records: List<WeightRecord>, targetWeight: Double?, onRegisterClick: () -> Unit) {
+    val latestWeight = records.lastOrNull()?.weightKg
+    val startWeight = records.firstOrNull()?.weightKg
+
     Column(modifier = PremiumGlassModifier.fillMaxWidth().padding(24.dp)) {
         Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("HISTÓRICO DE PESO", style = MaterialTheme.typography.labelSmall, color = OnBackgroundDark.copy(alpha = 0.7f))
             Text("REGISTRAR", color = PrimaryTeal, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { onRegisterClick() })
         }
         
-        if (targetWeight != null && targetWeight > 0) {
-            Text("Meta: ${String.format("%.1f", targetWeight)} kg", color = SecondaryGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(16.dp))
+        // Exibição do último peso e detalhes da meta
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = if (latestWeight != null) String.format(Locale.getDefault(), "%.1f kg", latestWeight) else "-- kg",
+                    fontFamily = FontFamily.Serif,
+                    fontSize = 36.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = OnBackgroundDark
+                )
+                Text(
+                    text = "Último peso registrado",
+                    fontSize = 11.sp,
+                    color = OnBackgroundDark.copy(alpha = 0.5f)
+                )
+            }
+
+            if (targetWeight != null && targetWeight > 0 && latestWeight != null) {
+                val diff = targetWeight - latestWeight
+                val absDiff = kotlin.math.abs(diff)
+                val isLoss = diff < 0
+                
+                Column(horizontalAlignment = Alignment.End) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(SecondaryGold.copy(alpha = 0.12f))
+                            .border(0.5.dp, SecondaryGold.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "Meta: ${String.format(Locale.getDefault(), "%.1f kg", targetWeight)}",
+                            color = SecondaryGold,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = when {
+                            diff == 0.0 -> "Meta atingida!"
+                            isLoss -> "Faltam ${String.format(Locale.getDefault(), "%.1f kg", absDiff)} (Perda)"
+                            else -> "Faltam ${String.format(Locale.getDefault(), "%.1f kg", absDiff)} (Ganho)"
+                        },
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (diff == 0.0) PrimaryTeal else Color.White.copy(alpha = 0.8f)
+                    )
+                }
+            }
         }
 
         if (records.size > 1) {
@@ -1336,7 +1549,75 @@ fun WeightChartCard(records: List<WeightRecord>, targetWeight: Double?, onRegist
                 Text("Adicione mais dados para ver o gráfico.", color = OnBackgroundDark.copy(alpha = 0.5f), fontSize = 12.sp)
             }
         }
-    }
+
+        // Barra de progresso linear de meta
+        if (startWeight != null && targetWeight != null && targetWeight > 0 && latestWeight != null && startWeight != targetWeight) {
+            Spacer(modifier = Modifier.height(20.dp))
+            
+            val totalDiff = targetWeight - startWeight
+            val currentProgress = latestWeight - startWeight
+            
+            val progressFraction = if (totalDiff != 0.0) {
+                (currentProgress / totalDiff).coerceIn(0.0, 1.0).toFloat()
+            } else {
+                1f
+            }
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Inicial: ${String.format(Locale.getDefault(), "%.1f kg", startWeight)}",
+                        fontSize = 10.sp,
+                        color = OnBackgroundDark.copy(alpha = 0.5f)
+                    )
+                    Text(
+                        text = "Atual: ${String.format(Locale.getDefault(), "%.1f kg", latestWeight)}",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = PrimaryTeal
+                    )
+                    Text(
+                        text = "Meta: ${String.format(Locale.getDefault(), "%.1f kg", targetWeight)}",
+                        fontSize = 10.sp,
+                        color = SecondaryGold,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color(0x1AFFFFFF))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(progressFraction)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(PrimaryTeal, SecondaryGold)
+                                )
+							)
+					)
+				}
+				
+				val progressPercent = (progressFraction * 100).toInt()
+				Text(
+					text = "Você completou $progressPercent% do progresso em direção à sua meta.",
+					fontSize = 11.sp,
+					color = OnBackgroundDark.copy(alpha = 0.6f),
+					modifier = Modifier.padding(top = 8.dp)
+				)
+			}
+		}
+	}
 }
 
 @Composable
@@ -1404,6 +1685,188 @@ fun SleepCard(latestSleep: SleepRecord?, onRegisterClick: () -> Unit) {
                     drawCircle(color = Color.White.copy(alpha = 0.8f), radius = 2.dp.toPx(), center = Offset(center.x - radius * 0.5f, center.y - radius * 0.4f))
                     drawCircle(color = Color.White.copy(alpha = 0.6f), radius = 1.5.dp.toPx(), center = Offset(center.x + radius * 0.3f, center.y + radius * 0.5f))
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun StepsChartCard(records: List<StepsRecord>) {
+    val daysList = remember(records) {
+        (0..6).map { daysAgo ->
+            Calendar.getInstance().apply {
+                add(Calendar.DAY_OF_YEAR, -daysAgo)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+        }.reversed()
+    }
+
+    val stepsData = remember(records, daysList) {
+        daysList.map { dayCal ->
+            val startOfDay = dayCal.timeInMillis
+            val endOfDay = startOfDay + 86400000L - 1L
+            val dayRecords = records.filter { it.endTime in startOfDay..endOfDay }
+            val totalSteps = dayRecords.sumOf { it.count }
+            
+            val dayName = when (dayCal.get(Calendar.DAY_OF_WEEK)) {
+                Calendar.SUNDAY -> "Dom"
+                Calendar.MONDAY -> "Seg"
+                Calendar.TUESDAY -> "Ter"
+                Calendar.WEDNESDAY -> "Qua"
+                Calendar.THURSDAY -> "Qui"
+                Calendar.FRIDAY -> "Sex"
+                else -> "Sáb"
+            }
+            dayName to totalSteps
+        }
+    }
+
+    val averageSteps = remember(stepsData) {
+        val activeDays = stepsData.filter { it.second > 0 }
+        if (activeDays.isNotEmpty()) activeDays.map { it.second }.average() else 0.0
+    }
+
+    Column(modifier = PremiumGlassModifier.fillMaxWidth().padding(24.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Outlined.DirectionsWalk, null, tint = PrimaryTeal, modifier = Modifier.size(18.dp))
+                Text("PASSOS SEMANAIS", style = MaterialTheme.typography.labelSmall, color = OnBackgroundDark.copy(alpha = 0.7f), letterSpacing = 1.sp)
+            }
+            
+            if (averageSteps > 0) {
+                Text(
+                    text = "Média: ${averageSteps.toInt()} /dia",
+                    color = PrimaryTeal,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+
+        val hasData = stepsData.any { it.second > 0 }
+        if (hasData) {
+            val animationProgress = remember { Animatable(0f) }
+            LaunchedEffect(records) {
+                animationProgress.animateTo(1f, animationSpec = tween(1500))
+            }
+
+            val maxSteps = remember(stepsData) {
+                max(stepsData.maxOf { it.second }.toDouble(), 12000.0)
+            }
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp)
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val canvasWidth = size.width
+                        val canvasHeight = size.height
+                        val sectionWidth = canvasWidth / 7
+                        val barWidth = 20.dp.toPx()
+                        
+                        val targetY = canvasHeight - ((10000.0 / maxSteps) * canvasHeight).toFloat()
+                        drawLine(
+                            color = Color(0x33FFFFFF),
+                            start = Offset(0f, targetY),
+                            end = Offset(canvasWidth, targetY),
+                            strokeWidth = 1.dp.toPx(),
+                            pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(10f, 10f))
+                        )
+                        
+                        drawIntoCanvas { canvas ->
+                            val textPaint = android.graphics.Paint().apply {
+                                color = android.graphics.Color.parseColor("#879391")
+                                textSize = 9.dp.toPx()
+                                typeface = android.graphics.Typeface.DEFAULT_BOLD
+                            }
+                            canvas.nativeCanvas.drawText("Meta (10k)", 6.dp.toPx(), targetY - 4.dp.toPx(), textPaint)
+                        }
+
+                        stepsData.forEachIndexed { index, (_, count) ->
+                            val centerX = index * sectionWidth + sectionWidth / 2f
+                            val barHeight = ((count / maxSteps) * canvasHeight * animationProgress.value).toFloat()
+                            val barTop = canvasHeight - barHeight
+                            
+                            if (count > 0) {
+                                val reachedGoal = count >= 10000
+                                val startColor = if (reachedGoal) PrimaryTeal else SecondaryGold
+                                val endColor = if (reachedGoal) PrimaryTeal.copy(alpha = 0.3f) else SecondaryGold.copy(alpha = 0.3f)
+                                
+                                drawRoundRect(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(startColor, endColor)
+                                    ),
+                                    topLeft = Offset(centerX - barWidth / 2f, barTop),
+                                    size = Size(barWidth, barHeight),
+                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx(), 6.dp.toPx())
+                                )
+
+                                drawIntoCanvas { canvas ->
+                                    val textPaint = android.graphics.Paint().apply {
+                                        color = android.graphics.Color.WHITE
+                                        textSize = 9.dp.toPx()
+                                        textAlign = android.graphics.Paint.Align.CENTER
+                                        typeface = android.graphics.Typeface.DEFAULT
+                                    }
+                                    val countFormatted = if (count >= 1000) {
+                                        String.format(Locale.getDefault(), "%.1fk", count.toFloat() / 1000f)
+                                    } else {
+                                        count.toString()
+                                    }
+                                    canvas.nativeCanvas.drawText(
+                                        countFormatted,
+                                        centerX,
+                                        barTop - 6.dp.toPx(),
+                                        textPaint
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    stepsData.forEach { (dayName, _) ->
+                        Text(
+                            text = dayName,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center,
+                            fontSize = 11.sp,
+                            color = OnBackgroundDark.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Nenhum dado de passos registrado nos últimos 7 dias.",
+                    color = OnBackgroundDark.copy(alpha = 0.5f),
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center
+                )
             }
         }
     }
@@ -1688,4 +2151,213 @@ fun AnimatedCardContainer(
         content()
     }
 }
+
+@Composable
+fun MedicationFullScreenAlert(
+    med: Medication,
+    onDismiss: () -> Unit,
+    onTaken: () -> Unit
+) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false
+        )
+    ) {
+        val infiniteTransition = rememberInfiniteTransition(label = "PulsePill")
+        val pulseScale by infiniteTransition.animateFloat(
+            initialValue = 0.95f,
+            targetValue = 1.15f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1200, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "PillScale"
+        )
+        
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF070909))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                PrimaryTeal.copy(alpha = 0.2f),
+                                Color.Transparent
+                            ),
+                            center = Offset(200f, 300f),
+                            radius = 900f
+                        )
+                    )
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFFFF5252).copy(alpha = 0.15f),
+                                Color.Transparent
+                            ),
+                            center = Offset(800f, 1200f),
+                            radius = 900f
+                        )
+                    )
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .systemBarsPadding()
+                    .padding(32.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(top = 24.dp)
+                ) {
+                    Text(
+                        text = "LEMBRETE DE REMÉDIO",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = PrimaryTeal,
+                        letterSpacing = 2.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Hora de cuidar de você",
+                        fontSize = 14.sp,
+                        color = Color.White.copy(alpha = 0.6f)
+                    )
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(160.dp)
+                            .clip(CircleShape)
+                            .background(PrimaryTeal.copy(alpha = 0.08f))
+                            .border(1.dp, PrimaryTeal.copy(alpha = 0.25f), CircleShape)
+                            .graphicsLayer(
+                                scaleX = pulseScale,
+                                scaleY = pulseScale
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(110.dp)
+                                .clip(CircleShape)
+                                .background(PrimaryTeal.copy(alpha = 0.15f))
+                                .border(1.dp, PrimaryTeal.copy(alpha = 0.4f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.MedicalServices,
+                                contentDescription = null,
+                                tint = PrimaryTeal,
+                                modifier = Modifier.size(48.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(40.dp))
+                    
+                    Text(
+                        text = med.name,
+                        fontFamily = FontFamily.Serif,
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        textAlign = TextAlign.Center
+                    )
+                    
+                    if (med.dosage.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = med.dosage,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.White.copy(alpha = 0.05f))
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.AccessTime,
+                            contentDescription = null,
+                            tint = PrimaryTeal,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "Agendado para às ${med.time}",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryTeal
+                        )
+                    }
+                }
+
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Button(
+                        onClick = onTaken,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrimaryTeal,
+                            contentColor = Color.Black
+                        ),
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                    ) {
+                        Text(
+                            text = "MARCAR COMO TOMADO",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            letterSpacing = 1.5.sp
+                        )
+                    }
+
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                    ) {
+                        Text(
+                            text = "LEMBRAR MAIS TARDE",
+                            color = Color.White.copy(alpha = 0.5f),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            letterSpacing = 1.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 

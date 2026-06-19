@@ -637,96 +637,64 @@ fun PetzScreen(
                         if (compactAlpha > 0.05f) {
                             Row(
                                 modifier = Modifier
-                                    .fillMaxWidth()
+                                    .align(Alignment.TopCenter)
                                     .graphicsLayer {
                                         alpha = compactAlpha
                                         translationY = (1f - compactAlpha) * (-20f)
                                     }
-                                    .clip(RoundedCornerShape(30.dp))
-                                    .background(Color.Black.copy(alpha = 0.6f))
-                                    .border(0.5.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(30.dp))
-                                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                    .clip(RoundedCornerShape(32.dp))
+                                    .background(Color.Black.copy(alpha = 0.75f))
+                                    .border(1.dp, accentColor.copy(alpha = 0.5f), RoundedCornerShape(32.dp))
+                                    .padding(horizontal = 24.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                IconButton(
-                                    onClick = onHomeClick,
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(Icons.Outlined.Home, contentDescription = "Home", tint = Color.White, modifier = Modifier.size(18.dp))
-                                }
-
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center,
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    key(currentPet.photoUri) {
-                                        AsyncImage(
-                                            model = currentPetImageModel,
-                                            contentDescription = currentPet.name,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier
-                                                .size(26.dp)
-                                                .clip(CircleShape)
-                                                .border(1.dp, Color.White.copy(alpha = 0.4f), CircleShape)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.width(8.dp))
-
-                                    val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
-                                    val shimmerOffset by infiniteTransition.animateFloat(
-                                        initialValue = -400f,
-                                        targetValue = 400f,
-                                        animationSpec = infiniteRepeatable(
-                                            animation = tween(2000, easing = LinearEasing),
-                                            repeatMode = RepeatMode.Restart
-                                        ),
-                                        label = "shimmerOffset"
-                                    )
-
-                                    val nameGlowBrush = Brush.linearGradient(
-                                        colors = listOf(
-                                            Color.White,
-                                            accentColor,
-                                            Color.White,
-                                            accentColor,
-                                            Color.White
-                                        ),
-                                        start = Offset(shimmerOffset, 0f),
-                                        end = Offset(shimmerOffset + 150f, 150f)
-                                    )
-
-                                    Text(
-                                        text = currentPet.name,
-                                        style = TextStyle(
-                                            brush = nameGlowBrush,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 15.sp,
-                                            fontFamily = FontFamily.Serif
-                                        )
+                                key(currentPet.photoUri) {
+                                    AsyncImage(
+                                        model = currentPetImageModel,
+                                        contentDescription = currentPet.name,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(CircleShape)
+                                            .border(1.5.dp, accentColor, CircleShape)
                                     )
                                 }
 
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    IconButton(
-                                        onClick = { petToEdit = currentPet },
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(Icons.Outlined.Edit, contentDescription = "Edit", tint = Color.White, modifier = Modifier.size(18.dp))
-                                    }
+                                Spacer(modifier = Modifier.width(12.dp))
 
-                                    IconButton(
-                                        onClick = { showAddPetDialog = true },
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(Icons.Default.Add, contentDescription = "Add Pet", tint = Color.White, modifier = Modifier.size(18.dp))
-                                    }
-                                }
+                                val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
+                                val shimmerOffset by infiniteTransition.animateFloat(
+                                    initialValue = -400f,
+                                    targetValue = 400f,
+                                    animationSpec = infiniteRepeatable(
+                                        animation = tween(2000, easing = LinearEasing),
+                                        repeatMode = RepeatMode.Restart
+                                    ),
+                                    label = "shimmerOffset"
+                                )
+
+                                val nameGlowBrush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color.White,
+                                        accentColor,
+                                        Color.White,
+                                        accentColor,
+                                        Color.White
+                                    ),
+                                    start = Offset(shimmerOffset, 0f),
+                                    end = Offset(shimmerOffset + 150f, 150f)
+                                )
+
+                                Text(
+                                    text = currentPet.name,
+                                    style = TextStyle(
+                                        brush = nameGlowBrush,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 18.sp,
+                                        fontFamily = FontFamily.Serif
+                                    )
+                                )
                             }
                         }
                     }
@@ -1996,6 +1964,7 @@ fun LiquidTabSelector(
 
     Box(
         modifier = Modifier
+            .height(IntrinsicSize.Min)
             .clip(RoundedCornerShape(30.dp))
             .background(Color.Black.copy(alpha = 0.4f))
             .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(30.dp))

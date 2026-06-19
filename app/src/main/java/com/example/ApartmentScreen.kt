@@ -28,6 +28,12 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.components.bounceClick
 import kotlin.math.*
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.draw.drawBehind
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,17 +45,15 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
         mutableStateOf(sharedPrefs.getFloat("apartment_progress", 0f)) 
     }
 
-    // Apple-style spring physics for smooth building construction/deconstruction transitions
     val animatedProgress by animateFloatAsState(
         targetValue = progress,
         animationSpec = spring(
-            dampingRatio = 0.68f, // Responsive, bouncy feel
-            stiffness = 90f      // Smooth, natural speed deceleration
+            dampingRatio = 0.68f,
+            stiffness = 90f
         ),
         label = "BuildingSpringAnimation"
     )
 
-    // Infinite clock transition to animate lighting waves, reflections and particles without overhead
     val infiniteTransition = rememberInfiniteTransition(label = "OledBuildingTimeClock")
     val timeClock by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -61,23 +65,21 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
         label = "TimeAngle"
     )
 
-    // Determine current construction phase color and label reatively
     val phaseColor = when {
-        progress <= 0.15f -> Color(0xFF00E5FF) // Cyberpunk Cyan (Foundation)
-        progress < 0.95f -> Color(0xFFFF007F)  // Vivid Magenta (Structure)
-        else -> Color(0xFF00E676)              // Emerald Green (Completion)
+        progress <= 0.15f -> Color(0xFF00E5FF)
+        progress < 0.95f -> Color(0xFFD4AF37) // Luxurious Gold instead of Magenta
+        else -> Color(0xFF00E676)
     }
 
     val phaseText = when {
         progress == 0f -> "Terreno & Fundações"
         progress <= 0.15f -> "Estrutura Subterrânea"
-        progress < 0.50f -> "Pórticos & Vigas Iniciais"
+        progress < 0.50f -> "Lajes Cilíndricas Iniciais"
         progress < 0.95f -> "Fachada & Pavimentos Altos"
         progress < 1.0f -> "Sistemas de Vidro & Revestimento"
         else -> "Obra Concluída • Masterpiece"
     }
 
-    // Smooth transition of state colors
     val animatedPhaseColor by animateColorAsState(
         targetValue = phaseColor,
         animationSpec = tween(400),
@@ -87,7 +89,7 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black) // Pure pitch-black OLED background
+            .background(Color(0xFF050505)) // Pure pitch-black OLED background
     ) {
         Column(
             modifier = Modifier
@@ -114,7 +116,7 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                 Text(
                     text = "Apartamento",
                     fontFamily = FontFamily.SansSerif,
-                    fontWeight = FontWeight.Light,
+                    fontWeight = FontWeight.ExtraLight, // ExtraLight simulated Montserrat
                     fontSize = 26.sp,
                     color = Color.White,
                     letterSpacing = 1.sp
@@ -123,7 +125,7 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
             
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Main Building Canvas (Takes upper central area)
+            // Main Building Canvas
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -133,132 +135,97 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                 Canvas(
                     modifier = Modifier
                         .fillMaxWidth(0.95f)
-                        .height(360.dp)
+                        .height(380.dp)
                 ) {
                     val canvasWidth = size.width
                     val canvasHeight = size.height
                     val centerX = canvasWidth / 2f
                     
-                    // Skyscraper physical layout bounds
-                    val buildingWidth = 96.dp.toPx()
-                    val buildingHeight = 250.dp.toPx()
-                    val halfWidth = buildingWidth / 2f
-                    val base = canvasHeight - 24.dp.toPx()
+                    val buildingWidth = 112.dp.toPx()
+                    val buildingHeight = 240.dp.toPx()
+                    val base = canvasHeight - 40.dp.toPx()
                     val top = base - buildingHeight
-                    
-                    // isometric inclination offsets
-                    val isoSlopeLeft = 14.dp.toPx()
-                    val isoSlopeRight = 14.dp.toPx()
-                    
-                    val left = centerX - halfWidth
-                    val right = centerX + halfWidth
-                    val currentProgressHeight = buildingHeight * animatedProgress
-                    val currentLineY = base - currentProgressHeight
+                    val radiusX = buildingWidth / 2f
+                    val radiusY = radiusX * 0.32f // Perspective ratio
 
-                    // 1. ISOMETRIC CYBER BLUEPRINT GRID (Ground Perspective)
-                    val gridWidth = 180.dp.toPx()
-                    val gridHeight = 40.dp.toPx()
-
-                    // Radial glow floor reflection
-                    drawOval(
+                    // 1. SKY LIGHT Reflection (Luz de luar azulada e fria)
+                    drawCircle(
                         brush = Brush.radialGradient(
-                            colors = listOf(Color(0x3D00E5FF), Color.Transparent),
-                            center = Offset(centerX, base),
-                            radius = gridWidth
+                            colors = listOf(Color(0x0C00E5FF), Color.Transparent),
+                            center = Offset(centerX, top - 20.dp.toPx()),
+                            radius = 280.dp.toPx()
                         ),
-                        topLeft = Offset(centerX - gridWidth, base - gridHeight),
-                        size = Size(gridWidth * 2, gridHeight * 2)
+                        radius = 280.dp.toPx(),
+                        center = Offset(centerX, top - 20.dp.toPx())
                     )
 
-                    // Rotating Concentric rings in 3D perspective
-                    val rings = listOf(0.4f, 0.7f, 1.0f)
-                    rings.forEachIndexed { idx, r ->
-                        val rotationDir = if (idx % 2 == 0) 1f else -1f
-                        val degrees = timeClock * 35f * rotationDir
-                        
-                        // Simulate rotation using transform
-                        drawContext.canvas.save()
-                        drawContext.transform.rotate(degrees, Offset(centerX, base))
-                        
-                        // draw concentric ellipses with dashes
-                        drawOval(
-                            color = Color(0x3B00E5FF),
-                            topLeft = Offset(centerX - gridWidth * r, base - gridHeight * r),
-                            size = Size(gridWidth * 2 * r, gridHeight * 2 * r),
-                            style = Stroke(
-                                width = 1.dp.toPx(),
-                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 10f), 0f)
-                            )
-                        )
-                        drawContext.canvas.restore()
-                    }
+                    // 2. ORBITING CATS PATH DEFINITION (Spirals around cylinder)
+                    // Cat 1 (Ceramic Black Shiny)
+                    val cat1Angle = timeClock * 1.3f
+                    val cat1RadiusX = radiusX + 16.dp.toPx()
+                    val cat1RadiusY = radiusY + 8.dp.toPx()
+                    val cat1Progress = (timeClock * 0.08f) % 1.0f
+                    val cat1Y = base - cat1Progress * buildingHeight + sin(timeClock * 4f) * 12.dp.toPx()
+                    val cat1X = centerX + cos(cat1Angle) * cat1RadiusX
+                    val cat1Z = sin(cat1Angle) // < 0 is behind, >= 0 is front
 
-                    // Perspective floor lines radiating from base center
-                    val floorLines = 10
-                    for (i in 0..floorLines) {
-                        val angle = PI.toFloat() * (i / floorLines.toFloat())
-                        val endX = centerX + cos(angle) * gridWidth
-                        val endY = base + sin(angle) * gridHeight
-                        drawLine(
-                            color = Color(0x1F00E5FF),
-                            start = Offset(centerX, base),
-                            end = Offset(endX, endY),
-                            strokeWidth = 1.dp.toPx()
-                        )
-                    }
+                    // Cat 2
+                    val cat2Angle = timeClock * 1.3f + PI.toFloat()
+                    val cat2RadiusX = radiusX + 16.dp.toPx()
+                    val cat2RadiusY = radiusY + 8.dp.toPx()
+                    val cat2Progress = (timeClock * 0.08f + 0.5f) % 1.0f
+                    val cat2Y = base - cat2Progress * buildingHeight + sin(timeClock * 4f + PI.toFloat()) * 12.dp.toPx()
+                    val cat2X = centerX + cos(cat2Angle) * cat2RadiusX
+                    val cat2Z = sin(cat2Angle)
 
-                    // 2. GENERATE PARTICLES DATA (Cylinder Orbit 3D)
-                    val activeParticles = 20
-                    data class OrbitParticle(
-                        val x: Float,
-                        val y: Float,
-                        val size: Float,
-                        val alpha: Float,
-                        val isBehind: Boolean
-                    )
-                    
-                    val particlesList = List(activeParticles) { p ->
-                        val phaseOffset = p * (2 * PI.toFloat() / activeParticles)
-                        // swirl speed and orbit radius
-                        val angle = timeClock * 1.8f + phaseOffset
-                        val radius = halfWidth + 24.dp.toPx() + 8.dp.toPx() * sin(angle * 2f)
-                        
-                        // cylindrical projection
-                        val px = centerX + cos(angle) * radius
-                        val py = currentLineY - 12.dp.toPx() * sin(angle) + cos(angle * 3f) * 6.dp.toPx()
-                        val depth = sin(angle) // negative depth means behind building
-                        
-                        val pSize = 2.dp.toPx() + 1.5.dp.toPx() * (depth + 1f)
-                        val pAlpha = (0.2f + 0.8f * ((depth + 1f) / 2f)) * (1f - animatedProgress).coerceAtLeast(0.1f)
-                        
-                        OrbitParticle(px, py, pSize, pAlpha, depth < 0f)
-                    }
-
-                    // 3. DRAW BEHIND PARTICLES
-                    particlesList.filter { it.isBehind }.forEach { p ->
+                    // Helper to draw a shiny ceramic cat
+                    fun drawCeramicCat(cx: Float, cy: Float) {
+                        // 1. Golden/Amber Aura
                         drawCircle(
-                            color = Color(0xFF00E5FF).copy(alpha = p.alpha),
-                            radius = p.size,
-                            center = Offset(p.x, p.y)
+                            brush = Brush.radialGradient(
+                                colors = listOf(Color(0x66FFD54F), Color.Transparent),
+                                center = Offset(cx, cy),
+                                radius = 28.dp.toPx()
+                            ),
+                            radius = 28.dp.toPx(),
+                            center = Offset(cx, cy)
+                        )
+                        // 2. Black Ceramic Body
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(Color(0xFF37474F), Color(0xFF000000)),
+                                center = Offset(cx - 2.dp.toPx(), cy - 2.dp.toPx()),
+                                radius = 8.dp.toPx()
+                            ),
+                            radius = 8.dp.toPx(),
+                            center = Offset(cx, cy)
+                        )
+                        // 3. Ceramic specular highlight (bright white dot)
+                        drawCircle(
+                            color = Color.White.copy(alpha = 0.9f),
+                            radius = 1.8.dp.toPx(),
+                            center = Offset(cx - 3.dp.toPx(), cy - 3.dp.toPx())
                         )
                     }
 
-                    // 4. UNDERGROUND FOUNDATIONS (0%)
-                    val pilesCount = 5
-                    for (i in 0 until pilesCount) {
-                        val fraction = i / (pilesCount - 1).toFloat()
-                        val pileX = left + buildingWidth * fraction
-                        val pileSlope = lerp(-isoSlopeLeft, isoSlopeRight, fraction)
-                        drawLine(
-                            color = Color(0xFF00E5FF).copy(alpha = 0.35f + 0.3f * sin(timeClock * 3f + i).absoluteValue),
-                            start = Offset(pileX, base + pileSlope),
-                            end = Offset(pileX, base + pileSlope + 22.dp.toPx()),
-                            strokeWidth = 1.5.dp.toPx(),
-                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 6f), 0f)
-                        )
-                    }
+                    // 3. DRAW BEHIND CATS (Z < 0)
+                    if (cat1Z < 0f) drawCeramicCat(cat1X, cat1Y)
+                    if (cat2Z < 0f) drawCeramicCat(cat2X, cat2Y)
 
-                    // 5. MORPHING STRUCTURAL FRAMES (1% to 99%)
+                    // 4. FOUNDATIONS (Dash Grid on floor)
+                    val gridWidth = 140.dp.toPx()
+                    val gridHeight = gridWidth * 0.32f
+                    drawOval(
+                        color = Color(0x1F00E5FF),
+                        topLeft = Offset(centerX - gridWidth, base - gridHeight),
+                        size = Size(gridWidth * 2, gridHeight * 2),
+                        style = Stroke(
+                            width = 1.dp.toPx(),
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f), 0f)
+                        )
+                    )
+
+                    // 5. SKYSCRAPER CYLINDRICAL LAYOUT (8 Floors)
                     val totalFloors = 8
                     val floorHeight = buildingHeight / totalFloors
                     
@@ -267,375 +234,157 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                         val floorProgress = ((animatedProgress * totalFloors) - f).coerceIn(0f, 1f)
                         
                         if (floorProgress > 0f) {
-                            val currentFloorHeight = floorHeight * floorProgress
-                            val currentFloorTop = floorBottom - currentFloorHeight
+                            // Rise from bottom with spring physics
+                            val currentY = base - (base - floorBottom) * elasticOut(floorProgress)
                             
-                            // Base color transitions based on floor level
-                            val baseViolet = Color(0xFFD500F9)
-                            val baseMagenta = Color(0xFFFF007F)
-                            val floorAccentColor = lerpColors(baseViolet, baseMagenta, f / (totalFloors - 1).toFloat())
+                            // Modulated Wavy Slab path
+                            val numPoints = 80
+                            val waveAmplitude = 2.5f.dp.toPx() * floorProgress
+                            val waveFrequency = 10f
+                            val slabPath = Path()
                             
-                            // Let's draw the structural pillars for left and right faces
-                            val pillarsLeft = listOf(left, left + halfWidth / 2f, centerX)
-                            val pillarsRight = listOf(centerX, centerX + halfWidth / 2f, right)
-                            
-                            // Left Face Vertical Structural Pillars
-                            pillarsLeft.forEachIndexed { index, px ->
-                                val ratio = (px - left) / halfWidth
-                                val slopeBottom = lerp(-isoSlopeLeft, 0f, ratio)
-                                val slopeTop = slopeBottom
-                                drawLine(
-                                    brush = Brush.verticalGradient(
-                                        colors = listOf(floorAccentColor, floorAccentColor.copy(alpha = 0.2f))
-                                    ),
-                                    start = Offset(px, floorBottom + slopeBottom),
-                                    end = Offset(px, currentFloorTop + slopeTop),
-                                    strokeWidth = 2.5.dp.toPx()
-                                )
-                            }
-                            
-                            // Right Face Vertical Structural Pillars
-                            pillarsRight.forEachIndexed { index, px ->
-                                val ratio = (px - centerX) / halfWidth
-                                val slopeBottom = lerp(0f, -isoSlopeRight, ratio)
-                                val slopeTop = slopeBottom
-                                drawLine(
-                                    brush = Brush.verticalGradient(
-                                        colors = listOf(floorAccentColor, floorAccentColor.copy(alpha = 0.2f))
-                                    ),
-                                    start = Offset(px, floorBottom + slopeBottom),
-                                    end = Offset(px, currentFloorTop + slopeTop),
-                                    strokeWidth = 2.5.dp.toPx()
-                                )
-                            }
-                            
-                            // Horizontal Floor Slabs (V-shape in perspective)
-                            val leftSlabPath = Path().apply {
-                                moveTo(left, currentFloorTop - isoSlopeLeft)
-                                lineTo(centerX, currentFloorTop)
-                            }
-                            val rightSlabPath = Path().apply {
-                                moveTo(centerX, currentFloorTop)
-                                lineTo(right, currentFloorTop - isoSlopeRight)
-                            }
-                            drawPath(leftSlabPath, color = floorAccentColor, style = Stroke(width = 2.dp.toPx()))
-                            drawPath(rightSlabPath, color = floorAccentColor, style = Stroke(width = 2.dp.toPx()))
-                            
-                            // Cross-bracing wireframes for high-tech skeleton detail
-                            if (floorProgress > 0.4f) {
-                                // Left Face X-Bracing
-                                drawLine(
-                                    color = floorAccentColor.copy(alpha = 0.15f),
-                                    start = Offset(left, floorBottom - isoSlopeLeft),
-                                    end = Offset(centerX, currentFloorTop),
-                                    strokeWidth = 1.dp.toPx()
-                                )
-                                drawLine(
-                                    color = floorAccentColor.copy(alpha = 0.15f),
-                                    start = Offset(centerX, floorBottom),
-                                    end = Offset(left, currentFloorTop - isoSlopeLeft),
-                                    strokeWidth = 1.dp.toPx()
-                                )
-                                // Right Face X-Bracing
-                                drawLine(
-                                    color = floorAccentColor.copy(alpha = 0.15f),
-                                    start = Offset(centerX, floorBottom),
-                                    end = Offset(right, currentFloorTop - isoSlopeRight),
-                                    strokeWidth = 1.dp.toPx()
-                                )
-                                drawLine(
-                                    color = floorAccentColor.copy(alpha = 0.15f),
-                                    start = Offset(right, floorBottom - isoSlopeRight),
-                                    end = Offset(centerX, currentFloorTop),
-                                    strokeWidth = 1.dp.toPx()
-                                )
-                            }
-                        }
-                    }
-
-                    // 6. LUXURY GLASS SKIN & REFLECTIONS (Materializing as progress increases)
-                    if (animatedProgress > 0.15f) {
-                        val glassAlpha = ((animatedProgress - 0.15f) / 0.85f).coerceIn(0f, 1f)
-                        val currentGlassHeight = buildingHeight * animatedProgress
-                        
-                        // Left Face Glass Panel (Bright, reflecting sun light)
-                        val leftGlassPath = Path().apply {
-                            moveTo(left, base - isoSlopeLeft)
-                            lineTo(centerX, base)
-                            lineTo(centerX, base - currentGlassHeight)
-                            lineTo(left, base - currentGlassHeight - isoSlopeLeft)
-                            close()
-                        }
-                        val leftGlassBrush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color(0x3B00E5FF), // Cyber Cyan reflection tint
-                                Color(0x7503080A)  // Deep luxury dark grey
-                            ),
-                            startY = base - currentGlassHeight,
-                            endY = base
-                        )
-                        drawPath(leftGlassPath, brush = leftGlassBrush, alpha = glassAlpha)
-                        
-                        // Right Face Glass Panel (Slightly darker shade for 3D depth)
-                        val rightGlassPath = Path().apply {
-                            moveTo(centerX, base)
-                            lineTo(right, base - isoSlopeRight)
-                            lineTo(right, base - currentGlassHeight - isoSlopeRight)
-                            lineTo(centerX, base - currentGlassHeight)
-                            close()
-                        }
-                        val rightGlassBrush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color(0x240091EA), // Deep Blue tint
-                                Color(0x8C020507)  // Deeper background shading
-                            ),
-                            startY = base - currentGlassHeight,
-                            endY = base
-                        )
-                        drawPath(rightGlassPath, brush = rightGlassBrush, alpha = glassAlpha)
-
-                        // Outline Borders for Left & Right face
-                        drawPath(
-                            path = leftGlassPath,
-                            color = Color(0xFF00E5FF).copy(alpha = 0.45f * glassAlpha),
-                            style = Stroke(width = 1.dp.toPx())
-                        )
-                        drawPath(
-                            path = rightGlassPath,
-                            color = Color(0xFF00E5FF).copy(alpha = 0.3f * glassAlpha),
-                            style = Stroke(width = 1.dp.toPx())
-                        )
-
-                        // Glass Panel Sub-Divisions (perspective lines)
-                        val leftSubPanels = 3
-                        for (v in 1 until leftSubPanels) {
-                            val ratio = v / leftSubPanels.toFloat()
-                            val px = lerp(left, centerX, ratio)
-                            val slope = lerp(-isoSlopeLeft, 0f, ratio)
-                            drawLine(
-                                color = Color(0x4000E5FF).copy(alpha = 0.25f * glassAlpha),
-                                start = Offset(px, base + slope),
-                                end = Offset(px, base - currentGlassHeight + slope),
-                                strokeWidth = 0.5.dp.toPx()
-                            )
-                        }
-                        val rightSubPanels = 3
-                        for (v in 1 until rightSubPanels) {
-                            val ratio = v / rightSubPanels.toFloat()
-                            val px = lerp(centerX, right, ratio)
-                            val slope = lerp(0f, -isoSlopeRight, ratio)
-                            drawLine(
-                                color = Color(0x2D00E5FF).copy(alpha = 0.2f * glassAlpha),
-                                start = Offset(px, base + slope),
-                                end = Offset(px, base - currentGlassHeight + slope),
-                                strokeWidth = 0.5.dp.toPx()
-                            )
-                        }
-
-                        // Premium Diagonal Glass Light Reflections sweep effect
-                        val sweepPercent = (timeClock * 0.15f) % 2f - 1f // from -1.0 to 1.0
-                        
-                        // Left Reflection sweep
-                        val sweepLeftX = lerp(left - 20.dp.toPx(), centerX + 20.dp.toPx(), sweepPercent.coerceIn(0f, 1f))
-                        val leftRefPath = Path().apply {
-                            moveTo(sweepLeftX, base)
-                            lineTo(sweepLeftX + 16.dp.toPx(), base)
-                            lineTo(sweepLeftX - 16.dp.toPx(), base - currentGlassHeight)
-                            lineTo(sweepLeftX - 32.dp.toPx(), base - currentGlassHeight)
-                            close()
-                        }
-                        drawPath(
-                            path = leftRefPath,
-                            brush = Brush.linearGradient(
-                                colors = listOf(Color.White.copy(alpha = 0f), Color.White.copy(alpha = 0.15f * glassAlpha), Color.White.copy(alpha = 0f)),
-                                start = Offset(sweepLeftX, base),
-                                end = Offset(sweepLeftX - 16.dp.toPx(), base - currentGlassHeight)
-                            )
-                        )
-
-                        // 7. LANDSCAPING & INTERIOR LIGHTS (92% to 100%)
-                        if (animatedProgress > 0.9f) {
-                            val completionFactor = ((animatedProgress - 0.9f) / 0.1f).coerceIn(0f, 1f)
-                            
-                            // Golden Amber warm light windows pulsing inside the building
-                            val litFloors = 6
-                            for (fl in 0 until litFloors) {
-                                val floorY = base - fl * floorHeight - floorHeight / 2f
+                            for (i in 0..numPoints) {
+                                val angle = (2f * PI.toFloat() * i) / numPoints
+                                val radialMod = waveAmplitude * sin(waveFrequency * angle)
+                                val rX = radiusX + radialMod
+                                val rY = radiusY + radialMod * (radiusY / radiusX)
                                 
-                                // Window Left
-                                val winLeftX = lerp(left, centerX, 0.4f)
-                                val winLeftSlope = lerp(-isoSlopeLeft, 0f, 0.4f)
-                                val pulseValL = sin(timeClock * 2.8f + fl * 1.5f).absoluteValue
-                                drawRect(
-                                    color = Color(0xFFFFC107).copy(alpha = (0.2f + 0.8f * pulseValL) * completionFactor),
-                                    topLeft = Offset(winLeftX - 6.dp.toPx(), floorY + winLeftSlope - 4.dp.toPx()),
-                                    size = Size(12.dp.toPx(), 8.dp.toPx())
-                                )
+                                val px = centerX + cos(angle) * rX
+                                val py = currentY + sin(angle) * rY + waveAmplitude * 0.4f * cos(waveFrequency * angle)
                                 
-                                // Window Right
-                                val winRightX = lerp(centerX, right, 0.6f)
-                                val winRightSlope = lerp(0f, -isoSlopeRight, 0.6f)
-                                val pulseValR = cos(timeClock * 2.2f + fl * 2f).absoluteValue
-                                drawRect(
-                                    color = Color(0xFFFFD54F).copy(alpha = (0.3f + 0.7f * pulseValR) * completionFactor),
-                                    topLeft = Offset(winRightX - 6.dp.toPx(), floorY + winRightSlope - 4.dp.toPx()),
-                                    size = Size(12.dp.toPx(), 8.dp.toPx())
-                                )
+                                if (i == 0) {
+                                    slabPath.moveTo(px, py)
+                                } else {
+                                    slabPath.lineTo(px, py)
+                                }
                             }
+                            slabPath.close()
 
-                            // Luxury Hanging Rooftop Gardens
-                            val roofY = top
-                            
-                            // Emerald foliage base
-                            drawArc(
-                                color = Color(0xFF00E676).copy(alpha = completionFactor),
-                                startAngle = 180f,
-                                sweepAngle = 180f,
-                                useCenter = true,
-                                topLeft = Offset(centerX - 22.dp.toPx(), roofY - 8.dp.toPx()),
-                                size = Size(44.dp.toPx(), 16.dp.toPx())
-                            )
-                            // Swaying garden leaves
-                            for (leaf in -4..4) {
-                                val leafX = centerX + leaf * 5.dp.toPx()
-                                val leafSlope = if (leaf < 0) lerp(-isoSlopeLeft, 0f, (leafX - left)/halfWidth) else lerp(0f, -isoSlopeRight, (leafX - centerX)/halfWidth)
-                                val sway = sin(timeClock * 2.5f + leaf).absoluteValue * 2.dp.toPx()
+                            // Windows / Core lit detection
+                            val dist1 = abs(cat1Y - currentY)
+                            val dist2 = abs(cat2Y - currentY)
+                            val minDist = min(dist1, dist2)
+                            val proximity = (1f - (minDist / (floorHeight * 1.5f))).coerceIn(0f, 1f)
+                            val pulse = 0.85f + 0.15f * sin(timeClock * 12f)
+                            val glowAlpha = proximity * pulse * floorProgress
+
+                            // Core warm glowing light
+                            if (glowAlpha > 0f) {
                                 drawCircle(
-                                    color = Color(0xFF00C853).copy(alpha = completionFactor),
-                                    radius = 3.dp.toPx(),
-                                    center = Offset(leafX, roofY + leafSlope - 6.dp.toPx() + sway)
+                                    brush = Brush.radialGradient(
+                                        colors = listOf(Color(0xFFFFC107).copy(alpha = 0.7f * glowAlpha), Color.Transparent),
+                                        center = Offset(centerX, currentY),
+                                        radius = 28.dp.toPx()
+                                    ),
+                                    radius = 28.dp.toPx(),
+                                    center = Offset(centerX, currentY)
+                                )
+                                drawCircle(
+                                    color = Color(0xFFFFD54F).copy(alpha = glowAlpha),
+                                    radius = 5.dp.toPx(),
+                                    center = Offset(centerX, currentY)
                                 )
                             }
-                            
-                            // Aeronautical Beacon Light at very top
-                            val beaconPulse = sin(timeClock * 6f).absoluteValue
-                            drawCircle(
-                                color = if (beaconPulse > 0.5f) Color.Red.copy(alpha = completionFactor) else Color(0xFF00E5FF).copy(alpha = completionFactor * 0.4f),
-                                radius = 4.dp.toPx(),
-                                center = Offset(centerX, roofY - 12.dp.toPx())
+
+                            // Slab Fill & Reflection (Polished White Moonlit Material)
+                            val slabColor = lerpColors(Color(0xFFFFFFFF), Color(0xFFECEFF1), f / (totalFloors - 1).toFloat())
+                            drawPath(
+                                path = slabPath,
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(slabColor.copy(alpha = 0.9f * floorProgress), Color(0xFFB0BEC5).copy(alpha = 0.6f * floorProgress))
+                                )
                             )
-                            drawLine(
-                                color = Color.White.copy(alpha = completionFactor * 0.3f),
-                                start = Offset(centerX, roofY),
-                                end = Offset(centerX, roofY - 12.dp.toPx()),
-                                strokeWidth = 1.dp.toPx()
+                            // Moonlit bluish edge outline
+                            drawPath(
+                                path = slabPath,
+                                color = Color(0xFFB2EBF2).copy(alpha = 0.55f * floorProgress),
+                                style = Stroke(width = 1.2f.dp.toPx())
                             )
+
+                            // Pillars connecting to floor below
+                            val pillarsAngles = listOf(0f, 45f, 90f, 135f, 180f, 225f, 270f, 315f).map { it * PI.toFloat() / 180f }
+                            pillarsAngles.forEach { pAngle ->
+                                val radialMod = waveAmplitude * sin(waveFrequency * pAngle)
+                                val rX = radiusX + radialMod
+                                val rY = radiusY + radialMod * (radiusY / radiusX)
+                                
+                                val px = centerX + cos(pAngle) * rX
+                                val pyTop = currentY + sin(pAngle) * rY + waveAmplitude * 0.4f * cos(waveFrequency * pAngle)
+
+                                val prevFloorProgress = ((animatedProgress * totalFloors) - (f - 1)).coerceIn(0f, 1f)
+                                val pyBottom = if (f == 0) {
+                                    base + sin(pAngle) * radiusY
+                                } else {
+                                    val prevWaveAmplitude = 2.5f.dp.toPx() * prevFloorProgress
+                                    val prevRadialMod = prevWaveAmplitude * sin(waveFrequency * pAngle)
+                                    val prevRX = radiusX + prevRadialMod
+                                    val prevRY = radiusY + prevRadialMod * (radiusY / radiusX)
+                                    val prevYAnimated = base - (base - (base - (f - 1) * floorHeight)) * elasticOut(prevFloorProgress)
+                                    prevYAnimated + sin(pAngle) * prevRY + prevWaveAmplitude * 0.4f * cos(waveFrequency * pAngle)
+                                }
+
+                                drawLine(
+                                    color = Color(0x66B0BEC5).copy(alpha = 0.7f * floorProgress),
+                                    start = Offset(px, pyTop),
+                                    end = Offset(px, pyBottom),
+                                    strokeWidth = 1.dp.toPx()
+                                )
+                            }
                         }
                     }
 
-                    // 8. KINETIC ACTIVE LINE, NEON GLOW & HOLOGRAPHIC CRANE
-                    if (animatedProgress > 0f && animatedProgress < 1.0f) {
-                        // laser alignment guide (V-shape path matching 3D projection)
-                        val laserPath = Path().apply {
-                            moveTo(left - 10.dp.toPx(), currentLineY - isoSlopeLeft)
-                            lineTo(centerX, currentLineY)
-                            lineTo(right + 10.dp.toPx(), currentLineY - isoSlopeRight)
-                        }
-                        
-                        val neonAccent = when {
-                            animatedProgress <= 0.15f -> Color(0xFF00E5FF)
-                            animatedProgress < 0.95f -> Color(0xFFFF007F)
-                            else -> Color(0xFF00E676)
-                        }
-                        
-                        // laser path glow
-                        drawPath(
-                            path = laserPath,
-                            color = neonAccent.copy(alpha = 0.3f + 0.2f * sin(timeClock * 8f).absoluteValue),
-                            style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
-                        )
-                        drawPath(
-                            path = laserPath,
-                            color = neonAccent,
-                            style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round)
-                        )
+                    // 6. DRAW FRONT CATS (Z >= 0)
+                    if (cat1Z >= 0f) drawCeramicCat(cat1X, cat1Y)
+                    if (cat2Z >= 0f) drawCeramicCat(cat2X, cat2Y)
 
-                        // Holographic Crane on construction level
-                        // Moves left/right slightly
-                        val craneOffset = sin(timeClock * 1.5f) * 20.dp.toPx()
-                        val craneX = centerX + craneOffset
-                        val craneBaseY = currentLineY
-                        
-                        // Crane structure path
-                        val cranePath = Path().apply {
-                            moveTo(craneX, craneBaseY)
-                            lineTo(craneX, craneBaseY - 18.dp.toPx())
-                            lineTo(craneX + 16.dp.toPx(), craneBaseY - 24.dp.toPx()) // arm
-                            moveTo(craneX, craneBaseY - 18.dp.toPx())
-                            lineTo(craneX - 10.dp.toPx(), craneBaseY - 20.dp.toPx()) // counterweight
-                        }
-                        drawPath(cranePath, color = Color(0xAA00E5FF), style = Stroke(width = 1.dp.toPx()))
-                        
-                        // Laser cable and source point
-                        val laserEmitterX = craneX + 10.dp.toPx()
-                        val laserEmitterY = craneBaseY - 21.5f.dp.toPx()
-                        drawLine(
-                            color = Color(0xFFFFFFFF),
-                            start = Offset(laserEmitterX, laserEmitterY),
-                            end = Offset(laserEmitterX, currentLineY),
-                            strokeWidth = 1.dp.toPx()
-                        )
-                        
-                        // Glow spark at construction point
-                        drawCircle(
-                            color = Color.White,
-                            radius = 3.dp.toPx(),
-                            center = Offset(laserEmitterX, currentLineY)
-                        )
-                        drawCircle(
-                            color = neonAccent.copy(alpha = 0.5f),
-                            radius = 8.dp.toPx(),
-                            center = Offset(laserEmitterX, currentLineY)
-                        )
-                    }
+                    // 7. BASE FOG FADE EFFECT
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, Color(0xFF050505)),
+                            startY = base - 30.dp.toPx(),
+                            endY = base + 30.dp.toPx()
+                        ),
+                        topLeft = Offset(0f, base - 30.dp.toPx()),
+                        size = Size(canvasWidth, 80.dp.toPx())
+                    )
 
-                    // 9. DRAW FRONT PARTICLES
-                    particlesList.filter { !it.isBehind }.forEach { p ->
-                        drawCircle(
-                            color = Color(0xFFFF007F).copy(alpha = p.alpha), // Emissive neon pink for front particles
-                            radius = p.size,
-                            center = Offset(p.x, p.y)
-                        )
-                    }
-
-                    // 10. TELEMETRY INFO (Monospace small technical logs)
+                    // 8. TELEMETRY LOGS (Monospace text)
                     val textPaint = Paint().asFrameworkPaint().apply {
                         isAntiAlias = true
                         textSize = 8.sp.toPx()
-                        color = android.graphics.Color.argb(70, 0, 229, 255)
+                        color = android.graphics.Color.argb(85, 178, 235, 242)
                         typeface = android.graphics.Typeface.MONOSPACE
                     }
                     
                     val telemetryLogs = listOf(
                         "SYS.BUILD: ${(animatedProgress * 100).toInt()}%",
-                        "STRUCT.Z: ${String.format(java.util.Locale.US, "%.3f", animatedProgress)}",
-                        "VECTORS.OK: [${(centerX + halfWidth).toInt()}, ${(base - currentProgressHeight).toInt()}]",
-                        "ANT.FREQ: 844.2 MHZ"
+                        "CYL.RAD: ${buildingWidth.toInt()}px",
+                        "GEOM.Z: ${String.format(java.util.Locale.US, "%.3f", animatedProgress)}",
+                        "LIGHT.FREQ: 120Hz"
                     )
                     
                     telemetryLogs.forEachIndexed { index, log ->
-                        val textY = base + 38.dp.toPx() + (index * 9.dp.toPx())
+                        val textY = base + 34.dp.toPx() + (index * 9.dp.toPx())
                         drawContext.canvas.nativeCanvas.drawText(
                             log,
-                            10.dp.toPx(),
+                            16.dp.toPx(),
                             textY,
                             textPaint
                         )
                     }
                     
-                    // Right telemetry logs
                     val rightLogs = listOf(
-                        "CORE.TEMP: 32.4 C",
-                        "NET.FLOW: 1.48 GB/S",
-                        "LOAD.STAT: NOMINAL",
-                        "REFLECT.PHASE: ${String.format(java.util.Locale.US, "%.2f", timeClock)}"
+                        "CORE.TEMP: 28.7 C",
+                        "LUX.ORBIT: ACTIVE",
+                        "GLOW.CORE: ACTIVE",
+                        "REFLECT.T: ${String.format(java.util.Locale.US, "%.2f", timeClock)}"
                     )
                     
                     rightLogs.forEachIndexed { index, log ->
-                        val textY = base + 38.dp.toPx() + (index * 9.dp.toPx())
+                        val textY = base + 34.dp.toPx() + (index * 9.dp.toPx())
                         drawContext.canvas.nativeCanvas.drawText(
                             log,
-                            size.width - 120.dp.toPx(),
+                            size.width - 130.dp.toPx(),
                             textY,
                             textPaint
                         )
@@ -646,13 +395,79 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
             Spacer(modifier = Modifier.height(24.dp))
 
             // Premium Interactive Glassmorphism Control Panel
+            var componentSize by remember { mutableStateOf(IntSize.Zero) }
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .onSizeChanged { componentSize = it }
                     .then(PremiumGlassModifier)
+                    .drawBehind {
+                        // Golden metallic wire progress on bottom border
+                        val strokeWidth = 2.5f.dp.toPx()
+                        val progressWidth = size.width * progress
+                        
+                        // Base track (translucent gold)
+                        drawLine(
+                            color = Color(0x1AD4AF37),
+                            start = Offset(0f, size.height - strokeWidth / 2f),
+                            end = Offset(size.width, size.height - strokeWidth / 2f),
+                            strokeWidth = strokeWidth
+                        )
+                        
+                        // Active progress wire
+                        drawLine(
+                            color = Color(0xFFD4AF37),
+                            start = Offset(0f, size.height - strokeWidth / 2f),
+                            end = Offset(progressWidth, size.height - strokeWidth / 2f),
+                            strokeWidth = strokeWidth
+                        )
+                        
+                        // Glowing golden point on extremity
+                        if (progressWidth > 0f) {
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(Color(0xFFFFD700), Color.Transparent),
+                                    center = Offset(progressWidth, size.height - strokeWidth / 2f),
+                                    radius = 8.dp.toPx()
+                                ),
+                                radius = 8.dp.toPx(),
+                                center = Offset(progressWidth, size.height - strokeWidth / 2f)
+                            )
+                            drawCircle(
+                                color = Color.White,
+                                radius = 2.5f.dp.toPx(),
+                                center = Offset(progressWidth, size.height - strokeWidth / 2f)
+                            )
+                        }
+                    }
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onPress = { offset ->
+                                val width = componentSize.width
+                                if (width > 0) {
+                                    val newProgress = (offset.x / width).coerceIn(0f, 1f)
+                                    progress = newProgress
+                                    sharedPrefs.edit().putFloat("apartment_progress", newProgress).apply()
+                                }
+                            }
+                        )
+                    }
+                    .pointerInput(Unit) {
+                        detectHorizontalDragGestures(
+                            onHorizontalDrag = { change, dragAmount ->
+                                val width = componentSize.width
+                                if (width > 0) {
+                                    val newProgress = (progress + dragAmount / width).coerceIn(0f, 1f)
+                                    progress = newProgress
+                                    sharedPrefs.edit().putFloat("apartment_progress", newProgress).apply()
+                                }
+                            }
+                        )
+                    }
                     .padding(24.dp)
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = phaseText,
                         fontFamily = FontFamily.SansSerif,
@@ -661,34 +476,14 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                         color = animatedPhaseColor,
                         letterSpacing = 1.sp
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     
                     Text(
                         text = "${(progress * 100).toInt()}%",
                         fontFamily = FontFamily.SansSerif,
-                        fontWeight = FontWeight.Light,
+                        fontWeight = FontWeight.ExtraLight, // Montserrat simulated extra light
                         fontSize = 52.sp,
                         color = Color.White
-                    )
-                    
-                    Spacer(modifier = Modifier.height(28.dp))
-                    
-                    // High-fidelity active slider
-                    Slider(
-                        value = progress,
-                        onValueChange = { 
-                            progress = it
-                            sharedPrefs.edit().putFloat("apartment_progress", it).apply()
-                        },
-                        valueRange = 0f..1f,
-                        colors = SliderDefaults.colors(
-                            thumbColor = animatedPhaseColor,
-                            activeTrackColor = animatedPhaseColor,
-                            inactiveTrackColor = Color(0x1AFFFFFF),
-                            activeTickColor = Color.Transparent,
-                            inactiveTickColor = Color.Transparent
-                        ),
-                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
@@ -697,7 +492,14 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
     }
 }
 
-// Utility to linearly interpolate color vectors smoothly in Canvas drawing operations
+// Spring Elastic interpolation function (Overshoot) for smooth floor animation
+private fun elasticOut(t: Float): Float {
+    if (t <= 0f) return 0f
+    if (t >= 1f) return 1f
+    val p = 0.4f
+    return (2.0).pow(-10.0 * t).toFloat() * sin((t - p / 4f) * (2f * PI.toFloat()) / p) + 1f
+}
+
 private fun lerpColors(start: Color, end: Color, fraction: Float): Color {
     val r = start.red + (end.red - start.red) * fraction
     val g = start.green + (end.green - start.green) * fraction

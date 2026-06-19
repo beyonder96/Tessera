@@ -385,7 +385,7 @@ fun OnboardingHealthPage() {
         }
         Spacer(modifier = Modifier.height(48.dp))
         Text(
-            text = "Saúde & Corpo",
+            text = "Saúde",
             fontFamily = FontFamily.Serif,
             fontSize = 28.sp,
             fontWeight = FontWeight.Light,
