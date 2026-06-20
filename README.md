@@ -8,10 +8,20 @@
 
 Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.build-outputs/`:
 
-* **[📥 app-release-1.4.0.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.4.0.apk)**  
+* **[📥 app-release-1.4.1.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.4.1.apk)**  
   *Versão final de produção. Otimizada (~12.9 MB), com minificação de código (R8/ProGuard), remoção automática de logs de depuração/prints de console e compressão extrema de assets (PNG Crunching).*
-* **[📥 app-debug-1.4.0.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.4.0.apk)**  
+* **[📥 app-debug-1.4.1.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.4.1.apk)**  
   *Versão para testes contendo ferramentas de depuração ativas.*
+
+---
+
+## 🚀 Novidades da Versão 1.4.1 ✨
+* 🛍️ **Redesign da Lista de Desejos**: Interface 100% repensada com painel superior glassmorphism exibindo contagem geral de desejos em aberto e segmentação horizontal rolável de itens por categorias estruturadas.
+* 🔗 **Link de Compra Obrigatório**: Inclusão de um link de compra (`buyUrl`) persistente no Room para cada meta de desejo, agindo como o destino principal ao clicar nos botões de ação e compra.
+* 📆 **Remoção de Prazos**: Limpeza visual e funcional completa do controle e exibição de prazos, simplificando os formulários e layouts do módulo.
+* 🎨 **Alternância Cards vs Lista Accordion**: Permite alternar dinamicamente a exibição. No modo Lista, os títulos dos desejos possuem cores dinâmicas baseadas na sua prioridade (Urgente = Vermelho, Moderado = Dourado, Leve = Verde-teal) e exibem seus detalhes (imagem do produto, aporte e compra direta) por meio de um efeito sanfona (accordion) suave.
+* 🔍 **Busca de Imagens Pexels Integrada**: Novo modal de pesquisa de imagens diretamente no aplicativo com grade responsiva, seleção de miniatura e suporte a fallback offline inteligente mapeado por termos comuns em português e inglês.
+* 🏷️ **Versão 1.4.1**: Incremento oficial do build (`versionCode` 12) e geração dos respectivos APKs na pasta de saídas.
 
 ---
 
@@ -198,8 +208,8 @@ Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.bui
 ```text
 Tessera/
 ├── .build-outputs/       # Diretório de APKs compilados e prontos para uso
-│   ├── app-debug-1.4.0.apk # Versão de testes com logs ativos
-│   └── app-release-1.4.0.apk # Versão final de produção assinada
+│   ├── app-debug-1.4.1.apk # Versão de testes com logs ativos
+│   └── app-release-1.4.1.apk # Versão final de produção assinada
 ├── app/                  # Módulo principal Android (Código Kotlin & Jetpack Compose)
 │   ├── src/main/java/    # Arquivos de código-fonte
 │   └── proguard-rules.pro# Regras de minificação R8/ProGuard

@@ -32,6 +32,12 @@ import kotlinx.coroutines.flow.combine
 import java.util.Calendar
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
+import com.example.data.SPTransService
+import com.example.data.OverpassService
+import com.example.data.TransportTimeline
+import com.example.data.TransportParada
+import com.example.data.FootballService
+import com.example.data.FootballMatchInfo
 
 class TesseraViewModel(
     private val repository: TesseraRepository,
@@ -109,6 +115,7 @@ class TesseraViewModel(
 
     init {
         fetchWeather()
+        fetchFootballScores()
         viewModelScope.launch(Dispatchers.IO) {
             localLLMManager.startInference("/storage/emulated/0/Download/gemma-4-e2b-it-qat.bin")
             refreshAIInsightsAndMetric()
@@ -773,7 +780,13 @@ class TesseraViewModel(
 
     fun togglePetEventCompleted(event: PetEvent) {
         viewModelScope.launch {
-            repository.updatePetEvent(event.copy(isCompleted = !event.isCompleted))
+            repository.insertPetEvent(event.copy(isCompleted = !event.isCompleted))
+        }
+    }
+
+    fun updatePetEvent(event: PetEvent) {
+        viewModelScope.launch {
+            repository.insertPetEvent(event)
         }
     }
     
@@ -888,8 +901,8 @@ class TesseraViewModel(
 
             val goals = repository.allPurchaseGoals.first()
             if (goals.isEmpty()) {
-                repository.insertPurchaseGoal(PurchaseGoal(title = "MacBook Pro M3", targetValue = 24000.00, currentValue = 15000.00, imageUrl = "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=800&auto=format&fit=crop", deadlineTimestamp = System.currentTimeMillis() + 86400000L * 90, colorHex = "#71D7CD", priorityOrder = 1, priorityClassification = "Urgente"))
-                repository.insertPurchaseGoal(PurchaseGoal(title = "Viagem Kyoto", targetValue = 35000.00, currentValue = 8000.00, imageUrl = "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=800&auto=format&fit=crop", deadlineTimestamp = System.currentTimeMillis() + 86400000L * 180, colorHex = "#F9A826", priorityOrder = 2, priorityClassification = "Moderado"))
+                repository.insertPurchaseGoal(PurchaseGoal(title = "MacBook Pro M3", targetValue = 24000.00, currentValue = 15000.00, imageUrl = "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=800&auto=format&fit=crop", deadlineTimestamp = 0L, colorHex = "#71D7CD", priorityOrder = 1, priorityClassification = "Urgente", buyUrl = "https://www.apple.com/br/macbook-pro/", category = "Eletrônicos"))
+                repository.insertPurchaseGoal(PurchaseGoal(title = "Viagem Kyoto", targetValue = 35000.00, currentValue = 8000.00, imageUrl = "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=800&auto=format&fit=crop", deadlineTimestamp = 0L, colorHex = "#F9A826", priorityOrder = 2, priorityClassification = "Moderado", buyUrl = "https://www.japan.travel/pt/br/", category = "Viagem"))
             }
 
             val routines = repository.allRoutines.first()
@@ -956,9 +969,33 @@ class TesseraViewModel(
         }
     }
 
-    fun addPurchaseGoal(title: String, target: Double, current: Double, imageUrl: String, deadline: Long, colorHex: String, priorityOrder: Int = 1, priorityClassification: String = "Moderado") {
+    fun addPurchaseGoal(
+        title: String,
+        target: Double,
+        current: Double,
+        imageUrl: String,
+        deadline: Long = 0L,
+        colorHex: String,
+        priorityOrder: Int = 1,
+        priorityClassification: String = "Moderado",
+        buyUrl: String = "",
+        category: String = "Geral"
+    ) {
         viewModelScope.launch {
-            repository.insertPurchaseGoal(PurchaseGoal(title = title, targetValue = target, currentValue = current, imageUrl = imageUrl, deadlineTimestamp = deadline, colorHex = colorHex, priorityOrder = priorityOrder, priorityClassification = priorityClassification))
+            repository.insertPurchaseGoal(
+                PurchaseGoal(
+                    title = title,
+                    targetValue = target,
+                    currentValue = current,
+                    imageUrl = imageUrl,
+                    deadlineTimestamp = deadline,
+                    colorHex = colorHex,
+                    priorityOrder = priorityOrder,
+                    priorityClassification = priorityClassification,
+                    buyUrl = buyUrl,
+                    category = category
+                )
+            )
         }
     }
 
@@ -1191,6 +1228,676 @@ class TesseraViewModel(
                 _metroError.value = "Falha ao carregar status: ${e.localizedMessage ?: "erro de rede"}"
             } finally {
                 _isLoadingMetroStatus.value = false
+            }
+        }
+    }
+
+    // SPTrans (Olho Vivo) & Transporte Integrado
+    private val sptransService = com.example.data.SPTransService.create()
+    private val overpassService = com.example.data.OverpassService.create()
+    private val cachedStations = mutableListOf<com.example.data.OverpassElement>()
+    private val overpassQuery = """
+        [out:json][timeout:25];
+        area["name"="São Paulo"]->.searchArea;
+        (
+          node["railway"="station"]["subway"="yes"](area.searchArea);
+          node["railway"="station"]["station"="subway"](area.searchArea);
+        );
+        out body;
+    """.trimIndent()
+
+
+    private val _transportTimelines = MutableStateFlow<List<com.example.data.TransportTimeline>>(emptyList())
+    val transportTimelines: StateFlow<List<com.example.data.TransportTimeline>> = _transportTimelines.asStateFlow()
+
+    private val _isLoadingTransport = MutableStateFlow(false)
+    val isLoadingTransport: StateFlow<Boolean> = _isLoadingTransport.asStateFlow()
+
+    private val _transportError = MutableStateFlow<String?>(null)
+    val transportError: StateFlow<String?> = _transportError.asStateFlow()
+
+    private val _userLocationName = MutableStateFlow("São Paulo")
+    val userLocationName: StateFlow<String> = _userLocationName.asStateFlow()
+
+    fun fetchTransportData(lat: Double, lng: Double) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isLoadingTransport.value = true
+            _transportError.value = null
+            
+            val token = try {
+                val clazz = Class.forName("com.example.BuildConfig")
+                val field = clazz.getField("SPTRANS_TOKEN")
+                field.get(null) as? String ?: ""
+            } catch (e: Exception) {
+                ""
+            }
+
+            try {
+                var authenticated = false
+                if (token.isNotBlank() && token != "MY_SPTRANS_TOKEN") {
+                    val authResponse = sptransService.authenticate(token)
+                    authenticated = authResponse.body() == true
+                }
+                
+                val timelines = mutableListOf<com.example.data.TransportTimeline>()
+                
+                // --- ÔNIBUS (SPTrans) ---
+                if (authenticated) {
+                    val paradas = sptransService.getParadasPorPosicao(lat, lng, 800)
+                    if (paradas.isNotEmpty()) {
+                        val paradaMaisProxima = paradas.minByOrNull { parada ->
+                            calculateDistance(lat, lng, parada.py, parada.px)
+                        }
+                        
+                        if (paradaMaisProxima != null) {
+                            _userLocationName.value = paradaMaisProxima.np
+                            
+                             val previsao = sptransService.getPrevisaoParada(paradaMaisProxima.cp)
+                             previsao.p?.l?.forEach { linha ->
+                                 val proximas = mutableListOf<com.example.data.TransportParada>()
+                                 
+                                 val proximoVeiculo = linha.vs?.minByOrNull { it.t }
+                                 val tempoRestanteMin = if (proximoVeiculo != null) {
+                                     val tStr = proximoVeiculo.t
+                                     try {
+                                         val parts = tStr.split(":")
+                                         val prevHour = parts[0].toInt()
+                                         val prevMin = parts[1].toInt()
+                                         val calendar = java.util.Calendar.getInstance()
+                                         val currentHour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+                                         val currentMin = calendar.get(java.util.Calendar.MINUTE)
+                                         val diff = (prevHour * 60 + prevMin) - (currentHour * 60 + currentMin)
+                                         if (diff > 0) diff else 2
+                                     } catch (e: Exception) {
+                                         5
+                                     }
+                                 } else {
+                                     15
+                                 }
+
+                                 val paradasLinha = try {
+                                     sptransService.getParadasPorLinha(linha.cl)
+                                 } catch (e: Exception) {
+                                     emptyList()
+                                 }
+
+                                 if (paradasLinha.isNotEmpty()) {
+                                     var indexAtual = paradasLinha.indexOfFirst { it.cp == paradaMaisProxima.cp }
+                                     if (indexAtual == -1) {
+                                         indexAtual = paradasLinha.indexOfFirst { it.np.contains(paradaMaisProxima.np, ignoreCase = true) || paradaMaisProxima.np.contains(it.np, ignoreCase = true) }
+                                     }
+
+                                     if (indexAtual != -1) {
+                                         // 1. Paradas anteriores
+                                         if (indexAtual > 0) {
+                                             proximas.add(
+                                                 com.example.data.TransportParada(
+                                                     paradaNome = paradasLinha[0].np,
+                                                     horarioPrevisto = "--:--",
+                                                     status = "passou"
+                                                 )
+                                             )
+
+                                             val intermediariasPassadas = indexAtual - 1
+                                             if (intermediariasPassadas > 2) {
+                                                 proximas.add(
+                                                     com.example.data.TransportParada(
+                                                         paradaNome = "Ride $intermediariasPassadas stops",
+                                                         horarioPrevisto = "",
+                                                         status = "passou",
+                                                         mensagem = "Paradas intermediárias"
+                                                     )
+                                                 )
+                                                 proximas.add(
+                                                     com.example.data.TransportParada(
+                                                         paradaNome = paradasLinha[indexAtual - 1].np,
+                                                         horarioPrevisto = "--:--",
+                                                         status = "passou"
+                                                     )
+                                                 )
+                                             } else {
+                                                 for (i in 1 until indexAtual) {
+                                                     proximas.add(
+                                                         com.example.data.TransportParada(
+                                                             paradaNome = paradasLinha[i].np,
+                                                             horarioPrevisto = "--:--",
+                                                             status = "passou"
+                                                         )
+                                                     )
+                                                 }
+                                             }
+                                         }
+
+                                         // 2. Parada Atual
+                                         proximas.add(
+                                             com.example.data.TransportParada(
+                                                 paradaNome = paradaMaisProxima.np,
+                                                 horarioPrevisto = proximoVeiculo?.t ?: "--:--",
+                                                 status = "atual",
+                                                 mensagem = "Você está aqui / Ônibus a ${tempoRestanteMin} min"
+                                             )
+                                         )
+
+                                         // 3. Paradas futuras
+                                         val totalParadas = paradasLinha.size
+                                         val intermediariasFuturas = totalParadas - indexAtual - 1
+                                         if (intermediariasFuturas > 0) {
+                                             if (intermediariasFuturas > 4) {
+                                                 proximas.add(
+                                                     com.example.data.TransportParada(
+                                                         paradaNome = paradasLinha[indexAtual + 1].np,
+                                                         horarioPrevisto = "--:--",
+                                                         status = "proxima"
+                                                     )
+                                                 )
+                                                 proximas.add(
+                                                     com.example.data.TransportParada(
+                                                         paradaNome = paradasLinha[indexAtual + 2].np,
+                                                         horarioPrevisto = "--:--",
+                                                         status = "proxima"
+                                                     )
+                                                 )
+
+                                                 val restamOcultar = intermediariasFuturas - 3
+                                                 val tempoIntermediarioEstimado = restamOcultar * 2
+                                                 proximas.add(
+                                                     com.example.data.TransportParada(
+                                                         paradaNome = "Ride $restamOcultar stops",
+                                                         horarioPrevisto = "",
+                                                         status = "proxima",
+                                                         mensagem = "Aprox. ${tempoIntermediarioEstimado} min"
+                                                     )
+                                                 )
+
+                                                 proximas.add(
+                                                     com.example.data.TransportParada(
+                                                         paradaNome = paradasLinha.last().np,
+                                                         horarioPrevisto = "--:--",
+                                                         status = "destino"
+                                                     )
+                                                 )
+                                             } else {
+                                                 for (i in (indexAtual + 1) until totalParadas) {
+                                                     val status = if (i == totalParadas - 1) "destino" else "proxima"
+                                                     proximas.add(
+                                                         com.example.data.TransportParada(
+                                                             paradaNome = paradasLinha[i].np,
+                                                             horarioPrevisto = "--:--",
+                                                             status = status
+                                                         )
+                                                     )
+                                                 }
+                                             }
+                                         }
+                                     } else {
+                                         proximas.add(com.example.data.TransportParada("Terminal: " + linha.lt1, "--:--", "passou"))
+                                         proximas.add(com.example.data.TransportParada(paradaMaisProxima.np, proximoVeiculo?.t ?: "--:--", "atual", "Você está aqui / Ônibus a ${tempoRestanteMin} min"))
+                                         proximas.add(com.example.data.TransportParada("Terminal: " + linha.lt0, "--:--", "destino"))
+                                     }
+                                 } else {
+                                     proximas.add(com.example.data.TransportParada("Terminal: " + linha.lt1, "--:--", "passou"))
+                                     proximas.add(com.example.data.TransportParada(paradaMaisProxima.np, proximoVeiculo?.t ?: "--:--", "atual", "Você está aqui / Ônibus a ${tempoRestanteMin} min"))
+                                     proximas.add(com.example.data.TransportParada("Terminal: " + linha.lt0, "--:--", "destino"))
+                                 }
+                                 
+                                 timelines.add(
+                                     com.example.data.TransportTimeline(
+                                         tipoTransporte = "onibus",
+                                         linhaIdentificador = linha.c,
+                                         linhaNome = "${linha.lt1} -> ${linha.lt0}",
+                                         corTema = "#12723a",
+                                         tempoRestanteTotalMin = tempoRestanteMin,
+                                         statusLinha = "Operação Normal",
+                                         proximasParadas = proximas
+                                     )
+                                 )
+                             }
+                        }
+                    }
+                }
+                
+                // --- METRÔ & TREM DINÂMICO (Overpass API) ---
+                if (cachedStations.isEmpty()) {
+                    try {
+                        val response = overpassService.getStations(overpassQuery)
+                        response.elements?.let {
+                            cachedStations.addAll(it)
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+
+                val estacaoDinamicaProxima = if (cachedStations.isNotEmpty()) {
+                    cachedStations.minByOrNull { calculateDistance(lat, lng, it.lat, it.lon) }
+                } else {
+                    null
+                }
+                
+                val distDinamica = estacaoDinamicaProxima?.let { calculateDistance(lat, lng, it.lat, it.lon) } ?: Double.MAX_VALUE
+                
+                if (estacaoDinamicaProxima != null && distDinamica <= 800.0) {
+                    val estacaoNome = estacaoDinamicaProxima.tags?.name ?: "Estação Próxima"
+                    _userLocationName.value = "Estação $estacaoNome"
+                    
+                    val tags = estacaoDinamicaProxima.tags
+                    val rawLine = tags?.line ?: tags?.colour ?: when {
+                        estacaoNome.contains("Consolação", true) || estacaoNome.contains("Brigadeiro", true) || estacaoNome.contains("Trianon", true) -> "Verde"
+                        estacaoNome.contains("Sé", true) || estacaoNome.contains("Luz", true) || estacaoNome.contains("República", true) -> "Azul"
+                        else -> "Verde"
+                    }
+                    
+                    val (lineCode, lineName, lineColor) = when {
+                        rawLine.contains("azul", true) || rawLine.contains("1", true) -> Triple("1", "Linha 1 - Azul", "#005CA9")
+                        rawLine.contains("verde", true) || rawLine.contains("2", true) -> Triple("2", "Linha 2 - Verde", "#008940")
+                        rawLine.contains("vermelha", true) || rawLine.contains("3", true) -> Triple("3", "Linha 3 - Vermelha", "#EE3E23")
+                        rawLine.contains("amarela", true) || rawLine.contains("4", true) -> Triple("4", "Linha 4 - Amarela", "#FFFFD100")
+                        rawLine.contains("lilás", true) || rawLine.contains("5", true) -> Triple("5", "Linha 5 - Lilás", "#90278E")
+                        rawLine.contains("prata", true) || rawLine.contains("15", true) -> Triple("15", "Linha 15 - Prata", "#97A0A6")
+                        else -> Triple("2", "Linha 2 - Verde", "#008940")
+                    }
+
+                    var statusLinhaStr = "Operação Normal"
+                    if (metroStatus.value.isEmpty()) {
+                        try {
+                            val metroResponse = metroService.getStatus()
+                            _metroStatus.value = metroResponse.empresas ?: emptyList()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                    val matchingEmpresa = metroStatus.value.find { empresa ->
+                        empresa.linhas?.any { it.codigo == lineCode } == true
+                    }
+                    val matchingLinha = matchingEmpresa?.linhas?.find { it.codigo == lineCode }
+                    if (matchingLinha != null) {
+                        statusLinhaStr = matchingLinha.status?.situacao ?: "Operação Normal"
+                    }
+
+                    val estacoesDaLinha = cachedStations.filter { element ->
+                        val elLine = element.tags?.line ?: element.tags?.colour ?: ""
+                        val elName = element.tags?.name ?: ""
+                        elLine.contains(lineCode) || elLine.contains(rawLine, true) || elName.contains(estacaoNome, true) || when (lineCode) {
+                            "2" -> elName.contains("Consolação", true) || elName.contains("Brigadeiro", true) || elName.contains("Trianon-Masp", true) || elName.contains("Paraíso", true) || elName.contains("Ana Rosa", true)
+                            "4" -> elName.contains("Paulista", true) || elName.contains("Mackenzie", true) || elName.contains("República", true) || elName.contains("Luz", true)
+                            else -> false
+                        }
+                    }.sortedBy { it.lat }
+
+                    val paradasMetro = if (estacoesDaLinha.isNotEmpty()) {
+                        var indexUser = estacoesDaLinha.indexOfFirst { (it.tags?.name ?: "") == estacaoNome }
+                        if (indexUser == -1) indexUser = 0
+                        
+                        estacoesDaLinha.mapIndexed { idx, element ->
+                            val isUserHere = idx == indexUser
+                            val status = when {
+                                idx < indexUser -> "passou"
+                                idx == indexUser -> "atual"
+                                else -> "proxima"
+                            }
+                            com.example.data.TransportParada(
+                                paradaNome = element.tags?.name ?: "Estação",
+                                horarioPrevisto = if (isUserHere) "Agora" else "--:--",
+                                status = status,
+                                mensagem = if (isUserHere) "Você está aqui" else null
+                            )
+                        }
+                    } else {
+                        listOf(
+                            com.example.data.TransportParada(estacaoNome, "Agora", "atual", "Você está aqui")
+                        )
+                    }
+
+                    timelines.add(
+                        com.example.data.TransportTimeline(
+                            tipoTransporte = "metro",
+                            linhaIdentificador = "L$lineCode",
+                            linhaNome = lineName,
+                            corTema = lineColor,
+                            tempoRestanteTotalMin = 0,
+                            statusLinha = statusLinhaStr,
+                            proximasParadas = paradasMetro
+                        )
+                    )
+                } else {
+                    // Fallback estático secundário caso o GPS não esteja em SP ou Overpass API esteja offline
+                    val metroEstacoes = listOf(
+                        MetroEstacaoConfig("Consolação", "2", -23.5587, -46.6601, "Linha 2 - Verde", "#008940"),
+                        MetroEstacaoConfig("Trianon-Masp", "2", -23.5645, -46.6528, "Linha 2 - Verde", "#008940"),
+                        MetroEstacaoConfig("Brigadeiro", "2", -23.5686, -46.6477, "Linha 2 - Verde", "#008940"),
+                        MetroEstacaoConfig("Paraíso", "2", -23.5761, -46.6409, "Linha 2 - Verde", "#008940"),
+                        MetroEstacaoConfig("Ana Rosa", "2", -23.5813, -46.6383, "Linha 2 - Verde", "#008940"),
+                        MetroEstacaoConfig("Paulista", "4", -23.5552, -46.6620, "Linha 4 - Amarela", "#FFFFD100"),
+                        MetroEstacaoConfig("Higienópolis-Mackenzie", "4", -23.5489, -46.6523, "Linha 4 - Amarela", "#FFFFD100"),
+                        MetroEstacaoConfig("República", "4", -23.5431, -46.6429, "Linha 4 - Amarela", "#FFFFD100"),
+                        MetroEstacaoConfig("Luz", "4", -23.5365, -46.6343, "Linha 4 - Amarela", "#FFFFD100"),
+                        MetroEstacaoConfig("Sé", "1", -23.5502, -46.6339, "Linha 1 - Azul", "#005CA9"),
+                        MetroEstacaoConfig("Liberdade", "1", -23.5554, -46.6353, "Linha 1 - Azul", "#005CA9"),
+                        MetroEstacaoConfig("São Joaquim", "1", -23.5615, -46.6387, "Linha 1 - Azul", "#005CA9")
+                    )
+                    
+                    val estacaoMaisProxima = metroEstacoes.minByOrNull { calculateDistance(lat, lng, it.lat, it.lng) }
+                    val metroProximoValido = estacaoMaisProxima != null && calculateDistance(lat, lng, estacaoMaisProxima.lat, estacaoMaisProxima.lng) <= 800.0
+                    
+                    if (metroProximoValido && estacaoMaisProxima != null) {
+                        _userLocationName.value = "Estação " + estacaoMaisProxima.nome
+                        
+                        val lineCode = estacaoMaisProxima.linhaCodigo
+                        var statusLinhaStr = "Operação Normal"
+                        
+                        if (metroStatus.value.isEmpty()) {
+                            try {
+                                val metroResponse = metroService.getStatus()
+                                _metroStatus.value = metroResponse.empresas ?: emptyList()
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }
+                        val matchingEmpresa = metroStatus.value.find { empresa ->
+                            empresa.linhas?.any { it.codigo == lineCode } == true
+                        }
+                        val matchingLinha = matchingEmpresa?.linhas?.find { it.codigo == lineCode }
+                        if (matchingLinha != null) {
+                            statusLinhaStr = matchingLinha.status?.situacao ?: "Operação Normal"
+                        }
+                        
+                        val paradasMetro = metroEstacoes.filter { it.linhaCodigo == lineCode }.map { estacao ->
+                            val isUserHere = estacao.nome == estacaoMaisProxima.nome
+                            val status = if (isUserHere) "atual" else "proxima"
+                            val msg = if (isUserHere) "Você está aqui" else null
+                            
+                            com.example.data.TransportParada(
+                                paradaNome = estacao.nome,
+                                horarioPrevisto = if (isUserHere) "Agora" else "--:--",
+                                status = status,
+                                mensagem = msg
+                            )
+                        }
+                        
+                        timelines.add(
+                            com.example.data.TransportTimeline(
+                                tipoTransporte = "metro",
+                                linhaIdentificador = "L$lineCode",
+                                linhaNome = estacaoMaisProxima.linhaNome,
+                                corTema = estacaoMaisProxima.corHex,
+                                tempoRestanteTotalMin = 0,
+                                statusLinha = statusLinhaStr,
+                                proximasParadas = paradasMetro
+                            )
+                        )
+                    }
+                }
+
+                // Fallback fictício se as listas de dados estiverem vazias para fins demonstrativos
+                if (timelines.isEmpty()) {
+                    _userLocationName.value = "Airport T2"
+                    
+                    timelines.add(
+                        com.example.data.TransportTimeline(
+                            tipoTransporte = "onibus",
+                            linhaIdentificador = "809P-10",
+                            linhaNome = "Metrô Barra Funda / Terminal Pinheiros",
+                            corTema = "#12723a",
+                            tempoRestanteTotalMin = 25,
+                            statusLinha = "Operação Normal",
+                            proximasParadas = listOf(
+                                com.example.data.TransportParada("Metrô Barra Funda", "14:10", "passou"),
+                                com.example.data.TransportParada("Ride 8 stops", "", "passou", "Aprox. 12 min"),
+                                com.example.data.TransportParada("Av. Prof. Francisco Morato, 250", "14:22", "passou"),
+                                com.example.data.TransportParada("Estação Vital Brasil", "14:25", "atual", "Você está aqui / Ônibus a 2 min"),
+                                com.example.data.TransportParada("Praça Jorge de Lima", "14:29", "proxima"),
+                                com.example.data.TransportParada("Ride 5 stops", "", "proxima", "Aprox. 10 min"),
+                                com.example.data.TransportParada("Terminal Pinheiros", "14:45", "destino")
+                            )
+                        )
+                    )
+                    
+                    timelines.add(
+                        com.example.data.TransportTimeline(
+                            tipoTransporte = "metro",
+                            linhaIdentificador = "L1",
+                            linhaNome = "Linha 1 - Azul",
+                            corTema = "#EE3E23",
+                            tempoRestanteTotalMin = 35,
+                            statusLinha = "Operação Normal",
+                            proximasParadas = listOf(
+                                com.example.data.TransportParada("Urquinaona", "13:22", "passou", "Hospital de Bellvitge"),
+                                com.example.data.TransportParada("Ride 10 stops", "", "passou", "18min"),
+                                com.example.data.TransportParada("Catalunya", "13:40", "proxima", "20m"),
+                                com.example.data.TransportParada("Universitat", "13:42", "proxima", "22m"),
+                                com.example.data.TransportParada("Urgell", "13:44", "proxima", "24m"),
+                                com.example.data.TransportParada("Rocafort", "13:46", "proxima", "26m"),
+                                com.example.data.TransportParada("Pl. Espanya", "13:47", "proxima", "27m"),
+                                com.example.data.TransportParada("Hostafrancs", "13:50", "proxima", "30m"),
+                                com.example.data.TransportParada("Plaça de Sants", "13:51", "proxima", "31m"),
+                                com.example.data.TransportParada("Mercat Nou", "13:53", "proxima", "33m"),
+                                com.example.data.TransportParada("Santa Eulàlia", "13:55", "proxima", "35m"),
+                                com.example.data.TransportParada("Torrasa", "13:57", "destino", "take left side / 13:42")
+                            )
+                        )
+                    )
+                }
+                
+                _transportTimelines.value = timelines
+                
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _transportError.value = "Erro ao buscar dados: ${e.localizedMessage ?: "falha de rede"}"
+                
+                _userLocationName.value = "Airport T2 (Offline)"
+                _transportTimelines.value = listOf(
+                    com.example.data.TransportTimeline(
+                        tipoTransporte = "metro",
+                        linhaIdentificador = "L1",
+                        linhaNome = "Linha 1 - Azul",
+                        corTema = "#EE3E23",
+                        tempoRestanteTotalMin = 35,
+                        statusLinha = "Operação Normal",
+                        proximasParadas = listOf(
+                            com.example.data.TransportParada("Urquinaona", "13:22", "passou", "Hospital de Bellvitge"),
+                            com.example.data.TransportParada("Ride 10 stops", "", "passou", "18min"),
+                            com.example.data.TransportParada("Catalunya", "13:40", "proxima", "20m"),
+                            com.example.data.TransportParada("Universitat", "13:42", "proxima", "22m"),
+                            com.example.data.TransportParada("Urgell", "13:44", "proxima", "24m"),
+                            com.example.data.TransportParada("Rocafort", "13:46", "proxima", "26m"),
+                            com.example.data.TransportParada("Pl. Espanya", "13:47", "proxima", "27m"),
+                            com.example.data.TransportParada("Hostafrancs", "13:50", "proxima", "30m"),
+                            com.example.data.TransportParada("Plaça de Sants", "13:51", "proxima", "31m"),
+                            com.example.data.TransportParada("Mercat Nou", "13:53", "proxima", "33m"),
+                            com.example.data.TransportParada("Santa Eulàlia", "13:55", "proxima", "35m"),
+                            com.example.data.TransportParada("Torrasa", "13:57", "destino", "take left side / 13:42")
+                        )
+                    )
+                )
+            } finally {
+                _isLoadingTransport.value = false
+            }
+        }
+    }
+
+    private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        val r = 6371000.0
+        val phi1 = Math.toRadians(lat1)
+        val phi2 = Math.toRadians(lat2)
+        val deltaPhi = Math.toRadians(lat2 - lat1)
+        val deltaLambda = Math.toRadians(lon2 - lon1)
+        val a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+                Math.cos(phi1) * Math.cos(phi2) *
+                Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2)
+        val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+        return r * c
+    }
+
+    private data class MetroEstacaoConfig(
+        val nome: String,
+        val linhaCodigo: String,
+        val lat: Double,
+        val lng: Double,
+        val linhaNome: String,
+        val corHex: String
+    )
+
+    // Football Integration (API-FOOTBALL)
+    private val footballService = com.example.data.FootballService.create()
+
+    private val _footballMatches = MutableStateFlow<List<com.example.data.FootballMatchInfo>>(emptyList())
+    val footballMatches: StateFlow<List<com.example.data.FootballMatchInfo>> = _footballMatches.asStateFlow()
+
+    private val _isLoadingFootball = MutableStateFlow(false)
+    val isLoadingFootball: StateFlow<Boolean> = _isLoadingFootball.asStateFlow()
+
+    fun fetchFootballScores() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isLoadingFootball.value = true
+            
+            val token = try {
+                val clazz = Class.forName("com.example.BuildConfig")
+                val field = clazz.getField("FOOTBALL_API_KEY")
+                field.get(null) as? String ?: ""
+            } catch (e: Exception) {
+                ""
+            }
+
+            try {
+                if (token.isNotBlank() && token != "MY_FOOTBALL_API_KEY") {
+                    val list = mutableListOf<com.example.data.FootballMatchInfo>()
+                    
+                    val teamIds = listOf(
+                        6 to "Brasil",
+                        127 to "Flamengo"
+                    )
+                    
+                    teamIds.forEach { (id, name) ->
+                        val lastResponse = footballService.getFixtures(apiKey = token, teamId = id, last = 1)
+                        val lastFixture = lastResponse.response?.firstOrNull()
+                        
+                        val nextResponse = footballService.getFixtures(apiKey = token, teamId = id, next = 1)
+                        val nextFixture = nextResponse.response?.firstOrNull()
+                        
+                        val lastDetail = lastFixture?.let {
+                            com.example.data.MatchDetail(
+                                homeTeamName = it.teams?.home?.name ?: "",
+                                homeTeamLogo = it.teams?.home?.logo ?: "",
+                                awayTeamName = it.teams?.away?.name ?: "",
+                                awayTeamLogo = it.teams?.away?.logo ?: "",
+                                homeGoals = it.goals?.home,
+                                awayGoals = it.goals?.away,
+                                statusShort = it.fixture?.status?.short ?: "FT",
+                                dateFormatted = formatFootballDate(it.fixture?.date),
+                                leagueName = it.league?.name ?: ""
+                            )
+                        }
+                        
+                        val nextDetail = nextFixture?.let {
+                            com.example.data.MatchDetail(
+                                homeTeamName = it.teams?.home?.name ?: "",
+                                homeTeamLogo = it.teams?.home?.logo ?: "",
+                                awayTeamName = it.teams?.away?.name ?: "",
+                                awayTeamLogo = it.teams?.away?.logo ?: "",
+                                homeGoals = null,
+                                awayGoals = null,
+                                statusShort = it.fixture?.status?.short ?: "NS",
+                                dateFormatted = formatFootballDate(it.fixture?.date),
+                                leagueName = it.league?.name ?: ""
+                            )
+                        }
+                        
+                        list.add(
+                            com.example.data.FootballMatchInfo(
+                                teamName = name,
+                                lastMatch = lastDetail,
+                                nextMatch = nextDetail
+                            )
+                        )
+                    }
+                    
+                    if (list.isNotEmpty() && list.any { it.lastMatch != null || it.nextMatch != null }) {
+                        _footballMatches.value = list
+                        return@launch
+                    }
+                }
+                
+                loadMockFootballScores()
+                
+            } catch (e: Exception) {
+                e.printStackTrace()
+                loadMockFootballScores()
+            } finally {
+                _isLoadingFootball.value = false
+            }
+        }
+    }
+
+    private fun loadMockFootballScores() {
+        _footballMatches.value = listOf(
+            com.example.data.FootballMatchInfo(
+                teamName = "Brasil",
+                lastMatch = com.example.data.MatchDetail(
+                    homeTeamName = "Inglaterra",
+                    homeTeamLogo = "https://media.api-sports.io/football/teams/10.png",
+                    awayTeamName = "Brasil",
+                    awayTeamLogo = "https://media.api-sports.io/football/teams/6.png",
+                    homeGoals = 0,
+                    awayGoals = 1,
+                    statusShort = "FT",
+                    dateFormatted = "23/03 16:00",
+                    leagueName = "Amistoso Internacional"
+                ),
+                nextMatch = com.example.data.MatchDetail(
+                    homeTeamName = "Brasil",
+                    homeTeamLogo = "https://media.api-sports.io/football/teams/6.png",
+                    awayTeamName = "Argentina",
+                    awayTeamLogo = "https://media.api-sports.io/football/teams/26.png",
+                    homeGoals = null,
+                    awayGoals = null,
+                    statusShort = "NS",
+                    dateFormatted = "05/09 21:30",
+                    leagueName = "Eliminatórias da Copa"
+                )
+            ),
+            com.example.data.FootballMatchInfo(
+                teamName = "Flamengo",
+                lastMatch = com.example.data.MatchDetail(
+                    homeTeamName = "Flamengo",
+                    homeTeamLogo = "https://media.api-sports.io/football/teams/127.png",
+                    awayTeamName = "Vasco",
+                    awayTeamLogo = "https://media.api-sports.io/football/teams/133.png",
+                    homeGoals = 2,
+                    awayGoals = 0,
+                    statusShort = "FT",
+                    dateFormatted = "14/06 16:00",
+                    leagueName = "Série A"
+                ),
+                nextMatch = com.example.data.MatchDetail(
+                    homeTeamName = "Flamengo",
+                    homeTeamLogo = "https://media.api-sports.io/football/teams/127.png",
+                    awayTeamName = "Palmeiras",
+                    awayTeamLogo = "https://media.api-sports.io/football/teams/121.png",
+                    homeGoals = null,
+                    awayGoals = null,
+                    statusShort = "NS",
+                    dateFormatted = "25/06 20:00",
+                    leagueName = "Série A"
+                )
+            )
+        )
+    }
+
+    private fun formatFootballDate(rawDate: String?): String {
+        if (rawDate == null) return ""
+        return try {
+            val instant = java.time.Instant.parse(rawDate)
+            val formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM HH:mm")
+                .withZone(java.time.ZoneId.systemDefault())
+            formatter.format(instant)
+        } catch (e: Exception) {
+            try {
+                val clean = rawDate.substringBefore("+").substringBefore("Z")
+                val localDateTime = java.time.LocalDateTime.parse(clean)
+                val formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM HH:mm")
+                formatter.format(localDateTime)
+            } catch (e2: Exception) {
+                rawDate.take(16).replace("T", " ")
             }
         }
     }

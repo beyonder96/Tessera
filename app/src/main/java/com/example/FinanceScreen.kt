@@ -283,6 +283,41 @@ fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                 color = Color(0xFFDFE3E2)
             )
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Cartões e Contas (Movidos para o topo)
+            SectionHeaderWithAction(
+                title = "Seus Cartões",
+                isExpanded = isCardsExpanded,
+                onToggleExpand = { isCardsExpanded = !isCardsExpanded },
+                onAddClick = { showManageDialog = true }
+            )
+            CreditCardsCarousel(
+                creditCards = creditCards,
+                selectedFilterName = selectedFilterName,
+                isExpanded = isCardsExpanded,
+                onCardClick = { cardName ->
+                    selectedFilterName = if (selectedFilterName == cardName) null else cardName
+                }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            SectionHeaderWithAction(
+                title = "Suas Contas",
+                isExpanded = isAccountsExpanded,
+                onToggleExpand = { isAccountsExpanded = !isAccountsExpanded },
+                onAddClick = { showManageDialog = true }
+            )
+            BankAccountsSection(
+                bankAccounts = bankAccounts,
+                selectedFilterName = selectedFilterName,
+                isExpanded = isAccountsExpanded,
+                onAccountClick = { accountName ->
+                    selectedFilterName = if (selectedFilterName == accountName) null else accountName
+                }
+            )
+
             Spacer(modifier = Modifier.height(24.dp))
 
             // Card Ralo-X do Adiantamento (Liquid Glass)
@@ -350,39 +385,6 @@ fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                 }
                 Spacer(modifier = Modifier.height(28.dp))
             }
-
-            // Cartões e Contas (Colapsáveis no final da tela)
-            SectionHeaderWithAction(
-                title = "Seus Cartões",
-                isExpanded = isCardsExpanded,
-                onToggleExpand = { isCardsExpanded = !isCardsExpanded },
-                onAddClick = { showManageDialog = true }
-            )
-            CreditCardsCarousel(
-                creditCards = creditCards,
-                selectedFilterName = selectedFilterName,
-                isExpanded = isCardsExpanded,
-                onCardClick = { cardName ->
-                    selectedFilterName = if (selectedFilterName == cardName) null else cardName
-                }
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            SectionHeaderWithAction(
-                title = "Suas Contas",
-                isExpanded = isAccountsExpanded,
-                onToggleExpand = { isAccountsExpanded = !isAccountsExpanded },
-                onAddClick = { showManageDialog = true }
-            )
-            BankAccountsSection(
-                bankAccounts = bankAccounts,
-                selectedFilterName = selectedFilterName,
-                isExpanded = isAccountsExpanded,
-                onAccountClick = { accountName ->
-                    selectedFilterName = if (selectedFilterName == accountName) null else accountName
-                }
-            )
 
             Spacer(modifier = Modifier.height(120.dp))
         }

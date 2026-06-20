@@ -86,7 +86,9 @@ data class PurchaseGoal(
     val colorHex: String,
     val priorityOrder: Int = 1,
     val priorityClassification: String = "Moderado",
-    val isBought: Boolean = false
+    val isBought: Boolean = false,
+    val buyUrl: String = "",
+    val category: String = "Geral"
 )
 
 @Entity(tableName = "health_profile")

@@ -530,6 +530,18 @@ fun TesseraApp() {
                         viewModel = viewModel
                     )
                 }
+                composable("transport") {
+                    TransportScreen(
+                        viewModel = viewModel,
+                        onHomeClick = {
+                            navController.navigate("home") {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
+                }
             }
 
             Box(
@@ -646,7 +658,7 @@ fun TesseraApp() {
                                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
                                     Box(modifier = Modifier.weight(1f)) {
                                         PremiumGridTile(
-                                            title = "Meu\nApartamento",
+                                            title = "Meu\nApê",
                                             icon = Icons.Outlined.Construction,
                                             iconColor = SecondaryGold,
                                             alpha = itemsAlpha,
@@ -676,7 +688,16 @@ fun TesseraApp() {
                                             onClick = { navigateAction("wishes"); isFabExpanded = false }
                                         )
                                     }
-                                    Spacer(modifier = Modifier.weight(1f))
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        PremiumGridTile(
+                                            title = "Transporte\nPúblico",
+                                            icon = Icons.Outlined.DirectionsBus,
+                                            iconColor = Color(0xFF4FC3F7),
+                                            alpha = itemsAlpha,
+                                            offsetY = itemsOffset,
+                                            onClick = { navigateAction("transport"); isFabExpanded = false }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -875,8 +896,7 @@ fun HomeScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScro
                     onOpenSettings = { onNavigate("settings") },
                     onOpenChat = { showChatSheet = true },
                     onOpenMetro = {
-                        mainViewModel.fetchMetroStatus()
-                        showMetroPopup = true
+                        onNavigate("transport")
                     }
                 )
             }
@@ -2145,6 +2165,10 @@ fun MainContent(
         MarketCard(
             items = marketItems,
             onNavigate = onNavigate
+        )
+
+        com.example.ui.components.FootballScoreboardWidget(
+            viewModel = mainViewModel
         )
     }
 }
