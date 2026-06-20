@@ -59,6 +59,21 @@ data class SPTransVeiculoPrevisao(
 )
 
 @JsonClass(generateAdapter = true)
+data class SPTransVeiculoPosicao(
+    @Json(name = "p") val p: Int, // Prefixo do veículo
+    @Json(name = "a") val a: Boolean, // Acessibilidade
+    @Json(name = "ta") val ta: String?, // Horário da transmissão
+    @Json(name = "py") val py: Double, // Latitude da última transmissão
+    @Json(name = "px") val px: Double // Longitude da última transmissão
+)
+
+@JsonClass(generateAdapter = true)
+data class SPTransPosicaoLinhaResponse(
+    @Json(name = "hr") val hr: String?,
+    @Json(name = "vs") val vs: List<SPTransVeiculoPosicao>?
+)
+
+@JsonClass(generateAdapter = true)
 data class SPTransLinhaDetalhe(
     @Json(name = "cl") val cl: Int,
     @Json(name = "nc") val nc: String,
@@ -94,6 +109,11 @@ interface SPTransService {
     suspend fun getLinhaDetalhes(
         @Query("codigoLinha") codigoLinha: Int
     ): List<SPTransLinhaDetalhe>
+
+    @GET("Posicao/Linha")
+    suspend fun getPosicaoLinha(
+        @Query("codigoLinha") codigoLinha: Int
+    ): SPTransPosicaoLinhaResponse
 
     companion object {
         private const val BASE_URL = "https://api.olhovivo.sptrans.com.br/v2.1/"

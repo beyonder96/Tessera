@@ -3,6 +3,7 @@ package com.example.ui.components
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -414,6 +415,97 @@ fun NextMatchCard(match: MatchDetail) {
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun FootballScoreboardPill(
+    viewModel: TesseraViewModel,
+    modifier: Modifier = Modifier
+) {
+    val matches by viewModel.footballMatches.collectAsState()
+    val isLoading by viewModel.isLoadingFootball.collectAsState()
+    var showDialog by remember { mutableStateOf(false) }
+
+    // Roda um timer para alternar a exibição entre os times cadastrados
+    var currentIndex by remember { mutableStateOf(0) }
+    LaunchedEffect(matches) {
+        if (matches.size > 1) {
+            while (true) {
+                kotlinx.coroutines.delay(6000)
+                currentIndex = (currentIndex + 1) % matches.size
+            }
+        }
+    }
+
+    val currentMatch = matches.getOrNull(currentIndex)
+
+    if (currentMatch != null) {
+        val displayMatch = currentMatch.lastMatch ?: currentMatch.nextMatch
+        if (displayMatch != null) {
+            val isFinished = displayMatch.statusShort == "FT"
+            val todayStr = remember { java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM")) }
+            val yesterdayStr = remember { java.time.LocalDate.now().minusDays(1).format(java.time.format.DateTimeFormatter.ofPattern("dd/MM")) }
+            
+            val datePart = displayMatch.dateFormatted.substringBefore(" ")
+            val dateLabel = when (datePart) {
+                todayStr -> "Hoje"
+                yesterdayStr -> "Ontem"
+                else -> datePart
+            }
+
+            val text = if (isFinished) {
+                "${displayMatch.homeTeamName} ${displayMatch.homeGoals ?: 0}x${displayMatch.awayGoals ?: 0} ${displayMatch.awayTeamName} ($dateLabel)"
+            } else {
+                "${displayMatch.homeTeamName} x ${displayMatch.awayTeamName} ($dateLabel)"
+            }
+
+            Box(
+                modifier = modifier
+                    .clip(RoundedCornerShape(50))
+                    .then(PremiumGlassModifier)
+                    .clickable { showDialog = true }
+                    .padding(horizontal = 14.dp, vertical = 6.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.SportsSoccer,
+                        contentDescription = null,
+                        tint = if (isFinished) Color(0xFF4CAF50) else Color.White.copy(alpha = 0.6f),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    
+                    Text(
+                        text = text,
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+            }
+        }
+    }
+
+    if (showDialog) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { showDialog = false },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .wrapContentHeight()
+            ) {
+                FootballScoreboardWidget(
+                    viewModel = viewModel,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }

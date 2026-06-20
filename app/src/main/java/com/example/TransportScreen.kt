@@ -14,6 +14,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -54,6 +57,13 @@ fun TransportScreen(
     val isLoading by viewModel.isLoadingTransport.collectAsState()
     val error by viewModel.transportError.collectAsState()
     val locationName by viewModel.userLocationName.collectAsState()
+
+    val activeRouteSession by viewModel.activeRouteSession.collectAsState()
+    val searchSuggestions by viewModel.searchSuggestions.collectAsState()
+    val metroStatus by viewModel.metroStatus.collectAsState()
+
+    var searchQuery by remember { mutableStateOf("") }
+    var isSearchFocused by remember { mutableStateOf(false) }
 
     var hasLocationPermission by remember {
         mutableStateOf(
@@ -98,6 +108,19 @@ fun TransportScreen(
     // Busca inicial de dados ao entrar na tela
     LaunchedEffect(hasLocationPermission) {
         requestLocationAndFetchData()
+        viewModel.fetchMetroStatus()
+    }
+
+    // REDIRECIONAMENTO DE TELA DE ROTA ATIVA (Estado B)
+    if (activeRouteSession != null) {
+        TransportRouteScreen(
+            viewModel = viewModel,
+            routeSession = activeRouteSession!!,
+            userLat = currentLatitude,
+            userLng = currentLongitude,
+            onBack = { viewModel.clearActiveRouteSession() }
+        )
+        return
     }
 
     var selectedFilter by remember { mutableStateOf("todos") } // "todos", "onibus", "metro"
@@ -186,70 +209,190 @@ fun TransportScreen(
                 }
             }
 
-            // CONTROLES DE AÇÃO ESTILO APLICATIVO DO ANEXO (End, Save, Share)
-            Row(
+            // CAMPO DE BUSCA MINIMALISTA "Para onde vamos?"
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    .padding(horizontal = 24.dp, vertical = 8.dp)
             ) {
-                // End Button
-                Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFE57373).copy(alpha = 0.15f))
-                        .border(1.dp, Color(0xFFE57373).copy(alpha = 0.3f), RoundedCornerShape(12.dp))
-                        .clickable { onHomeClick() },
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Icon(Icons.Default.Stop, contentDescription = null, tint = Color(0xFFE57373), modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Encerrar", color = Color(0xFFE57373), fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextField(
+                        value = searchQuery,
+                        onValueChange = {
+                            searchQuery = it
+                            viewModel.updateSearchSuggestions(it)
+                            isSearchFocused = true
+                        },
+                        placeholder = {
+                            Text(
+                                text = "Para onde vamos?",
+                                color = Color.White.copy(alpha = 0.4f),
+                                fontSize = 15.sp
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.6f)
+                            )
+                        },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = {
+                                    searchQuery = ""
+                                    viewModel.updateSearchSuggestions("")
+                                }) {
+                                    Icon(Icons.Default.Clear, contentDescription = "Limpar", tint = Color.White)
+                                }
+                            }
+                        },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.White.copy(alpha = 0.04f),
+                            unfocusedContainerColor = Color.White.copy(alpha = 0.04f),
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .border(1.dp, glassBorder, RoundedCornerShape(16.dp))
+                    )
 
-                // Save Button
-                Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White.copy(alpha = 0.05f))
-                        .border(1.dp, glassBorder, RoundedCornerShape(12.dp))
-                        .clickable { /* Ação salvar */ },
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Icon(Icons.Default.BookmarkBorder, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Salvar", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    // Autocomplete Suggestions Dropdown
+                    if (isSearchFocused && searchSuggestions.isNotEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color(0xFF0F1212))
+                                .border(1.dp, glassBorder, RoundedCornerShape(16.dp))
+                                .padding(8.dp)
+                        ) {
+                            Column {
+                                searchSuggestions.forEach { suggestion ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                searchQuery = suggestion
+                                                isSearchFocused = false
+                                                viewModel.selectDestination(
+                                                    suggestion,
+                                                    currentLatitude,
+                                                    currentLongitude
+                                                )
+                                            }
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (suggestion.contains("Ônibus") || suggestion.contains("onibus")) Icons.Outlined.DirectionsBus else Icons.Outlined.DirectionsTransit,
+                                            contentDescription = null,
+                                            tint = Color(0xFF4FC3F7),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Text(
+                                            text = suggestion,
+                                            color = Color.White,
+                                            fontSize = 14.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
+            }
 
-                // Share Button
-                Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White.copy(alpha = 0.05f))
-                        .border(1.dp, glassBorder, RoundedCornerShape(12.dp))
-                        .clickable { /* Ação compartilhar */ },
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Icon(Icons.Outlined.Share, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Enviar", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            // GRID DE STATUS COMPACTO (METRÔ E TREM)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "STATUS GLOBAL DE LINHAS",
+                color = Color.White.copy(alpha = 0.4f),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.5.sp,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+            )
+
+            val linesToDisplay = listOf(
+                Pair("1", "L1-Azul"),
+                Pair("2", "L2-Verde"),
+                Pair("3", "L3-Vermelha"),
+                Pair("4", "L4-Amarela"),
+                Pair("5", "L5-Lilás"),
+                Pair("15", "L15-Prata")
+            )
+
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                contentPadding = PaddingValues(horizontal = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp)
+            ) {
+                items(linesToDisplay) { line ->
+                    val matchingEmpresa = metroStatus.find { emp ->
+                        emp.linhas?.any { it.codigo == line.first } == true
+                    }
+                    val matchingLinha = matchingEmpresa?.linhas?.find { it.codigo == line.first }
+                    val situacao = matchingLinha?.status?.situacao ?: "Operação Normal"
+                    val isNormal = situacao.contains("Normal", ignoreCase = true)
+                    
+                    val (badgeColor, textColor) = when (line.first) {
+                        "1" -> Color(0xFF005CA9) to Color.White
+                        "2" -> Color(0xFF008940) to Color.White
+                        "3" -> Color(0xFFEE3E23) to Color.White
+                        "4" -> Color(0xFFFFD100) to Color.Black
+                        "5" -> Color(0xFF90278E) to Color.White
+                        else -> Color(0xFF97A0A6) to Color.White
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color.White.copy(alpha = 0.02f))
+                            .border(1.dp, glassBorder, RoundedCornerShape(16.dp))
+                            .padding(14.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(badgeColor)
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = line.second,
+                                    color = textColor,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Text(
+                                text = situacao,
+                                color = if (isNormal) Color(0xFF30D158) else Color(0xFFFF9F0A),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             }
 
             // BOTÕES DE FILTRO
+            Spacer(modifier = Modifier.height(16.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 12.dp),
+                    .padding(horizontal = 24.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 listOf(

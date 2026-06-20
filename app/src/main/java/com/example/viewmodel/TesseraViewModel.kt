@@ -1829,6 +1829,18 @@ class TesseraViewModel(
     }
 
     private fun loadMockFootballScores() {
+        val now = java.time.LocalDateTime.now()
+        val yesterday = now.minusDays(1)
+        val tomorrow = now.plusDays(1)
+        val inThreeDays = now.plusDays(3)
+        val formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM HH:mm")
+
+        val dateYesterday = yesterday.withHour(21).withMinute(30).format(formatter)
+        val dateTomorrow = tomorrow.withHour(16).withMinute(0).format(formatter)
+        
+        val dateYesterdayFla = yesterday.minusDays(1).withHour(16).withMinute(0).format(formatter)
+        val dateInThreeDays = inThreeDays.withHour(20).withMinute(0).format(formatter)
+
         _footballMatches.value = listOf(
             com.example.data.FootballMatchInfo(
                 teamName = "Brasil",
@@ -1840,7 +1852,7 @@ class TesseraViewModel(
                     homeGoals = 0,
                     awayGoals = 1,
                     statusShort = "FT",
-                    dateFormatted = "23/03 16:00",
+                    dateFormatted = dateYesterday,
                     leagueName = "Amistoso Internacional"
                 ),
                 nextMatch = com.example.data.MatchDetail(
@@ -1851,7 +1863,7 @@ class TesseraViewModel(
                     homeGoals = null,
                     awayGoals = null,
                     statusShort = "NS",
-                    dateFormatted = "05/09 21:30",
+                    dateFormatted = dateTomorrow,
                     leagueName = "Eliminatórias da Copa"
                 )
             ),
@@ -1865,7 +1877,7 @@ class TesseraViewModel(
                     homeGoals = 2,
                     awayGoals = 0,
                     statusShort = "FT",
-                    dateFormatted = "14/06 16:00",
+                    dateFormatted = dateYesterdayFla,
                     leagueName = "Série A"
                 ),
                 nextMatch = com.example.data.MatchDetail(
@@ -1876,7 +1888,7 @@ class TesseraViewModel(
                     homeGoals = null,
                     awayGoals = null,
                     statusShort = "NS",
-                    dateFormatted = "25/06 20:00",
+                    dateFormatted = dateInThreeDays,
                     leagueName = "Série A"
                 )
             )
@@ -1901,6 +1913,296 @@ class TesseraViewModel(
             }
         }
     }
+
+    val activeRouteSession = MutableStateFlow<com.example.data.RouteSession?>(null)
+    val searchSuggestions = MutableStateFlow<List<String>>(emptyList())
+    private var pollingJob: kotlinx.coroutines.Job? = null
+
+    private val popularDestinations = listOf(
+        "Estação Consolação (L2-Verde)",
+        "Estação Sé (L1-Azul / L3-Vermelha)",
+        "Estação Paulista (L4-Amarela)",
+        "Estação Butantã (L4-Amarela)",
+        "Estação Pinheiros (L4-Amarela / L9-Esmeralda)",
+        "Estação Luz (L1-Azul / L4-Amarela)",
+        "Estação Palmeiras-Barra Funda (L3-Vermelha)",
+        "Estação Paraíso (L1-Azul / L2-Verde)",
+        "Estação Ana Rosa (L1-Azul / L2-Verde)",
+        "Estação Trianon-Masp (L2-Verde)",
+        "Estação Brigadeiro (L2-Verde)",
+        "Estação República (L3-Vermelha / L4-Amarela)",
+        "Estação Vila Madalena (L2-Verde)",
+        "Estação Vila Prudente (L2-Verde / L15-Prata)",
+        "Estação Santana (L1-Azul)",
+        "Estação Jabaquara (L1-Azul)",
+        "Estação Tamanduateí (L2-Verde / L10-Turquesa)",
+        "Ônibus 809P-10 (Metrô Barra Funda / Term. Pinheiros)",
+        "Ônibus 701U-10 (Jaçanã / Butantã)",
+        "Ônibus 8700-10 (Term. Campo Limpo / Praça Ramos)"
+    )
+
+    fun updateSearchSuggestions(query: String) {
+        if (query.isBlank()) {
+            searchSuggestions.value = popularDestinations.take(5)
+            return
+        }
+        val cleanQuery = query.lowercase().trim()
+        val filtered = mutableListOf<String>()
+        popularDestinations.forEach { dest ->
+            if (dest.lowercase().contains(cleanQuery)) {
+                filtered.add(dest)
+            }
+        }
+        cachedStations.forEach { el ->
+            val name = el.tags?.name
+            if (name != null && name.lowercase().contains(cleanQuery)) {
+                val lineStr = el.tags.line ?: el.tags.colour ?: ""
+                val lineDesc = if (lineStr.isNotBlank()) " ($lineStr)" else ""
+                val formatted = "Estação $name$lineDesc"
+                if (!filtered.contains(formatted)) {
+                    filtered.add(formatted)
+                }
+            }
+        }
+        searchSuggestions.value = filtered.distinct().take(8)
+    }
+
+    fun selectDestination(destination: String, userLat: Double, userLng: Double) {
+        pollingJob?.cancel()
+        viewModelScope.launch(Dispatchers.IO) {
+            val cleanDest = destination.lowercase()
+            if (cleanDest.contains("ônibus") || cleanDest.contains("onibus") || cleanDest.contains("-10")) {
+                val lineCode = if (cleanDest.contains("809p")) "809P-10" else if (cleanDest.contains("701u")) "701U-10" else "8700-10"
+                val lineName = if (lineCode == "809P-10") "Metrô Barra Funda / Term. Pinheiros" else if (lineCode == "701U-10") "Jaçanã / Butantã" else "Term. Campo Limpo / Praça Ramos"
+                
+                activeRouteSession.value = com.example.data.RouteSession(
+                    tipoModal = "ONIBUS",
+                    linhaCodigo = lineCode,
+                    corTema = "#12723a",
+                    destinoFinal = lineName.substringAfter("/").trim(),
+                    mapaVeiculos = listOf(
+                        com.example.data.VehiclePosition(
+                            prefixo = "12345",
+                            latitude = userLat + 0.005,
+                            longitude = userLng + 0.005,
+                            horarioTransmissao = "Agora"
+                        )
+                    ),
+                    passosTimeline = listOf(
+                        com.example.data.TimelineNode(
+                            nome = "Ponto de Embarque",
+                            horarioPrevisto = "3 min",
+                            status = "atual",
+                            mensagem = "Aprox. 150m de você"
+                        ),
+                        com.example.data.TimelineNode(
+                            nome = "Próxima Parada",
+                            horarioPrevisto = "10 min",
+                            status = "proxima"
+                        ),
+                        com.example.data.TimelineNode(
+                            nome = lineName.substringAfter("/").trim(),
+                            horarioPrevisto = "22 min",
+                            status = "destino"
+                        )
+                    )
+                )
+                startVehiclePolling(lineCode, userLat, userLng)
+            } else {
+                val targetStationName = destination
+                    .replace("Estação ", "")
+                    .substringBefore("(")
+                    .trim()
+                
+                val (lineCode, lineName, lineColor, stationList) = when {
+                    cleanDest.contains("verde") || cleanDest.contains("l2") || cleanDest.contains("consolacao") || cleanDest.contains("trianon") || cleanDest.contains("brigadeiro") || cleanDest.contains("paraíso") || cleanDest.contains("ana rosa") -> {
+                        val stations = listOf("Vila Madalena", "Sumaré", "Clínicas", "Consolação", "Trianon-Masp", "Brigadeiro", "Paraíso", "Ana Rosa", "Chácara Klabin", "Imigrantes", "Alto do Ipiranga", "Sacomã", "Tamanduateí", "Vila Prudente")
+                        Quadruple("2", "Linha 2 - Verde", "#008940", stations)
+                    }
+                    cleanDest.contains("amarela") || cleanDest.contains("l4") || cleanDest.contains("paulista") || cleanDest.contains("butantã") || cleanDest.contains("pinheiros") || cleanDest.contains("luz") || cleanDest.contains("republica") -> {
+                        val stations = listOf("Luz", "República", "Higienópolis-Mackenzie", "Paulista", "Oscar Freire", "Fradique Coutinho", "Faria Lima", "Pinheiros", "Butantã", "São Paulo-Morumbi", "Vila Sônia")
+                        Quadruple("4", "Linha 4 - Amarela", "#FFFFD100", stations)
+                    }
+                    cleanDest.contains("azul") || cleanDest.contains("l1") || cleanDest.contains("sé") || cleanDest.contains("santana") || cleanDest.contains("jabaquara") || cleanDest.contains("liberdade") || cleanDest.contains("são joaquim") -> {
+                        val stations = listOf("Tucuruvi", "Parada Inglesa", "Jardim São Paulo", "Santana", "Carandiru", "Tietê", "Armênia", "Tiradentes", "Luz", "São Bento", "Sé", "Japão-Liberdade", "São Joaquim", "Vergueiro", "Paraíso", "Ana Rosa", "Vila Mariana", "Santa Cruz", "Praça da Árvore", "Saúde", "São Judas", "Conceição", "Jabaquara")
+                        Quadruple("1", "Linha 1 - Azul", "#005CA9", stations)
+                    }
+                    else -> {
+                        val stations = listOf("Vila Madalena", "Sumaré", "Clínicas", "Consolação", "Trianon-Masp", "Brigadeiro", "Paraíso", "Ana Rosa", "Chácara Klabin", "Imigrantes", "Alto do Ipiranga", "Sacomã", "Tamanduateí", "Vila Prudente")
+                        Quadruple("2", "Linha 2 - Verde", "#008940", stations)
+                    }
+                }
+                
+                val userClosestStationName = if (cachedStations.isNotEmpty()) {
+                    cachedStations.filter { el ->
+                        val elLine = el.tags?.line ?: el.tags?.colour ?: ""
+                        elLine.contains(lineCode) || el.tags?.name?.lowercase()?.contains(lineName.split(" - ").last().lowercase()) == true
+                    }.minByOrNull { calculateDistance(userLat, userLng, it.lat, it.lon) }?.tags?.name ?: stationList.first()
+                } else {
+                    stationList.minByOrNull { name ->
+                        if (name == "Paulista" && Math.abs(userLat - (-23.5552)) < 0.05) 0.0 else 1.0
+                    } ?: stationList.first()
+                }
+                
+                val startIndex = stationList.indexOf(userClosestStationName).coerceAtLeast(0)
+                var endIndex = stationList.indexOf(targetStationName)
+                if (endIndex == -1) {
+                    endIndex = (startIndex + 3).coerceAtMost(stationList.size - 1)
+                }
+                
+                val timelineStations = if (startIndex <= endIndex) {
+                    stationList.subList(startIndex, endIndex + 1)
+                } else {
+                    stationList.subList(endIndex, startIndex + 1).reversed()
+                }
+                
+                val steps = timelineStations.mapIndexed { idx, name ->
+                    val isStart = idx == 0
+                    val isEnd = idx == timelineStations.size - 1
+                    val status = when {
+                        isStart -> "atual"
+                        isEnd -> "destino"
+                        else -> "proxima"
+                    }
+                    
+                    val msg = when {
+                        isStart -> "Você está aqui"
+                        name == "Sé" -> "Baldeação para L3-Vermelha"
+                        name == "Paraíso" -> "Baldeação para L2-Verde / L1-Azul"
+                        name == "Ana Rosa" -> "Baldeação para L2-Verde / L1-Azul"
+                        name == "Consolação" || name == "Paulista" -> "Baldeação para L2-Verde / L4-Amarela"
+                        name == "República" -> "Baldeação para L3-Vermelha / L4-Amarela"
+                        name == "Luz" -> "Baldeação para L1-Azul / L4-Amarela / Linhas CPTM"
+                        name == "Vila Prudente" -> "Baldeação para L15-Prata"
+                        else -> null
+                    }
+                    
+                    val transferLines = when (name) {
+                        "Sé" -> listOf("L3-Vermelha|#EE3E23")
+                        "Paraíso" -> if (lineCode == "1") listOf("L2-Verde|#008940") else listOf("L1-Azul|#005CA9")
+                        "Ana Rosa" -> if (lineCode == "1") listOf("L2-Verde|#008940") else listOf("L1-Azul|#005CA9")
+                        "Consolação" -> listOf("L4-Amarela|#FFFFD100")
+                        "Paulista" -> listOf("L2-Verde|#008940")
+                        "República" -> if (lineCode == "4") listOf("L3-Vermelha|#EE3E23") else listOf("L4-Amarela|#FFFFD100")
+                        "Luz" -> if (lineCode == "4") listOf("L1-Azul|#005CA9", "CPTM|#97A0A6") else listOf("L4-Amarela|#FFFFD100", "CPTM|#97A0A6")
+                        "Vila Prudente" -> listOf("L15-Prata|#97A0A6")
+                        else -> null
+                    }
+                    
+                    com.example.data.TimelineNode(
+                        nome = name,
+                        horarioPrevisto = if (isStart) "Agora" else "${idx * 2} min",
+                        status = status,
+                        mensagem = msg,
+                        baldeacaoLinhasecores = transferLines
+                    )
+                }
+                
+                activeRouteSession.value = com.example.data.RouteSession(
+                    tipoModal = "TRILHOS",
+                    linhaCodigo = "L$lineCode",
+                    corTema = lineColor,
+                    destinoFinal = targetStationName,
+                    passosTimeline = steps
+                )
+            }
+        }
+    }
+    
+    private fun startVehiclePolling(lineCode: String, userLat: Double, userLng: Double) {
+        pollingJob = viewModelScope.launch(Dispatchers.IO) {
+            var simStep = 0
+            while (true) {
+                try {
+                    var vehiclesList = emptyList<com.example.data.VehiclePosition>()
+                    val token = try {
+                        val clazz = Class.forName("com.example.BuildConfig")
+                        val field = clazz.getField("SPTRANS_TOKEN")
+                        field.get(null) as? String ?: ""
+                    } catch (e: Exception) {
+                        ""
+                    }
+                    
+                    var authenticated = false
+                    if (token.isNotBlank() && token != "MY_SPTRANS_TOKEN") {
+                        val authResponse = sptransService.authenticate(token)
+                        authenticated = authResponse.body() == true
+                    }
+                    
+                    if (authenticated) {
+                        val linesList = sptransService.getLinhaDetalhes(809)
+                        val cl = linesList.firstOrNull()?.cl
+                        if (cl != null) {
+                            val positions = sptransService.getPosicaoLinha(cl)
+                            vehiclesList = positions.vs?.map { veic ->
+                                com.example.data.VehiclePosition(
+                                    prefixo = veic.p.toString(),
+                                    latitude = veic.py,
+                                    longitude = veic.px,
+                                    horarioTransmissao = veic.ta
+                                )
+                            } ?: emptyList()
+                        }
+                    }
+                    
+                    if (vehiclesList.isEmpty()) {
+                        val busLat = userLat + 0.008 - (simStep * 0.0005)
+                        val busLng = userLng + 0.008 - (simStep * 0.0005)
+                        vehiclesList = listOf(
+                            com.example.data.VehiclePosition(
+                                prefixo = "12345 (SIMULADO)",
+                                latitude = busLat,
+                                longitude = busLng,
+                                horarioTransmissao = "Agora"
+                            )
+                        )
+                        simStep = (simStep + 1) % 20
+                    }
+                    
+                    val currentSession = activeRouteSession.value
+                    if (currentSession != null && currentSession.tipoModal == "ONIBUS") {
+                        val distance = calculateDistance(userLat, userLng, vehiclesList.first().latitude, vehiclesList.first().longitude)
+                        val timeEstimateMin = (distance / 250.0).toInt().coerceAtLeast(1)
+                        
+                        activeRouteSession.value = currentSession.copy(
+                            mapaVeiculos = vehiclesList,
+                            passosTimeline = listOf(
+                                com.example.data.TimelineNode(
+                                    nome = "Ponto de Embarque",
+                                    horarioPrevisto = "$timeEstimateMin min",
+                                    status = "atual",
+                                    mensagem = "Distância: ${distance.toInt()}m"
+                                ),
+                                com.example.data.TimelineNode(
+                                    nome = "Próxima Parada",
+                                    horarioPrevisto = "${timeEstimateMin + 5} min",
+                                    status = "proxima"
+                                ),
+                                com.example.data.TimelineNode(
+                                    nome = currentSession.destinoFinal,
+                                    horarioPrevisto = "${timeEstimateMin + 15} min",
+                                    status = "destino"
+                                )
+                            )
+                        )
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+                kotlinx.coroutines.delay(15000L)
+            }
+        }
+    }
+    
+    fun clearActiveRouteSession() {
+        pollingJob?.cancel()
+        activeRouteSession.value = null
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        pollingJob?.cancel()
+    }
 }
 
 class TesseraViewModelFactory(
@@ -1915,3 +2217,5 @@ class TesseraViewModelFactory(
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
+
+data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)

@@ -8,10 +8,22 @@
 
 Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.build-outputs/`:
 
-* **[📥 app-release-1.4.1.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.4.1.apk)**  
+* **[📥 app-release-1.5.0.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.5.0.apk)**  
   *Versão final de produção. Otimizada (~12.9 MB), com minificação de código (R8/ProGuard), remoção automática de logs de depuração/prints de console e compressão extrema de assets (PNG Crunching).*
-* **[📥 app-debug-1.4.1.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.4.1.apk)**  
+* **[📥 app-debug-1.5.0.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.5.0.apk)**  
   *Versão para testes contendo ferramentas de depuração ativas.*
+
+---
+
+## 🚀 Novidades da Versão 1.5.0 ✨
+* 🚇 **Painel de Transporte & Roteirizador Integrado**: Novo módulo de Mobilidade Urbana com suporte a dois estados principais:
+  * *Estado A (Painel Inicial)*: Painel de status global das linhas de metrô e trem e barra de busca de destinos "Para onde vamos?" estilo Google Maps com autocomplete inteligente.
+  * *Estado B (Rota Ativa)*: Divisão de tela de rota conforme o modal. Para ônibus, exibe o Google Maps interativo com a posição do veículo em tempo real e painel com detalhes da viagem e ETA. Para metrô e trem, exibe uma linha do tempo vertical contínua com nós gradientes luminosos e vibrantes (glow), indicando baldeações e progresso em tempo real baseado no GPS.
+* ⚽ **Placar de Futebol em Formato de Pílula**:
+  * O antigo cartão volumoso de placar de futebol foi substituído por uma **pílula discreta glassmorphic** na tela inicial ("Hoje") que rotaciona os confrontos a cada 6 segundos.
+  * Ao clicar na pílula, um pop-up (`Dialog`) detalhado é exibido permitindo alternar de time, consultar próximos confrontos e recarregar os dados.
+  * Lógica de mock de futebol refatorada para obter e exibir datas e placares dinâmicos correspondentes aos jogos reais de ontem e próximos dias de forma inteligente.
+* 🏷️ **Versão 1.5.0**: Incremento oficial do build (`versionCode` 13) e geração dos APKs correspondentes na pasta `.build-outputs/`.
 
 ---
 
@@ -208,8 +220,8 @@ Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.bui
 ```text
 Tessera/
 ├── .build-outputs/       # Diretório de APKs compilados e prontos para uso
-│   ├── app-debug-1.4.1.apk # Versão de testes com logs ativos
-│   └── app-release-1.4.1.apk # Versão final de produção assinada
+│   ├── app-debug-1.5.0.apk # Versão de testes com logs ativos
+│   └── app-release-1.5.0.apk # Versão final de produção assinada
 ├── app/                  # Módulo principal Android (Código Kotlin & Jetpack Compose)
 │   ├── src/main/java/    # Arquivos de código-fonte
 │   └── proguard-rules.pro# Regras de minificação R8/ProGuard

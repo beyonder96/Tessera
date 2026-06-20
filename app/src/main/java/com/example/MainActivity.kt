@@ -901,7 +901,28 @@ fun HomeScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScro
                 )
             }
             
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentSize(Alignment.Center)
+                    .graphicsLayer {
+                        val scrollVal = scrollState.value
+                        alpha = (1f - (scrollVal / 250f)).coerceIn(0f, 1f)
+                        val scale = (1f - (scrollVal / 1200f)).coerceIn(0.85f, 1f)
+                        scaleX = scale
+                        scaleY = scale
+                        translationY = -scrollVal * 0.12f
+                    }
+                    .scrollFadeInOut()
+            ) {
+                com.example.ui.components.FootballScoreboardPill(
+                    viewModel = mainViewModel
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(20.dp))
             
             Box(
                 modifier = Modifier
@@ -2165,10 +2186,6 @@ fun MainContent(
         MarketCard(
             items = marketItems,
             onNavigate = onNavigate
-        )
-
-        com.example.ui.components.FootballScoreboardWidget(
-            viewModel = mainViewModel
         )
     }
 }
