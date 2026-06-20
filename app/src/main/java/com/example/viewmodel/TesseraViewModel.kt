@@ -113,6 +113,15 @@ class TesseraViewModel(
         _glassmorphismLevel.value = level
     }
 
+    // Football Integration (API-FOOTBALL)
+    private val footballService = com.example.data.FootballService.create()
+
+    private val _footballMatches = MutableStateFlow<List<com.example.data.FootballMatchInfo>>(emptyList())
+    val footballMatches: StateFlow<List<com.example.data.FootballMatchInfo>> = _footballMatches.asStateFlow()
+
+    private val _isLoadingFootball = MutableStateFlow(false)
+    val isLoadingFootball: StateFlow<Boolean> = _isLoadingFootball.asStateFlow()
+
     init {
         fetchWeather()
         fetchFootballScores()
@@ -1736,15 +1745,6 @@ class TesseraViewModel(
         val linhaNome: String,
         val corHex: String
     )
-
-    // Football Integration (API-FOOTBALL)
-    private val footballService = com.example.data.FootballService.create()
-
-    private val _footballMatches = MutableStateFlow<List<com.example.data.FootballMatchInfo>>(emptyList())
-    val footballMatches: StateFlow<List<com.example.data.FootballMatchInfo>> = _footballMatches.asStateFlow()
-
-    private val _isLoadingFootball = MutableStateFlow(false)
-    val isLoadingFootball: StateFlow<Boolean> = _isLoadingFootball.asStateFlow()
 
     fun fetchFootballScores() {
         viewModelScope.launch(Dispatchers.IO) {
