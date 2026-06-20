@@ -204,9 +204,11 @@ fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .statusBarsPadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = 24.dp)
         ) {
+            Spacer(modifier = Modifier.height(16.dp))
             // Cabeçalho de Saldo minimalista
             val filterName = selectedFilterName
             Row(

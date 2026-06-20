@@ -7,6 +7,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -89,14 +91,14 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF050505)) // Pure pitch-black OLED background
+            // Removed hardcoded background so it uses global background
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .navigationBarsPadding()
-                .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 100.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 24.dp)
         ) {
             // Header Bar
             Row(
@@ -129,7 +131,7 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
             // Main Building Canvas
             Box(
                 modifier = Modifier
-                    .weight(1f)
+                    .height(380.dp)
                     .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
@@ -492,6 +494,7 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(100.dp)) // Spacer to clear the bottom navigation bar
         }
     }
 }

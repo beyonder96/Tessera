@@ -533,7 +533,7 @@ fun TesseraApp() {
                 composable("transport") {
                     TransportScreen(
                         viewModel = viewModel,
-                        onHomeClick = {
+                        onNavigateBack = {
                             navController.navigate("home") {
                                 popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                                 launchSingleTop = true
@@ -548,15 +548,6 @@ fun TesseraApp() {
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                Color(0xD9070909), // Soft vignette fading in
-                                Color(0xFF070909)  // Deep rich black base matching HomeScreen background
-                            )
-                        )
-                    )
                     .padding(bottom = innerPadding.calculateBottomPadding())
             ) {
                 BottomNavBar(
@@ -737,6 +728,7 @@ fun HomeScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScro
     val sleepRecords by mainViewModel.allSleepRecords.collectAsState(initial = emptyList())
     val weightRecords by mainViewModel.allWeightRecords.collectAsState(initial = emptyList())
     val latestWeight = remember(weightRecords) { weightRecords.lastOrNull()?.weightKg ?: 70.0 }
+    val latestSleep = remember(sleepRecords) { sleepRecords.maxByOrNull { it.endTime }?.durationHours ?: 0.0 }
     
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
     var isBiometricEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("biometric_enabled", false)) }
@@ -852,23 +844,24 @@ fun HomeScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScro
             label = "GlowScale"
         )
 
-        Box(
+        Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(350.dp)
+                .height(400.dp)
                 .graphicsLayer {
-                    scaleX = glowScale
-                    scaleY = glowScale
                     alpha = (1f - (scrollState.value / 300f)).coerceIn(0f, 1f)
                 }
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(glowColor.copy(alpha = glowAlpha), Color.Transparent),
-                        center = Offset(200f, 0f),
-                        radius = 600f
-                    )
-                )
-        )
+        ) {
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(glowColor.copy(alpha = glowAlpha), Color.Transparent),
+                    center = Offset(size.width * 0.8f, size.height * 0.1f),
+                    radius = size.width * glowScale * 0.9f
+                ),
+                center = Offset(size.width * 0.8f, size.height * 0.1f),
+                radius = size.width * glowScale * 0.9f
+            )
+        }
 
         Column(
             modifier = Modifier
@@ -944,6 +937,7 @@ fun HomeScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScro
                     totalExpense = totalExpense,
                     todaySteps = todaySteps,
                     latestWeight = latestWeight,
+                    latestSleep = latestSleep,
                     onNavigate = onNavigate
                 )
             }
@@ -1394,6 +1388,7 @@ fun TopMetricsRow(
     totalExpense: Double,
     todaySteps: Long,
     latestWeight: Double,
+    latestSleep: Double,
     onNavigate: (String) -> Unit
 ) {
     val context = LocalContext.current
@@ -1472,7 +1467,7 @@ fun TopMetricsRow(
                         else -> Icons.Outlined.DirectionsWalk
                     }
                     val valIdx = when (idx) {
-                        0 -> "8.2h"
+                        0 -> String.format(java.util.Locale("pt", "BR"), "%.1fh", latestSleep)
                         1 -> String.format(java.util.Locale("pt", "BR"), "%.1f", latestWeight)
                         else -> todaySteps.toString()
                     }
@@ -1482,7 +1477,7 @@ fun TopMetricsRow(
                         else -> "PASSOS"
                     }
                     val progressIdx = when (idx) {
-                        0 -> 0.82f
+                        0 -> (latestSleep / 10.0).toFloat().coerceIn(0f, 1f)
                         1 -> (latestWeight / 120.0f).toFloat().coerceIn(0f, 1f)
                         else -> (todaySteps.toFloat() / 10000f).coerceIn(0f, 1f)
                     }
@@ -2105,6 +2100,61 @@ fun MainContent(
     petViewModel: com.example.viewmodel.PetViewModel,
     onNavigate: (String) -> Unit
 ) {
+    val context = LocalContext.current
+    val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
+    
+    val defaultModules = listOf(
+        ModuleConfig("finance", "Finanças e Fluxo", true, 0),
+        ModuleConfig("health", "Saúde e Energia", true, 1),
+        ModuleConfig("goals", "Foco e Rotinas", true, 2),
+        ModuleConfig("pets", "Meus Petz", true, 3),
+        ModuleConfig("market", "Mercado e Desejos", true, 4)
+    )
+
+    var modules by remember {
+        val saved = sharedPrefs.getString("home_modules_config", null)
+        if (saved != null) {
+            try {
+                val jsonArray = org.json.JSONArray(saved)
+                val parsed = mutableListOf<ModuleConfig>()
+                for (i in 0 until jsonArray.length()) {
+                    val obj = jsonArray.getJSONObject(i)
+                    parsed.add(ModuleConfig(
+                        id = obj.getString("id"),
+                        name = obj.getString("name"),
+                        isVisible = obj.getBoolean("isVisible"),
+                        order = obj.getInt("order")
+                    ))
+                }
+                // Ensure all default modules exist
+                val merged = defaultModules.map { defaultMod ->
+                    parsed.find { it.id == defaultMod.id } ?: defaultMod
+                }.sortedBy { it.order }
+                mutableStateOf(merged)
+            } catch (e: Exception) {
+                mutableStateOf(defaultModules)
+            }
+        } else {
+            mutableStateOf(defaultModules)
+        }
+    }
+
+    val saveModules = { newModules: List<ModuleConfig> ->
+        modules = newModules
+        val jsonArray = org.json.JSONArray()
+        newModules.forEach { mod ->
+            val obj = org.json.JSONObject()
+            obj.put("id", mod.id)
+            obj.put("name", mod.name)
+            obj.put("isVisible", mod.isVisible)
+            obj.put("order", mod.order)
+            jsonArray.put(obj)
+        }
+        sharedPrefs.edit().putString("home_modules_config", jsonArray.toString()).apply()
+    }
+
+    var showEditSheet by remember { mutableStateOf(false) }
+
     val insights by mainViewModel.aiInsights.collectAsState(initial = emptyList())
     val transactions by mainViewModel.allTransactions.collectAsState(initial = emptyList())
     val bankAccounts by mainViewModel.allBankAccounts.collectAsState(initial = emptyList())
@@ -2156,37 +2206,76 @@ fun MainContent(
             .padding(horizontal = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        HomeFinanceWidget(
-            transactions = transactions,
-            bankAccounts = bankAccounts,
-            onNavigate = onNavigate
-        )
+        modules.filter { it.isVisible }.forEach { mod ->
+            Box(modifier = Modifier.scrollFadeInOut()) {
+                when (mod.id) {
+                    "finance" -> HomeFinanceWidget(transactions, bankAccounts, onNavigate)
+                    "health" -> HealthWidget(medications, { mainViewModel.toggleMedicationTaken(it) }, latestWeight, todaySteps, bmi)
+                    "goals" -> GoalsWidget(habits, purchaseGoals, routines, { mainViewModel.toggleHabitCompleted(it) }, onNavigate)
+                    "pets" -> PetsCard(pets, onNavigate)
+                    "market" -> MarketCard(marketItems, onNavigate)
+                }
+            }
+        }
 
-        HealthWidget(
-            medications = medications,
-            onToggleMedication = { mainViewModel.toggleMedicationTaken(it) },
-            latestWeight = latestWeight,
-            todaySteps = todaySteps,
-            bmi = bmi
-        )
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        TextButton(
+            onClick = { showEditSheet = true },
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        ) {
+            Icon(Icons.Outlined.Edit, contentDescription = null, tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Editar Widgets", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+        }
+    }
 
-        GoalsWidget(
-            habits = habits,
-            purchaseGoals = purchaseGoals,
-            routines = routines,
-            onToggleHabit = { mainViewModel.toggleHabitCompleted(it) },
-            onNavigate = onNavigate
-        )
-
-        PetsCard(
-            pets = pets,
-            onNavigate = onNavigate
-        )
-
-        MarketCard(
-            items = marketItems,
-            onNavigate = onNavigate
-        )
+    if (showEditSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showEditSheet = false },
+            containerColor = Color(0xFF1E252B),
+            scrimColor = Color.Black.copy(alpha = 0.7f)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
+                Text(
+                    text = "Editar Widgets da Home",
+                    fontSize = 20.sp,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                modules.forEachIndexed { index, mod ->
+                    ModuleToggleWithOrder(
+                        name = mod.name,
+                        isVisible = mod.isVisible,
+                        isFirst = index == 0,
+                        isLast = index == modules.lastIndex,
+                        onToggle = { visible ->
+                            val copy = modules.toMutableList()
+                            copy[index] = copy[index].copy(isVisible = visible)
+                            saveModules(copy)
+                        },
+                        onMoveUp = {
+                            val copy = modules.toMutableList()
+                            val temp = copy[index]
+                            copy[index] = copy[index - 1]
+                            copy[index - 1] = temp
+                            copy.forEachIndexed { i, m -> copy[i] = m.copy(order = i) }
+                            saveModules(copy)
+                        },
+                        onMoveDown = {
+                            val copy = modules.toMutableList()
+                            val temp = copy[index]
+                            copy[index] = copy[index + 1]
+                            copy[index + 1] = temp
+                            copy.forEachIndexed { i, m -> copy[i] = m.copy(order = i) }
+                            saveModules(copy)
+                        }
+                    )
+                }
+                Spacer(modifier = Modifier.height(32.dp))
+            }
+        }
     }
 }
 
@@ -3416,6 +3505,16 @@ fun HomeFinanceWidget(
     val totalExpense = currentMonthTransactions.filter { !it.isIncome }.sumOf { it.value }
     val balance = bankAccounts.sumOf { it.balance }
 
+    val context = LocalContext.current
+    val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
+    var hideValues by remember { mutableStateOf(sharedPrefs.getBoolean("hide_finance_values", true)) }
+
+    val toggleHide = {
+        val next = !hideValues
+        hideValues = next
+        sharedPrefs.edit().putBoolean("hide_finance_values", next).apply()
+    }
+
     Column(
         modifier = GlassModifier
             .fillMaxWidth()
@@ -3434,12 +3533,26 @@ fun HomeFinanceWidget(
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Icon(
-                Icons.Outlined.AccountBalanceWallet,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                modifier = Modifier.size(18.dp)
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(
+                    onClick = { toggleHide() },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = if (hideValues) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                        contentDescription = "Ocultar Valores",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Icon(
+                    Icons.Outlined.AccountBalanceWallet,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
         Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
         Spacer(modifier = Modifier.height(20.dp))
@@ -3453,11 +3566,11 @@ fun HomeFinanceWidget(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "R$ ${String.format(java.util.Locale("pt", "BR"), "%,.2f", balance)}",
+                text = if (hideValues) "R$ *****" else "R$ ${String.format(java.util.Locale("pt", "BR"), "%,.2f", balance)}",
                 fontFamily = FontFamily.Serif,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Normal,
-                color = if (balance >= 0) PrimaryTeal else Color(0xFFE57373)
+                color = if (hideValues) Color.White else if (balance >= 0) PrimaryTeal else Color(0xFFE57373)
             )
         }
 
@@ -3475,7 +3588,7 @@ fun HomeFinanceWidget(
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "R$ ${String.format(java.util.Locale("pt", "BR"), "%,.2f", totalIncome)}",
+                    text = if (hideValues) "R$ ***" else "R$ ${String.format(java.util.Locale("pt", "BR"), "%,.2f", totalIncome)}",
                     fontFamily = FontFamily.Serif,
                     fontSize = 18.sp,
                     color = Color.White
@@ -3492,7 +3605,7 @@ fun HomeFinanceWidget(
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "R$ ${String.format(java.util.Locale("pt", "BR"), "%,.2f", totalExpense)}",
+                    text = if (hideValues) "R$ ***" else "R$ ${String.format(java.util.Locale("pt", "BR"), "%,.2f", totalExpense)}",
                     fontFamily = FontFamily.Serif,
                     fontSize = 18.sp,
                     color = Color.White

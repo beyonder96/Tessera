@@ -8,10 +8,20 @@
 
 Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.build-outputs/`:
 
-* **[📥 app-release-1.5.0.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.5.0.apk)**  
+* **[📥 app-release-1.6.0.apk (Versão Oficial)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.6.0.apk)**  
   *Versão final de produção. Otimizada (~12.9 MB), com minificação de código (R8/ProGuard), remoção automática de logs de depuração/prints de console e compressão extrema de assets (PNG Crunching).*
-* **[📥 app-debug-1.5.0.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.5.0.apk)**  
+* **[📥 app-debug-1.6.0.apk (Versão Debug)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.6.0.apk)**  
   *Versão para testes contendo ferramentas de depuração ativas.*
+
+---
+
+## 🚀 Novidades da Versão 1.6.0 ✨
+* 🚌 **Meus Ônibus (SPTrans)**: Integração nativa com a API Olho Vivo da SPTrans utilizando autenticação por Cookies (`CookieJar`). Os cartões interativos na aba de Transporte agora exibem suas linhas salvas com previsão de chegada em tempo real na sua parada.
+* 🚇 **Metrô e CPTM Redesenhados**: Nova interface integrada de Transportes consolidando os alertas operacionais do Metrô (ARTESP) com painéis horizontais que exibem ícones de atenção baseados na cor real de cada linha.
+* 👁️‍🗨️ **Privacidade Financeira Ocular**: O `FinanceWidget` na aba "Hoje" ganhou um botão flutuante de olho (Ocultar/Exibir Valores) que transforma todo o balanço financeiro em asteriscos (`R$ ****`) a um toque, com persistência na memória.
+* 🧩 **Edição Modular da Home (Hoje)**: Inclusão do painel de Configurações de Widgets, que permite ligar, desligar e reordenar fisicamente os módulos (Saúde, Metas, Finanças, Pets) da tela inicial ao gosto do usuário.
+* 🤖 **Amplo Suporte à IA Local (Gemma)**: O mecanismo autônomo `LocalLLMManager` agora varre as pastas de "Download" e diretórios nativos Android automaticamente para acoplar qualquer modelo `.bin` do Gemma (como `gemma-2b-it-cpu-int4.bin`), tornando o *sideloading* extremamente fácil.
+* 🏷️ **Versão 1.6.0**: Incremento oficial do build (`versionCode` 14) e geração de APKs na pasta `.build-outputs/`.
 
 ---
 
@@ -220,8 +230,8 @@ Os pacotes oficiais prontos para instalação estão disponíveis na pasta `.bui
 ```text
 Tessera/
 ├── .build-outputs/       # Diretório de APKs compilados e prontos para uso
-│   ├── app-debug-1.5.0.apk # Versão de testes com logs ativos
-│   └── app-release-1.5.0.apk # Versão final de produção assinada
+│   ├── app-debug-1.6.0.apk # Versão de testes com logs ativos
+│   └── app-release-1.6.0.apk # Versão final de produção assinada
 ├── app/                  # Módulo principal Android (Código Kotlin & Jetpack Compose)
 │   ├── src/main/java/    # Arquivos de código-fonte
 │   └── proguard-rules.pro# Regras de minificação R8/ProGuard

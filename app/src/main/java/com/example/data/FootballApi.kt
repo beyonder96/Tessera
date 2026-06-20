@@ -8,73 +8,83 @@ import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Header
+import retrofit2.http.Path
 import retrofit2.http.Query
 import java.util.concurrent.TimeUnit
 
 @JsonClass(generateAdapter = true)
-data class FootballFixturesResponse(
-    @Json(name = "response") val response: List<FootballFixtureElement>?
+data class FDTeamsResponse(
+    @Json(name = "teams") val teams: List<FDTeam>?
 )
 
 @JsonClass(generateAdapter = true)
-data class FootballFixtureElement(
-    @Json(name = "fixture") val fixture: FootballFixture?,
-    @Json(name = "league") val league: FootballLeague?,
-    @Json(name = "teams") val teams: FootballTeams?,
-    @Json(name = "goals") val goals: FootballGoals?
-)
-
-@JsonClass(generateAdapter = true)
-data class FootballFixture(
-    @Json(name = "id") val id: Int,
-    @Json(name = "date") val date: String?,
-    @Json(name = "status") val status: FootballFixtureStatus?
-)
-
-@JsonClass(generateAdapter = true)
-data class FootballFixtureStatus(
-    @Json(name = "long") val long: String?,
-    @Json(name = "short") val short: String?, // ex: "FT" (Finished), "NS" (Not Started)
-    @Json(name = "elapsed") val elapsed: Int?
-)
-
-@JsonClass(generateAdapter = true)
-data class FootballLeague(
+data class FDTeam(
     @Json(name = "id") val id: Int,
     @Json(name = "name") val name: String,
-    @Json(name = "logo") val logo: String?
+    @Json(name = "shortName") val shortName: String?,
+    @Json(name = "tla") val tla: String?,
+    @Json(name = "crest") val crest: String?
 )
 
 @JsonClass(generateAdapter = true)
-data class FootballTeams(
-    @Json(name = "home") val home: FootballTeam?,
-    @Json(name = "away") val away: FootballTeam?
+data class FDMatchesResponse(
+    @Json(name = "matches") val matches: List<FDMatch>?
 )
 
 @JsonClass(generateAdapter = true)
-data class FootballTeam(
+data class FDMatch(
+    @Json(name = "id") val id: Int,
+    @Json(name = "utcDate") val utcDate: String?,
+    @Json(name = "status") val status: String?, // "FINISHED", "SCHEDULED", "LIVE", "IN_PLAY", etc.
+    @Json(name = "competition") val competition: FDMatchCompetition?,
+    @Json(name = "homeTeam") val homeTeam: FDMatchTeam?,
+    @Json(name = "awayTeam") val awayTeam: FDMatchTeam?,
+    @Json(name = "score") val score: FDMatchScore?
+)
+
+@JsonClass(generateAdapter = true)
+data class FDMatchCompetition(
     @Json(name = "id") val id: Int,
     @Json(name = "name") val name: String,
-    @Json(name = "logo") val logo: String?
+    @Json(name = "code") val code: String?
 )
 
 @JsonClass(generateAdapter = true)
-data class FootballGoals(
+data class FDMatchTeam(
+    @Json(name = "id") val id: Int,
+    @Json(name = "name") val name: String,
+    @Json(name = "shortName") val shortName: String?,
+    @Json(name = "crest") val crest: String?
+)
+
+@JsonClass(generateAdapter = true)
+data class FDMatchScore(
+    @Json(name = "winner") val winner: String?,
+    @Json(name = "fullTime") val fullTime: FDScoreTime?
+)
+
+@JsonClass(generateAdapter = true)
+data class FDScoreTime(
     @Json(name = "home") val home: Int?,
     @Json(name = "away") val away: Int?
 )
 
 interface FootballService {
-    @GET("fixtures")
-    suspend fun getFixtures(
-        @Header("x-apisports-key") apiKey: String,
-        @Query("team") teamId: Int,
-        @Query("last") last: Int? = null,
-        @Query("next") next: Int? = null
-    ): FootballFixturesResponse
+    @GET("competitions/{competition}/teams")
+    suspend fun getCompetitionTeams(
+        @Header("X-Auth-Token") apiKey: String,
+        @Path("competition") competitionCode: String
+    ): FDTeamsResponse
+
+    @GET("teams/{team}/matches")
+    suspend fun getTeamMatches(
+        @Header("X-Auth-Token") apiKey: String,
+        @Path("team") teamId: Int,
+        @Query("status") status: String? = null
+    ): FDMatchesResponse
 
     companion object {
-        private const val BASE_URL = "https://v3.football.api-sports.io/"
+        private const val BASE_URL = "https://api.football-data.org/v4/"
 
         fun create(): FootballService {
             val logging = HttpLoggingInterceptor().apply {
