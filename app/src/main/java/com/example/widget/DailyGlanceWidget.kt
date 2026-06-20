@@ -34,11 +34,20 @@ import java.util.Locale
 
 class DailyGlanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val db = AppDatabase.getDatabase(context)
-        val transactions = withContext(Dispatchers.IO) { db.tesseraDao().getAllTransactions().first() }
-        val stepsRecords = withContext(Dispatchers.IO) { db.tesseraDao().getAllStepsRecords().first() }
-        val petEvents = withContext(Dispatchers.IO) { db.tesseraDao().getAllPetEvents().first() }
-        val marketItems = withContext(Dispatchers.IO) { db.tesseraDao().getPendingMarketItems().first() }
+        var transactions = emptyList<com.example.data.Transaction>()
+        var stepsRecords = emptyList<com.example.data.StepsRecord>()
+        var petEvents = emptyList<com.example.data.PetEvent>()
+        var marketItems = emptyList<com.example.data.MarketItem>()
+        
+        try {
+            val db = AppDatabase.getDatabase(context)
+            transactions = withContext(Dispatchers.IO) { db.tesseraDao().getAllTransactions().first() }
+            stepsRecords = withContext(Dispatchers.IO) { db.tesseraDao().getAllStepsRecords().first() }
+            petEvents = withContext(Dispatchers.IO) { db.tesseraDao().getAllPetEvents().first() }
+            marketItems = withContext(Dispatchers.IO) { db.tesseraDao().getPendingMarketItems().first() }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
 
         // Balance
         val totalIncome = transactions.filter { it.isIncome }.sumOf { it.value }

@@ -32,8 +32,14 @@ import kotlinx.coroutines.Dispatchers
 
 class PetsGlanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val db = AppDatabase.getDatabase(context)
-        val events = withContext(Dispatchers.IO) { db.tesseraDao().getAllPetEvents().first() }
+        var events = emptyList<com.example.data.PetEvent>()
+        
+        try {
+            val db = AppDatabase.getDatabase(context)
+            events = withContext(Dispatchers.IO) { db.tesseraDao().getAllPetEvents().first() }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
 
         provideContent {
             PetsWidgetContent(context = context, events = events)

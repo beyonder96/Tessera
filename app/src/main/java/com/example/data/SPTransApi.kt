@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
 
 interface SPTransApiService {
     @POST("Login/Autenticar")
-    suspend fun autenticar(@Query("token") token: String): Boolean
+    suspend fun autenticar(@Query("token") token: String): retrofit2.Response<okhttp3.ResponseBody>
 
     // GET /Previsao/Linha?codigoLinha={codigoLinha}
     @GET("Previsao/Linha")

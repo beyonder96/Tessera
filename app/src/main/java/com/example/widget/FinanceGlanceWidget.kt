@@ -34,9 +34,16 @@ import java.util.Locale
 
 class FinanceGlanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val db = AppDatabase.getDatabase(context)
-        val transactions = withContext(Dispatchers.IO) { db.tesseraDao().getAllTransactions().first() }
-        val bankAccounts = withContext(Dispatchers.IO) { db.tesseraDao().getAllBankAccounts().first() }
+        var transactions = emptyList<com.example.data.Transaction>()
+        var bankAccounts = emptyList<com.example.data.BankAccount>()
+        
+        try {
+            val db = AppDatabase.getDatabase(context)
+            transactions = withContext(Dispatchers.IO) { db.tesseraDao().getAllTransactions().first() }
+            bankAccounts = withContext(Dispatchers.IO) { db.tesseraDao().getAllBankAccounts().first() }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
 
         provideContent {
             FinanceWidgetContent(context = context, transactions = transactions, bankAccounts = bankAccounts)

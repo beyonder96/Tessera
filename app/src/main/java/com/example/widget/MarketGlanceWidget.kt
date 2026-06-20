@@ -32,8 +32,14 @@ import kotlinx.coroutines.Dispatchers
 
 class MarketGlanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val db = AppDatabase.getDatabase(context)
-        val items = withContext(Dispatchers.IO) { db.tesseraDao().getPendingMarketItems().first() }
+        var items = emptyList<com.example.data.MarketItem>()
+        
+        try {
+            val db = AppDatabase.getDatabase(context)
+            items = withContext(Dispatchers.IO) { db.tesseraDao().getPendingMarketItems().first() }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
 
         provideContent {
             MarketWidgetContent(context = context, items = items)

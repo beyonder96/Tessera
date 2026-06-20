@@ -65,6 +65,7 @@ class TesseraViewModel(
     val heroMetric: StateFlow<DynamicHeroMetric?> = _heroMetric.asStateFlow()
 
     val localLLMManager = LocalLLMManager(applicationContext)
+    val aiDiagnosticStatus: StateFlow<String> = localLLMManager.diagnosticStatus
 
     val isLocalLLMActive: Boolean
         get() = localLLMManager.isLocalActive
@@ -555,7 +556,8 @@ class TesseraViewModel(
             _busError.value = null
             try {
                 val token = "fc7a53cdc1cce061cc38365f4791b5f7d1977e4c21001feb964b76761bb0d8cc"
-                val authSuccess = com.example.data.SPTransApi.service.autenticar(token)
+                val response = com.example.data.SPTransApi.service.autenticar(token)
+                val authSuccess = response.isSuccessful && response.body()?.string()?.contains("true") == true
                 
                 if (!authSuccess) {
                     _busError.value = "Falha na autenticação da SPTrans."
@@ -1336,66 +1338,72 @@ class TesseraViewModel(
                     
                     val teamIds = listOf(
                         764 to "Brasil",
-                        1783 to "Flamengo"
+                        1783 to "Flamengo",
+                        2061 to "Boca Juniors"
                     )
                     
                     teamIds.forEach { (id, name) ->
-                        val response = footballService.getTeamMatches(apiKey = token, teamId = id)
-                        val matches = response.matches ?: emptyList()
-                        
-                        // Encontra o último jogo finalizado
-                        val lastMatch = matches.filter { it.status == "FINISHED" }
-                            .maxByOrNull { it.utcDate ?: "" }
+                        try {
+                            val response = footballService.getTeamMatches(apiKey = token, teamId = id)
+                            val matches = response.matches ?: emptyList()
                             
-                        // Encontra o próximo jogo agendado ou em andamento
-                        val nextMatch = matches.filter { it.status == "SCHEDULED" || it.status == "LIVE" || it.status == "IN_PLAY" || it.status == "PAUSED" }
-                            .minByOrNull { it.utcDate ?: "" }
+                            // Encontra o último jogo finalizado
+                            val lastMatch = matches.filter { it.status == "FINISHED" }
+                                .maxByOrNull { it.utcDate ?: "" }
+                                
+                            // Encontra o próximo jogo agendado ou em andamento
+                            val nextMatch = matches.filter { it.status == "SCHEDULED" || it.status == "TIMED" || it.status == "LIVE" || it.status == "IN_PLAY" || it.status == "PAUSED" }
+                                .minByOrNull { it.utcDate ?: "" }
 
-                        val lastDetail = lastMatch?.let {
-                            val statusShort = when (it.status) {
-                                "FINISHED" -> "FT"
-                                "LIVE", "IN_PLAY", "PAUSED" -> "LIVE"
-                                else -> "FT"
+                            val lastDetail = lastMatch?.let {
+                                val statusShort = when (it.status) {
+                                    "FINISHED" -> "FT"
+                                    "LIVE", "IN_PLAY", "PAUSED" -> "LIVE"
+                                    else -> "FT"
+                                }
+                                com.example.data.MatchDetail(
+                                    homeTeamName = it.homeTeam?.shortName ?: it.homeTeam?.name ?: "",
+                                    homeTeamLogo = it.homeTeam?.crest ?: "",
+                                    awayTeamName = it.awayTeam?.shortName ?: it.awayTeam?.name ?: "",
+                                    awayTeamLogo = it.awayTeam?.crest ?: "",
+                                    homeGoals = it.score?.fullTime?.home,
+                                    awayGoals = it.score?.fullTime?.away,
+                                    statusShort = statusShort,
+                                    dateFormatted = formatFootballDate(it.utcDate),
+                                    leagueName = it.competition?.name ?: ""
+                                )
                             }
-                            com.example.data.MatchDetail(
-                                homeTeamName = it.homeTeam?.shortName ?: it.homeTeam?.name ?: "",
-                                homeTeamLogo = it.homeTeam?.crest ?: "",
-                                awayTeamName = it.awayTeam?.shortName ?: it.awayTeam?.name ?: "",
-                                awayTeamLogo = it.awayTeam?.crest ?: "",
-                                homeGoals = it.score?.fullTime?.home,
-                                awayGoals = it.score?.fullTime?.away,
-                                statusShort = statusShort,
-                                dateFormatted = formatFootballDate(it.utcDate),
-                                leagueName = it.competition?.name ?: ""
-                            )
-                        }
 
-                        val nextDetail = nextMatch?.let {
-                            val statusShort = when (it.status) {
-                                "SCHEDULED" -> "NS"
-                                "LIVE", "IN_PLAY", "PAUSED" -> "LIVE"
-                                else -> "NS"
+                            val nextDetail = nextMatch?.let {
+                                val statusShort = when (it.status) {
+                                    "SCHEDULED", "TIMED" -> "NS"
+                                    "LIVE", "IN_PLAY", "PAUSED" -> "LIVE"
+                                    else -> "NS"
+                                }
+                                com.example.data.MatchDetail(
+                                    homeTeamName = it.homeTeam?.shortName ?: it.homeTeam?.name ?: "",
+                                    homeTeamLogo = it.homeTeam?.crest ?: "",
+                                    awayTeamName = it.awayTeam?.shortName ?: it.awayTeam?.name ?: "",
+                                    awayTeamLogo = it.awayTeam?.crest ?: "",
+                                    homeGoals = it.score?.fullTime?.home,
+                                    awayGoals = it.score?.fullTime?.away,
+                                    statusShort = statusShort,
+                                    dateFormatted = formatFootballDate(it.utcDate),
+                                    leagueName = it.competition?.name ?: ""
+                                )
                             }
-                            com.example.data.MatchDetail(
-                                homeTeamName = it.homeTeam?.shortName ?: it.homeTeam?.name ?: "",
-                                homeTeamLogo = it.homeTeam?.crest ?: "",
-                                awayTeamName = it.awayTeam?.shortName ?: it.awayTeam?.name ?: "",
-                                awayTeamLogo = it.awayTeam?.crest ?: "",
-                                homeGoals = it.score?.fullTime?.home,
-                                awayGoals = it.score?.fullTime?.away,
-                                statusShort = statusShort,
-                                dateFormatted = formatFootballDate(it.utcDate),
-                                leagueName = it.competition?.name ?: ""
-                            )
-                        }
 
-                        list.add(
-                            com.example.data.FootballMatchInfo(
-                                teamName = name,
-                                lastMatch = lastDetail,
-                                nextMatch = nextDetail
+                            list.add(
+                                com.example.data.FootballMatchInfo(
+                                    teamName = name,
+                                    lastMatch = lastDetail,
+                                    nextMatch = nextDetail
+                                )
                             )
-                        )
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            // Continua para o próximo time em caso de erro individual
+                        }
                     }
                     
                     if (list.isNotEmpty() && list.any { it.lastMatch != null || it.nextMatch != null }) {

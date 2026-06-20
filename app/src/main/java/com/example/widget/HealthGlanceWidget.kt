@@ -36,10 +36,18 @@ import java.util.Locale
 
 class HealthGlanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val db = AppDatabase.getDatabase(context)
-        val medications = withContext(Dispatchers.IO) { db.tesseraDao().getAllMedications().first() }
-        val weightRecords = withContext(Dispatchers.IO) { db.tesseraDao().getAllWeightRecords().first() }
-        val stepsRecords = withContext(Dispatchers.IO) { db.tesseraDao().getAllStepsRecords().first() }
+        var medications = emptyList<com.example.data.Medication>()
+        var weightRecords = emptyList<com.example.data.WeightRecord>()
+        var stepsRecords = emptyList<com.example.data.StepsRecord>()
+        
+        try {
+            val db = AppDatabase.getDatabase(context)
+            medications = withContext(Dispatchers.IO) { db.tesseraDao().getAllMedications().first() }
+            weightRecords = withContext(Dispatchers.IO) { db.tesseraDao().getAllWeightRecords().first() }
+            stepsRecords = withContext(Dispatchers.IO) { db.tesseraDao().getAllStepsRecords().first() }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
 
         // Read Vibe from SharedPreferences
         val sharedPrefs = context.getSharedPreferences("tessera_prefs", Context.MODE_PRIVATE)

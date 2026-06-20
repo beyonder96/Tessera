@@ -4762,6 +4762,26 @@ fun TesseraChatSheet(
                         color = Color.White.copy(alpha = 0.5f),
                         lineHeight = 15.sp
                     )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Diagnóstico Atual:", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    val diagStatus by viewModel.aiDiagnosticStatus.collectAsState()
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF2A2A2A))
+                            .border(1.dp, Color(0xFF3A3A3A), RoundedCornerShape(8.dp))
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            text = diagStatus,
+                            color = if (diagStatus.contains("sucesso", ignoreCase = true)) PrimaryTeal else if (diagStatus.contains("falha", ignoreCase = true) || diagStatus.contains("erro", ignoreCase = true)) Color(0xFFE57373) else Color(0xFFAAAAAA),
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            lineHeight = 16.sp
+                        )
+                    }
                 }
             },
             confirmButton = {

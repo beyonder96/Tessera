@@ -4,6 +4,9 @@ import android.content.Context
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
 
 class LocalLLMManager(private val context: Context) {
@@ -13,6 +16,9 @@ class LocalLLMManager(private val context: Context) {
     val isLocalActive: Boolean
         get() = llmInference != null
 
+    private val _diagnosticStatus = MutableStateFlow("Aguardando...")
+    val diagnosticStatus: StateFlow<String> = _diagnosticStatus.asStateFlow()
+
     // Prepara a IA buscando o modelo em diversas pastas candidatas
     fun startInference(preferredPath: String) {
         // Garante a criação da pasta de arquivos externos do app
@@ -20,6 +26,7 @@ class LocalLLMManager(private val context: Context) {
             context.getExternalFilesDir(null)?.mkdirs()
         } catch (e: Exception) {
             e.printStackTrace()
+            _diagnosticStatus.value = "Erro ao acessar pasta: ${e.message}"
         }
 
         val candidatePaths = listOf(
@@ -36,7 +43,9 @@ class LocalLLMManager(private val context: Context) {
         )
 
         var foundPath: String? = null
+        val scannedPathsList = mutableListOf<String>()
         for (path in candidatePaths) {
+            scannedPathsList.add(path)
             val file = File(path)
             if (file.exists() && file.canRead()) {
                 foundPath = path
@@ -45,20 +54,25 @@ class LocalLLMManager(private val context: Context) {
         }
 
         if (foundPath == null) {
+            val limit = scannedPathsList.take(3).joinToString("\n")
+            _diagnosticStatus.value = "Nenhum arquivo .bin encontrado.\nPastas escaneadas (exemplo):\n$limit"
             println("Tessera AI: Nenhum modelo local encontrado nos locais padrão. Utilizando simulador.")
             return
         }
 
         try {
+            _diagnosticStatus.value = "Carregando modelo: ${File(foundPath).name}..."
             val options = LlmInference.LlmInferenceOptions.builder()
                 .setModelPath(foundPath)
                 .setMaxTokens(1024)
                 .build()
 
             llmInference = LlmInference.createFromOptions(context, options)
+            _diagnosticStatus.value = "Modelo carregado com sucesso!\n($foundPath)"
             println("Tessera AI: Modelo carregado com sucesso a partir de: $foundPath")
         } catch (e: Exception) {
             e.printStackTrace()
+            _diagnosticStatus.value = "Falha ao iniciar LlmInference:\n${e.message}\n(Possível falta de memória ou modelo incompatível)"
             llmInference = null
         }
     }
