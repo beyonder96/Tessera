@@ -174,6 +174,19 @@ abstract class CopyApkTask : org.gradle.api.DefaultTask() {
             val outputFile = File(outDir, "app-$type-$ver.apk")
             inputFile.copyTo(outputFile, overwrite = true)
         }
+
+        // Keep README.md in sync with the new APK version automatically
+        val readmeFile = File(outDir.parentFile, "README.md")
+        if (readmeFile.exists()) {
+            val originalContent = readmeFile.readText()
+            val releaseRegex = Regex("""app-release-[^/\s)]+\.apk""")
+            val debugRegex = Regex("""app-debug-[^/\s)]+\.apk""")
+            var updatedContent = originalContent.replace(releaseRegex, "app-release-$ver.apk")
+            updatedContent = updatedContent.replace(debugRegex, "app-debug-$ver.apk")
+            if (updatedContent != originalContent) {
+                readmeFile.writeText(updatedContent)
+            }
+        }
     }
 }
 
