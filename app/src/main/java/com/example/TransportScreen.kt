@@ -8,6 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import coil.compose.AsyncImage
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -76,8 +77,8 @@ fun TransportScreen(
                     .fillMaxWidth()
                     .height(450.dp)
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.widget_background), // Using existing background
+                AsyncImage(
+                    model = "https://images.unsplash.com/photo-1543085542-a72eb3cc4cfa?q=80&w=800&auto=format&fit=crop",
                     contentDescription = "SP City",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier

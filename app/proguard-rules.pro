@@ -69,3 +69,11 @@
     public void println(java.lang.String);
     public void print(java.lang.String);
 }
+
+# MediaPipe Tasks GenAI
+-dontwarn com.google.mediapipe.**
+-dontwarn com.google.protobuf.**
+-keep class com.google.mediapipe.** { *; }
+-keepclassmembers class com.google.mediapipe.** { *; }
+-keep class com.google.protobuf.** { *; }
+-keepclassmembers class com.google.protobuf.** { *; }

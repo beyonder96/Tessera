@@ -140,6 +140,13 @@ import com.example.widget.PetsGlanceWidget
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val imageLoader = coil.ImageLoader.Builder(this)
+            .components {
+                add(coil.decode.SvgDecoder.Factory())
+            }
+            .build()
+        coil.Coil.setImageLoader(imageLoader)
+
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme {
@@ -4188,6 +4195,13 @@ private fun AnnotatedString.Builder.appendKeywordsStyled(subText: String) {
     }
 }
 
+data class TesseraMessage(
+    val id: String,
+    val text: String,
+    val isUser: Boolean,
+    val isTyping: Boolean = false
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TesseraChatSheet(
@@ -4198,72 +4212,39 @@ fun TesseraChatSheet(
     medications: List<com.example.data.Medication>,
     viewModel: TesseraViewModel
 ) {
-    val context = LocalContext.current
-    val density = LocalDensity.current
     val coroutineScope = rememberCoroutineScope()
     var prompt by remember { mutableStateOf("") }
     
-    // UI states
-    var showInputField by remember { mutableStateOf(false) }
-    var currentResponseText by remember { mutableStateOf("Olá Kenned! But every person has their own unique *energy rhythm*, and it's not random it's a predictable *biology*. Como posso te ajudar hoje?") }
-    var displayedResponseText by remember { mutableStateOf("") }
-    var isTypingFinished by remember { mutableStateOf(false) }
+    val chatHistory = remember { 
+        androidx.compose.runtime.mutableStateListOf(
+            TesseraMessage(
+                id = java.util.UUID.randomUUID().toString(),
+                text = "Olá Kenned! Como sua Tessera AI, estou pronta para ajudar a sincronizar sua *predictable biology* com seus objetivos hoje. O que deseja explorar?",
+                isUser = false
+            )
+        )
+    }
+    
     var isThinking by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
-
-    // Sequential word-by-word reveal typing animation
-    LaunchedEffect(currentResponseText) {
-        isTypingFinished = false
-        displayedResponseText = ""
-        val words = currentResponseText.split(" ")
-        var accumulated = ""
-        for (i in words.indices) {
-            accumulated += (if (i == 0) "" else " ") + words[i]
-            displayedResponseText = accumulated
-            kotlinx.coroutines.delay(100L) // Adjust speed (100ms per word is perfect)
-        }
-        isTypingFinished = true
-    }
-
-    // Orb rotation transition loops
-    val infiniteTransition = rememberInfiniteTransition(label = "OrbRotation")
-    val angleY by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(if (isThinking) 2500 else 8000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "RotationY"
-    )
-    val angleX by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(if (isThinking) 4000 else 12000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "RotationX"
-    )
-    val pulseFactor by infiniteTransition.animateFloat(
-        initialValue = 0.93f,
-        targetValue = 1.07f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(if (isThinking) 300 else 1200, easing = EaseInOutSine),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "Pulse"
-    )
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     
-    // Bottom Light Flare Intensity
-    val flareIntensity by infiniteTransition.animateFloat(
-        initialValue = 0.25f,
-        targetValue = 0.45f,
+    // Auto scroll when new messages arrive
+    LaunchedEffect(chatHistory.size, isThinking) {
+        if (chatHistory.isNotEmpty()) {
+            listState.animateScrollToItem(chatHistory.size - 1)
+        }
+    }
+    
+    val infiniteTransition = rememberInfiniteTransition(label = "BgAnimation")
+    val bgOffset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = EaseInOutSine),
+            animation = tween(20000, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "FlareIntensity"
+        label = "BgOffset"
     )
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -4271,34 +4252,42 @@ fun TesseraChatSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color.Transparent, // Let our premium gradient shine through
-        scrimColor = Color(0x66000000),
+        containerColor = Color.Transparent,
+        scrimColor = Color(0x99000000),
         dragHandle = null,
         modifier = Modifier.fillMaxHeight(0.98f)
     ) {
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black)
+                .background(Color(0xFF0A0F12)) // Deep dark premium base
         ) {
-            val screenWidth = maxWidth
-            val screenHeight = maxHeight
-            
-            // Background bottom yellow-green light flare
+            // Animated background meshes
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp)
-                    .align(Alignment.BottomCenter)
+                    .fillMaxSize()
                     .background(
                         Brush.radialGradient(
-                            colorStops = arrayOf(
-                                0f to Color(0xFFC5E871).copy(alpha = flareIntensity),
-                                0.4f to Color(0xFF1E824C).copy(alpha = flareIntensity * 0.4f),
-                                1f to Color.Transparent
+                            colors = listOf(
+                                PrimaryTeal.copy(alpha = 0.12f),
+                                Color.Transparent
                             ),
-                            center = Offset(x = constraints.maxWidth / 2f, y = constraints.maxHeight.toFloat()),
-                            radius = with(density) { 280.dp.toPx() }
+                            center = Offset(x = bgOffset, y = 300f),
+                            radius = 1200f
+                        )
+                    )
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFFC5E871).copy(alpha = 0.08f),
+                                Color.Transparent
+                            ),
+                            center = Offset(x = maxWidth.value - bgOffset, y = maxHeight.value - 200f),
+                            radius = 1000f
                         )
                     )
             )
@@ -4306,48 +4295,71 @@ fun TesseraChatSheet(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 24.dp)
                     .statusBarsPadding()
                     .navigationBarsPadding()
                     .imePadding()
             ) {
-                // Header (Top bar with close & AI badge)
+                // Header
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 16.dp, bottom = 8.dp),
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onDismiss) {
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(Color(0x1AFFFFFF))
+                            .border(0.5.dp, Color(0x33FFFFFF), CircleShape)
+                            .size(36.dp)
+                    ) {
                         Icon(
-                            imageVector = Icons.Default.Close,
+                            imageVector = Icons.Default.KeyboardArrowDown,
                             contentDescription = "Fechar",
-                            tint = Color.White.copy(alpha = 0.6f)
+                            tint = Color.White
                         )
                     }
                     
-                    // Tessera AI Badge
+                    // Center animated mini-avatar
+                    Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+                        val pulse by infiniteTransition.animateFloat(
+                            initialValue = 0.8f, targetValue = 1.1f,
+                            animationSpec = infiniteRepeatable(tween(1500, easing = EaseInOutSine), RepeatMode.Reverse), label="pulse"
+                        )
+                        Canvas(modifier = Modifier.size(28.dp)) {
+                            drawCircle(
+                                brush = Brush.radialGradient(listOf(Color(0x88E07A5F), Color.Transparent)),
+                                radius = size.width / 2 * pulse
+                            )
+                            drawCircle(
+                                brush = Brush.linearGradient(listOf(Color(0xFFE07A5F), Color(0xFFF4F1DE))),
+                                radius = size.width / 3
+                            )
+                        }
+                    }
+                    
+                    // Status Badge
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0x11FFFFFF))
-                            .border(0.5.dp, Color(0x1F85D6C5), RoundedCornerShape(12.dp))
+                            .background(Color(0x1AFFFFFF))
+                            .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(12.dp))
                             .clickable { showHelpDialog = true }
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
                     ) {
                         val isLocalActive = viewModel.isLocalLLMActive
-                        val dotColor = if (isLocalActive) Color(0xFF34C759) else Color(0xFFFF9500)
                         Box(
                             modifier = Modifier
                                 .size(6.dp)
                                 .clip(CircleShape)
-                                .background(dotColor)
+                                .background(if (isLocalActive) Color(0xFF34C759) else Color(0xFFFF9500))
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = if (isLocalActive) "Gemma 2B Local" else "Simulada (Offline)",
+                            text = if (isLocalActive) "Gemma 2B Local" else "Simulada",
                             fontSize = 11.sp,
                             color = Color.White,
                             fontWeight = FontWeight.SemiBold
@@ -4355,323 +4367,217 @@ fun TesseraChatSheet(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Orb display region (Upper-middle)
-                Box(
+                // Chat History
+                androidx.compose.foundation.lazy.LazyColumn(
+                    state = listState,
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                    contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Futuristic Core Orb drawing
-                    Canvas(
-                        modifier = Modifier.size(240.dp)
-                    ) {
-                        val canvasWidth = size.width
-                        val canvasHeight = size.height
-                        val centerX = canvasWidth / 2f
-                        val centerY = canvasHeight / 2f
-                        
-                        val baseRadius = 70.dp.toPx()
-                        val pulseRadius = baseRadius * pulseFactor
-                        
-                        // 1. Draw outer neon/radial glow around the core
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(
-                                    Color(0x77E07A5F), // Copper/Orange glow
-                                    Color(0x33F4F1DE), // Silver/White glow
-                                    Color.Transparent
-                                ),
-                                center = Offset(centerX, centerY),
-                                radius = pulseRadius * 1.6f
-                            ),
-                            radius = pulseRadius * 1.6f,
-                            center = Offset(centerX, centerY)
-                        )
-                        
-                        // 2. Draw the main gradient-filled glass core (Orange/Copper top, Silver/White bottom)
-                        drawCircle(
-                            brush = Brush.linearGradient(
-                                colors = listOf(
-                                    Color(0xFFE07A5F), // Copper/Orange
-                                    Color(0xFFF4F1DE)  // Silver/White
-                                ),
-                                start = Offset(centerX, centerY - pulseRadius),
-                                end = Offset(centerX, centerY + pulseRadius)
-                            ),
-                            radius = pulseRadius,
-                            center = Offset(centerX, centerY)
-                        )
-                        
-                        // 3. Draw inner glass reflection highlight for 3D depth
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.5f),
-                                    Color.Transparent
-                                ),
-                                center = Offset(centerX - pulseRadius * 0.35f, centerY - pulseRadius * 0.35f),
-                                radius = pulseRadius * 0.7f
-                            ),
-                            radius = pulseRadius,
-                            center = Offset(centerX, centerY)
-                        )
-                        
-                        // 4. Draw orbital rings (rotated ellipses) with orbiting electrons
-                        val timeMs = System.currentTimeMillis()
-                        val numOrbits = 3
-                        for (i in 0 until numOrbits) {
-                            val angleOffset = i * (360f / numOrbits)
-                            // Speed of orbit
-                            val speedMultiplier = if (isThinking) 3f else 1f
-                            val currentAngle = (angleY * speedMultiplier + angleOffset) % 360f
-                            val rad = Math.toRadians(currentAngle.toDouble())
-                            
-                            val rx = pulseRadius * 1.35f
-                            val ry = pulseRadius * 0.45f
-                            
-                            val path = androidx.compose.ui.graphics.Path().apply {
-                                addOval(
-                                    androidx.compose.ui.geometry.Rect(
-                                        left = centerX - rx,
-                                        top = centerY - ry,
-                                        right = centerX + rx,
-                                        bottom = centerY + ry
+                    items(chatHistory.size) { index ->
+                        val msg = chatHistory[index]
+                        if (msg.isUser) {
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.CenterEnd
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.85f)
+                                        .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 4.dp))
+                                        .background(Brush.linearGradient(listOf(Color(0xFF1B6A42), Color(0xFF278A56))))
+                                        .border(0.5.dp, Color(0x4DFFFFFF), RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 4.dp))
+                                        .padding(16.dp)
+                                ) {
+                                    Text(
+                                        text = msg.text,
+                                        color = Color.White,
+                                        fontSize = 16.sp,
+                                        lineHeight = 22.sp,
+                                        fontFamily = FontFamily.SansSerif
                                     )
-                                )
+                                }
                             }
-                            
-                            drawContext.canvas.save()
-                            // Rotate each orbital plane by 45 degrees relative to each other
-                            drawContext.canvas.translate(centerX, centerY)
-                            drawContext.canvas.rotate(45f * (i - 1))
-                            drawContext.canvas.translate(-centerX, -centerY)
-                            drawPath(
-                                path = path,
-                                color = Color.White.copy(alpha = 0.2f),
-                                style = Stroke(width = 1.dp.toPx())
-                            )
-                            
-                            // Calculate electron coordinates on this ellipse
-                            val electronX = centerX + rx * cos(rad).toFloat()
-                            val electronY = centerY + ry * sin(rad).toFloat()
-                            
-                            // Electron halo/glow
-                            drawCircle(
-                                color = Color(0xFFFFD700).copy(alpha = 0.5f),
-                                radius = 6.dp.toPx(),
-                                center = Offset(electronX, electronY)
-                            )
-                            // Electron center node
-                            drawCircle(
-                                color = Color.White,
-                                radius = 3.dp.toPx(),
-                                center = Offset(electronX, electronY)
-                            )
-                            drawContext.canvas.restore()
+                        } else {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Start,
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                // AI Avatar small
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0x33FFFFFF))
+                                        .border(0.5.dp, PrimaryTeal.copy(alpha=0.5f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Outlined.AutoAwesome, null, tint = PrimaryTeal, modifier = Modifier.size(16.dp))
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 20.dp))
+                                        .background(Color(0x1AFFFFFF))
+                                        .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(topStart = 4.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 20.dp))
+                                        .padding(16.dp)
+                                ) {
+                                    Text(
+                                        text = formatStyledChatText(msg.text),
+                                        color = Color.White,
+                                        fontSize = 16.sp,
+                                        lineHeight = 24.sp,
+                                        fontFamily = FontFamily.SansSerif
+                                    )
+                                }
+                            }
                         }
-                        
-                        // 5. If thinking, draw expanding neural wave ripple circles
-                        if (isThinking) {
-                            val count = 2
-                            for (j in 0 until count) {
-                                val progress = ((timeMs + j * 600) % 1200) / 1200f
-                                val ringRadius = pulseRadius * (1f + progress * 0.9f)
-                                val alpha = (1f - progress) * 0.6f
-                                drawCircle(
-                                    color = Color(0xFFFFD700).copy(alpha = alpha),
-                                    radius = ringRadius,
-                                    center = Offset(centerX, centerY),
-                                    style = Stroke(width = 1.5.dp.toPx())
+                    }
+                    if (isThinking) {
+                        item {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Start,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0x22FFFFFF)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Outlined.AutoAwesome, null, tint = Color.White.copy(alpha=0.7f), modifier = Modifier.size(16.dp))
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                val alpha by infiniteTransition.animateFloat(
+                                    initialValue = 0.3f, targetValue = 1f,
+                                    animationSpec = infiniteRepeatable(tween(800, easing = EaseInOutSine), RepeatMode.Reverse), label="alpha"
                                 )
+                                Text("Analisando sua biologia...", color = PrimaryTeal.copy(alpha = alpha), fontSize = 14.sp, fontStyle = FontStyle.Italic)
                             }
                         }
                     }
                 }
 
-                // Text Display & Action Region (Lower half)
+                // Input Area
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(28.dp)
+                        .padding(start = 20.dp, end = 20.dp, bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    
-                    if (isThinking) {
-                        // Thinking state display
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Color(0x0AFFFFFF))
-                                .border(0.5.dp, Color(0x1AFFFFFF), RoundedCornerShape(16.dp))
-                                .padding(horizontal = 20.dp, vertical = 10.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                val pulseAnim = rememberInfiniteTransition(label = "PulseText")
-                                val alpha by pulseAnim.animateFloat(
-                                    initialValue = 0.4f, targetValue = 1f,
-                                    animationSpec = infiniteRepeatable(
-                                        animation = tween(650, easing = FastOutSlowInEasing),
-                                        repeatMode = RepeatMode.Reverse
-                                    ),
-                                    label = "Alpha"
-                                )
-                                Icon(
-                                    Icons.Outlined.AutoAwesome, 
-                                    contentDescription = null, 
-                                    tint = PrimaryTeal.copy(alpha = alpha), 
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Aguardando biologia interna...", 
-                                    color = PrimaryTeal.copy(alpha = alpha), 
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                    } else if (!showInputField) {
-                        // Conversational text display
-                        Text(
-                            text = formatStyledChatText(displayedResponseText),
-                            color = Color.White,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Medium,
-                            fontFamily = FontFamily.SansSerif,
-                            lineHeight = 28.sp,
-                            textAlign = TextAlign.Center,
+                    if (chatHistory.size <= 1 && !isThinking) {
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
-                        )
-                        
-                        // Next Action Button floating over yellow-green base light
-                        Button(
-                            onClick = { showInputField = true },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E824C)),
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier
-                                .fillMaxWidth(0.85f)
-                                .height(56.dp)
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text(
-                                text = "Next",
-                                color = Color.White,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    } else {
-                        // User input region (Frosted Glass text box)
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            // Suggestion quick pills
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                val suggestions = listOf(
-                                    "Como está meu sono?",
-                                    "Dicas de foco hoje",
-                                    "Qual meu patrimônio?",
-                                    "Lembrete dos remédios"
-                                )
-                                suggestions.forEach { sug ->
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(18.dp))
-                                            .background(Color(0x0CFFFFFF))
-                                            .border(0.5.dp, Color(0x1F85D6C5), RoundedCornerShape(18.dp))
-                                            .clickable {
-                                                prompt = sug
-                                            }
-                                            .padding(horizontal = 14.dp, vertical = 8.dp)
-                                    ) {
-                                        Text(sug, color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                                    }
-                                }
-                            }
-
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(24.dp))
-                                    .background(Color(0x1AFFFFFF))
-                                    .border(0.5.dp, Color(0x2BFFFFFF), RoundedCornerShape(24.dp))
-                                    .padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(modifier = Modifier.weight(1f)) {
-                                    if (prompt.isEmpty()) {
-                                        Text("Mensagem...", color = Color(0x80FFFFFF), fontSize = 15.sp)
-                                    }
-                                    androidx.compose.foundation.text.BasicTextField(
-                                        value = prompt,
-                                        onValueChange = { prompt = it },
-                                        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 15.sp),
-                                        modifier = Modifier.fillMaxWidth(),
-                                        maxLines = 4,
-                                        cursorBrush = androidx.compose.ui.graphics.SolidColor(PrimaryTeal)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(8.dp))
+                            listOf("Resumo do sono", "Dicas de foco", "Finanças de hoje").forEach { sug ->
                                 Box(
                                     modifier = Modifier
-                                        .size(44.dp)
-                                        .clip(CircleShape)
-                                        .background(if (prompt.isNotBlank()) PrimaryTeal else Color(0x22FFFFFF))
-                                        .clickable(enabled = prompt.isNotBlank()) {
-                                            val userPrompt = prompt
-                                            prompt = ""
-                                            showInputField = false
-                                            isThinking = true
-                                            
-                                            coroutineScope.launch {
-                                                val petsString = if (petEvents.isEmpty()) "Nenhum compromisso pendente hoje." else petEvents.joinToString("; ") { "${it.petName}: ${it.title} (${if(it.isCompleted) "Concluído" else "Pendente"})" }
-                                                val marketString = if (marketItems.isEmpty()) "Nenhuma compra pendente." else marketItems.joinToString("; ") { "${it.name} (${it.quantity} ${it.unit})${if (it.isChecked || it.isBought) " (Comprado)" else " (Pendente)"}" }
-                                                val medsString = if (medications.isEmpty()) "Nenhum medicamento agendado." else medications.joinToString("; ") { "${it.name} (${it.dosage}) às ${it.time} - ${if (it.isTaken) "Tomado" else "Pendente"}" }
-
-                                                val hiddenContext = """
-                                                    [Contexto] Nome do Usuário: Kenned
-                                                    [Contexto] Patrimônio consolidado: R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", netWorth)}
-                                                    [Contexto] Compromissos dos Pets: $petsString
-                                                    [Contexto] Lista de Compras (Mercado): $marketString
-                                                    [Contexto] Medicamentos e Remédios: $medsString
-                                                    
-                                                    Importante: Destaque palavras-chave importantes sobre biologia, energia e finanças entre asteriscos (ex: *energy rhythm*, *predictable biology*, *investimentos*, *sono*). Fale de forma premium e inspiradora direta ao Kenned.
-                                                    
-                                                    Pergunta do usuário: "$userPrompt"
-                                                """.trimIndent()
-                                                
-                                                val response = try {
-                                                    viewModel.generateAIResponse(hiddenContext)
-                                                } catch (e: Exception) {
-                                                    e.printStackTrace()
-                                                    "A IA local não pôde responder devido a um erro."
-                                                }
-                                                currentResponseText = response
-                                                isThinking = false
-                                            }
-                                        },
-                                    contentAlignment = Alignment.Center
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(Color(0x1AFFFFFF))
+                                        .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
+                                        .clickable { prompt = sug }
+                                        .padding(horizontal = 14.dp, vertical = 8.dp)
                                 ) {
-                                    Icon(
-                                        Icons.AutoMirrored.Filled.Send, 
-                                        contentDescription = "Enviar", 
-                                        tint = if (prompt.isNotBlank()) Color.Black else Color.White.copy(alpha=0.5f),
-                                        modifier = Modifier.size(20.dp)
-                                    )
+                                    Text(sug, color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
                                 }
                             }
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(Color(0x26000000))
+                            .border(0.5.dp, Color(0x4DFFFFFF), RoundedCornerShape(24.dp))
+                            .padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        Box(modifier = Modifier.weight(1f).padding(bottom = 10.dp, top = 6.dp)) {
+                            if (prompt.isEmpty()) {
+                                Text("Mensagem para Tessera...", color = Color(0x80FFFFFF), fontSize = 16.sp)
+                            }
+                            androidx.compose.foundation.text.BasicTextField(
+                                value = prompt,
+                                onValueChange = { prompt = it },
+                                textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 16.sp),
+                                modifier = Modifier.fillMaxWidth(),
+                                maxLines = 5,
+                                cursorBrush = androidx.compose.ui.graphics.SolidColor(PrimaryTeal)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(if (prompt.isNotBlank()) PrimaryTeal else Color(0x22FFFFFF))
+                                .clickable(enabled = prompt.isNotBlank() && !isThinking) {
+                                    val userPrompt = prompt
+                                    prompt = ""
+                                    chatHistory.add(TesseraMessage(id = java.util.UUID.randomUUID().toString(), text = userPrompt, isUser = true))
+                                    isThinking = true
+                                    
+                                    coroutineScope.launch {
+                                        val petsString = if (petEvents.isEmpty()) "Nenhum compromisso." else petEvents.joinToString("; ") { "${it.petName}: ${it.title}" }
+                                        val marketString = if (marketItems.isEmpty()) "Nenhuma compra pendente." else marketItems.joinToString("; ") { "${it.name}" }
+                                        val medsString = if (medications.isEmpty()) "Nenhum medicamento." else medications.joinToString("; ") { "${it.name} às ${it.time}" }
+
+                                        val hiddenContext = """
+                                            [Contexto] Nome: Kenned
+                                            [Contexto] Patrimônio: R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", netWorth)}
+                                            [Contexto] Pets: $petsString
+                                            [Contexto] Compras: $marketString
+                                            [Contexto] Remédios: $medsString
+                                            Importante: Destaque palavras-chave importantes sobre biologia, energia e finanças entre asteriscos (ex: *energy rhythm*, *investimentos*). Fale de forma premium.
+                                            
+                                            Pergunta do usuário: "$userPrompt"
+                                        """.trimIndent()
+                                        
+                                        val response = try {
+                                            viewModel.generateAIResponse(hiddenContext)
+                                        } catch (e: Exception) {
+                                            "A IA local encontrou uma flutuação e não pôde responder."
+                                        }
+                                        
+                                        isThinking = false
+                                        val newMsgId = java.util.UUID.randomUUID().toString()
+                                        chatHistory.add(TesseraMessage(id = newMsgId, text = "", isUser = false, isTyping = true))
+                                        
+                                        val words = response.split(" ")
+                                        var accumulated = ""
+                                        for (i in words.indices) {
+                                            accumulated += (if (i == 0) "" else " ") + words[i]
+                                            val idx = chatHistory.indexOfFirst { it.id == newMsgId }
+                                            if (idx >= 0) {
+                                                chatHistory[idx] = chatHistory[idx].copy(text = accumulated)
+                                            }
+                                            kotlinx.coroutines.delay(40L) // Fast typing effect
+                                        }
+                                        val finalIdx = chatHistory.indexOfFirst { it.id == newMsgId }
+                                        if (finalIdx >= 0) {
+                                            chatHistory[finalIdx] = chatHistory[finalIdx].copy(isTyping = false)
+                                        }
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.Send, 
+                                contentDescription = "Enviar", 
+                                tint = if (prompt.isNotBlank()) Color.Black else Color.White.copy(alpha=0.5f),
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
                 }
