@@ -133,7 +133,7 @@ dependencies {
   debugImplementation(libs.androidx.compose.ui.tooling)
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
-  implementation("com.google.mediapipe:tasks-genai:0.10.14")
+  implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
   implementation("androidx.health.connect:connect-client:1.1.0-alpha07")
   implementation("androidx.glance:glance-appwidget:1.1.0")
   implementation("androidx.glance:glance-material3:1.1.0")

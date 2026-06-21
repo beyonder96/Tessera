@@ -1,163 +1,68 @@
 package com.example
 
 import android.content.Context
-import com.google.mediapipe.tasks.genai.llminference.LlmInference
+import com.google.ai.client.generativeai.GenerativeModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.io.File
 
 class LocalLLMManager(private val context: Context) {
-    private var llmInference: LlmInference? = null
+    private var generativeModel: GenerativeModel? = null
 
-    // Verifica se o modelo local foi carregado com sucesso
     val isLocalActive: Boolean
-        get() = llmInference != null
+        get() = true
 
-    private val _diagnosticStatus = MutableStateFlow("Aguardando...")
+    private val _diagnosticStatus = MutableStateFlow("Iniciando Gemini...")
     val diagnosticStatus: StateFlow<String> = _diagnosticStatus.asStateFlow()
 
-    // Prepara a IA buscando o modelo em diversas pastas candidatas
     fun startInference(preferredPath: String) {
-        // Garante a criação da pasta de arquivos externos do app
         try {
-            context.getExternalFilesDir(null)?.mkdirs()
-        } catch (e: Exception) {
-            e.printStackTrace()
-            _diagnosticStatus.value = "Erro ao acessar pasta: ${e.message}"
-        }
-
-        val candidatePaths = listOf(
-            preferredPath,
-            File(context.getExternalFilesDir(null), "gemma-4-e2b-it-qat.bin").absolutePath,
-            File(context.getExternalFilesDir(null), "gemma-2b-it-cpu-int4.bin").absolutePath,
-            File(context.getExternalFilesDir(null), "gemma-2b-it.bin").absolutePath,
-            File(context.getExternalFilesDir(null), "gemma-2b-it-gpu-int4.bin").absolutePath,
-            File(context.filesDir, "gemma-4-e2b-it-qat.bin").absolutePath,
-            File(context.filesDir, "gemma-2b-it-cpu-int4.bin").absolutePath,
-            "/storage/emulated/0/Download/gemma-4-e2b-it-qat.bin",
-            "/storage/emulated/0/Download/gemma-2b-it-cpu-int4.bin",
-            "/storage/emulated/0/Download/gemma-2b-it.bin"
-        )
-
-        var foundPath: String? = null
-        val scannedPathsList = mutableListOf<String>()
-        for (path in candidatePaths) {
-            scannedPathsList.add(path)
-            val file = File(path)
-            if (file.exists() && file.canRead()) {
-                foundPath = path
-                break
+            val clazz = Class.forName("com.example.BuildConfig")
+            val field = clazz.getField("GEMINI_API_KEY")
+            val apiKey = field.get(null) as? String ?: ""
+            
+            if (apiKey.isNotBlank() && apiKey != "MY_GEMINI_API_KEY") {
+                generativeModel = GenerativeModel(
+                    modelName = "gemini-1.5-flash",
+                    apiKey = apiKey
+                )
+                _diagnosticStatus.value = "Gemini carregado com sucesso!"
+                println("Tessera AI: Gemini carregado com sucesso.")
+            } else {
+                _diagnosticStatus.value = "API Key do Gemini inválida ou não encontrada."
+                println("Tessera AI: API Key ausente.")
             }
-        }
-
-        if (foundPath == null) {
-            val limit = scannedPathsList.take(3).joinToString("\n")
-            _diagnosticStatus.value = "Nenhum arquivo .bin encontrado.\nPastas escaneadas (exemplo):\n$limit"
-            println("Tessera AI: Nenhum modelo local encontrado nos locais padrão. Utilizando simulador.")
-            return
-        }
-
-        try {
-            _diagnosticStatus.value = "Carregando modelo: ${File(foundPath).name}..."
-            val options = LlmInference.LlmInferenceOptions.builder()
-                .setModelPath(foundPath)
-                .setMaxTokens(1024)
-                .build()
-
-            llmInference = LlmInference.createFromOptions(context, options)
-            _diagnosticStatus.value = "Modelo carregado com sucesso!\n($foundPath)"
-            println("Tessera AI: Modelo carregado com sucesso a partir de: $foundPath")
         } catch (e: Exception) {
             e.printStackTrace()
-            _diagnosticStatus.value = "Falha ao iniciar LlmInference:\n${e.message}\n(Possível falta de memória ou modelo incompatível)"
-            llmInference = null
+            _diagnosticStatus.value = "Erro ao carregar Gemini: ${e.message}"
         }
     }
 
-    // Envia a sua pergunta e gera a resposta
     suspend fun generateResponse(userPrompt: String): String {
         val systemPrompt = """
             Você é a Tessera AI, uma companheira de conversação versátil, inteligente, elegante, natural e amigável integrada ao aplicativo Tessera do Kenned.
             Você é capaz de conversar de forma fluida sobre qualquer assunto casual, responder curiosidades e debater temas gerais com naturalidade e flexibilidade.
-            Você tem acesso ao contexto local do usuário (Finanças/Patrimônio, Saúde/Medicamentos, Pets e Compras de Mercado), mas deve consultar e cruzar discretamente esses dados locais APENAS quando o assunto da conversa for relevante a eles.
-            Evite listar ou detalhar esses dados locais de forma intrusiva se o usuário estiver apenas jogando conversa fora, cumprimentando ou tratando de temas não relacionados.
-            Seja sempre direta, concisa, fluida, natural e amigável. Responda em português brasileiro.
+            Você tem acesso ao contexto local do usuário, mas deve consultar e cruzar discretamente esses dados locais APENAS quando o assunto da conversa for relevante a eles.
+            Evite listar ou detalhar esses dados locais de forma intrusiva se o usuário estiver apenas jogando conversa fora.
+            Seja sempre direta, concisa, fluida, natural e amigável. Responda sempre em português brasileiro.
         """.trimIndent()
-        val prompt = "$systemPrompt\nUsuário: $userPrompt"
+        
+        val prompt = "$systemPrompt\n\n$userPrompt"
 
         return withContext(Dispatchers.IO) {
             try {
-                var response: String? = null
-                if (llmInference != null) {
-                    try {
-                        response = llmInference?.generateResponse(prompt)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                }
-                
-                if (!response.isNullOrBlank()) {
-                    response
+                if (generativeModel != null) {
+                    val response = generativeModel?.generateContent(prompt)
+                    response?.text ?: "Desculpe, não consegui formular uma resposta agora."
                 } else {
-                    // High-fidelity fallback simulated AI reading local context dynamically
-                    val netWorth = regexFind(userPrompt, "\\[Contexto\\] Patrimônio consolidado: R\\$ ([\\d,.]+)") ?: "0,00"
-                    val petsContext = regexFind(userPrompt, "\\[Contexto\\] Compromissos dos Pets: (.*)") ?: "Nenhum compromisso pendente hoje."
-                    val marketContext = regexFind(userPrompt, "\\[Contexto\\] Lista de Compras \\(Mercado\\): (.*)") ?: "Nenhuma compra pendente."
-                    val medsContext = regexFind(userPrompt, "\\[Contexto\\] Medicamentos e Remédios: (.*)") ?: "Nenhum medicamento agendado."
-                    val query = regexFind(userPrompt, "Pergunta do usuário: \"(.*)\"") ?: userPrompt
-                    val queryClean = query.lowercase()
-
-                    when {
-                        queryClean.contains("patrimônio") || queryClean.contains("saldo") || queryClean.contains("finança") || queryClean.contains("dinheiro") || queryClean.contains("quanto tenho") || queryClean.contains("capital") -> {
-                            "Olá Kenned! Analisei suas finanças locais: seu *patrimônio* consolidado atual é de R$ $netWorth. Manter o equilíbrio financeiro ajuda no seu *energy rhythm* geral."
-                        }
-                        queryClean.contains("compra") || queryClean.contains("mercado") || queryClean.contains("adquirir") || queryClean.contains("comprar") || queryClean.contains("ingrediente") || queryClean.contains("receita") -> {
-                            val pendingItems = marketContext.split("; ")
-                                .filter { it.contains("Pendente") }
-                                .map { it.substringBefore(" (Pendente)") }
-                            
-                            val advice = if (pendingItems.isNotEmpty()) {
-                                "Vejo que você tem itens pendentes na sua lista de mercado: ${pendingItems.joinToString(", ")}. Abastecer o corpo no momento certo faz parte da sua *predictable biology*."
-                            } else {
-                                "Todos os itens da sua lista de mercado foram comprados! Isso mantém seu *energy rhythm* abastecido e saudável."
-                            }
-                            "Olá Kenned! $advice"
-                        }
-                        queryClean.contains("remédio") || queryClean.contains("medicamento") || queryClean.contains("saúde") || queryClean.contains("dose") || queryClean.contains("tomar") -> {
-                            val pendingMeds = medsContext.split("; ")
-                                .filter { it.contains("Pendente") }
-                                .map { it.substringBefore(" - Pendente") }
-                            
-                            val advice = if (pendingMeds.isNotEmpty()) {
-                                "Atenção Kenned: você tem medicamentos pendentes hoje: ${pendingMeds.joinToString(", ")}. Tomá-los é vital para regular sua *predictable biology*."
-                            } else {
-                                "Parabéns, Kenned! Todos os seus medicamentos diários constam como tomados, alinhando sua *biology* interna com sucesso."
-                            }
-                            "Olá Kenned! $advice"
-                        }
-                        queryClean.contains("pet") || queryClean.contains("marie") || queryClean.contains("churchill") || queryClean.contains("vacina") || queryClean.contains("consulta") || queryClean.contains("rotina") -> {
-                            "Olá Kenned! Analisando o status dos seus pets: $petsContext. Cuidar de quem amamos traz harmonia e paz ao seu *energy rhythm* diário."
-                        }
-                        queryClean.contains("olá") || queryClean.contains("oi") || queryClean.contains("bom dia") || queryClean.contains("boa tarde") || queryClean.contains("boa noite") -> {
-                            "Olá Kenned! Sou a Tessera AI. Sabia que cada pessoa possui seu próprio *energy rhythm* único? E isso não é aleatório, é uma *predictable biology*!"
-                        }
-                        else -> {
-                            "Com certeza, Kenned! Como sua assistente Tessera AI, posso conversar sobre qualquer assunto. Se quiser podemos alinhar seu *energy rhythm* e examinar sua *predictable biology* hoje!"
-                        }
-                    }
+                    "Olá, Kenned! Parece que minha conexão com o Gemini não foi estabelecida. Verifique a chave de API."
                 }
             } catch (e: Exception) {
-                "Erro interno: ${e.message}"
+                e.printStackTrace()
+                "Houve um erro na comunicação: ${e.localizedMessage}"
             }
         }
-    }
-
-    private fun regexFind(text: String, pattern: String): String? {
-        val regex = Regex(pattern)
-        val match = regex.find(text)
-        return match?.groupValues?.get(1)?.trim()
     }
 }
