@@ -28,8 +28,6 @@ class LocalLLMManager(private val context: Context) {
             if (modelFile.exists()) {
                 val options = LlmInference.LlmInferenceOptions.builder()
                     .setModelPath(preferredPath)
-                    .setMaxTokens(512)
-                    .setTemperature(0.7f)
                     .build()
                 
                 llmInference = LlmInference.createFromOptions(context, options)
@@ -40,7 +38,7 @@ class LocalLLMManager(private val context: Context) {
             } else {
                 println("Tessera AI: Arquivo do Gemma local não encontrado em: $preferredPath. Usando fallback.")
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             e.printStackTrace()
             println("Tessera AI: Falha ao carregar Gemma local: ${e.message}")
         }
@@ -62,7 +60,7 @@ class LocalLLMManager(private val context: Context) {
                 _diagnosticStatus.value = "Gemma Local ausente (arquivo não encontrado) e sem Chave do Gemini."
                 println("Tessera AI: Sem modelo local ou chave do Gemini.")
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             e.printStackTrace()
             _diagnosticStatus.value = "Erro no carregamento: ${e.message}"
         }
