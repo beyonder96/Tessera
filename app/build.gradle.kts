@@ -13,7 +13,7 @@ android {
     defaultConfig {
     applicationId = "com.aistudio.tessera.xtrkna"
     minSdk = 26
-    targetSdk = 36
+    targetSdk = 35
     versionCode = 19
     versionName = "1.6.5"
 
