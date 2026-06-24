@@ -18,6 +18,7 @@ android {
     versionName = "1.6.5"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    manifestPlaceholders["MAPS_API_KEY"] = "DUMMY_KEY"
   }
 
   signingConfigs {

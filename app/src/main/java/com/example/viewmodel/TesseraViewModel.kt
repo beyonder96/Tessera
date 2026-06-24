@@ -120,24 +120,6 @@ class TesseraViewModel(
     private val _isLoadingFootball = MutableStateFlow(false)
     val isLoadingFootball: StateFlow<Boolean> = _isLoadingFootball.asStateFlow()
 
-    init {
-        loadUserBusLines()
-        fetchWeather()
-        fetchFootballScores()
-        viewModelScope.launch(Dispatchers.IO) {
-            val externalDir = applicationContext.getExternalFilesDir(null)
-            val possiblePaths = mutableListOf<String>()
-            if (externalDir != null) {
-                possiblePaths.add(java.io.File(externalDir, "gemma-2b-it-cpu-int4.bin").absolutePath)
-                possiblePaths.add(java.io.File(externalDir, "gemma-4-e2b-it-qat.bin").absolutePath)
-            }
-            possiblePaths.add("/storage/emulated/0/Download/gemma-2b-it-cpu-int4.bin")
-            possiblePaths.add("/storage/emulated/0/Download/gemma-4-e2b-it-qat.bin")
-            val finalPath = possiblePaths.find { java.io.File(it).exists() } ?: possiblePaths.first()
-            localLLMManager.startInference(finalPath)
-            refreshAIInsightsAndMetric()
-        }
-    }
 
     fun fetchWeather() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -1690,7 +1672,24 @@ class TesseraViewModel(
         }
     }
 
-    
+    init {
+        loadUserBusLines()
+        fetchWeather()
+        fetchFootballScores()
+        viewModelScope.launch(Dispatchers.IO) {
+            val externalDir = applicationContext.getExternalFilesDir(null)
+            val possiblePaths = mutableListOf<String>()
+            if (externalDir != null) {
+                possiblePaths.add(java.io.File(externalDir, "gemma-2b-it-cpu-int4.bin").absolutePath)
+                possiblePaths.add(java.io.File(externalDir, "gemma-4-e2b-it-qat.bin").absolutePath)
+            }
+            possiblePaths.add("/storage/emulated/0/Download/gemma-2b-it-cpu-int4.bin")
+            possiblePaths.add("/storage/emulated/0/Download/gemma-4-e2b-it-qat.bin")
+            val finalPath = possiblePaths.find { java.io.File(it).exists() } ?: possiblePaths.first()
+            localLLMManager.startInference(finalPath)
+            refreshAIInsightsAndMetric()
+        }
+    }
 
 }
 
