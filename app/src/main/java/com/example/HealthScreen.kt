@@ -1,5 +1,10 @@
 package com.example
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.runtime.getValue
+
 import android.Manifest
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
@@ -265,15 +270,13 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
     var showMedicationDialog by remember { mutableStateOf(false) }
     
     val listState = rememberLazyListState()
-    val scrollFraction by remember {
+    val isCompact by remember {
         derivedStateOf {
-            if (listState.firstVisibleItemIndex > 0) {
-                1f
-            } else {
-                (listState.firstVisibleItemScrollOffset.toFloat() / 250f).coerceIn(0f, 1f)
-            }
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 100
         }
     }
+    val normalAlpha by animateFloatAsState(targetValue = if (isCompact) 0f else 1f, animationSpec = tween(250), label = "normalAlpha")
+    val compactAlpha by animateFloatAsState(targetValue = if (isCompact) 1f else 0f, animationSpec = tween(250), label = "compactAlpha")
 
     val infiniteHeartTransition = rememberInfiniteTransition(label = "HeartPulse")
     val heartScale by infiniteHeartTransition.animateFloat(
@@ -1058,57 +1061,55 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color(0xFF070909).copy(alpha = 0.85f * scrollFraction))
-                                .then(
-                                    if (scrollFraction > 0.05f) {
-                                        Modifier.border(
-                                            width = 0.5.dp,
-                                            brush = Brush.verticalGradient(
-                                                colors = listOf(
-                                                    Color.White.copy(alpha = 0.1f * scrollFraction),
-                                                    Color.Transparent
-                                                )
-                                            ),
-                                            shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
-                                        )
-                                    } else Modifier
-                                )
                                 .statusBarsPadding()
-                                .height(64.dp)
+                                .padding(horizontal = 24.dp, vertical = 12.dp)
                         ) {
-                            // Large left-aligned title
-                            Row(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Start
-                            ) {
-                                IconButton(onClick = onHomeClick) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Home,
-                                        contentDescription = "Home",
-                                        tint = OnBackgroundDark.copy(alpha = 0.7f)
+                            // 1. Barra Normal
+                            if (normalAlpha > 0.05f) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .graphicsLayer {
+                                            alpha = normalAlpha
+                                            scaleX = 0.92f + (normalAlpha * 0.08f)
+                                            scaleY = 0.92f + (normalAlpha * 0.08f)
+                                        },
+                                    horizontalArrangement = Arrangement.Start,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    IconButton(onClick = onHomeClick) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Home,
+                                            contentDescription = "Home",
+                                            tint = OnBackgroundDark.copy(alpha = 0.7f)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Saúde",
+                                        fontFamily = FontFamily.Serif,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 28.sp,
+                                        color = OnBackgroundDark
                                     )
                                 }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Saúde",
-                                    fontFamily = FontFamily.Serif,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 28.sp,
-                                    color = OnBackgroundDark,
-                                    modifier = Modifier.alpha(1f - scrollFraction)
-                                )
                             }
 
-                            // Small center-aligned title & pulsating heart
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
+                            // 2. Barra Compacta
+                            if (compactAlpha > 0.05f) {
                                 Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.alpha(scrollFraction)
+                                    modifier = Modifier
+                                        .align(Alignment.TopCenter)
+                                        .graphicsLayer {
+                                            alpha = compactAlpha
+                                            translationY = (1f - compactAlpha) * (-20f)
+                                        }
+                                        .clip(RoundedCornerShape(32.dp))
+                                        .background(Color.Black.copy(alpha = 0.75f))
+                                        .border(1.dp, PrimaryTeal.copy(alpha = 0.5f), RoundedCornerShape(32.dp))
+                                        .padding(horizontal = 24.dp, vertical = 12.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
                                         imageVector = Icons.Filled.Favorite,
@@ -1121,12 +1122,41 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                                                 scaleY = heartScale
                                             )
                                     )
+                                    
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    
+                                    val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
+                                    val shimmerOffset by infiniteTransition.animateFloat(
+                                        initialValue = -400f,
+                                        targetValue = 400f,
+                                        animationSpec = infiniteRepeatable(
+                                            animation = tween(2000, easing = LinearEasing),
+                                            repeatMode = RepeatMode.Restart
+                                        ),
+                                        label = "shimmerOffset"
+                                    )
+                                    
+                                    val nameGlowBrush = Brush.linearGradient(
+                                        colors = listOf(
+                                            Color.White,
+                                            PrimaryTeal,
+                                            Color.White,
+                                            PrimaryTeal,
+                                            Color.White
+                                        ),
+                                        start = Offset(shimmerOffset, 0f),
+                                        end = Offset(shimmerOffset + 150f, 150f)
+                                    )
+                                    
                                     Text(
-                                        text = "Saúde",
-                                        fontFamily = FontFamily.Serif,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 18.sp,
-                                        color = OnBackgroundDark
+                                        text = "SAÚDE",
+                                        style = TextStyle(
+                                            brush = nameGlowBrush,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 16.sp,
+                                            letterSpacing = 2.sp,
+                                            fontFamily = FontFamily.Serif
+                                        )
                                     )
                                 }
                             }

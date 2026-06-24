@@ -12,6 +12,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
@@ -124,7 +126,7 @@ class WhiteNoisePlayer {
 }
 
 @Composable
-fun ChronosScreen(viewModel: TesseraViewModel) {
+fun ChronosScreen(viewModel: TesseraViewModel, listState: LazyListState = rememberLazyListState()) {
     val routines by viewModel.allRoutines.collectAsStateWithLifecycle()
     var activeRoutine by remember { mutableStateOf<Routine?>(null) }
 
@@ -136,7 +138,7 @@ fun ChronosScreen(viewModel: TesseraViewModel) {
         label = "RoutinePlayerTransition"
     ) { routine ->
         if (routine == null) {
-            RoutinesListView(routines = routines, viewModel = viewModel, onStartRoutine = { activeRoutine = it })
+            RoutinesListView(routines = routines, viewModel = viewModel, onStartRoutine = { activeRoutine = it }, listState = listState)
         } else {
             RoutinePlayerView(routine = routine, viewModel = viewModel, onStopRoutine = { activeRoutine = null })
         }
@@ -147,7 +149,8 @@ fun ChronosScreen(viewModel: TesseraViewModel) {
 fun RoutinesListView(
     routines: List<Routine>,
     viewModel: TesseraViewModel,
-    onStartRoutine: (Routine) -> Unit
+    onStartRoutine: (Routine) -> Unit,
+    listState: LazyListState = rememberLazyListState()
 ) {
     var showAddRoutineDialog by remember { mutableStateOf(false) }
     var routineToEdit by remember { mutableStateOf<Routine?>(null) }
@@ -183,6 +186,7 @@ fun RoutinesListView(
         )
 
         LazyColumn(
+            state = listState,
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(bottom = 140.dp), // Fix FAB overlap
             modifier = Modifier.fillMaxSize()

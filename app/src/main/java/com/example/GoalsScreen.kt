@@ -1,11 +1,16 @@
 package com.example
 
+import androidx.compose.ui.text.TextStyle
+
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -47,53 +52,48 @@ fun GoalsScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
 
     var selectedTab by remember(viewModel.selectedGoalsTab) { mutableStateOf(viewModel.selectedGoalsTab) }
 
+    val rituaisLazyListState = rememberLazyListState()
+    val chronosLazyListState = rememberLazyListState()
+    val pomodoroScrollState = rememberScrollState()
+
+    val isCompact by remember(selectedTab) {
+        derivedStateOf {
+            when (selectedTab) {
+                1 -> chronosLazyListState.firstVisibleItemIndex > 0 || chronosLazyListState.firstVisibleItemScrollOffset > 100
+                2 -> pomodoroScrollState.value > 100
+                else -> rituaisLazyListState.firstVisibleItemIndex > 0 || rituaisLazyListState.firstVisibleItemScrollOffset > 100
+            }
+        }
+    }
+
+    val normalAlpha by animateFloatAsState(targetValue = if (isCompact) 0f else 1f, animationSpec = tween(250), label = "normalAlpha")
+    val compactAlpha by animateFloatAsState(targetValue = if (isCompact) 1f else 0f, animationSpec = tween(250), label = "compactAlpha")
+
+    val accentColor = when (selectedTab) {
+        1 -> Color(0xFF71D7CD)
+        2 -> Color(0xFFD7B4F3)
+        else -> Color(0xFFF9A826)
+    }
+
+    val titleText = when (selectedTab) {
+        1 -> "Chronos"
+        2 -> "Focus"
+        else -> "Foco & Rotinas"
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             containerColor = Color(0xFF070909), // Oura deep black
             contentWindowInsets = WindowInsets.systemBars,
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = when (selectedTab) {
-                                1 -> "Chronos"
-                                2 -> "Focus"
-                                else -> "Foco & Rotinas"
-                            },
-                            fontFamily = FontFamily.Serif,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 28.sp,
-                            color = Color(0xFFDFE3E2)
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onHomeClick) {
-                            Icon(
-                                imageVector = Icons.Outlined.Home,
-                                contentDescription = "Home",
-                                tint = Color(0xFFBDC9C6)
-                            )
-                        }
-                    },
-                    actions = {
-                        if (selectedTab == 0) {
-                            IconButton(onClick = { showAddHabitDialog = true }) {
-                                Icon(Icons.Outlined.Add, contentDescription = "Adicionar", tint = Color(0xFFBDC9C6))
-                            }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                        scrolledContainerColor = Color.Transparent,
-                    )
-                )
-            }
+            topBar = {}
         ) { innerPadding ->
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
+                Spacer(modifier = Modifier.height(72.dp))
+
                 // Internal navigation tabs
                 Row(
                     modifier = Modifier
@@ -148,10 +148,11 @@ fun GoalsScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                     label = "MainTabsContent"
                 ) { tab ->
                     when (tab) {
-                        1 -> ChronosScreen(viewModel = viewModel)
-                        2 -> PomodoroScreen()
+                        1 -> ChronosScreen(viewModel = viewModel, listState = chronosLazyListState)
+                        2 -> PomodoroScreen(scrollState = pomodoroScrollState)
                         else -> {
                             LazyColumn(
+                                state = rituaisLazyListState,
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .padding(horizontal = 20.dp),
@@ -181,6 +182,121 @@ fun GoalsScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                             }
                         }
                     }
+                }
+            }
+        }
+
+        // Floating overlay top bar
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 24.dp, vertical = 12.dp)
+        ) {
+            // 1. Barra Normal
+            if (normalAlpha > 0.05f) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                            alpha = normalAlpha
+                            scaleX = 0.92f + (normalAlpha * 0.08f)
+                            scaleY = 0.92f + (normalAlpha * 0.08f)
+                        },
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onHomeClick, modifier = Modifier.size(28.dp)) {
+                            Icon(
+                                imageVector = Icons.Outlined.Home,
+                                contentDescription = "Home",
+                                tint = Color(0xFFBDC9C6),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = titleText.uppercase(),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White,
+                            letterSpacing = 2.sp
+                        )
+                    }
+                    
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (selectedTab == 0) {
+                            IconButton(onClick = { showAddHabitDialog = true }, modifier = Modifier.size(28.dp)) {
+                                Icon(Icons.Outlined.Add, contentDescription = "Adicionar", tint = Color(0xFFBDC9C6), modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 2. Barra Compacta
+            if (compactAlpha > 0.05f) {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .graphicsLayer {
+                            alpha = compactAlpha
+                            translationY = (1f - compactAlpha) * (-20f)
+                        }
+                        .clip(RoundedCornerShape(32.dp))
+                        .background(Color.Black.copy(alpha = 0.75f))
+                        .border(1.dp, accentColor.copy(alpha = 0.5f), RoundedCornerShape(32.dp))
+                        .padding(horizontal = 24.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = when (selectedTab) {
+                            1 -> Icons.Outlined.HourglassEmpty
+                            2 -> Icons.Outlined.Timer
+                            else -> Icons.Outlined.Spa
+                        },
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    
+                    Spacer(modifier = Modifier.width(12.dp))
+                    
+                    val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
+                    val shimmerOffset by infiniteTransition.animateFloat(
+                        initialValue = -400f,
+                        targetValue = 400f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(2000, easing = LinearEasing),
+                            repeatMode = RepeatMode.Restart
+                        ),
+                        label = "shimmerOffset"
+                    )
+                    
+                    val nameGlowBrush = Brush.linearGradient(
+                        colors = listOf(
+                            Color.White,
+                            accentColor,
+                            Color.White,
+                            accentColor,
+                            Color.White
+                        ),
+                        start = Offset(shimmerOffset, 0f),
+                        end = Offset(shimmerOffset + 150f, 150f)
+                    )
+                    
+                    Text(
+                        text = titleText.uppercase(),
+                        style = TextStyle(
+                            brush = nameGlowBrush,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            letterSpacing = 2.sp,
+                            fontFamily = FontFamily.Serif
+                        )
+                    )
                 }
             }
         }

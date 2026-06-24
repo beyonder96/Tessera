@@ -17,10 +17,67 @@ interface SPTransApiService {
     @POST("Login/Autenticar")
     suspend fun autenticar(@Query("token") token: String): retrofit2.Response<okhttp3.ResponseBody>
 
-    // GET /Previsao/Linha?codigoLinha={codigoLinha}
     @GET("Previsao/Linha")
     suspend fun getPrevisaoLinha(@Query("codigoLinha") codigoLinha: Int): PrevisaoLinhaResponse
+
+    @GET("Linha/Buscar")
+    suspend fun buscarLinha(@Query("termosBusca") termosBusca: String): List<SPTransLinha>
+
+    @GET("Parada/BuscarParadasPorLinha")
+    suspend fun getParadasPorLinha(@Query("codigoLinha") codigoLinha: Int): List<SPTransParada>
+
+    @GET("Previsao/Parada")
+    suspend fun getPrevisaoParada(
+        @Query("codigoParada") codigoParada: Int,
+        @Query("codigoLinha") codigoLinha: Int
+    ): PrevisaoParadaResponse
 }
+
+@JsonClass(generateAdapter = true)
+data class SPTransLinha(
+    @Json(name = "cl") val cl: Int,
+    @Json(name = "lc") val lc: Boolean,
+    @Json(name = "lt") val lt: String,
+    @Json(name = "sl") val sl: Int,
+    @Json(name = "tl") val tl: Int,
+    @Json(name = "tp") val tp: String,
+    @Json(name = "ts") val ts: String
+)
+
+@JsonClass(generateAdapter = true)
+data class SPTransParada(
+    @Json(name = "cp") val cp: Int,
+    @Json(name = "np") val np: String,
+    @Json(name = "ed") val ed: String,
+    @Json(name = "py") val py: Double,
+    @Json(name = "px") val px: Double
+)
+
+@JsonClass(generateAdapter = true)
+data class PrevisaoParadaResponse(
+    @Json(name = "hr") val hr: String?,
+    @Json(name = "p") val p: PrevisaoParadaDetail?
+)
+
+@JsonClass(generateAdapter = true)
+data class PrevisaoParadaDetail(
+    @Json(name = "cp") val cp: Int,
+    @Json(name = "np") val np: String,
+    @Json(name = "py") val py: Double,
+    @Json(name = "px") val px: Double,
+    @Json(name = "l") val l: List<PrevisaoParadaLinha>?
+)
+
+@JsonClass(generateAdapter = true)
+data class PrevisaoParadaLinha(
+    @Json(name = "c") val c: String,
+    @Json(name = "cl") val cl: Int,
+    @Json(name = "sl") val sl: Int,
+    @Json(name = "lt0") val lt0: String,
+    @Json(name = "lt1") val lt1: String,
+    @Json(name = "qv") val qv: Int,
+    @Json(name = "vs") val vs: List<VeiculoPrevisao>?
+)
 
 @JsonClass(generateAdapter = true)
 data class PrevisaoLinhaResponse(

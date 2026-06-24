@@ -29,6 +29,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.components.bounceClick
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Apartment
+import androidx.compose.ui.graphics.graphicsLayer
 import kotlin.math.*
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -88,6 +92,12 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
         label = "ColorPhaseTransition"
     )
 
+    val scrollState = rememberScrollState()
+    val isCompact = scrollState.value > 150
+    val normalAlpha by animateFloatAsState(targetValue = if (isCompact) 0f else 1f, animationSpec = tween(250), label = "normalAlpha")
+    val compactAlpha by animateFloatAsState(targetValue = if (isCompact) 1f else 0f, animationSpec = tween(250), label = "compactAlpha")
+    val accentColor = Color(0xFFD4AF37) // Luxurious Gold
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -96,37 +106,10 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 24.dp)
+                .verticalScroll(scrollState)
+                .padding(start = 24.dp, end = 24.dp, bottom = 24.dp)
         ) {
-            // Header Bar
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                IconButton(
-                    onClick = onHomeClick,
-                    modifier = Modifier.bounceClick { onHomeClick() }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Voltar",
-                        tint = Color.White.copy(alpha = 0.8f)
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Apê",
-                    fontFamily = FontFamily.SansSerif,
-                    fontWeight = FontWeight.ExtraLight, // ExtraLight simulated Montserrat
-                    fontSize = 26.sp,
-                    color = Color.White,
-                    letterSpacing = 1.sp
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(72.dp))
 
             // Main Building Canvas
             Box(
@@ -495,6 +478,112 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
             }
             Spacer(modifier = Modifier.height(16.dp))
             Spacer(modifier = Modifier.height(100.dp)) // Spacer to clear the bottom navigation bar
+        }
+
+        // Floating overlay top bar
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 24.dp, vertical = 12.dp)
+        ) {
+            // 1. Barra Normal
+            if (normalAlpha > 0.05f) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                            alpha = normalAlpha
+                            scaleX = 0.92f + (normalAlpha * 0.08f)
+                            scaleY = 0.92f + (normalAlpha * 0.08f)
+                        },
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = onHomeClick,
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Home,
+                                contentDescription = "Home",
+                                tint = Color.White.copy(alpha = 0.8f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "MEU APÊ",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White,
+                            letterSpacing = 2.sp
+                        )
+                    }
+                }
+            }
+
+            // 2. Barra Compacta
+            if (compactAlpha > 0.05f) {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .graphicsLayer {
+                            alpha = compactAlpha
+                            translationY = (1f - compactAlpha) * (-20f)
+                        }
+                        .clip(RoundedCornerShape(32.dp))
+                        .background(Color.Black.copy(alpha = 0.75f))
+                        .border(1.dp, accentColor.copy(alpha = 0.5f), RoundedCornerShape(32.dp))
+                        .padding(horizontal = 24.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Apartment,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    
+                    Spacer(modifier = Modifier.width(12.dp))
+                    
+                    val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
+                    val shimmerOffset by infiniteTransition.animateFloat(
+                        initialValue = -400f,
+                        targetValue = 400f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(2000, easing = LinearEasing),
+                            repeatMode = RepeatMode.Restart
+                        ),
+                        label = "shimmerOffset"
+                    )
+                    
+                    val nameGlowBrush = Brush.linearGradient(
+                        colors = listOf(
+                            Color.White,
+                            accentColor,
+                            Color.White,
+                            accentColor,
+                            Color.White
+                        ),
+                        start = Offset(shimmerOffset, 0f),
+                        end = Offset(shimmerOffset + 150f, 150f)
+                    )
+                    
+                    Text(
+                        text = "MEU APÊ",
+                        style = TextStyle(
+                            brush = nameGlowBrush,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            letterSpacing = 2.sp,
+                            fontFamily = FontFamily.Serif
+                        )
+                    )
+                }
+            }
         }
     }
 }

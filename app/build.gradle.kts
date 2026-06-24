@@ -14,8 +14,8 @@ android {
     applicationId = "com.aistudio.tessera.xtrkna"
     minSdk = 26
     targetSdk = 36
-    versionCode = 18
-    versionName = "1.6.4"
+    versionCode = 19
+    versionName = "1.6.5"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -134,6 +134,7 @@ dependencies {
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
   implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
+  implementation("com.google.mediapipe:tasks-genai:0.10.14")
   implementation("androidx.health.connect:connect-client:1.1.0-alpha07")
   implementation("androidx.glance:glance-appwidget:1.1.0")
   implementation("androidx.glance:glance-material3:1.1.0")

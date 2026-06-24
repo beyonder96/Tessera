@@ -144,7 +144,7 @@ class FocusSoundPlayer {
 }
 
 @Composable
-fun PomodoroScreen() {
+fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
     var selectedMode by remember { mutableStateOf(FocusMode.FOCUS_TIMER) }
     
     // Duration ranges: Focus (1..120 min), Nap (5..60 min), Breathing (1..15 min)
@@ -188,13 +188,13 @@ fun PomodoroScreen() {
             focusSoundPlayer.stop()
         }
     }
-
+ 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp)
             .padding(bottom = 120.dp)
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {

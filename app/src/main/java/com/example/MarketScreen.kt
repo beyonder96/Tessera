@@ -1,7 +1,9 @@
 package com.example
 
+import androidx.compose.ui.graphics.graphicsLayer
+
 import androidx.compose.animation.*
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -33,6 +35,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.MarketItem
 import com.example.viewmodel.TesseraViewModel
 import com.example.ui.components.PremiumGlassModifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import java.util.Locale
 
 fun parseDoubleSafely(input: String): Double {
@@ -72,134 +79,204 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
     val cartTotal = pendingItems.filter { it.isChecked }.sumOf { it.price * it.quantity }
     val formattedTotal = String.format(Locale("pt", "BR"), "R$ %,.2f", cartTotal)
 
-    Scaffold(
-        containerColor = Color(0xFF070909),
-        contentWindowInsets = WindowInsets.systemBars,
-        topBar = {
-            MarketTopBar(
-                onHomeClick = onHomeClick, 
-                selectedTab = selectedTab, 
-                onTabSelected = { selectedTab = it },
-                cartTotal = formattedTotal,
-                onCheckout = { viewModel.checkoutCart() }
-            )
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            AnimatedContent(
-                targetState = selectedTab,
-                transitionSpec = {
-                    fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
-                }, label = "TabTransition"
-            ) { targetTab ->
-                if (targetTab == 0) {
-                    PlanningView(viewModel, pendingItems, boughtItems)
-                } else {
-                    ShoppingView(
-                        pendingItems = pendingItems,
-                        onItemToggle = { viewModel.toggleMarketItemChecked(it) },
-                        onItemUpdate = { item, price, qty, unit -> 
-                            viewModel.updateMarketItemDetails(item, price, qty, unit)
-                        }
-                    )
-                }
+    val planningListState = rememberLazyListState()
+    val shoppingListState = rememberLazyListState()
+
+    val isCompact by remember(selectedTab) {
+        derivedStateOf {
+            when (selectedTab) {
+                0 -> planningListState.firstVisibleItemIndex > 0 || planningListState.firstVisibleItemScrollOffset > 100
+                else -> shoppingListState.firstVisibleItemIndex > 0 || shoppingListState.firstVisibleItemScrollOffset > 100
             }
         }
     }
-}
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun MarketTopBar(onHomeClick: () -> Unit, selectedTab: Int, onTabSelected: (Int) -> Unit, cartTotal: String, onCheckout: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color(0xFF070909))
-    ) {
-        TopAppBar(
-            title = {
-                Text(
-                    text = "Mercado",
-                    fontFamily = FontFamily.Serif,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 28.sp,
-                    color = Color(0xFFDFE3E2)
-                )
-            },
-            navigationIcon = {
-                IconButton(onClick = onHomeClick) {
-                    Icon(
-                        imageVector = Icons.Outlined.Home,
-                        contentDescription = "Voltar",
-                        tint = Color(0xFFBDC9C6)
-                    )
-                }
-            },
-            actions = {
-                if (selectedTab == 1) {
-                    Box(
-                        modifier = Modifier
-                            .padding(end = 16.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0xFF71D7CD))
-                            .clickable { onCheckout() }
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        Text("Finalizar", color = Color(0xFF070909), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+    val normalAlpha by animateFloatAsState(targetValue = if (isCompact) 0f else 1f, animationSpec = tween(250), label = "normalAlpha")
+    val compactAlpha by animateFloatAsState(targetValue = if (isCompact) 1f else 0f, animationSpec = tween(250), label = "compactAlpha")
+    val accentColor = Color(0xFF71D7CD)
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = Color(0xFF070909),
+            contentWindowInsets = WindowInsets.systemBars,
+            topBar = {},
+            bottomBar = {
+                // Bottom anchored elements for one-handed usage
+                AnimatedContent(
+                    targetState = selectedTab,
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                    }, label = "BottomBarTransition"
+                ) { targetTab ->
+                    if (targetTab == 0) {
+                        PlanningBottomBar(viewModel)
+                    } else {
+                        ShoppingBottomBar(cartTotal, formattedTotal, onCheckout = { viewModel.checkoutCart() })
                     }
                 }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Color.Transparent,
-                scrolledContainerColor = Color.Transparent,
-            )
-        )
-        
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(Color(0xFF141918))
-                .padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TabPill(
-                text = "Planejamento",
-                isSelected = selectedTab == 0,
-                onClick = { onTabSelected(0) },
-                modifier = Modifier.weight(1f)
-            )
-            TabPill(
-                text = "No Mercado",
-                isSelected = selectedTab == 1,
-                onClick = { onTabSelected(1) },
-                modifier = Modifier.weight(1f)
-            )
-        }
-        
-        // Ilha Dinâmica de Total
-        AnimatedVisibility(visible = selectedTab == 1) {
-            Row(
+            }
+        ) { innerPadding ->
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .then(PremiumGlassModifier)
-                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .imePadding() // Ensures list resizes when keyboard opens
             ) {
-                Text("Total do Carrinho", color = Color(0xFFBDC9C6), fontSize = 16.sp, fontWeight = FontWeight.Medium)
-                Text(cartTotal, color = Color(0xFFDFE3E2), fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(72.dp))
+
+                // Elegant Segmented Tab Selector
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 8.dp)
+                        .clip(RoundedCornerShape(32.dp))
+                        .background(Color(0xFF141918))
+                        .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(32.dp))
+                        .padding(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TabPill(
+                        text = "Planejamento",
+                        isSelected = selectedTab == 0,
+                        onClick = { selectedTab = 0 },
+                        modifier = Modifier.weight(1f)
+                    )
+                    TabPill(
+                        text = "No Mercado",
+                        isSelected = selectedTab == 1,
+                        onClick = { selectedTab = 1 },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                AnimatedContent(
+                    targetState = selectedTab,
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                    }, label = "TabTransition"
+                ) { targetTab ->
+                    if (targetTab == 0) {
+                        PlanningView(viewModel, pendingItems, boughtItems, planningListState)
+                    } else {
+                        ShoppingView(
+                            pendingItems = pendingItems,
+                            listState = shoppingListState,
+                            onItemToggle = { viewModel.toggleMarketItemChecked(it) },
+                            onItemUpdate = { item, price, qty, unit -> 
+                                viewModel.updateMarketItemDetails(item, price, qty, unit)
+                            }
+                        )
+                    }
+                }
             }
         }
-        Spacer(modifier = Modifier.height(8.dp))
+
+        // Floating overlay top bar
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 24.dp, vertical = 12.dp)
+        ) {
+            // 1. Barra Normal
+            if (normalAlpha > 0.05f) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                            alpha = normalAlpha
+                            scaleX = 0.92f + (normalAlpha * 0.08f)
+                            scaleY = 0.92f + (normalAlpha * 0.08f)
+                        },
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onHomeClick, modifier = Modifier.size(28.dp)) {
+                            Icon(
+                                imageVector = Icons.Outlined.Home,
+                                contentDescription = "Home",
+                                tint = Color(0xFFBDC9C6),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "MERCADO",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White,
+                            letterSpacing = 2.sp
+                        )
+                    }
+                    
+                    // Checkout button removed from top bar, it is now in the bottom bar for one-handed use
+                }
+            }
+            
+            // 2. Barra Compacta
+            if (compactAlpha > 0.05f) {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .graphicsLayer {
+                            alpha = compactAlpha
+                            translationY = (1f - compactAlpha) * (-20f)
+                        }
+                        .clip(RoundedCornerShape(32.dp))
+                        .background(Color.Black.copy(alpha = 0.75f))
+                        .border(1.dp, accentColor.copy(alpha = 0.5f), RoundedCornerShape(32.dp))
+                        .padding(horizontal = 24.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.ShoppingCart,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    
+                    Spacer(modifier = Modifier.width(12.dp))
+                    
+                    val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
+                    val shimmerOffset by infiniteTransition.animateFloat(
+                        initialValue = -400f,
+                        targetValue = 400f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(2000, easing = LinearEasing),
+                            repeatMode = RepeatMode.Restart
+                        ),
+                        label = "shimmerOffset"
+                    )
+                    
+                    val nameGlowBrush = Brush.linearGradient(
+                        colors = listOf(
+                            Color.White,
+                            accentColor,
+                            Color.White,
+                            accentColor,
+                            Color.White
+                        ),
+                        start = Offset(shimmerOffset, 0f),
+                        end = Offset(shimmerOffset + 150f, 150f)
+                    )
+                    
+                    Text(
+                        text = "MERCADO",
+                        style = TextStyle(
+                            brush = nameGlowBrush,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            letterSpacing = 2.sp,
+                            fontFamily = FontFamily.Serif
+                        )
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -223,10 +300,11 @@ fun TabPill(text: String, isSelected: Boolean, onClick: () -> Unit, modifier: Mo
 }
 
 @Composable
-fun PlanningView(viewModel: TesseraViewModel, pendingItems: List<MarketItem>, boughtItems: List<MarketItem>) {
+fun PlanningView(viewModel: TesseraViewModel, pendingItems: List<MarketItem>, boughtItems: List<MarketItem>, listState: LazyListState) {
     var newItemText by remember { mutableStateOf("") }
 
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp),
@@ -234,46 +312,7 @@ fun PlanningView(viewModel: TesseraViewModel, pendingItems: List<MarketItem>, bo
     ) {
         item { Spacer(modifier = Modifier.height(16.dp)) }
         
-        item {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .then(PremiumGlassModifier)
-                    .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-            ) {
-                TextField(
-                    value = newItemText,
-                    onValueChange = { newItemText = it },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = {
-                        if (newItemText.isNotBlank()) {
-                            viewModel.addMarketItem(newItemText)
-                            newItemText = ""
-                        }
-                    }),
-                    placeholder = {
-                        Text(
-                            text = "Adicionar item (Ex: Leite)...",
-                            color = Color(0xFF5E6D6A),
-                            fontSize = 16.sp
-                        )
-                    },
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        disabledContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedTextColor = Color(0xFFDFE3E2),
-                        unfocusedTextColor = Color(0xFFDFE3E2)
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-        }
+        item { Spacer(modifier = Modifier.height(8.dp)) }
 
         item {
             Text(
@@ -358,6 +397,7 @@ fun BoughtItem(text: String) {
 @Composable
 fun ShoppingView(
     pendingItems: List<MarketItem>, 
+    listState: LazyListState,
     onItemToggle: (MarketItem) -> Unit,
     onItemUpdate: (MarketItem, Double, Double, String) -> Unit
 ) {
@@ -367,6 +407,7 @@ fun ShoppingView(
     var expandedItemId by remember { mutableStateOf<Int?>(null) }
 
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp),
@@ -466,33 +507,38 @@ fun ShoppingListItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .then(if (isChecked) PremiumGlassModifier else Modifier.background(Color(0xFF141918)))
+            .clip(RoundedCornerShape(24.dp))
+            .background(if (isChecked) Color(0xFF141918) else Color(0xFF1A2120))
             .border(
                 width = 1.dp, 
                 color = if (isChecked) Color(0x3371D7CD) else Color(0x1AFFFFFF), 
-                shape = RoundedCornerShape(20.dp)
+                shape = RoundedCornerShape(24.dp)
             )
             .animateContentSize()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onClick() }
-                .padding(16.dp),
+                // ONE-HANDED UX: Tapping ANYWHERE on the row toggles the item, except the edit button
+                .clickable { onToggle() }
+                .padding(start = 20.dp, top = 16.dp, bottom = 16.dp, end = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Animated Checkbox
             Box(
                 modifier = Modifier
                     .size(28.dp)
                     .clip(CircleShape)
-                    .background(if (isChecked) Color(0xFF71D7CD) else Color.Transparent)
-                    .border(2.dp, if (isChecked) Color(0xFF71D7CD) else Color(0xFF3D4947), CircleShape)
-                    .clickable { onToggle() },
+                    .background(if (isChecked) Color(0xFF71D7CD) else Color(0xFF0F1312))
+                    .border(1.dp, if (isChecked) Color(0xFF71D7CD) else Color(0x33FFFFFF), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                if (isChecked) {
-                    Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFF070909), modifier = Modifier.size(18.dp))
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = isChecked,
+                    enter = scaleIn() + fadeIn(),
+                    exit = scaleOut() + fadeOut()
+                ) {
+                    Icon(Icons.Default.Check, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp))
                 }
             }
             
@@ -502,26 +548,33 @@ fun ShoppingListItem(
                 Text(
                     text = item.name,
                     fontSize = 18.sp,
-                    fontWeight = if (isChecked) FontWeight.Normal else FontWeight.Medium,
-                    color = if (isChecked) Color(0xFF81928F) else Color(0xFFDFE3E2),
+                    fontWeight = if (isChecked) FontWeight.Normal else FontWeight.Bold,
+                    color = if (isChecked) Color(0xFF5E6D6A) else Color.White,
                     textDecoration = if (isChecked) TextDecoration.LineThrough else TextDecoration.None
                 )
                 if (item.price > 0 && !isExpanded) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "$qtyFormat ${item.unit} × $formattedPrice",
+                        text = "$qtyFormat ${item.unit} × $formattedPrice  =  $formattedTotal",
                         fontSize = 13.sp,
-                        color = Color(0xFF5E6D6A)
+                        color = if (isChecked) Color(0xFF3D4947) else Color(0xFF71D7CD),
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
             
-            if (itemTotal > 0 && !isExpanded) {
-                Text(
-                    text = formattedTotal,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isChecked) Color(0xFFDFE3E2) else Color(0xFFBDC9C6)
+            // Dedicated button to expand for Price/Qty editing
+            IconButton(
+                onClick = { onClick() },
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(if (isExpanded) Color(0xFF71D7CD) else Color(0x1AFFFFFF), CircleShape)
+            ) {
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Outlined.Edit,
+                    contentDescription = "Editar",
+                    tint = if (isExpanded) Color.Black else Color.White,
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
@@ -662,5 +715,102 @@ fun UnitButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         Text(text, color = if (isSelected) Color.White else Color(0xFF5E6D6A), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+fun PlanningBottomBar(viewModel: TesseraViewModel) {
+    var newItemText by remember { mutableStateOf("") }
+    
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xFA070909), Color(0xFF070909))))
+            .padding(horizontal = 24.dp, vertical = 16.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .then(PremiumGlassModifier)
+                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(24.dp))
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextField(
+                value = newItemText,
+                onValueChange = { newItemText = it },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(onSend = {
+                    if (newItemText.isNotBlank()) {
+                        viewModel.addMarketItem(newItemText)
+                        newItemText = ""
+                    }
+                }),
+                placeholder = { Text("Adicionar item...", color = Color(0xFF5E6D6A), fontSize = 16.sp) },
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent,
+                    focusedTextColor = Color.White, unfocusedTextColor = Color.White, cursorColor = Color(0xFF71D7CD)
+                ),
+                modifier = Modifier.weight(1f)
+            )
+            
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF71D7CD))
+                    .clickable {
+                        if (newItemText.isNotBlank()) {
+                            viewModel.addMarketItem(newItemText)
+                            newItemText = ""
+                        }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Adicionar", tint = Color.Black)
+            }
+        }
+    }
+}
+
+@Composable
+fun ShoppingBottomBar(cartTotal: Double, formattedTotal: String, onCheckout: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xFA070909), Color(0xFF070909))))
+            .padding(horizontal = 24.dp, vertical = 16.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(28.dp))
+                .background(Color(0xFF141918))
+                .border(1.dp, Color(0xFF71D7CD).copy(alpha = 0.3f), RoundedCornerShape(28.dp))
+                .padding(8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.padding(start = 16.dp)) {
+                Text("Total", color = Color(0xFF81928F), fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                Text(formattedTotal, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Black)
+            }
+            
+            Button(
+                onClick = onCheckout,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF71D7CD),
+                    contentColor = Color.Black,
+                    disabledContainerColor = Color(0xFF2A3634)
+                ),
+                shape = RoundedCornerShape(20.dp),
+                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
+                enabled = cartTotal > 0
+            ) {
+                Text("FINALIZAR", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            }
+        }
     }
 }

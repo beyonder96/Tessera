@@ -1,14 +1,17 @@
 package com.example.widget
 
 import android.content.Context
+import android.content.Intent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
-import androidx.glance.ImageProvider
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.action.actionStartActivity
+import androidx.glance.appwidget.appWidgetBackground
+import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Alignment
@@ -23,159 +26,129 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.example.MainActivity
-import com.example.R
 import com.example.data.AppDatabase
-import com.example.data.Medication
-import com.example.data.WeightRecord
-import com.example.data.StepsRecord
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withTimeoutOrNull
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 
 class HealthGlanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        var medications = emptyList<com.example.data.Medication>()
-        var weightRecords = emptyList<com.example.data.WeightRecord>()
-        var stepsRecords = emptyList<com.example.data.StepsRecord>()
-        
+        var todaySteps = 0L
+        var latestWeight = 75.2
+        var vibe = "Pendente"
+        var nextMedName = ""
+        var nextMedTime = ""
+
         try {
-            val db = AppDatabase.getDatabase(context)
-            medications = withContext(Dispatchers.IO) { db.tesseraDao().getAllMedications().first() }
-            weightRecords = withContext(Dispatchers.IO) { db.tesseraDao().getAllWeightRecords().first() }
-            stepsRecords = withContext(Dispatchers.IO) { db.tesseraDao().getAllStepsRecords().first() }
+            val sharedPrefs = context.getSharedPreferences("tessera_prefs", Context.MODE_PRIVATE)
+            val todayDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            val savedFeelingDate = sharedPrefs.getString("feeling_date", "")
+            if (savedFeelingDate == todayDate) {
+                vibe = sharedPrefs.getString("user_feeling", "Pendente") ?: "Pendente"
+            }
+
+            withTimeoutOrNull(2000) {
+                withContext(Dispatchers.IO) {
+                    val db = AppDatabase.getDatabase(context)
+                    coroutineScope {
+                        val medsDef = async { db.tesseraDao().getAllMedications().first() }
+                        val weightsDef = async { db.tesseraDao().getAllWeightRecords().first() }
+                        val stepsDef = async { db.tesseraDao().getAllStepsRecords().first() }
+
+                        val medications = medsDef.await()
+                        val weightRecords = weightsDef.await()
+                        val stepsRecords = stepsDef.await()
+
+                        val todayStart = Calendar.getInstance().apply {
+                            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                        }.timeInMillis
+                        val todayEnd = Calendar.getInstance().apply {
+                            set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59); set(Calendar.MILLISECOND, 999)
+                        }.timeInMillis
+                        todaySteps = stepsRecords.filter { it.startTime in todayStart..todayEnd }.sumOf { it.count }
+                        
+                        latestWeight = weightRecords.lastOrNull()?.weightKg ?: 75.2
+                        
+                        val uncheckedMeds = medications.filter { !it.isTaken }
+                        val nextMed = if (uncheckedMeds.isNotEmpty()) {
+                            val nowStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+                            val futureMeds = uncheckedMeds.filter { it.time >= nowStr }.sortedBy { it.time }
+                            if (futureMeds.isNotEmpty()) futureMeds.first() else uncheckedMeds.sortedBy { it.time }.first()
+                        } else null
+                        
+                        if (nextMed != null) {
+                            nextMedName = nextMed.name
+                            nextMedTime = nextMed.time
+                        }
+                    }
+                }
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }
 
-        // Read Vibe from SharedPreferences
-        val sharedPrefs = context.getSharedPreferences("tessera_prefs", Context.MODE_PRIVATE)
-        val todayDate = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
-        val savedFeelingDate = sharedPrefs.getString("feeling_date", "")
-        val vibe = if (savedFeelingDate == todayDate) {
-            sharedPrefs.getString("user_feeling", "Pendente") ?: "Pendente"
-        } else {
-            "Pendente"
-        }
-
-        // Steps today
-        val todayStart = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }.timeInMillis
-        val todayEnd = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 23)
-            set(Calendar.MINUTE, 59)
-            set(Calendar.SECOND, 59)
-            set(Calendar.MILLISECOND, 999)
-        }.timeInMillis
-        val todaySteps = stepsRecords.filter { it.startTime >= todayStart && it.endTime <= todayEnd }.sumOf { it.count }
-
-        val latestWeight = weightRecords.lastOrNull()?.weightKg ?: 75.2
-
         provideContent {
-            HealthWidgetContent(
-                context = context,
-                medications = medications,
-                latestWeight = latestWeight,
-                todaySteps = todaySteps,
-                vibe = vibe
-            )
+            HealthWidgetContent(context, nextMedName, nextMedTime, latestWeight, todaySteps, vibe)
         }
     }
 }
 
 @androidx.compose.runtime.Composable
-fun HealthWidgetContent(
-    context: Context,
-    medications: List<Medication>,
-    latestWeight: Double,
-    todaySteps: Long,
-    vibe: String
-) {
-    val openAppAction = androidx.glance.appwidget.action.actionStartActivity(
-        android.content.Intent(context, MainActivity::class.java).apply {
+fun HealthWidgetContent(context: Context, nextMedName: String, nextMedTime: String, latestWeight: Double, todaySteps: Long, vibe: String) {
+    val openAppAction = actionStartActivity(
+        Intent(context, MainActivity::class.java).apply {
             putExtra("route", "health")
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
     )
-
-    // Find closest unchecked medication
-    val uncheckedMeds = medications.filter { !it.isTaken }
-    val nextMed = if (uncheckedMeds.isNotEmpty()) {
-        val nowStr = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
-        val futureMeds = uncheckedMeds.filter { it.time >= nowStr }.sortedBy { it.time }
-        if (futureMeds.isNotEmpty()) {
-            futureMeds.first()
-        } else {
-            uncheckedMeds.sortedBy { it.time }.first()
-        }
-    } else {
-        null
-    }
 
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(ImageProvider(R.drawable.widget_background))
+            .background(Color(0xFF0D1517))
+            .appWidgetBackground()
+            .cornerRadius(20.dp)
             .padding(16.dp)
             .clickable(openAppAction),
         verticalAlignment = Alignment.Top,
         horizontalAlignment = Alignment.Start
     ) {
-        Row(
-            modifier = GlanceModifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "SAÚDE",
-                style = TextStyle(
-                    color = androidx.glance.color.ColorProvider(day = Color(0xFF71D7CD), night = Color(0xFF71D7CD)),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold
-                ),
+                style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF71D7CD), night = Color(0xFF71D7CD)), fontSize = 10.sp, fontWeight = FontWeight.Bold),
                 modifier = GlanceModifier.defaultWeight()
             )
-            Text(
-                text = "TESSERA",
-                style = TextStyle(
-                    color = androidx.glance.color.ColorProvider(day = Color(0x66FFFFFF), night = Color(0x66FFFFFF)),
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            )
+            Text("TESSERA", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x66FFFFFF), night = Color(0x66FFFFFF)), fontSize = 9.sp, fontWeight = FontWeight.Bold))
         }
         Spacer(modifier = GlanceModifier.height(8.dp))
 
         Row(modifier = GlanceModifier.fillMaxWidth()) {
-            // Next Med
             Column(modifier = GlanceModifier.defaultWeight()) {
                 Text("Próximo Remédio", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF81928F), night = Color(0xFF81928F)), fontSize = 11.sp))
                 Text(
-                    text = if (nextMed != null) "${nextMed.name} (${nextMed.time})" else "Nenhum pendente",
+                    text = if (nextMedName.isNotEmpty()) "$nextMedName ($nextMedTime)" else "Nenhum pendente",
                     style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 )
             }
-            // Vibe
             Column(modifier = GlanceModifier.defaultWeight(), horizontalAlignment = Alignment.End) {
                 Text("Vibe de Hoje", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF81928F), night = Color(0xFF81928F)), fontSize = 11.sp))
-                Text(
-                    text = vibe,
-                    style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF71D7CD), night = Color(0xFF71D7CD)), fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                )
+                Text(text = vibe, style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF71D7CD), night = Color(0xFF71D7CD)), fontSize = 13.sp, fontWeight = FontWeight.Bold))
             }
         }
-
         Spacer(modifier = GlanceModifier.height(12.dp))
         Row(modifier = GlanceModifier.fillMaxWidth()) {
-            // Steps today
             Column(modifier = GlanceModifier.defaultWeight()) {
                 Text("Passos Hoje", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x99FFFFFF), night = Color(0x99FFFFFF)), fontSize = 10.sp))
                 Text(text = "$todaySteps", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White), fontSize = 13.sp, fontWeight = FontWeight.Bold))
             }
-            // Latest Weight
             Column(modifier = GlanceModifier.defaultWeight(), horizontalAlignment = Alignment.End) {
                 Text("Peso Corporal", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x99FFFFFF), night = Color(0x99FFFFFF)), fontSize = 10.sp))
                 Text(

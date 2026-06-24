@@ -1,14 +1,17 @@
 package com.example.widget
 
 import android.content.Context
+import android.content.Intent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
-import androidx.glance.ImageProvider
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.action.actionStartActivity
+import androidx.glance.appwidget.appWidgetBackground
+import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Alignment
@@ -23,103 +26,84 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.example.MainActivity
-import com.example.R
 import com.example.data.AppDatabase
-import com.example.data.PetEvent
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withTimeoutOrNull
 
 class PetsGlanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        var events = emptyList<com.example.data.PetEvent>()
+        var completedCount = 0
+        var totalCount = 0
+        var nextEventText = ""
         
         try {
-            val db = AppDatabase.getDatabase(context)
-            events = withContext(Dispatchers.IO) { db.tesseraDao().getAllPetEvents().first() }
+            withTimeoutOrNull(2000) {
+                withContext(Dispatchers.IO) {
+                    val db = AppDatabase.getDatabase(context)
+                    val events = db.tesseraDao().getAllPetEvents().first()
+                    completedCount = events.count { it.isCompleted }
+                    totalCount = events.size
+                    val nextEvent = events.find { !it.isCompleted }
+                    if (nextEvent != null) {
+                        nextEventText = "${nextEvent.petName}: ${nextEvent.title} às ${nextEvent.time}"
+                    }
+                }
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }
 
         provideContent {
-            PetsWidgetContent(context = context, events = events)
+            PetsWidgetContent(context, completedCount, totalCount, nextEventText)
         }
     }
 }
 
 @androidx.compose.runtime.Composable
-fun PetsWidgetContent(context: Context, events: List<PetEvent>) {
-    val openAppAction = androidx.glance.appwidget.action.actionStartActivity(
-        android.content.Intent(context, MainActivity::class.java).apply {
+fun PetsWidgetContent(context: Context, completedCount: Int, totalCount: Int, nextEventText: String) {
+    val openAppAction = actionStartActivity(
+        Intent(context, MainActivity::class.java).apply {
             putExtra("route", "petz")
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
     )
-    val completedCount = events.count { it.isCompleted }
-    val totalCount = events.size
-    val nextEvent = events.find { !it.isCompleted }
 
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(ImageProvider(R.drawable.widget_background))
+            .background(Color(0xFF0D1517))
+            .appWidgetBackground()
+            .cornerRadius(20.dp)
             .padding(16.dp)
             .clickable(openAppAction),
         verticalAlignment = Alignment.Top,
         horizontalAlignment = Alignment.Start
     ) {
-        Row(
-            modifier = GlanceModifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "PETZ",
-                style = TextStyle(
-                    color = androidx.glance.color.ColorProvider(day = Color(0xFFD7B4F3), night = Color(0xFFD7B4F3)),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold
-                ),
+                style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFFD7B4F3), night = Color(0xFFD7B4F3)), fontSize = 10.sp, fontWeight = FontWeight.Bold),
                 modifier = GlanceModifier.defaultWeight()
             )
-            Text(
-                text = "TESSERA",
-                style = TextStyle(
-                    color = androidx.glance.color.ColorProvider(day = Color(0x66FFFFFF), night = Color(0x66FFFFFF)),
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            )
+            Text("TESSERA", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x66FFFFFF), night = Color(0x66FFFFFF)), fontSize = 9.sp, fontWeight = FontWeight.Bold))
         }
         Spacer(modifier = GlanceModifier.height(8.dp))
 
-        Text(
-            text = "Atividades de Hoje",
-            style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF81928F), night = Color(0xFF81928F)), fontSize = 11.sp)
-        )
+        Text("Atividades de Hoje", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF81928F), night = Color(0xFF81928F)), fontSize = 11.sp))
         Text(
             text = "$completedCount de $totalCount concluídas",
-            style = TextStyle(
-                color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
+            style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White), fontSize = 18.sp, fontWeight = FontWeight.Bold)
         )
 
         Spacer(modifier = GlanceModifier.height(10.dp))
         Column(modifier = GlanceModifier.fillMaxWidth()) {
-            if (nextEvent != null) {
-                Text(
-                    text = "Próxima atividade:",
-                    style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x99FFFFFF), night = Color(0x99FFFFFF)), fontSize = 10.sp)
-                )
-                Text(
-                    text = "${nextEvent.petName}: ${nextEvent.title} às ${nextEvent.time}",
-                    style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White), fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                )
+            if (nextEventText.isNotEmpty()) {
+                Text("Próxima atividade:", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x99FFFFFF), night = Color(0x99FFFFFF)), fontSize = 10.sp))
+                Text(nextEventText, style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White), fontSize = 13.sp, fontWeight = FontWeight.Bold))
             } else {
-                Text(
-                    text = "Todas as atividades concluídas!",
-                    style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF71D7CD), night = Color(0xFF71D7CD)), fontSize = 13.sp)
-                )
+                Text("Todas as atividades concluídas!", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF71D7CD), night = Color(0xFF71D7CD)), fontSize = 13.sp))
             }
         }
     }

@@ -1,10 +1,13 @@
 package com.example
 
+import androidx.compose.ui.text.style.TextAlign
+
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,6 +15,8 @@ import coil.compose.AsyncImage
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.CheckCircle
@@ -26,6 +31,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Alignment
@@ -38,6 +44,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.getMetroLineColor
 import com.example.viewmodel.TesseraViewModel
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.window.Dialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,10 +61,21 @@ fun TransportScreen(
     val isLoadingBus by viewModel.isLoadingBus.collectAsState()
     val busError by viewModel.busError.collectAsState()
 
+    val context = LocalContext.current
+    val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
+    val selectedLinesKeys = remember {
+        sharedPrefs.getStringSet("metro_monitored_lines", emptySet()) ?: emptySet()
+    }
+
     LaunchedEffect(Unit) {
         if (metroStatus.isEmpty()) viewModel.fetchMetroStatus()
-        if (savedBusLines.isEmpty()) viewModel.fetchBusPredictions()
+        viewModel.fetchBusPredictions()
     }
+
+    var showSearchDialog by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    val busSearchResults by viewModel.busSearchResults.collectAsState()
+    val isSearchingBus by viewModel.isSearchingBus.collectAsState()
 
     val scrollState = androidx.compose.foundation.rememberScrollState()
     val accentColor = Color(0xFF4FC3F7) // SPTrans/Metro Cyan
@@ -140,53 +159,86 @@ fun TransportScreen(
                 } else if (metroError != null && metroStatus.isEmpty()) {
                     Text(text = metroError ?: "Erro desconhecido", color = Color(0xFFE57373), modifier = Modifier.padding(16.dp))
                 } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        val todasLinhas = metroStatus.flatMap { it.linhas ?: emptyList() }
-                        todasLinhas.forEach { line ->
-                            val color = getMetroLineColor(line.nome, line.codigo)
-                            val isNormal = line.status?.operacaoNormal == true
-                            val statusTxt = line.status?.situacao ?: "Desconhecido"
-                            
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(Color.White.copy(alpha = 0.03f))
-                                    .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
-                                    .padding(16.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                    // Filter the subway/train lines using the monitored set
+                    val todasLinhas = remember(metroStatus, selectedLinesKeys) {
+                        val list = mutableListOf<Pair<com.example.data.MetroEmpresaStatus, com.example.data.MetroLinhaStatus>>()
+                        metroStatus.forEach { empresa ->
+                            empresa.linhas?.forEach { linha ->
+                                val lineKey = "${empresa.id}_${linha.codigo}"
+                                if (selectedLinesKeys.contains(lineKey)) {
+                                    list.add(empresa to linha)
+                                }
+                            }
+                        }
+                        list
+                    }
+
+                    if (todasLinhas.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color.White.copy(alpha = 0.03f))
+                                .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                                .padding(20.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Nenhuma linha selecionada.\nConfigure as linhas de metrô e trem a monitorar nas Configurações.",
+                                color = Color.White.copy(alpha = 0.6f),
+                                fontSize = 13.sp,
+                                textAlign = TextAlign.Center,
+                                lineHeight = 18.sp
+                            )
+                        }
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            todasLinhas.forEach { (empresa, line) ->
+                                val color = getMetroLineColor(line.nome, line.codigo)
+                                val isNormal = line.status?.operacaoNormal == true
+                                val statusTxt = line.status?.situacao ?: "Desconhecido"
+                                
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(Color.White.copy(alpha = 0.03f))
+                                        .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                                        .padding(16.dp)
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(36.dp)
-                                                .clip(CircleShape)
-                                                .background(color.copy(alpha = 0.2f))
-                                                .border(1.dp, color, CircleShape),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = line.codigo,
-                                                color = Color.White,
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 14.sp
-                                            )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(36.dp)
+                                                    .clip(CircleShape)
+                                                    .background(color.copy(alpha = 0.2f))
+                                                    .border(1.dp, color, CircleShape),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = line.codigo,
+                                                    color = Color.White,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 14.sp
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(16.dp))
+                                            Column {
+                                                Text(line.nome, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(statusTxt, color = if (isNormal) Color(0xFF81C784) else Color(0xFFFF6B6B), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                            }
                                         }
-                                        Spacer(modifier = Modifier.width(16.dp))
-                                        Column {
-                                            Text(line.nome, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                                            Spacer(modifier = Modifier.height(2.dp))
-                                            Text(statusTxt, color = if (isNormal) Color(0xFF81C784) else Color(0xFFFF6B6B), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                        if (!isNormal) {
+                                            Icon(Icons.Outlined.Warning, contentDescription = "Alerta", tint = Color(0xFFFF6B6B))
+                                        } else {
+                                            Icon(Icons.Outlined.CheckCircle, contentDescription = "Normal", tint = Color(0xFF81C784), modifier = Modifier.size(20.dp))
                                         }
-                                    }
-                                    if (!isNormal) {
-                                        Icon(Icons.Outlined.Warning, contentDescription = "Alerta", tint = Color(0xFFFF6B6B))
-                                    } else {
-                                        Icon(Icons.Outlined.CheckCircle, contentDescription = "Normal", tint = Color(0xFF81C784), modifier = Modifier.size(20.dp))
                                     }
                                 }
                             }
@@ -196,16 +248,30 @@ fun TransportScreen(
 
                 Spacer(modifier = Modifier.height(48.dp))
 
-                // SPTrans Section
-                Text(
-                    text = "MEUS ÔNIBUS",
-                    fontFamily = FontFamily.SansSerif,
-                    color = busAccentColor,
-                    fontSize = 12.sp,
-                    letterSpacing = 2.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
+                // SPTrans Section with Search & Remove controls
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "MEUS ÔNIBUS",
+                        fontFamily = FontFamily.SansSerif,
+                        color = busAccentColor,
+                        fontSize = 12.sp,
+                        letterSpacing = 2.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    TextButton(
+                        onClick = { showSearchDialog = true },
+                        colors = ButtonDefaults.textButtonColors(contentColor = busAccentColor)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Escolher Linha", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
 
                 if (isLoadingBus && savedBusLines.isEmpty()) {
                     Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
@@ -245,10 +311,22 @@ fun TransportScreen(
                                                 }
                                                 Spacer(modifier = Modifier.width(12.dp))
                                                 Text(bus.destination, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                IconButton(
+                                                    onClick = { viewModel.removeBusLine(bus.lineCode) },
+                                                    modifier = Modifier.size(24.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Delete,
+                                                        contentDescription = "Remover Linha",
+                                                        tint = Color.White.copy(alpha = 0.4f),
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
                                             }
                                             Spacer(modifier = Modifier.height(8.dp))
                                             Text(
-                                                "Ponto: ${bus.stopName}", 
+                                                "Ponto mais próximo: ${bus.stopName}", 
                                                 color = Color.White.copy(alpha = 0.6f), 
                                                 fontSize = 12.sp,
                                                 maxLines = 1,
@@ -341,17 +419,192 @@ fun TransportScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(Icons.Outlined.DirectionsTransit, contentDescription = null, tint = accentColor, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        
+                        val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
+                        val shimmerOffset by infiniteTransition.animateFloat(
+                            initialValue = -400f,
+                            targetValue = 400f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(2000, easing = LinearEasing),
+                                repeatMode = RepeatMode.Restart
+                            ),
+                            label = "shimmerOffset"
+                        )
+                        
+                        val nameGlowBrush = Brush.linearGradient(
+                            colors = listOf(
+                                Color.White,
+                                accentColor,
+                                Color.White,
+                                accentColor,
+                                Color.White
+                            ),
+                            start = Offset(shimmerOffset, 0f),
+                            end = Offset(shimmerOffset + 150f, 150f)
+                        )
+                        
                         Text(
                             text = "TRANSPORTE SP",
                             style = androidx.compose.ui.text.TextStyle(
-                                color = Color.White,
+                                brush = nameGlowBrush,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
                                 fontFamily = FontFamily.SansSerif,
                                 letterSpacing = 1.sp
                             )
                         )
+                    }
+                }
+            }
+        }
+    }
+
+    // Bus Search Dialog
+    if (showSearchDialog) {
+        Dialog(onDismissRequest = { 
+            showSearchDialog = false 
+            searchQuery = ""
+            viewModel.searchBusLines("")
+        }) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.95f)
+                    .fillMaxHeight(0.7f)
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(Color(0xFF121212).copy(alpha = 0.95f))
+                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(28.dp))
+                    .padding(24.dp)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = "Buscar Linha de Ônibus",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = {
+                            searchQuery = it
+                            viewModel.searchBusLines(it)
+                        },
+                        placeholder = { Text("Ex: 8000, 715M, Lapa...", color = Color.Gray) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = busAccentColor,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
+                            cursorColor = busAccentColor
+                        )
+                    )
+
+                    if (isSearchingBus) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = busAccentColor)
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (busSearchResults.isEmpty()) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 32.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = if (searchQuery.isEmpty()) "Digite para buscar linhas..." else "Nenhuma linha encontrada.",
+                                            color = Color.Gray,
+                                            fontSize = 14.sp
+                                        )
+                                    }
+                                }
+                            } else {
+                                items(busSearchResults) { result ->
+                                    val dest = if (result.sl == 1) result.ts else result.tp
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(Color.White.copy(alpha = 0.03f))
+                                            .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                                            .clickable {
+                                                viewModel.saveBusLine(result.cl, result.lt, dest)
+                                                showSearchDialog = false
+                                                searchQuery = ""
+                                                viewModel.searchBusLines("")
+                                            }
+                                            .padding(16.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .background(busAccentColor.copy(alpha = 0.15f))
+                                                        .border(0.5.dp, busAccentColor.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                                ) {
+                                                    Text(result.lt, color = busAccentColor, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                                }
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = dest,
+                                                    color = Color.White,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    fontSize = 14.sp,
+                                                    maxLines = 1,
+                                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = if (result.sl == 1) "Sentido Ida" else "Sentido Volta",
+                                                color = Color.Gray,
+                                                fontSize = 11.sp
+                                            )
+                                        }
+                                        Icon(
+                                            imageVector = Icons.Default.Add,
+                                            contentDescription = "Adicionar",
+                                            tint = busAccentColor,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Button(
+                        onClick = {
+                            showSearchDialog = false
+                            searchQuery = ""
+                            viewModel.searchBusLines("")
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.1f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Fechar", color = Color.White)
                     }
                 }
             }

@@ -60,8 +60,6 @@ fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
     var showAdjustBalanceDialog by remember { mutableStateOf(false) }
     
     var isPrivacyModeEnabled by remember { mutableStateOf(true) }
-    var isCardsExpanded by remember { mutableStateOf(false) }
-    var isAccountsExpanded by remember { mutableStateOf(false) }
     var defaultIsIncomeForAdd by remember { mutableStateOf(false) }
     
     var selectedFilterName by remember { mutableStateOf<String?>(null) }
@@ -80,20 +78,6 @@ fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
             allTransactions.filter { it.accountOrCardName == selectedFilterName }
         }
     }
-
-    // Calculations based on the active filter
-    val totalIncome = filteredTransactions.filter { it.isIncome }.sumOf { it.value }
-    val totalExpense = filteredTransactions.filter { !it.isIncome }.sumOf { it.value }
-    val balance = totalIncome - totalExpense
-
-    val rawScore = if (totalIncome > 0) {
-        ((totalIncome - totalExpense) / totalIncome) * 100
-    } else if (totalExpense == 0.0 && totalIncome == 0.0) {
-        0.0
-    } else {
-        0.0 
-    }
-    val score = rawScore.coerceIn(0.0, 100.0).toInt()
 
     if (showAddDialog) {
         AddTransactionDialog(
@@ -196,77 +180,28 @@ fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
         }
     }
 
+    val scrollState = rememberScrollState()
+    val isCompact = scrollState.value > 150
+    val normalAlpha by animateFloatAsState(targetValue = if (isCompact) 0f else 1f, animationSpec = tween(250), label = "normalAlpha")
+    val compactAlpha by animateFloatAsState(targetValue = if (isCompact) 1f else 0f, animationSpec = tween(250), label = "compactAlpha")
+    val accentColor = Color(0xFF71D7CD)
+
     Scaffold(
         containerColor = Color(0xFF070909),
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .statusBarsPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp)
-        ) {
-            Spacer(modifier = Modifier.height(16.dp))
-            // Cabeçalho de Saldo minimalista
-            val filterName = selectedFilterName
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 24.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onHomeClick, modifier = Modifier.size(28.dp)) {
-                        Icon(
-                            imageVector = Icons.Outlined.Home,
-                            contentDescription = "Home",
-                            tint = Color(0xFFBDC9C6),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = when {
-                            filterName != null -> "SALDO DISPONÍVEL • ${filterName.uppercase()}"
-                            else -> "SALDO DISPONÍVEL"
-                        },
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF71D7CD),
-                        letterSpacing = 1.5.sp
-                    )
-                }
-                
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (filterName != null) {
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0x1AFFFFFF))
-                                .clickable { selectedFilterName = null }
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Limpar", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.SemiBold)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(Icons.Default.Close, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                    }
-                    IconButton(onClick = { isPrivacyModeEnabled = !isPrivacyModeEnabled }, modifier = Modifier.size(28.dp)) {
-                        Icon(
-                            imageVector = if (isPrivacyModeEnabled) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                            contentDescription = "Modo Privacidade",
-                            tint = Color(0xFFBDC9C6),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
+                Spacer(modifier = Modifier.height(72.dp))
+
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             val displayValue = remember(selectedFilterName, bankAccounts, creditCards, checkingBalance, savingsBalance, investmentBalance) {
                 val activeCard = creditCards.find { it.name == selectedFilterName }
                 val activeAccount = bankAccounts.find { it.name == selectedFilterName }
@@ -277,44 +212,140 @@ fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                 }
             }
 
-            Text(
-                text = if (isPrivacyModeEnabled) "R$ ••••••" else String.format(Locale("pt", "BR"), "R$ %,.2f", displayValue),
-                fontFamily = FontFamily.Serif,
-                fontWeight = FontWeight.Bold,
-                fontSize = 42.sp,
-                color = Color(0xFFDFE3E2)
-            )
+            // Hero spendable budget card ("Quanto posso gastar")
+            val filterName = selectedFilterName
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(PremiumGlassModifier)
+                    .padding(24.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(
+                        text = when {
+                            filterName != null -> "LIMITE/SALDO ATUAL • ${filterName.uppercase()}"
+                            else -> "DISPONÍVEL PARA GASTAR"
+                        },
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF71D7CD),
+                        letterSpacing = 1.5.sp
+                    )
 
-            Spacer(modifier = Modifier.height(16.dp))
+                    val mainValue = if (filterName != null) displayValue else freeValue
+                    val isNegative = mainValue < 0.0
 
-            // Cartões e Contas (Movidos para o topo)
-            SectionHeaderWithAction(
+                    Text(
+                        text = if (isPrivacyModeEnabled) "R$ ••••••" else String.format(Locale("pt", "BR"), "R$ %,.2f", mainValue),
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 42.sp,
+                        color = if (isNegative && !isPrivacyModeEnabled) Color(0xFFEF4444) else Color(0xFFDFE3E2)
+                    )
+
+                    if (filterName == null) {
+                        // Breakdown of salary vs committed
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            val ratio = if (salaryValue > 0.0) (committedValue / salaryValue).toFloat().coerceIn(0f, 1f) else 0f
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Orçamento Comprometido", fontSize = 12.sp, color = Color(0x99BDC9C6))
+                                Text(
+                                    text = if (isPrivacyModeEnabled) "•••" else "${(ratio * 100).toInt()}%",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                            // Progress bar
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(6.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0x1AFFFFFF))
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(ratio)
+                                        .fillMaxHeight()
+                                        .clip(CircleShape)
+                                        .background(
+                                            Brush.horizontalGradient(
+                                                colors = listOf(
+                                                    Color(0xFF71D7CD),
+                                                    Color(0xFF3B82F6),
+                                                    Color(0xFFEF4444)
+                                                )
+                                            )
+                                        )
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = if (isPrivacyModeEnabled) "Receitas: R$ ••••••" else String.format(Locale("pt", "BR"), "Receitas: R$ %,.2f", salaryValue),
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF81C784)
+                                )
+                                Text(
+                                    text = if (isPrivacyModeEnabled) "Comprometido: R$ ••••••" else String.format(Locale("pt", "BR"), "Comprometido: R$ %,.2f", committedValue),
+                                    fontSize = 11.sp,
+                                    color = Color(0xFFEF5350)
+                                )
+                            }
+                        }
+                    } else {
+                        // Detailed view of selected filter (card or account details)
+                        val activeCard = creditCards.find { it.name == selectedFilterName }
+                        if (activeCard != null) {
+                            Text(
+                                text = if (isPrivacyModeEnabled) "Limite disponível: R$ ••••••" else String.format(Locale("pt", "BR"), "Limite disponível: R$ %,.2f", activeCard.limit - activeCard.usedLimit),
+                                fontSize = 13.sp,
+                                color = Color(0xFFBDC9C6)
+                            )
+                        } else {
+                            val activeAccount = bankAccounts.find { it.name == selectedFilterName }
+                            if (activeAccount != null) {
+                                Text(
+                                    text = "Conta tipo: ${activeAccount.type}",
+                                    fontSize = 13.sp,
+                                    color = Color(0xFFBDC9C6)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Cartões e Contas (Sempre Expandidos)
+            SectionHeader(
                 title = "Seus Cartões",
-                isExpanded = isCardsExpanded,
-                onToggleExpand = { isCardsExpanded = !isCardsExpanded },
                 onAddClick = { showManageDialog = true }
             )
             CreditCardsCarousel(
                 creditCards = creditCards,
                 selectedFilterName = selectedFilterName,
-                isExpanded = isCardsExpanded,
                 onCardClick = { cardName ->
                     selectedFilterName = if (selectedFilterName == cardName) null else cardName
                 }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            SectionHeaderWithAction(
+            SectionHeader(
                 title = "Suas Contas",
-                isExpanded = isAccountsExpanded,
-                onToggleExpand = { isAccountsExpanded = !isAccountsExpanded },
                 onAddClick = { showManageDialog = true }
             )
             BankAccountsSection(
                 bankAccounts = bankAccounts,
                 selectedFilterName = selectedFilterName,
-                isExpanded = isAccountsExpanded,
                 onAccountClick = { accountName ->
                     selectedFilterName = if (selectedFilterName == accountName) null else accountName
                 }
@@ -322,20 +353,10 @@ fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Card Ralo-X do Adiantamento (Liquid Glass)
-            RaloXCard(
-                salary = salaryValue,
-                committed = committedValue,
-                free = freeValue,
-                isPrivacyMode = isPrivacyModeEnabled
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Card "Atenção ao fluxo"
+            // Atenção ao fluxo
             FlowAlertCard(message = flowMessage)
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Botões de Ação Rápidos
             ActionButtonsRow(
@@ -358,38 +379,162 @@ fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // Seção "Próximos Débitos"
-            val nextDebits = remember(filteredTransactions) {
-                filteredTransactions.filter { !it.isIncome && !it.isRealized }
-                    .sortedBy { it.dueDate }
-                    .take(5)
-            }
-
-            if (nextDebits.isNotEmpty()) {
-                Text(
-                    text = "Próximos Débitos",
-                    fontFamily = FontFamily.Serif,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 18.sp,
-                    color = Color.White,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
-
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    nextDebits.forEach { tx ->
-                        Box(modifier = Modifier.clickable {
-                            editingTransaction = tx
-                            showAddDialog = true
-                        }) {
-                            TransactionItem(tx, bankAccounts, creditCards)
-                        }
-                    }
+            // Despesas Fixas e Recorrentes
+            RecurringExpensesSection(
+                transactions = filteredTransactions,
+                viewModel = viewModel,
+                onTransactionClick = { tx ->
+                    editingTransaction = tx
+                    showAddDialog = true
                 }
-                Spacer(modifier = Modifier.height(28.dp))
-            }
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Gastos e Despesas em Geral
+            RecentTransactionsSection(
+                transactions = filteredTransactions,
+                bankAccounts = bankAccounts,
+                creditCards = creditCards,
+                onTransactionClick = { tx ->
+                    editingTransaction = tx
+                    showAddDialog = true
+                }
+            )
 
             Spacer(modifier = Modifier.height(120.dp))
         }
+
+        // Floating overlay top bar
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 24.dp, vertical = 12.dp)
+        ) {
+            // 1. Barra Normal
+            if (normalAlpha > 0.05f) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                            alpha = normalAlpha
+                            scaleX = 0.92f + (normalAlpha * 0.08f)
+                            scaleY = 0.92f + (normalAlpha * 0.08f)
+                        },
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onHomeClick, modifier = Modifier.size(28.dp)) {
+                            Icon(
+                                imageVector = Icons.Outlined.Home,
+                                contentDescription = "Home",
+                                tint = Color(0xFFBDC9C6),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "FINANÇAS",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White,
+                            letterSpacing = 2.sp
+                        )
+                    }
+                    
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        val filterName = selectedFilterName
+                        if (filterName != null) {
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0x1AFFFFFF))
+                                    .clickable { selectedFilterName = null }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Limpar Filtro", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.SemiBold)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(Icons.Default.Close, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                        }
+                        IconButton(onClick = { isPrivacyModeEnabled = !isPrivacyModeEnabled }, modifier = Modifier.size(28.dp)) {
+                            Icon(
+                                imageVector = if (isPrivacyModeEnabled) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                                contentDescription = "Modo Privacidade",
+                                tint = Color(0xFFBDC9C6),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+            }
+            
+            // 2. Barra Compacta
+            if (compactAlpha > 0.05f) {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .graphicsLayer {
+                            alpha = compactAlpha
+                            translationY = (1f - compactAlpha) * (-20f)
+                        }
+                        .clip(RoundedCornerShape(32.dp))
+                        .background(Color.Black.copy(alpha = 0.75f))
+                        .border(1.dp, accentColor.copy(alpha = 0.5f), RoundedCornerShape(32.dp))
+                        .padding(horizontal = 24.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Paid,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    
+                    Spacer(modifier = Modifier.width(12.dp))
+                    
+                    val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
+                    val shimmerOffset by infiniteTransition.animateFloat(
+                        initialValue = -400f,
+                        targetValue = 400f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(2000, easing = LinearEasing),
+                            repeatMode = RepeatMode.Restart
+                        ),
+                        label = "shimmerOffset"
+                    )
+                    
+                    val nameGlowBrush = Brush.linearGradient(
+                        colors = listOf(
+                            Color.White,
+                            accentColor,
+                            Color.White,
+                            accentColor,
+                            Color.White
+                        ),
+                        start = Offset(shimmerOffset, 0f),
+                        end = Offset(shimmerOffset + 150f, 150f)
+                    )
+                    
+                    Text(
+                        text = "FINANÇAS",
+                        style = TextStyle(
+                            brush = nameGlowBrush,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            letterSpacing = 2.sp,
+                            fontFamily = FontFamily.Serif
+                        )
+                    )
+                }
+            }
+        }
+    }
     }
 }
 
@@ -818,12 +963,9 @@ fun BalanceHeaderSection(
         }
     }
 }
-
 @Composable
-fun SectionHeaderWithAction(
+fun SectionHeader(
     title: String,
-    isExpanded: Boolean,
-    onToggleExpand: () -> Unit,
     onAddClick: () -> Unit
 ) {
     Row(
@@ -831,26 +973,13 @@ fun SectionHeaderWithAction(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.clickable { onToggleExpand() }
-        ) {
-            Text(
-                text = title,
-                fontFamily = FontFamily.Serif,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 18.sp,
-                color = Color.White
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Icon(
-                imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                contentDescription = if (isExpanded) "Recolher" else "Expandir",
-                tint = Color(0xFFBDC9C6),
-                modifier = Modifier.size(20.dp)
-            )
-        }
-
+        Text(
+            text = title,
+            fontFamily = FontFamily.Serif,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 18.sp,
+            color = Color.White
+        )
         IconButton(onClick = onAddClick, modifier = Modifier.size(24.dp)) {
             Icon(
                 imageVector = Icons.Default.Add,
@@ -865,7 +994,6 @@ fun SectionHeaderWithAction(
 fun CreditCardsCarousel(
     creditCards: List<CreditCard>,
     selectedFilterName: String?,
-    isExpanded: Boolean,
     onCardClick: (String) -> Unit
 ) {
     if (creditCards.isEmpty()) {
@@ -894,15 +1022,9 @@ fun CreditCardsCarousel(
                 val isSelected = selectedFilterName == card.name
                 val cardColor = parseHexColor(card.colorHex)
                 
-                val animatedWidth by animateDpAsState(
-                    targetValue = if (isExpanded) 280.dp else 50.dp,
-                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                    label = "cardWidth"
-                )
-                
                 Box(
                     modifier = Modifier
-                        .width(animatedWidth)
+                        .width(280.dp)
                         .height(160.dp)
                         .clip(RoundedCornerShape(24.dp))
                         .background(
@@ -926,115 +1048,75 @@ fun CreditCardsCarousel(
                             shape = RoundedCornerShape(24.dp)
                         )
                         .clickable { onCardClick(card.name) }
-                        .padding(if (animatedWidth < 120.dp) 8.dp else 20.dp)
+                        .padding(20.dp)
                 ) {
-                    if (animatedWidth < 120.dp) {
-                        // Collapsed vertical layout
-                        Column(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.SpaceBetween,
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
+                    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = card.name.uppercase(),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = Color.White,
+                                letterSpacing = 1.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Row {
+                                Box(modifier = Modifier.size(16.dp).background(cardColor.copy(alpha = 0.8f), CircleShape))
+                                Spacer(modifier = Modifier.width(-6.dp))
+                                Box(modifier = Modifier.size(16.dp).background(Color.White.copy(alpha = 0.3f), CircleShape))
+                            }
+                        }
+                        
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
-                                    .size(14.dp)
-                                    .background(cardColor, CircleShape)
+                                    .size(30.dp, 22.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(
+                                        Brush.linearGradient(
+                                            colors = listOf(Color(0xFFE5C158), Color(0xFFC5A138))
+                                        )
+                                    )
+                                    .border(0.5.dp, Color(0x33000000), RoundedCornerShape(6.dp))
                             )
-                            
-                            Box(
-                                modifier = Modifier.weight(1f),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = card.name.uppercase(),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp,
-                                    color = Color.White,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.graphicsLayer {
-                                        rotationZ = -90f
-                                    }
-                                )
-                            }
-                            
+                            Spacer(modifier = Modifier.width(12.dp))
                             Text(
-                                text = card.numberLastFour,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFDFE3E2)
+                                text = "••••  ••••  ••••  ${card.numberLastFour}",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFFDFE3E2),
+                                letterSpacing = 1.5.sp
                             )
                         }
-                    } else {
-                        // Original full card content
-                        Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        
+                        Column {
+                            val ratio = if (card.limit > 0) (card.usedLimit / card.limit).toFloat().coerceIn(0f, 1f) else 0f
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text(
-                                    text = card.name.uppercase(),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = Color.White,
-                                    letterSpacing = 1.sp,
+                                    text = card.holderName,
+                                    fontSize = 11.sp,
+                                    color = Color(0xFFBDC9C6),
+                                    fontWeight = FontWeight.Medium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                                Row {
-                                    Box(modifier = Modifier.size(16.dp).background(cardColor.copy(alpha = 0.8f), CircleShape))
-                                    Spacer(modifier = Modifier.width(-6.dp))
-                                    Box(modifier = Modifier.size(16.dp).background(Color.White.copy(alpha = 0.3f), CircleShape))
-                                }
+                                Text(
+                                    text = String.format(Locale("pt", "BR"), "Disp: R$ %,.2f", card.limit - card.usedLimit),
+                                    fontSize = 11.sp,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1
+                                )
                             }
-                            
-                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Box(modifier = Modifier.fillMaxWidth().height(4.dp).background(Color(0x1AFFFFFF), CircleShape)) {
                                 Box(
                                     modifier = Modifier
-                                        .size(30.dp, 22.dp)
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(
-                                            Brush.linearGradient(
-                                                colors = listOf(Color(0xFFE5C158), Color(0xFFC5A138))
-                                            )
-                                        )
-                                        .border(0.5.dp, Color(0x33000000), RoundedCornerShape(6.dp))
+                                        .fillMaxWidth(ratio)
+                                        .fillMaxHeight()
+                                        .background(cardColor, CircleShape)
                                 )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    text = "••••  ••••  ••••  ${card.numberLastFour}",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFFDFE3E2),
-                                    letterSpacing = 1.5.sp
-                                )
-                            }
-                            
-                            Column {
-                                val ratio = if (card.limit > 0) (card.usedLimit / card.limit).toFloat().coerceIn(0f, 1f) else 0f
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text(
-                                        text = card.holderName,
-                                        fontSize = 11.sp,
-                                        color = Color(0x99BDC9C6),
-                                        fontWeight = FontWeight.Medium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        text = String.format(Locale("pt", "BR"), "Disp: R$ %,.2f", card.limit - card.usedLimit),
-                                        fontSize = 11.sp,
-                                        color = Color.White,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Box(modifier = Modifier.fillMaxWidth().height(4.dp).background(Color(0x1AFFFFFF), CircleShape)) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth(ratio)
-                                            .fillMaxHeight()
-                                            .background(cardColor, CircleShape)
-                                    )
-                                }
                             }
                         }
                     }
@@ -1048,7 +1130,6 @@ fun CreditCardsCarousel(
 fun BankAccountsSection(
     bankAccounts: List<BankAccount>,
     selectedFilterName: String?,
-    isExpanded: Boolean,
     onAccountClick: (String) -> Unit
 ) {
     if (bankAccounts.isEmpty()) {
@@ -1077,15 +1158,9 @@ fun BankAccountsSection(
                 val isSelected = selectedFilterName == account.name
                 val accountColor = parseHexColor(account.colorHex)
                 
-                val animatedWidth by animateDpAsState(
-                    targetValue = if (isExpanded) 195.dp else 50.dp,
-                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                    label = "accountWidth"
-                )
-                
                 Box(
                     modifier = Modifier
-                        .width(animatedWidth)
+                        .width(195.dp)
                         .height(90.dp)
                         .clip(RoundedCornerShape(18.dp))
                         .background(Color(0x14FFFFFF))
@@ -1095,76 +1170,38 @@ fun BankAccountsSection(
                             shape = RoundedCornerShape(18.dp)
                         )
                         .clickable { onAccountClick(account.name) }
-                        .padding(if (animatedWidth < 120.dp) 6.dp else 12.dp)
+                        .padding(12.dp)
                 ) {
-                    if (animatedWidth < 120.dp) {
-                        // Collapsed vertical layout
-                        Column(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.SpaceBetween,
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(10.dp)
-                                    .background(accountColor, CircleShape)
-                            )
-                            
-                            val displayName = if (account.name.length >= 3) account.name.substring(0, 3) else account.name
+                    Row(modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .width(4.dp)
+                                .clip(CircleShape)
+                                .background(accountColor)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
                             Text(
-                                text = displayName.uppercase(),
+                                text = account.name,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp,
+                                fontSize = 13.sp,
                                 color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = account.type,
+                                fontSize = 10.sp,
+                                color = Color(0x80BDC9C6)
+                            )
+                            Text(
+                                text = String.format(Locale("pt", "BR"), "R$ %,.2f", account.balance),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = Color(0xFF71D7CD),
                                 maxLines = 1
                             )
-                            
-                            val typeInitial = when (account.type) {
-                                "Corrente" -> "C"
-                                "Poupança" -> "P"
-                                "Investimento" -> "I"
-                                else -> account.type.take(1)
-                            }
-                            Text(
-                                text = typeInitial,
-                                fontSize = 10.sp,
-                                color = Color(0xFF71D7CD),
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    } else {
-                        // Expanded layout
-                        Row(modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .width(4.dp)
-                                    .clip(CircleShape)
-                                    .background(accountColor)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column(modifier = Modifier.fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
-                                Text(
-                                    text = account.name,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp,
-                                    color = Color.White,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = account.type,
-                                    fontSize = 10.sp,
-                                    color = Color(0x80BDC9C6)
-                                )
-                                Text(
-                                    text = String.format(Locale("pt", "BR"), "R$ %,.2f", account.balance),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = Color(0xFF71D7CD),
-                                    maxLines = 1
-                                )
-                            }
                         }
                     }
                 }
@@ -1487,7 +1524,9 @@ fun RecentTransactionsSection(
     creditCards: List<CreditCard>,
     onTransactionClick: (Transaction) -> Unit
 ) {
-    val sortedTransactions = transactions.sortedByDescending { it.timestamp }
+    val sortedTransactions = remember(transactions) {
+        transactions.sortedByDescending { it.timestamp }
+    }
     
     Column {
         Text(
@@ -1515,11 +1554,43 @@ fun RecentTransactionsSection(
                 )
             }
         } else {
-            sortedTransactions.take(10).forEach { transaction ->
-                Box(modifier = Modifier.clickable { onTransactionClick(transaction) }) {
-                    TransactionItem(transaction, bankAccounts, creditCards)
+            val recentList = remember(sortedTransactions) { sortedTransactions.take(15) }
+            val groupedTransactions = remember(recentList) {
+                recentList.groupBy { tx ->
+                    val cal = Calendar.getInstance().apply { timeInMillis = tx.timestamp }
+                    val today = Calendar.getInstance()
+                    val yesterday = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
+                    
+                    when {
+                        cal.get(Calendar.YEAR) == today.get(Calendar.YEAR) &&
+                        cal.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR) -> "Hoje"
+                        
+                        cal.get(Calendar.YEAR) == yesterday.get(Calendar.YEAR) &&
+                        cal.get(Calendar.DAY_OF_YEAR) == yesterday.get(Calendar.DAY_OF_YEAR) -> "Ontem"
+                        
+                        else -> {
+                            val sdf = java.text.SimpleDateFormat("dd 'de' MMMM", Locale("pt", "BR"))
+                            sdf.format(Date(tx.timestamp))
+                        }
+                    }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
+            }
+            
+            groupedTransactions.forEach { (dateHeader, txList) ->
+                Text(
+                    text = dateHeader.uppercase(),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF71D7CD),
+                    letterSpacing = 1.5.sp,
+                    modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                )
+                txList.forEach { transaction ->
+                    Box(modifier = Modifier.clickable { onTransactionClick(transaction) }) {
+                        TransactionItem(transaction, bankAccounts, creditCards)
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
             }
         }
     }
@@ -2763,11 +2834,11 @@ fun RecurringExpensesSection(
     viewModel: TesseraViewModel,
     onTransactionClick: (Transaction) -> Unit
 ) {
-    val recurrentPending = remember(transactions) {
-        transactions.filter { it.isRecurrent && !it.isRealized }
+    val recurrentExpenses = remember(transactions) {
+        transactions.filter { it.isRecurrent && !it.isIncome }
     }
     
-    if (recurrentPending.isNotEmpty()) {
+    if (recurrentExpenses.isNotEmpty()) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = "Despesas Recorrentes",
@@ -2781,12 +2852,14 @@ fun RecurringExpensesSection(
             Column(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                recurrentPending.forEach { tx ->
-                    val isOverdue = tx.dueDate > 0L && tx.dueDate < System.currentTimeMillis()
+                recurrentExpenses.forEach { tx ->
+                    val isOverdue = !tx.isRealized && tx.dueDate > 0L && tx.dueDate < System.currentTimeMillis()
                     val dateFormat = remember { java.text.SimpleDateFormat("dd/MM/yy", java.util.Locale.getDefault()) }
                     val dueDateStr = dateFormat.format(java.util.Date(tx.dueDate))
                     
-                    val borderBrush = if (isOverdue) {
+                    val borderBrush = if (tx.isRealized) {
+                        SolidColor(Color(0x0CFFFFFF))
+                    } else if (isOverdue) {
                         val infiniteTransition = rememberInfiniteTransition(label = "OverdueGlow")
                         val glowAlpha by infiniteTransition.animateFloat(
                             initialValue = 0.4f,
@@ -2825,13 +2898,27 @@ fun RecurringExpensesSection(
                                 modifier = Modifier
                                     .size(36.dp)
                                     .clip(CircleShape)
-                                    .background(if (isOverdue) Color(0x26EF4444) else Color(0x1A71D7CD)),
+                                    .background(
+                                        when {
+                                            tx.isRealized -> Color(0x1A81C784)
+                                            isOverdue -> Color(0x26EF4444)
+                                            else -> Color(0x1A71D7CD)
+                                        }
+                                    ),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = if (isOverdue) Icons.Outlined.ErrorOutline else Icons.Outlined.Repeat,
+                                    imageVector = when {
+                                        tx.isRealized -> Icons.Default.Check
+                                        isOverdue -> Icons.Outlined.ErrorOutline
+                                        else -> Icons.Outlined.Repeat
+                                    },
                                     contentDescription = null,
-                                    tint = if (isOverdue) Color(0xFFEF4444) else Color(0xFF71D7CD),
+                                    tint = when {
+                                        tx.isRealized -> Color(0xFF81C784)
+                                        isOverdue -> Color(0xFFEF4444)
+                                        else -> Color(0xFF71D7CD)
+                                    },
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -2841,7 +2928,7 @@ fun RecurringExpensesSection(
                                     text = tx.title,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp,
-                                    color = Color.White
+                                    color = if (tx.isRealized) Color(0x99FFFFFF) else Color.White
                                 )
                                 Text(
                                     text = if (tx.accountOrCardName.isNotEmpty()) "Origem: ${tx.accountOrCardName}" else "Sem origem",
@@ -2849,21 +2936,32 @@ fun RecurringExpensesSection(
                                     color = Color(0x80BDC9C6)
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
-                                if (isOverdue) {
-                                    val diffMs = System.currentTimeMillis() - tx.dueDate
-                                    val diffDays = (diffMs / (24 * 60 * 60 * 1000L)).coerceAtLeast(1)
-                                    Text(
-                                        text = "ATRASADO HÁ $diffDays DIAS (Venceu em $dueDateStr)",
-                                        fontSize = 9.sp,
-                                        color = Color(0xFFEF4444),
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                } else {
-                                    Text(
-                                        text = "Vence em: $dueDateStr (${tx.recurrenceInterval})",
-                                        fontSize = 9.sp,
-                                        color = Color(0xFFBDC9C6)
-                                    )
+                                when {
+                                    tx.isRealized -> {
+                                        Text(
+                                            text = "Paga (Vencimento: $dueDateStr)",
+                                            fontSize = 9.sp,
+                                            color = Color(0xFF81C784),
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    isOverdue -> {
+                                        val diffMs = System.currentTimeMillis() - tx.dueDate
+                                        val diffDays = (diffMs / (24 * 60 * 60 * 1000L)).coerceAtLeast(1)
+                                        Text(
+                                            text = "ATRASADO HÁ $diffDays DIAS (Venceu em $dueDateStr)",
+                                            fontSize = 9.sp,
+                                            color = Color(0xFFEF4444),
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    else -> {
+                                        Text(
+                                            text = "Vence em: $dueDateStr (${tx.recurrenceInterval})",
+                                            fontSize = 9.sp,
+                                            color = Color(0xFFBDC9C6)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -2876,20 +2974,36 @@ fun RecurringExpensesSection(
                                 text = String.format(java.util.Locale("pt", "BR"), "R$ %,.2f", tx.value),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
-                                color = if (isOverdue) Color(0xFFEF4444) else Color.White
+                                color = when {
+                                    tx.isRealized -> Color(0xFF81C784)
+                                    isOverdue -> Color(0xFFEF4444)
+                                    else -> Color.White
+                                }
                             )
                             
-                            Button(
-                                onClick = { viewModel.realizeRecurrentTransaction(tx) },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isOverdue) Color(0xFFEF4444) else Color(0xFF71D7CD),
-                                    contentColor = Color.Black
-                                ),
-                                shape = RoundedCornerShape(8.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                modifier = Modifier.height(28.dp)
-                            ) {
-                                Text("Pagar", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            if (!tx.isRealized) {
+                                Button(
+                                    onClick = { viewModel.realizeRecurrentTransaction(tx) },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (isOverdue) Color(0xFFEF4444) else Color(0xFF71D7CD),
+                                        contentColor = Color.Black
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                    modifier = Modifier.height(28.dp)
+                                ) {
+                                    Text("Pagar", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color(0x1A81C784))
+                                        .border(0.5.dp, Color(0xFF81C784).copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text("Paga", color = Color(0xFF81C784), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
