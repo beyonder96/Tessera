@@ -21,14 +21,16 @@ android {
   }
 
   signingConfigs {
-    val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
+    val keystorePath = "${rootDir}/my-upload-key.jks"
     val keystoreFile = file(keystorePath)
     if (keystoreFile.exists()) {
       create("release") {
         storeFile = keystoreFile
-        storePassword = System.getenv("STORE_PASSWORD")
-        keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
-        keyPassword = System.getenv("KEY_PASSWORD")
+        storePassword = "android123"
+        keyAlias = "upload"
+        keyPassword = "android123"
+        enableV1Signing = true
+        enableV2Signing = true
       }
     } else {
       // Graceful fallback to debug signature if release key is not found (avoids local build errors)
