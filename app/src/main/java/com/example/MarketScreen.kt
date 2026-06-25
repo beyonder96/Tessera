@@ -41,6 +41,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import java.util.Locale
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import kotlinx.coroutines.launch
 
 fun parseDoubleSafely(input: String): Double {
     if (input.isBlank()) return 0.0
@@ -74,7 +77,11 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
     val pendingItems by viewModel.pendingMarketItems.collectAsStateWithLifecycle()
     val boughtItems by viewModel.boughtMarketItems.collectAsStateWithLifecycle()
 
-    var selectedTab by remember { mutableStateOf(0) } // 0 = Planejamento, 1 = Modo Compras
+    val pagerState = rememberPagerState(pageCount = { 2 })
+    val coroutineScope = rememberCoroutineScope()
+    
+    val selectedTab = pagerState.currentPage
+    val currentTabTitle = if (selectedTab == 0) "PLANEJAMENTO" else "NO MERCADO"
     
     val cartTotal = pendingItems.filter { it.isChecked }.sumOf { it.price * it.quantity }
     val formattedTotal = String.format(Locale("pt", "BR"), "R$ %,.2f", cartTotal)
@@ -138,26 +145,24 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                     TabPill(
                         text = "Planejamento",
                         isSelected = selectedTab == 0,
-                        onClick = { selectedTab = 0 },
+                        onClick = { coroutineScope.launch { pagerState.animateScrollToPage(0) } },
                         modifier = Modifier.weight(1f)
                     )
                     TabPill(
                         text = "No Mercado",
                         isSelected = selectedTab == 1,
-                        onClick = { selectedTab = 1 },
+                        onClick = { coroutineScope.launch { pagerState.animateScrollToPage(1) } },
                         modifier = Modifier.weight(1f)
                     )
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                AnimatedContent(
-                    targetState = selectedTab,
-                    transitionSpec = {
-                        fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
-                    }, label = "TabTransition"
-                ) { targetTab ->
-                    if (targetTab == 0) {
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    if (page == 0) {
                         PlanningView(viewModel, pendingItems, boughtItems, planningListState)
                     } else {
                         ShoppingView(
@@ -204,7 +209,7 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "MERCADO",
+                            text = currentTabTitle,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Black,
                             color = Color.White,
@@ -265,7 +270,7 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                     )
                     
                     Text(
-                        text = "MERCADO",
+                        text = currentTabTitle,
                         style = TextStyle(
                             brush = nameGlowBrush,
                             fontWeight = FontWeight.Bold,
@@ -726,7 +731,7 @@ fun PlanningBottomBar(viewModel: TesseraViewModel) {
         modifier = Modifier
             .fillMaxWidth()
             .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xFA070909), Color(0xFF070909))))
-            .padding(horizontal = 24.dp, vertical = 16.dp)
+            .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 100.dp)
     ) {
         Row(
             modifier = Modifier
@@ -781,7 +786,7 @@ fun ShoppingBottomBar(cartTotal: Double, formattedTotal: String, onCheckout: () 
         modifier = Modifier
             .fillMaxWidth()
             .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xFA070909), Color(0xFF070909))))
-            .padding(horizontal = 24.dp, vertical = 16.dp)
+            .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 100.dp)
     ) {
         Row(
             modifier = Modifier

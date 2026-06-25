@@ -745,8 +745,8 @@ class TesseraViewModel(
                 dueDate = if (dueDate > 0L) dueDate else txTime
             )
             repository.insertTransaction(mainTx)
-            if (isRealized && accountOrCardName.isNotEmpty()) {
-                adjustBalances(accountOrCardName, value, isIncome)
+            if (accountOrCardName.isNotEmpty()) {
+                adjustBalances(accountOrCardName, value, isIncome, isRealized)
             }
             
             // Se for recorrente e já foi paga, agenda automaticamente o próximo vencimento
@@ -801,8 +801,8 @@ class TesseraViewModel(
                 )
                 repository.insertTransaction(installmentTx)
                 
-                if (installmentRealized && accountOrCardName.isNotEmpty()) {
-                    adjustBalances(accountOrCardName, valuePerInstallment, isIncome)
+                if (accountOrCardName.isNotEmpty()) {
+                    adjustBalances(accountOrCardName, valuePerInstallment, isIncome, installmentRealized)
                 }
             }
         }
@@ -810,20 +810,20 @@ class TesseraViewModel(
 
     fun updateTransaction(oldTransaction: Transaction, newTransaction: Transaction) {
         viewModelScope.launch {
-            if (oldTransaction.isRealized && oldTransaction.accountOrCardName.isNotEmpty()) {
-                rollbackBalances(oldTransaction.accountOrCardName, oldTransaction.value, oldTransaction.isIncome)
+            if (oldTransaction.accountOrCardName.isNotEmpty()) {
+                rollbackBalances(oldTransaction.accountOrCardName, oldTransaction.value, oldTransaction.isIncome, oldTransaction.isRealized)
             }
             repository.insertTransaction(newTransaction)
-            if (newTransaction.isRealized && newTransaction.accountOrCardName.isNotEmpty()) {
-                adjustBalances(newTransaction.accountOrCardName, newTransaction.value, newTransaction.isIncome)
+            if (newTransaction.accountOrCardName.isNotEmpty()) {
+                adjustBalances(newTransaction.accountOrCardName, newTransaction.value, newTransaction.isIncome, newTransaction.isRealized)
             }
         }
     }
 
     fun deleteTransaction(transaction: Transaction) {
         viewModelScope.launch {
-            if (transaction.isRealized && transaction.accountOrCardName.isNotEmpty()) {
-                rollbackBalances(transaction.accountOrCardName, transaction.value, transaction.isIncome)
+            if (transaction.accountOrCardName.isNotEmpty()) {
+                rollbackBalances(transaction.accountOrCardName, transaction.value, transaction.isIncome, transaction.isRealized)
             }
             repository.deleteTransaction(transaction)
         }
@@ -831,6 +831,9 @@ class TesseraViewModel(
 
     fun realizeRecurrentTransaction(transaction: Transaction) {
         viewModelScope.launch {
+            if (transaction.accountOrCardName.isNotEmpty()) {
+                rollbackBalances(transaction.accountOrCardName, transaction.value, transaction.isIncome, transaction.isRealized)
+            }
             // 1. Mark current transaction as realized
             val realizedTx = transaction.copy(
                 isRealized = true,
@@ -838,7 +841,7 @@ class TesseraViewModel(
             )
             repository.insertTransaction(realizedTx)
             if (realizedTx.accountOrCardName.isNotEmpty()) {
-                adjustBalances(realizedTx.accountOrCardName, realizedTx.value, realizedTx.isIncome)
+                adjustBalances(realizedTx.accountOrCardName, realizedTx.value, realizedTx.isIncome, realizedTx.isRealized)
             }
 
             // 2. Schedule the next recurrence
@@ -865,13 +868,15 @@ class TesseraViewModel(
         return cal.timeInMillis
     }
 
-    private fun adjustBalances(name: String, value: Double, isIncome: Boolean) {
+    private fun adjustBalances(name: String, value: Double, isIncome: Boolean, isRealized: Boolean) {
         viewModelScope.launch {
             val accounts = repository.allBankAccounts.first()
             val matchingAccount = accounts.find { it.name == name }
             if (matchingAccount != null) {
-                val newBalance = if (isIncome) matchingAccount.balance + value else matchingAccount.balance - value
-                repository.insertBankAccount(matchingAccount.copy(balance = newBalance))
+                if (isRealized) {
+                    val newBalance = if (isIncome) matchingAccount.balance + value else matchingAccount.balance - value
+                    repository.insertBankAccount(matchingAccount.copy(balance = newBalance))
+                }
                 return@launch
             }
             val cards = repository.allCreditCards.first()
@@ -883,13 +888,15 @@ class TesseraViewModel(
         }
     }
 
-    private fun rollbackBalances(name: String, value: Double, isIncome: Boolean) {
+    private fun rollbackBalances(name: String, value: Double, isIncome: Boolean, isRealized: Boolean) {
         viewModelScope.launch {
             val accounts = repository.allBankAccounts.first()
             val matchingAccount = accounts.find { it.name == name }
             if (matchingAccount != null) {
-                val newBalance = if (isIncome) matchingAccount.balance - value else matchingAccount.balance + value
-                repository.insertBankAccount(matchingAccount.copy(balance = newBalance))
+                if (isRealized) {
+                    val newBalance = if (isIncome) matchingAccount.balance - value else matchingAccount.balance + value
+                    repository.insertBankAccount(matchingAccount.copy(balance = newBalance))
+                }
                 return@launch
             }
             val cards = repository.allCreditCards.first()
