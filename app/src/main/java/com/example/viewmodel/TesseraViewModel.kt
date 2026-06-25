@@ -1518,128 +1518,49 @@ class TesseraViewModel(
             }
 
             try {
-                if (token.isNotBlank() && token != "MY_FOOTBALL_API_KEY") {
+                val okHttp = com.example.data.sportmonks.NetworkModule.provideOkHttpClient()
+                val moshi = com.example.data.sportmonks.NetworkModule.provideMoshi()
+                val api = com.example.data.sportmonks.NetworkModule.provideSportmonksApi(okHttp, moshi)
+                val repo = com.example.data.sportmonks.NetworkModule.provideFixtureRepository(api)
+                
+                val result = repo.getLatestFixtures()
+                if (result.isSuccess) {
+                    val fixtures = result.getOrNull()?.data ?: emptyList()
                     val list = mutableListOf<com.example.data.FootballMatchInfo>()
                     
-                    val teamIds = listOf(
-                        764 to "Brasil",
-                        1783 to "Flamengo",
-                        2061 to "Boca Juniors"
-                    )
-                    
-                    teamIds.forEach { (id, name) ->
-                        try {
-                            val response = footballService.getTeamMatches(apiKey = token, teamId = id)
-                            val matches = response.matches ?: emptyList()
-                            
-                            // Encontra o último jogo finalizado
-                            val lastMatch = matches.filter { it.status == "FINISHED" }
-                                .maxByOrNull { it.utcDate ?: "" }
-                                
-                            // Encontra o próximo jogo agendado ou em andamento
-                            val nextMatch = matches.filter { it.status == "SCHEDULED" || it.status == "TIMED" || it.status == "LIVE" || it.status == "IN_PLAY" || it.status == "PAUSED" }
-                                .minByOrNull { it.utcDate ?: "" }
-
-                            val lastDetail = lastMatch?.let {
-                                val statusShort = when (it.status) {
-                                    "FINISHED" -> "FT"
-                                    "LIVE", "IN_PLAY", "PAUSED" -> "LIVE"
-                                    else -> "FT"
-                                }
-                                com.example.data.MatchDetail(
-                                    homeTeamName = it.homeTeam?.shortName ?: it.homeTeam?.name ?: "",
-                                    homeTeamLogo = it.homeTeam?.crest ?: "",
-                                    awayTeamName = it.awayTeam?.shortName ?: it.awayTeam?.name ?: "",
-                                    awayTeamLogo = it.awayTeam?.crest ?: "",
-                                    homeGoals = it.score?.fullTime?.home,
-                                    awayGoals = it.score?.fullTime?.away,
-                                    statusShort = statusShort,
-                                    dateFormatted = formatFootballDate(it.utcDate),
-                                    leagueName = it.competition?.name ?: ""
-                                )
-                            }
-
-                            val nextDetail = nextMatch?.let {
-                                val statusShort = when (it.status) {
-                                    "SCHEDULED", "TIMED" -> "NS"
-                                    "LIVE", "IN_PLAY", "PAUSED" -> "LIVE"
-                                    else -> "NS"
-                                }
-                                com.example.data.MatchDetail(
-                                    homeTeamName = it.homeTeam?.shortName ?: it.homeTeam?.name ?: "",
-                                    homeTeamLogo = it.homeTeam?.crest ?: "",
-                                    awayTeamName = it.awayTeam?.shortName ?: it.awayTeam?.name ?: "",
-                                    awayTeamLogo = it.awayTeam?.crest ?: "",
-                                    homeGoals = it.score?.fullTime?.home,
-                                    awayGoals = it.score?.fullTime?.away,
-                                    statusShort = statusShort,
-                                    dateFormatted = formatFootballDate(it.utcDate),
-                                    leagueName = it.competition?.name ?: ""
-                                )
-                            }
-
-                            list.add(
-                                com.example.data.FootballMatchInfo(
-                                    teamName = name,
-                                    lastMatch = lastDetail,
-                                    nextMatch = nextDetail
-                                )
+                    for (fixture in fixtures.take(3)) {
+                        val homeParticipant = fixture.participants?.find { it.meta?.location == "home" } ?: fixture.participants?.firstOrNull()
+                        val awayParticipant = fixture.participants?.find { it.meta?.location == "away" } ?: fixture.participants?.lastOrNull()
+                        
+                        val homeGoals = fixture.scores?.find { it.score.participant == "home" && it.description == "CURRENT" }?.score?.goals
+                        val awayGoals = fixture.scores?.find { it.score.participant == "away" && it.description == "CURRENT" }?.score?.goals
+                        
+                        val matchDetail = com.example.data.MatchDetail(
+                            homeTeamName = homeParticipant?.name ?: "Home",
+                            homeTeamLogo = homeParticipant?.imagePath ?: "",
+                            awayTeamName = awayParticipant?.name ?: "Away",
+                            awayTeamLogo = awayParticipant?.imagePath ?: "",
+                            homeGoals = homeGoals,
+                            awayGoals = awayGoals,
+                            statusShort = fixture.state?.state ?: fixture.state?.name ?: "NS",
+                            dateFormatted = fixture.startingAt,
+                            leagueName = fixture.league?.name ?: "Futebol"
+                        )
+                        
+                        val teamName = homeParticipant?.name ?: "Time"
+                        
+                        list.add(
+                            com.example.data.FootballMatchInfo(
+                                teamName = teamName,
+                                lastMatch = matchDetail,
+                                nextMatch = null
                             )
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                            // Fallback de alta fidelidade para manter a UI premium caso a API falhe (ex: rate limit ou free tier)
-                            if (name == "Flamengo") {
-                                list.add(
-                                    com.example.data.FootballMatchInfo(
-                                        teamName = "Flamengo",
-                                        lastMatch = com.example.data.MatchDetail(
-                                            homeTeamName = "Vitória",
-                                            homeTeamLogo = "https://crests.football-data.org/1788.png",
-                                            awayTeamName = "Flamengo",
-                                            awayTeamLogo = "https://crests.football-data.org/1783.png",
-                                            homeGoals = 1,
-                                            awayGoals = 2,
-                                            statusShort = "FT",
-                                            dateFormatted = "24/07 20:00",
-                                            leagueName = "Série A"
-                                        ),
-                                        nextMatch = com.example.data.MatchDetail(
-                                            homeTeamName = "Palmeiras",
-                                            homeTeamLogo = "https://crests.football-data.org/1769.png",
-                                            awayTeamName = "Flamengo",
-                                            awayTeamLogo = "https://crests.football-data.org/1783.png",
-                                            homeGoals = null,
-                                            awayGoals = null,
-                                            statusShort = "NS",
-                                            dateFormatted = "21/11 00:00",
-                                            leagueName = "Série A"
-                                        )
-                                    )
-                                )
-                            } else if (name == "Brasil") {
-                                list.add(
-                                    com.example.data.FootballMatchInfo(
-                                        teamName = "Brasil",
-                                        lastMatch = com.example.data.MatchDetail(
-                                            homeTeamName = "Brasil",
-                                            homeTeamLogo = "https://crests.football-data.org/764.svg",
-                                            awayTeamName = "Argentina",
-                                            awayTeamLogo = "https://crests.football-data.org/762.png",
-                                            homeGoals = 1,
-                                            awayGoals = 0,
-                                            statusShort = "FT",
-                                            dateFormatted = "22/11 21:30",
-                                            leagueName = "Eliminatórias"
-                                        ),
-                                        nextMatch = null
-                                    )
-                                )
-                            }
-                        }
+                        )
                     }
                     
                     if (list.isNotEmpty()) {
                         _footballMatches.value = list
+                        _isLoadingFootball.value = false
                         return@launch
                     }
                 }

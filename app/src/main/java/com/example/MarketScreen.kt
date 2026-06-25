@@ -129,34 +129,6 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                     .padding(innerPadding)
                     .imePadding() // Ensures list resizes when keyboard opens
             ) {
-                Spacer(modifier = Modifier.height(72.dp))
-
-                // Elegant Segmented Tab Selector
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 8.dp)
-                        .clip(RoundedCornerShape(32.dp))
-                        .background(Color(0xFF141918))
-                        .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(32.dp))
-                        .padding(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TabPill(
-                        text = "Planejamento",
-                        isSelected = selectedTab == 0,
-                        onClick = { coroutineScope.launch { pagerState.animateScrollToPage(0) } },
-                        modifier = Modifier.weight(1f)
-                    )
-                    TabPill(
-                        text = "No Mercado",
-                        isSelected = selectedTab == 1,
-                        onClick = { coroutineScope.launch { pagerState.animateScrollToPage(1) } },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
 
                 HorizontalPager(
                     state = pagerState,
@@ -187,37 +159,66 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
         ) {
             // 1. Barra Normal
             if (normalAlpha > 0.05f) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .graphicsLayer {
                             alpha = normalAlpha
                             scaleX = 0.92f + (normalAlpha * 0.08f)
                             scaleY = 0.92f + (normalAlpha * 0.08f)
-                        },
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                            translationY = (1f - normalAlpha) * (-50f)
+                        }
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onHomeClick, modifier = Modifier.size(28.dp)) {
-                            Icon(
-                                imageVector = Icons.Outlined.Home,
-                                contentDescription = "Home",
-                                tint = Color(0xFFBDC9C6),
-                                modifier = Modifier.size(20.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = onHomeClick, modifier = Modifier.size(28.dp)) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Home,
+                                    contentDescription = "Home",
+                                    tint = Color(0xFFBDC9C6),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "MERCADO",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White,
+                                letterSpacing = 2.sp
                             )
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = currentTabTitle,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Black,
-                            color = Color.White,
-                            letterSpacing = 2.sp
-                        )
                     }
                     
-                    // Checkout button removed from top bar, it is now in the bottom bar for one-handed use
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Elegant Segmented Tab Selector
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(32.dp))
+                            .background(Color(0xFF141918))
+                            .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(32.dp))
+                            .padding(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TabPill(
+                            text = "Planejamento",
+                            isSelected = selectedTab == 0,
+                            onClick = { coroutineScope.launch { pagerState.animateScrollToPage(0) } },
+                            modifier = Modifier.weight(1f)
+                        )
+                        TabPill(
+                            text = "No Mercado",
+                            isSelected = selectedTab == 1,
+                            onClick = { coroutineScope.launch { pagerState.animateScrollToPage(1) } },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
             
@@ -233,6 +234,12 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                         .clip(RoundedCornerShape(32.dp))
                         .background(Color.Black.copy(alpha = 0.75f))
                         .border(1.dp, accentColor.copy(alpha = 0.5f), RoundedCornerShape(32.dp))
+                        .clickable {
+                            coroutineScope.launch {
+                                if (selectedTab == 0) planningListState.animateScrollToItem(0)
+                                else shoppingListState.animateScrollToItem(0)
+                            }
+                        }
                         .padding(horizontal = 24.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
@@ -315,6 +322,8 @@ fun PlanningView(viewModel: TesseraViewModel, pendingItems: List<MarketItem>, bo
             .padding(horizontal = 20.dp),
         contentPadding = PaddingValues(bottom = 120.dp)
     ) {
+        item { Spacer(modifier = Modifier.height(130.dp)) } // Spacer for floating top bar
+        
         item { Spacer(modifier = Modifier.height(16.dp)) }
         
         item { Spacer(modifier = Modifier.height(8.dp)) }
@@ -418,6 +427,8 @@ fun ShoppingView(
             .padding(horizontal = 20.dp),
         contentPadding = PaddingValues(bottom = 180.dp) // Grande espaçamento pra não sumir nada no rodapé
     ) {
+        item { Spacer(modifier = Modifier.height(130.dp)) } // Spacer for floating top bar
+        
         item { Spacer(modifier = Modifier.height(8.dp)) }
         
         if (toPick.isNotEmpty()) {

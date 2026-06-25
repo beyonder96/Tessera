@@ -69,6 +69,8 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
     val appVersionName = packageInfo?.versionName ?: "1.0.2"
     
     var isBiometricEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("biometric_enabled", false)) }
+    var stepsReminderTime by remember { mutableStateOf(sharedPrefs.getString("steps_reminder_time", "20:00") ?: "20:00") }
+    var sleepReminderTime by remember { mutableStateOf(sharedPrefs.getString("sleep_reminder_time", "08:00") ?: "08:00") }
     val backgroundUri by viewModel.homeBackgroundUri.collectAsState()
     val currentGlassLevel by viewModel.glassmorphismLevel.collectAsState()
 
@@ -635,6 +637,74 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                     uncheckedBorderColor = Color.Transparent
                                 )
                             )
+                        }
+
+                        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x0AFFFFFF)))
+                        
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .bounceClick {
+                                    val parts = stepsReminderTime.split(":")
+                                    val h = parts[0].toIntOrNull() ?: 20
+                                    val m = parts[1].toIntOrNull() ?: 0
+                                    android.app.TimePickerDialog(context, { _, hourOfDay, minute ->
+                                        val formatted = String.format(java.util.Locale.getDefault(), "%02d:%02d", hourOfDay, minute)
+                                        stepsReminderTime = formatted
+                                        sharedPrefs.edit().putString("steps_reminder_time", formatted).apply()
+                                        com.example.notifications.AlarmScheduler.scheduleDailyReminder(context, "STEPS", formatted)
+                                        Toast.makeText(context, "Lembrete de passos configurado", Toast.LENGTH_SHORT).show()
+                                    }, h, m, true).show()
+                                }
+                                .padding(vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(PrimaryTeal.copy(alpha=0.15f)), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Outlined.DirectionsWalk, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
+                                }
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column {
+                                    Text("Lembrete de Passos", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text("Notificar diariamente às $stepsReminderTime", fontSize = 12.sp, color = Color.White.copy(alpha=0.6f))
+                                }
+                            }
+                        }
+
+                        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x0AFFFFFF)))
+                        
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .bounceClick {
+                                    val parts = sleepReminderTime.split(":")
+                                    val h = parts[0].toIntOrNull() ?: 8
+                                    val m = parts[1].toIntOrNull() ?: 0
+                                    android.app.TimePickerDialog(context, { _, hourOfDay, minute ->
+                                        val formatted = String.format(java.util.Locale.getDefault(), "%02d:%02d", hourOfDay, minute)
+                                        sleepReminderTime = formatted
+                                        sharedPrefs.edit().putString("sleep_reminder_time", formatted).apply()
+                                        com.example.notifications.AlarmScheduler.scheduleDailyReminder(context, "SLEEP", formatted)
+                                        Toast.makeText(context, "Lembrete de sono configurado", Toast.LENGTH_SHORT).show()
+                                    }, h, m, true).show()
+                                }
+                                .padding(vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(PrimaryTeal.copy(alpha=0.15f)), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Outlined.Bedtime, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
+                                }
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column {
+                                    Text("Lembrete de Sono", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text("Notificar diariamente às $sleepReminderTime", fontSize = 12.sp, color = Color.White.copy(alpha=0.6f))
+                                }
+                            }
                         }
                     }
                 }

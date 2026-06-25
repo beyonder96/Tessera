@@ -39,7 +39,16 @@ fun FootballScoreboardWidget(
     val matches by viewModel.footballMatches.collectAsState()
     val isLoading by viewModel.isLoadingFootball.collectAsState()
 
-    var selectedTab by remember { mutableStateOf("Flamengo") }
+    // Os times agora são dinâmicos a partir da resposta da API
+    val teams = remember(matches) { matches.map { it.teamName }.distinct() }
+    var selectedTab by remember { mutableStateOf(teams.firstOrNull() ?: "Carregando") }
+
+    // Atualiza a aba selecionada se a lista mudar e a aba atual não estiver lá
+    LaunchedEffect(teams) {
+        if (teams.isNotEmpty() && !teams.contains(selectedTab)) {
+            selectedTab = teams.first()
+        }
+    }
 
     // Encontra a partida do time selecionado
     val currentMatchInfo = remember(matches, selectedTab) {
@@ -109,33 +118,41 @@ fun FootballScoreboardWidget(
                     .padding(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                val teams = listOf("Flamengo", "Brasil")
-                teams.forEach { team ->
-                    val isSelected = team == selectedTab
-                    
-                    // Animação de background e escala
-                    val backgroundTabColor by animateColorAsState(
-                        targetValue = if (isSelected) Color.White.copy(alpha = 0.12f) else Color.Transparent,
-                        animationSpec = tween(300),
-                        label = "TabBgColor"
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(backgroundTabColor)
-                            .bounceClick { selectedTab = team }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (team == "Brasil") "SELEÇÃO BRASILEIRA" else team.uppercase(),
-                            color = if (isSelected) Color.White else Color.White.copy(alpha = 0.5f),
-                            fontSize = 11.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            letterSpacing = 1.sp
+                if (teams.isEmpty() && isLoading) {
+                    Text("Carregando jogos...", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+                } else if (teams.isEmpty()) {
+                    Text("Nenhum jogo disponível", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+                } else {
+                    teams.forEach { team ->
+                        val isSelected = team == selectedTab
+                        
+                        // Animação de background e escala
+                        val backgroundTabColor by animateColorAsState(
+                            targetValue = if (isSelected) Color.White.copy(alpha = 0.12f) else Color.Transparent,
+                            animationSpec = tween(300),
+                            label = "TabBgColor"
                         )
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(backgroundTabColor)
+                                .bounceClick { selectedTab = team }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = team.uppercase(),
+                                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.5f),
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                letterSpacing = 1.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                        }
                     }
                 }
             }

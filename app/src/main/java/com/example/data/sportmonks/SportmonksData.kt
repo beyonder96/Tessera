@@ -25,6 +25,11 @@ data class FixtureResponse(
 )
 
 @JsonClass(generateAdapter = true)
+data class FixturesListResponse(
+    @Json(name = "data") val data: List<FixtureDto>
+)
+
+@JsonClass(generateAdapter = true)
 data class FixtureDto(
     @Json(name = "id") val id: Long,
     @Json(name = "name") val name: String,
@@ -39,7 +44,13 @@ data class FixtureDto(
 data class ParticipantDto(
     @Json(name = "id") val id: Long,
     @Json(name = "name") val name: String,
-    @Json(name = "image_path") val imagePath: String? = null
+    @Json(name = "image_path") val imagePath: String? = null,
+    @Json(name = "meta") val meta: ParticipantMetaDto? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class ParticipantMetaDto(
+    @Json(name = "location") val location: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -58,7 +69,8 @@ data class StateDto(
 @JsonClass(generateAdapter = true)
 data class ScoreDto(
     @Json(name = "id") val id: Long,
-    @Json(name = "score") val score: ParticipantScoreDto
+    @Json(name = "score") val score: ParticipantScoreDto,
+    @Json(name = "description") val description: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -76,6 +88,13 @@ interface SportmonksApi {
         @Query("api_token") apiToken: String,
         @Query("include") include: String = "participants;league;venue;state;scores;events.type;events.period;events.player;xGFixture.type;lineups.player;lineups.xGlineup.type;lineups.details.type"
     ): retrofit2.Response<FixtureResponse>
+
+    @GET("v3/football/fixtures")
+    suspend fun getFixtures(
+        @Query("api_token") apiToken: String,
+        @Query("include") include: String = "participants;league;state;scores",
+        @Query("per_page") perPage: Int = 10
+    ): retrofit2.Response<FixturesListResponse>
 }
 
 // --- Interceptor ---
@@ -133,6 +152,27 @@ class FixtureRepository(
                     if (body != null) {
                         cachedFixture = body
                         lastFetchTime = currentTime
+                        Result.success(body)
+                    } else {
+                        Result.failure(Exception("Resposta vazia da API."))
+                    }
+                } else {
+                    Result.failure(Exception("Erro da API: HTTP ${response.code()} - ${response.message()}"))
+                }
+            } catch (e: Exception) {
+                Log.e("FixtureRepository", "Falha na conexão com a API: ${e.message}")
+                Result.failure(e)
+            }
+        }
+    }
+
+    suspend fun getLatestFixtures(): Result<FixturesListResponse> {
+        return mutex.withLock {
+            try {
+                val response = api.getFixtures(apiToken = apiToken)
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null) {
                         Result.success(body)
                     } else {
                         Result.failure(Exception("Resposta vazia da API."))

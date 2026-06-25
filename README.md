@@ -8,14 +8,26 @@ Tudo isso acompanhado da **Tessera AI**, uma inteligência artificial local nati
 
 ---
 
-## 🚀 Novidades da Versão 1.6.5
+## 🚀 Novidades da Versão 1.6.7
 
-A versão **1.6.5** foca na melhoria da experiência de uso com apenas uma mão e na estabilidade das APIs públicas:
+A versão **1.6.7** traz grandes atualizações para a experiência do usuário e novas integrações inteligentes:
 
-*   **🛒 Aba Mercado (One-Handed UX):** Interface redesenhada! Campo de busca agora flutua acima do teclado, cartões de lista muito maiores (toque em qualquer lugar do item para marcá-lo), e botão "Finalizar" ancorado na base da tela. Tudo para ser usado com uma única mão enquanto você empurra o carrinho do supermercado!
-*   **🚇 Transporte Mais Inteligente:** Como a API pública do Metrô SP/ViaQuatro foi desativada pelas concessionárias (Erro 404), o Tessera agora foca *exclusivamente* nas **Linhas Favoritas** que você selecionou nas Configurações, garantindo que você não tenha telas quebradas! As previsões de ônibus (SPTrans) também receberam melhorias de estabilidade e simulação em caso de queda do servidor.
-*   **🤖 Tessera Chat AI:** Instruções claras para carregar a Inteligência Artificial **Gemma 2B Localmente** (totalmente offline e privada!). Se a IA não for encontrada na pasta do app (`Android/data/com.example/files/`), ela indicará exatamente como proceder, ou fará o *fallback* silencioso para o Gemini na nuvem, desde que a chave API esteja configurada.
-*   **💸 Finanças Minimalistas:** Tela focada no essencial ("O quanto posso gastar"), separando despesas fixas, recorrentes e gerais. A seção de Contas e Cartões agora permanece sempre visível para mais praticidade.
+*   **⚽ Futebol Ao Vivo (Sportmonks API):** O widget de futebol foi totalmente reformulado! Agora ele busca dados dinâmicos da nova API da Sportmonks, gerando automaticamente abas para os times que estão jogando no momento (ao invés de times fixos).
+*   **⏰ Lembretes Inteligentes:** Nova seção nas Configurações para programar notificações diárias que lembram você de registrar seus passos e suas horas de sono, mantendo a aba de Saúde sempre atualizada!
+*   **🛒 Aba Mercado (One-Handed UX):** Interface redesenhada para uso com apenas uma mão enquanto empurra o carrinho.
+*   **🚇 Transporte Mais Inteligente:** Foco nas Linhas Favoritas configuradas, evitando falhas com APIs de terceiros.
+*   **🤖 Tessera Chat AI:** Melhorias no carregamento do modelo local Gemma 2B e integração com Gemini na nuvem.
+*   **💸 Finanças Minimalistas:** Layout focado no essencial para praticidade no dia a dia.
+
+---
+
+## 📥 Download
+
+Baixe a versão mais recente do Tessera diretamente aqui:
+
+[![Download Release APK](https://img.shields.io/badge/Download-Release_APK_(1.6.7)-4CAF50?style=for-the-badge&logo=android)](.build-outputs/app-release-1.6.7.apk)
+
+[![Download Debug APK](https://img.shields.io/badge/Download-Debug_APK_(1.6.7)-FF9800?style=for-the-badge&logo=android)](.build-outputs/app-debug-1.6.7.apk)
 
 ---
 
@@ -40,8 +52,8 @@ O Tessera é projetado com Jetpack Compose moderno. Para gerar o APK no seu comp
 3. Sincronize o Gradle.
 4. Execute `./gradlew assembleRelease` para gerar o APK de Produção, ou `./gradlew assembleDebug` para testar.
 5. Os arquivos estarão na pasta `.build-outputs/`:
-    *   `app-debug-1.6.6.apk`
-    *   `app-release-1.6.6.apk`
+    *   `app-debug-1.6.7.apk`
+    *   `app-release-1.6.7.apk`
 
 *Observação: A geração direta dentro da nuvem (IDE remota) pode exigir a configuração prévia do `ANDROID_HOME` com os SDKs compilados.*
 
