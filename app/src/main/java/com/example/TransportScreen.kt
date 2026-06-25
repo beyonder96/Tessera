@@ -46,6 +46,11 @@ import com.example.data.getMetroLineColor
 import com.example.viewmodel.TesseraViewModel
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.window.Dialog
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,7 +72,27 @@ fun TransportScreen(
         sharedPrefs.getStringSet("metro_monitored_lines", emptySet()) ?: emptySet()
     }
 
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions.entries.all { it.value }
+        if (granted) {
+            viewModel.fetchRealLocation(context)
+        }
+    }
+
     LaunchedEffect(Unit) {
+        val hasFineLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val hasCoarseLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        
+        if (!hasFineLocation || !hasCoarseLocation) {
+            locationPermissionLauncher.launch(
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+            )
+        } else {
+            viewModel.fetchRealLocation(context)
+        }
+
         if (metroStatus.isEmpty()) viewModel.fetchMetroStatus()
         viewModel.fetchBusPredictions()
     }
@@ -125,15 +150,6 @@ fun TransportScreen(
                     .padding(top = 220.dp, start = 24.dp, end = 24.dp)
             ) {
                 // Header Title inside scroll
-                Text(
-                    text = "TRANSPORTE SP",
-                    fontFamily = FontFamily.SansSerif,
-                    color = Color.White,
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 2.sp,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
                 Text(
                     text = "Status e Previsões em Tempo Real",
                     color = Color.Gray,

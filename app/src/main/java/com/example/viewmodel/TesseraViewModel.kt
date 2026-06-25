@@ -594,30 +594,64 @@ class TesseraViewModel(
     }
 
     fun searchBusLines(query: String) {
-        if (query.isBlank()) {
-            _busSearchResults.value = emptyList()
-            return
-        }
         viewModelScope.launch {
             _isSearchingBus.value = true
             try {
-                // Mock SPTrans Search to fix the selection bug
+                // Mock SPTrans Search with an expanded dataset
                 val mockLines = listOf(
                     com.example.data.SPTransLinha(cl = 1234, lc = false, lt = "8000-10", sl = 1, tl = 1, tp = "Term. Lapa", ts = "Pça. Ramos"),
                     com.example.data.SPTransLinha(cl = 1235, lc = false, lt = "8000-10", sl = 2, tl = 1, tp = "Pça. Ramos", ts = "Term. Lapa"),
                     com.example.data.SPTransLinha(cl = 5678, lc = false, lt = "8700-10", sl = 1, tl = 1, tp = "Term. Campo Limpo", ts = "Pça. Ramos"),
                     com.example.data.SPTransLinha(cl = 5679, lc = false, lt = "8700-10", sl = 2, tl = 1, tp = "Pça. Ramos", ts = "Term. Campo Limpo"),
                     com.example.data.SPTransLinha(cl = 9101, lc = false, lt = "2002-10", sl = 1, tl = 1, tp = "Term. Pq. D. Pedro II", ts = "Term. Bandeira"),
-                    com.example.data.SPTransLinha(cl = 9102, lc = false, lt = "930P-10", sl = 1, tl = 1, tp = "Term. Pinheiros", ts = "Term. Pq. D. Pedro II")
+                    com.example.data.SPTransLinha(cl = 9102, lc = false, lt = "930P-10", sl = 1, tl = 1, tp = "Term. Pinheiros", ts = "Term. Pq. D. Pedro II"),
+                    com.example.data.SPTransLinha(cl = 1111, lc = false, lt = "857P-10", sl = 1, tl = 1, tp = "Term. Campo Limpo", ts = "Paraíso"),
+                    com.example.data.SPTransLinha(cl = 1112, lc = false, lt = "857P-10", sl = 2, tl = 1, tp = "Paraíso", ts = "Term. Campo Limpo"),
+                    com.example.data.SPTransLinha(cl = 2221, lc = false, lt = "5111-10", sl = 1, tl = 1, tp = "Term. Sto. Amaro", ts = "Term. Pq. D. Pedro II"),
+                    com.example.data.SPTransLinha(cl = 3331, lc = false, lt = "875A-10", sl = 1, tl = 1, tp = "Aeroporto", ts = "Perdizes"),
+                    com.example.data.SPTransLinha(cl = 4441, lc = false, lt = "609F-10", sl = 1, tl = 1, tp = "Chácara Santana", ts = "Pça. Júlio Mesquita"),
+                    com.example.data.SPTransLinha(cl = 5551, lc = false, lt = "875C-10", sl = 1, tl = 1, tp = "Term. Lapa", ts = "Metrô Sta. Cruz"),
+                    com.example.data.SPTransLinha(cl = 6661, lc = false, lt = "702C-10", sl = 1, tl = 1, tp = "Jd. Bonfiglioli", ts = "Metrô Belém"),
+                    com.example.data.SPTransLinha(cl = 7771, lc = false, lt = "106A-10", sl = 1, tl = 1, tp = "Metrô Santana", ts = "Itaim Bibi")
                 )
                 
-                val filtered = mockLines.filter { it.lt.contains(query, ignoreCase = true) || it.tp.contains(query, ignoreCase = true) || it.ts.contains(query, ignoreCase = true) }
-                _busSearchResults.value = if (filtered.isEmpty()) mockLines.take(3) else filtered
-                
+                if (query.isBlank()) {
+                    _busSearchResults.value = mockLines
+                } else {
+                    val filtered = mockLines.filter { it.lt.contains(query, ignoreCase = true) || it.tp.contains(query, ignoreCase = true) || it.ts.contains(query, ignoreCase = true) }
+                    _busSearchResults.value = filtered
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
                 _isSearchingBus.value = false
+            }
+        }
+    }
+
+    fun fetchRealLocation(context: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+                val isGpsEnabled = locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)
+                val isNetworkEnabled = locationManager.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)
+                
+                val provider = when {
+                    isGpsEnabled -> android.location.LocationManager.GPS_PROVIDER
+                    isNetworkEnabled -> android.location.LocationManager.NETWORK_PROVIDER
+                    else -> null
+                }
+                
+                if (provider != null) {
+                    val location = locationManager.getLastKnownLocation(provider)
+                    if (location != null) {
+                        _userLocation.value = location.latitude to location.longitude
+                    }
+                }
+            } catch (e: SecurityException) {
+                e.printStackTrace()
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }
@@ -1398,33 +1432,61 @@ class TesseraViewModel(
             _isLoadingMetroStatus.value = true
             _metroError.value = null
             try {
-                val monitored = sharedPrefs.getStringSet("metro_monitored_lines", emptySet()) ?: emptySet()
-                val linhas = monitored.map { str ->
-                    val parts = str.split("_", limit = 2)
-                    val codigo = parts.getOrNull(0) ?: ""
-                    val nome = parts.getOrNull(1) ?: str
-                    com.example.data.MetroLinhaStatus(
-                        nome = nome,
-                        codigo = codigo,
-                        ativa = true,
-                        status = com.example.data.MetroLinhaStatusDetail(
-                            situacao = "Operação Normal",
-                            classificacao = "Normal",
-                            operacaoNormal = true,
-                            atualizadoEm = null,
-                            atualizadoHa = "Agora"
+                val hardcodedEmpresas = listOf(
+                    com.example.data.MetroEmpresaConfig(
+                        id = 1, nome = "Metrô de São Paulo", fiscalizacaoArtesp = false,
+                        linhas = listOf(
+                            com.example.data.MetroLinhaConfig("Azul", "1"),
+                            com.example.data.MetroLinhaConfig("Verde", "2"),
+                            com.example.data.MetroLinhaConfig("Vermelha", "3"),
+                            com.example.data.MetroLinhaConfig("Prata", "15")
+                        )
+                    ),
+                    com.example.data.MetroEmpresaConfig(
+                        id = 2, nome = "ViaQuatro / ViaMobilidade", fiscalizacaoArtesp = false,
+                        linhas = listOf(
+                            com.example.data.MetroLinhaConfig("Amarela", "4"),
+                            com.example.data.MetroLinhaConfig("Lilás", "5"),
+                            com.example.data.MetroLinhaConfig("Diamante", "8"),
+                            com.example.data.MetroLinhaConfig("Esmeralda", "9")
+                        )
+                    ),
+                    com.example.data.MetroEmpresaConfig(
+                        id = 3, nome = "CPTM", fiscalizacaoArtesp = false,
+                        linhas = listOf(
+                            com.example.data.MetroLinhaConfig("Rubi", "7"),
+                            com.example.data.MetroLinhaConfig("Turquesa", "10"),
+                            com.example.data.MetroLinhaConfig("Coral", "11"),
+                            com.example.data.MetroLinhaConfig("Safira", "12"),
+                            com.example.data.MetroLinhaConfig("Jade", "13")
                         )
                     )
-                }.sortedBy { it.codigo.toIntOrNull() ?: 99 }
-                
-                _metroStatus.value = listOf(
-                    com.example.data.MetroEmpresaStatus(
-                        id = 1,
-                        nome = "Linhas Favoritas",
-                        fiscalizacaoArtesp = false,
-                        linhas = linhas
-                    )
                 )
+
+                val empresasStatus = hardcodedEmpresas.map { empresa ->
+                    val linhasStatus = empresa.linhas?.map { linha ->
+                        com.example.data.MetroLinhaStatus(
+                            nome = linha.nome,
+                            codigo = linha.codigo,
+                            ativa = true,
+                            status = com.example.data.MetroLinhaStatusDetail(
+                                situacao = "Operação Normal",
+                                classificacao = "Normal",
+                                operacaoNormal = true,
+                                atualizadoEm = null,
+                                atualizadoHa = "Agora"
+                            )
+                        )
+                    }
+                    com.example.data.MetroEmpresaStatus(
+                        id = empresa.id,
+                        nome = empresa.nome,
+                        fiscalizacaoArtesp = false,
+                        linhas = linhasStatus
+                    )
+                }
+                
+                _metroStatus.value = empresasStatus
             } catch (e: Exception) {
                 e.printStackTrace()
                 _metroError.value = "Erro interno"

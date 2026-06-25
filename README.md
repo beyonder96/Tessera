@@ -40,8 +40,8 @@ O Tessera é projetado com Jetpack Compose moderno. Para gerar o APK no seu comp
 3. Sincronize o Gradle.
 4. Execute `./gradlew assembleRelease` para gerar o APK de Produção, ou `./gradlew assembleDebug` para testar.
 5. Os arquivos estarão na pasta `.build-outputs/`:
-    *   `app-debug-1.6.5.apk`
-    *   `app-release-1.6.5.apk`
+    *   `app-debug-1.6.6.apk`
+    *   `app-release-1.6.6.apk`
 
 *Observação: A geração direta dentro da nuvem (IDE remota) pode exigir a configuração prévia do `ANDROID_HOME` com os SDKs compilados.*
 
