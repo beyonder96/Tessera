@@ -109,6 +109,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
 
     val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
     val petEvents by viewModel.allPetEvents.collectAsState(initial = emptyList())
+    val configuredFootballTeams by viewModel.configuredFootballTeams.collectAsState()
 
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
@@ -1026,6 +1027,164 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                                 showTimeDialog.value = false
                                             },
                                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4FC3F7)),
+                                            shape = RoundedCornerShape(12.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Text("Confirmar", color = Color.Black, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    SectionTitle("FUTEBOL E SELEÇÕES", Color(0xFF69F0AE))
+                    
+                    val showTeamDialog = remember { mutableStateOf(false) }
+                    
+                    Column(
+                        modifier = PremiumGlassModifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(
+                                text = "Times e Seleções Monitorados",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "O painel de esportes exibirá o último e o próximo placar para os times abaixo.",
+                                fontSize = 12.sp,
+                                color = Color.White.copy(alpha = 0.6f)
+                            )
+                            
+                            if (configuredFootballTeams.isEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(12.dp))
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "Nenhum time configurado.",
+                                        fontSize = 13.sp,
+                                        color = Color.White.copy(alpha = 0.4f),
+                                        fontStyle = FontStyle.Italic
+                                    )
+                                }
+                            } else {
+                                FlowRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    configuredFootballTeams.forEach { team ->
+                                        Row(
+                                            modifier = Modifier
+                                                .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                                                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
+                                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(text = team, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Remover",
+                                                tint = Color.White.copy(alpha = 0.6f),
+                                                modifier = Modifier
+                                                    .size(14.dp)
+                                                    .clickable {
+                                                        viewModel.removeFootballTeam(team)
+                                                        Toast.makeText(context, "$team removido!", Toast.LENGTH_SHORT).show()
+                                                    }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Button(
+                                onClick = { showTeamDialog.value = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF69F0AE).copy(alpha = 0.2f), contentColor = Color(0xFF69F0AE)),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(44.dp)
+                                    .border(1.dp, Color(0xFF69F0AE).copy(alpha = 0.4f), RoundedCornerShape(14.dp))
+                                    .bounceClick { showTeamDialog.value = true }
+                            ) {
+                                Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Adicionar Time/Seleção", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
+                    if (showTeamDialog.value) {
+                        var tempTeamName by remember { mutableStateOf("") }
+
+                        Dialog(onDismissRequest = { showTeamDialog.value = false }) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.9f)
+                                    .clip(RoundedCornerShape(28.dp))
+                                    .background(Color(0xFF1E2322).copy(alpha = 0.95f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(28.dp))
+                                    .padding(24.dp)
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                                ) {
+                                    Text(
+                                        text = "Adicionar Time",
+                                        color = Color.White,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+
+                                    OutlinedTextField(
+                                        value = tempTeamName,
+                                        onValueChange = { tempTeamName = it },
+                                        label = { Text("Nome do time ou seleção", color = Color.White.copy(alpha = 0.6f)) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = Color(0xFF69F0AE),
+                                            unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
+                                            focusedTextColor = Color.White,
+                                            unfocusedTextColor = Color.White
+                                        ),
+                                        singleLine = true
+                                    )
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        OutlinedButton(
+                                            onClick = { showTeamDialog.value = false },
+                                            shape = RoundedCornerShape(12.dp),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Text("Cancelar", color = Color.White)
+                                        }
+                                        Button(
+                                            onClick = {
+                                                if (tempTeamName.isNotBlank() && !configuredFootballTeams.contains(tempTeamName.trim())) {
+                                                    viewModel.addFootballTeam(tempTeamName.trim())
+                                                    Toast.makeText(context, "${tempTeamName.trim()} adicionado!", Toast.LENGTH_SHORT).show()
+                                                }
+                                                showTeamDialog.value = false
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF69F0AE)),
                                             shape = RoundedCornerShape(12.dp),
                                             modifier = Modifier.weight(1f)
                                         ) {

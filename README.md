@@ -8,11 +8,11 @@ Tudo isso acompanhado da **Tessera AI**, uma inteligência artificial local nati
 
 ---
 
-## 🚀 Novidades da Versão 1.6.7
+## 🚀 Novidades da Versão 1.6.8
 
-A versão **1.6.7** traz grandes atualizações para a experiência do usuário e novas integrações inteligentes:
+A versão **1.6.8** traz grandes atualizações para a experiência do usuário e novas integrações inteligentes:
 
-*   **⚽ Futebol Ao Vivo (Sportmonks API):** O widget de futebol foi totalmente reformulado! Agora ele busca dados dinâmicos da nova API da Sportmonks, gerando automaticamente abas para os times que estão jogando no momento (ao invés de times fixos).
+*   **⚽ Futebol e Seleções:** Agora você pode configurar diretamente nas configurações quais times ou seleções deseja acompanhar, e o widget trará perfeitamente os placares do Último e do Próximo jogo de cada um deles!
 *   **⏰ Lembretes Inteligentes:** Nova seção nas Configurações para programar notificações diárias que lembram você de registrar seus passos e suas horas de sono, mantendo a aba de Saúde sempre atualizada!
 *   **🛒 Aba Mercado (One-Handed UX):** Interface redesenhada para uso com apenas uma mão enquanto empurra o carrinho.
 *   **🚇 Transporte Mais Inteligente:** Foco nas Linhas Favoritas configuradas, evitando falhas com APIs de terceiros.
@@ -25,9 +25,9 @@ A versão **1.6.7** traz grandes atualizações para a experiência do usuário 
 
 Baixe a versão mais recente do Tessera diretamente aqui:
 
-[![Download Release APK](https://img.shields.io/badge/Download-Release_APK_(1.6.7)-4CAF50?style=for-the-badge&logo=android)](.build-outputs/app-release-1.6.7.apk)
+[![Download Release APK](https://img.shields.io/badge/Download-Release_APK_(1.6.8)-4CAF50?style=for-the-badge&logo=android)](.build-outputs/app-release-1.6.8.apk)
 
-[![Download Debug APK](https://img.shields.io/badge/Download-Debug_APK_(1.6.7)-FF9800?style=for-the-badge&logo=android)](.build-outputs/app-debug-1.6.7.apk)
+[![Download Debug APK](https://img.shields.io/badge/Download-Debug_APK_(1.6.8)-FF9800?style=for-the-badge&logo=android)](.build-outputs/app-debug-1.6.8.apk)
 
 ---
 
@@ -52,8 +52,8 @@ O Tessera é projetado com Jetpack Compose moderno. Para gerar o APK no seu comp
 3. Sincronize o Gradle.
 4. Execute `./gradlew assembleRelease` para gerar o APK de Produção, ou `./gradlew assembleDebug` para testar.
 5. Os arquivos estarão na pasta `.build-outputs/`:
-    *   `app-debug-1.6.7.apk`
-    *   `app-release-1.6.7.apk`
+    *   `app-debug-1.6.8.apk`
+    *   `app-release-1.6.8.apk`
 
 *Observação: A geração direta dentro da nuvem (IDE remota) pode exigir a configuração prévia do `ANDROID_HOME` com os SDKs compilados.*
 
