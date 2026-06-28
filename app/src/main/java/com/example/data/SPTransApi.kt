@@ -29,7 +29,7 @@ interface SPTransApiService {
     @GET("Previsao/Parada")
     suspend fun getPrevisaoParada(
         @Query("codigoParada") codigoParada: Int,
-        @Query("codigoLinha") codigoLinha: Int
+        @Query("codigoLinha") codigoLinha: Int? = null
     ): PrevisaoParadaResponse
 }
 
@@ -112,6 +112,8 @@ data class SavedBusLine(
 
 object SPTransApi {
     private const val BASE_URL = "https://api.olhovivo.sptrans.com.br/v2.1/"
+    // TODO: Insira aqui o seu token gerado no painel da SPTrans (Olho Vivo)
+    const val API_TOKEN = "fc7a53cdc1cce061cc38365f4791b5f7d1977e4c21001feb964b76761bb0d8cc"
 
     private val cookieJar = object : CookieJar {
         private val cookies = mutableListOf<Cookie>()

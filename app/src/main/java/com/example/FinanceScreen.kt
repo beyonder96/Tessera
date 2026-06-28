@@ -142,13 +142,17 @@ fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
         allTransactions.filter { it.timestamp >= currentMonthStart }
     }
 
-    val salaryValue = remember(currentMonthTransactions) {
-        val incomeSum = currentMonthTransactions.filter { it.isIncome }.sumOf { it.value }
+    val salaryValue = remember(currentMonthTransactions, creditCards) {
+        val incomeSum = currentMonthTransactions.filter { tx -> 
+            tx.isIncome && creditCards.none { card -> card.name == tx.accountOrCardName } 
+        }.sumOf { it.value }
         if (incomeSum > 0.0) incomeSum else 1600.0
     }
 
-    val committedValue = remember(currentMonthTransactions) {
-        val expenseSum = currentMonthTransactions.filter { !it.isIncome }.sumOf { it.value }
+    val committedValue = remember(currentMonthTransactions, creditCards) {
+        val expenseSum = currentMonthTransactions.filter { tx -> 
+            !tx.isIncome && creditCards.none { card -> card.name == tx.accountOrCardName } 
+        }.sumOf { it.value }
         if (expenseSum > 0.0) expenseSum else 1143.98
     }
 

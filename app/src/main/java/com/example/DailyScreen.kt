@@ -82,6 +82,7 @@ fun DailyScreen(
     val medications by viewModel.allMedications.collectAsStateWithLifecycle(initialValue = emptyList())
     val weatherState by viewModel.weatherState.collectAsStateWithLifecycle(initialValue = null)
     val dailyBriefingText by viewModel.dailyBriefingText.collectAsStateWithLifecycle(initialValue = null)
+    val newsArticles by viewModel.newsArticles.collectAsStateWithLifecycle(initialValue = emptyList())
 
     // Local Chat Message list and input states
     var chatInputText by remember { mutableStateOf("") }
@@ -399,6 +400,11 @@ fun DailyScreen(
                         
                         // 4.6 X TIMELINE WIDGET
                         com.example.ui.components.XTimelineWidget()
+
+                        // 4.7 NEWS EXPANDED WIDGET
+                        if (newsArticles.isNotEmpty()) {
+                            NewsExpandedSection(articles = newsArticles.take(4))
+                        }
 
                         // 5. FOOTER - QUIET THE MIND CAROUSEL
                         QuietTheMindSection(onSessionClick = { activeMindSession = it })
@@ -1385,3 +1391,74 @@ fun QuietTheMindPlayerDialog(
     }
 }
 
+@Composable
+fun NewsExpandedSection(articles: List<com.example.data.NewsArticle>) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "ÚLTIMAS NOTÍCIAS",
+                fontFamily = FontFamily.SansSerif,
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp,
+                color = Color.White.copy(alpha = 0.5f),
+                letterSpacing = 2.sp
+            )
+            Icon(
+                imageVector = Icons.Default.Public,
+                contentDescription = null,
+                tint = Color(0xFF64FFDA),
+                modifier = Modifier.size(14.dp)
+            )
+        }
+
+        articles.forEach { article ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF1E252B).copy(alpha = 0.6f))
+                    .clickable { /* Opcional: abrir URL externa */ }
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (!article.urlToImage.isNullOrEmpty()) {
+                    coil.compose.AsyncImage(
+                        model = article.urlToImage,
+                        contentDescription = null,
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.DarkGray)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                }
+                
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = article.title ?: "Sem título",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = article.source?.name ?: "Fonte desconhecida",
+                        color = Color(0xFF64FFDA).copy(alpha = 0.8f),
+                        fontSize = 11.sp,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+    }
+}

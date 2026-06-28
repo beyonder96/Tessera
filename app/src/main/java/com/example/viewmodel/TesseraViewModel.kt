@@ -35,6 +35,10 @@ import kotlinx.coroutines.Dispatchers
 
 import com.example.data.FootballService
 import com.example.data.FootballMatchInfo
+import com.example.data.sportmonks.NetworkModule
+import com.example.data.NewsArticle
+import com.example.data.NewsService
+import android.util.Log
 
 class TesseraViewModel(
     private val repository: TesseraRepository,
@@ -111,8 +115,12 @@ class TesseraViewModel(
         _glassmorphismLevel.value = level
     }
 
-    // Football Integration (API-FOOTBALL)
-    private val footballService = com.example.data.FootballService.create()
+    // Football Integration (Sportmonks)
+    private val sportmonksApi = NetworkModule.provideSportmonksApi(
+        NetworkModule.provideOkHttpClient(),
+        NetworkModule.provideMoshi()
+    )
+    private val fixtureRepository = NetworkModule.provideFixtureRepository(sportmonksApi)
 
     private val _footballMatches = MutableStateFlow<List<com.example.data.FootballMatchInfo>>(emptyList())
     val footballMatches: StateFlow<List<com.example.data.FootballMatchInfo>> = _footballMatches.asStateFlow()
@@ -120,23 +128,46 @@ class TesseraViewModel(
     private val _isLoadingFootball = MutableStateFlow(false)
     val isLoadingFootball: StateFlow<Boolean> = _isLoadingFootball.asStateFlow()
 
-    private val _configuredFootballTeams = MutableStateFlow<Set<String>>(
-        sharedPrefs.getStringSet("football_teams", setOf("Brasil", "Flamengo")) ?: setOf("Brasil", "Flamengo")
-    )
-    val configuredFootballTeams: StateFlow<Set<String>> = _configuredFootballTeams.asStateFlow()
+    private val _configuredFootballTeams = MutableStateFlow<List<String>>(emptyList())
+    val configuredFootballTeams: StateFlow<List<String>> = _configuredFootballTeams.asStateFlow()
+
+    private val newsService = NewsService.create()
+    private val newsApiKey = "d47edb4744604172abec5be172a5acc2"
+
+    private val _newsArticles = MutableStateFlow<List<NewsArticle>>(emptyList())
+    val newsArticles: StateFlow<List<NewsArticle>> = _newsArticles.asStateFlow()
+
+    fun loadConfiguredFootballTeams() {
+        val teams = sharedPrefs.getStringSet("football_teams", setOf("Brasil", "Flamengo")) ?: setOf("Brasil", "Flamengo")
+        _configuredFootballTeams.value = teams.toList()
+    }
 
     fun addFootballTeam(team: String) {
         val updated = _configuredFootballTeams.value.toMutableSet().apply { add(team) }
-        _configuredFootballTeams.value = updated
+        _configuredFootballTeams.value = updated.toList()
         sharedPrefs.edit().putStringSet("football_teams", updated).apply()
         fetchFootballScores()
     }
 
     fun removeFootballTeam(team: String) {
         val updated = _configuredFootballTeams.value.toMutableSet().apply { remove(team) }
-        _configuredFootballTeams.value = updated
+        _configuredFootballTeams.value = updated.toList()
         sharedPrefs.edit().putStringSet("football_teams", updated).apply()
         fetchFootballScores()
+    }
+
+    fun fetchNews() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val response = newsService.getTopHeadlines(apiKey = newsApiKey)
+                if (response.isSuccessful) {
+                    val articles = response.body()?.articles ?: emptyList()
+                    _newsArticles.value = articles.filter { !it.title.isNullOrBlank() }
+                }
+            } catch (e: Exception) {
+                Log.e("TesseraViewModel", "Erro ao buscar notícias: ${e.message}")
+            }
+        }
     }
 
 
@@ -613,35 +644,29 @@ class TesseraViewModel(
     }
 
     fun searchBusLines(query: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _isSearchingBus.value = true
             try {
-                // Mock SPTrans Search with an expanded dataset
-                val mockLines = listOf(
-                    com.example.data.SPTransLinha(cl = 1234, lc = false, lt = "8000-10", sl = 1, tl = 1, tp = "Term. Lapa", ts = "Pça. Ramos"),
-                    com.example.data.SPTransLinha(cl = 1235, lc = false, lt = "8000-10", sl = 2, tl = 1, tp = "Pça. Ramos", ts = "Term. Lapa"),
-                    com.example.data.SPTransLinha(cl = 5678, lc = false, lt = "8700-10", sl = 1, tl = 1, tp = "Term. Campo Limpo", ts = "Pça. Ramos"),
-                    com.example.data.SPTransLinha(cl = 5679, lc = false, lt = "8700-10", sl = 2, tl = 1, tp = "Pça. Ramos", ts = "Term. Campo Limpo"),
-                    com.example.data.SPTransLinha(cl = 9101, lc = false, lt = "2002-10", sl = 1, tl = 1, tp = "Term. Pq. D. Pedro II", ts = "Term. Bandeira"),
-                    com.example.data.SPTransLinha(cl = 9102, lc = false, lt = "930P-10", sl = 1, tl = 1, tp = "Term. Pinheiros", ts = "Term. Pq. D. Pedro II"),
-                    com.example.data.SPTransLinha(cl = 1111, lc = false, lt = "857P-10", sl = 1, tl = 1, tp = "Term. Campo Limpo", ts = "Paraíso"),
-                    com.example.data.SPTransLinha(cl = 1112, lc = false, lt = "857P-10", sl = 2, tl = 1, tp = "Paraíso", ts = "Term. Campo Limpo"),
-                    com.example.data.SPTransLinha(cl = 2221, lc = false, lt = "5111-10", sl = 1, tl = 1, tp = "Term. Sto. Amaro", ts = "Term. Pq. D. Pedro II"),
-                    com.example.data.SPTransLinha(cl = 3331, lc = false, lt = "875A-10", sl = 1, tl = 1, tp = "Aeroporto", ts = "Perdizes"),
-                    com.example.data.SPTransLinha(cl = 4441, lc = false, lt = "609F-10", sl = 1, tl = 1, tp = "Chácara Santana", ts = "Pça. Júlio Mesquita"),
-                    com.example.data.SPTransLinha(cl = 5551, lc = false, lt = "875C-10", sl = 1, tl = 1, tp = "Term. Lapa", ts = "Metrô Sta. Cruz"),
-                    com.example.data.SPTransLinha(cl = 6661, lc = false, lt = "702C-10", sl = 1, tl = 1, tp = "Jd. Bonfiglioli", ts = "Metrô Belém"),
-                    com.example.data.SPTransLinha(cl = 7771, lc = false, lt = "106A-10", sl = 1, tl = 1, tp = "Metrô Santana", ts = "Itaim Bibi")
-                )
-                
                 if (query.isBlank()) {
-                    _busSearchResults.value = mockLines
+                    _busSearchResults.value = emptyList()
+                    return@launch
+                }
+                
+                if (com.example.data.SPTransApi.API_TOKEN.isBlank()) {
+                    _busError.value = "Chave da API SPTrans não configurada."
+                    return@launch
+                }
+                
+                val authResponse = com.example.data.SPTransApi.service.autenticar(com.example.data.SPTransApi.API_TOKEN)
+                if (authResponse.isSuccessful && authResponse.body()?.string() == "true") {
+                    val lines = com.example.data.SPTransApi.service.buscarLinha(query)
+                    _busSearchResults.value = lines
                 } else {
-                    val filtered = mockLines.filter { it.lt.contains(query, ignoreCase = true) || it.tp.contains(query, ignoreCase = true) || it.ts.contains(query, ignoreCase = true) }
-                    _busSearchResults.value = filtered
+                    _busError.value = "Falha na autenticação da SPTrans."
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+                _busError.value = "Erro ao buscar linhas: ${e.message}"
             } finally {
                 _isSearchingBus.value = false
             }
@@ -689,7 +714,7 @@ class TesseraViewModel(
     }
 
     fun fetchBusPredictions() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _isLoadingBus.value = true
             _busError.value = null
             try {
@@ -699,35 +724,61 @@ class TesseraViewModel(
                 val savedLinesList = _userBusLines.value
                 if (savedLinesList.isEmpty()) {
                     _savedBusLines.value = emptyList()
-                    _isLoadingBus.value = false
+                    return@launch
+                }
+                
+                if (com.example.data.SPTransApi.API_TOKEN.isBlank()) {
+                    _busError.value = "Chave da API SPTrans não configurada."
                     return@launch
                 }
 
-                // Mock Predictions because SPTrans API token is failing for the user
+                val authResponse = com.example.data.SPTransApi.service.autenticar(com.example.data.SPTransApi.API_TOKEN)
+                if (!authResponse.isSuccessful || authResponse.body()?.string() != "true") {
+                    _busError.value = "Falha na autenticação da SPTrans."
+                    return@launch
+                }
+
+                val userLoc = _userLocation.value
                 val results = mutableListOf<com.example.data.SavedBusLine>()
-                val mockStops = listOf("Parada Avenida Paulista, 1000", "Parada Faria Lima, 200", "Terminal Pinheiros", "Parada Sé", "Parada Berrini, 500")
                 
-                for ((index, line) in savedLinesList.withIndex()) {
-                    val (codigo, numero, destino) = line
-                    
-                    // Simula cálculos baseados na localização para retornar um ponto real e tempo real
-                    val randomStop = mockStops[index % mockStops.size]
-                    val randomTime = "${(Math.random() * 15 + 2).toInt()}:${String.format("%02d", (Math.random() * 59).toInt())}"
-                    
-                    results.add(
-                        com.example.data.SavedBusLine(
-                            id = codigo.toString(),
-                            lineCode = codigo,
-                            lineNumber = numero,
-                            destination = destino,
-                            estimatedArrivalText = randomTime,
-                            stopName = randomStop
-                        )
-                    )
+                for ((codigo, numero, destino) in savedLinesList) {
+                    try {
+                        val paradas = com.example.data.SPTransApi.service.getParadasPorLinha(codigo)
+                        if (paradas.isEmpty()) continue
+                        
+                        // Find closest stop if user location is available, otherwise use the first one
+                        val closestStop = if (userLoc != null) {
+                            paradas.minByOrNull { calculateDistance(userLoc.first, userLoc.second, it.py, it.px) }
+                        } else {
+                            paradas.firstOrNull()
+                        }
+                        
+                        if (closestStop != null) {
+                            val previsaoResponse = com.example.data.SPTransApi.service.getPrevisaoParada(closestStop.cp, codigo)
+                            val linhaPrevisao = previsaoResponse.p?.l?.find { it.cl == codigo }
+                            
+                            val proximoVeiculo = linhaPrevisao?.vs?.minByOrNull { it.t }
+                            val horario = proximoVeiculo?.t ?: "Sem prev."
+                            
+                            results.add(
+                                com.example.data.SavedBusLine(
+                                    id = codigo.toString(),
+                                    lineCode = codigo,
+                                    lineNumber = numero,
+                                    destination = destino,
+                                    estimatedArrivalText = horario,
+                                    stopName = closestStop.np
+                                )
+                            )
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
                 _savedBusLines.value = results
             } catch (e: Exception) {
                 e.printStackTrace()
+                _busError.value = "Erro ao buscar previsões."
             } finally {
                 _isLoadingBus.value = false
             }
@@ -887,43 +938,39 @@ class TesseraViewModel(
         return cal.timeInMillis
     }
 
-    private fun adjustBalances(name: String, value: Double, isIncome: Boolean, isRealized: Boolean) {
-        viewModelScope.launch {
-            val accounts = repository.allBankAccounts.first()
-            val matchingAccount = accounts.find { it.name == name }
-            if (matchingAccount != null) {
-                if (isRealized) {
-                    val newBalance = if (isIncome) matchingAccount.balance + value else matchingAccount.balance - value
-                    repository.insertBankAccount(matchingAccount.copy(balance = newBalance))
-                }
-                return@launch
+    private suspend fun adjustBalances(name: String, value: Double, isIncome: Boolean, isRealized: Boolean) {
+        val accounts = repository.allBankAccounts.first()
+        val matchingAccount = accounts.find { it.name == name }
+        if (matchingAccount != null) {
+            if (isRealized) {
+                val newBalance = if (isIncome) matchingAccount.balance + value else matchingAccount.balance - value
+                repository.insertBankAccount(matchingAccount.copy(balance = newBalance))
             }
-            val cards = repository.allCreditCards.first()
-            val matchingCard = cards.find { it.name == name }
-            if (matchingCard != null) {
-                val newUsedLimit = if (isIncome) (matchingCard.usedLimit - value).coerceAtLeast(0.0) else matchingCard.usedLimit + value
-                repository.insertCreditCard(matchingCard.copy(usedLimit = newUsedLimit))
-            }
+            return
+        }
+        val cards = repository.allCreditCards.first()
+        val matchingCard = cards.find { it.name == name }
+        if (matchingCard != null) {
+            val newUsedLimit = if (isIncome) (matchingCard.usedLimit - value).coerceAtLeast(0.0) else matchingCard.usedLimit + value
+            repository.insertCreditCard(matchingCard.copy(usedLimit = newUsedLimit))
         }
     }
 
-    private fun rollbackBalances(name: String, value: Double, isIncome: Boolean, isRealized: Boolean) {
-        viewModelScope.launch {
-            val accounts = repository.allBankAccounts.first()
-            val matchingAccount = accounts.find { it.name == name }
-            if (matchingAccount != null) {
-                if (isRealized) {
-                    val newBalance = if (isIncome) matchingAccount.balance - value else matchingAccount.balance + value
-                    repository.insertBankAccount(matchingAccount.copy(balance = newBalance))
-                }
-                return@launch
+    private suspend fun rollbackBalances(name: String, value: Double, isIncome: Boolean, isRealized: Boolean) {
+        val accounts = repository.allBankAccounts.first()
+        val matchingAccount = accounts.find { it.name == name }
+        if (matchingAccount != null) {
+            if (isRealized) {
+                val newBalance = if (isIncome) matchingAccount.balance - value else matchingAccount.balance + value
+                repository.insertBankAccount(matchingAccount.copy(balance = newBalance))
             }
-            val cards = repository.allCreditCards.first()
-            val matchingCard = cards.find { it.name == name }
-            if (matchingCard != null) {
-                val newUsedLimit = if (isIncome) matchingCard.usedLimit + value else (matchingCard.usedLimit - value).coerceAtLeast(0.0)
-                repository.insertCreditCard(matchingCard.copy(usedLimit = newUsedLimit))
-            }
+            return
+        }
+        val cards = repository.allCreditCards.first()
+        val matchingCard = cards.find { it.name == name }
+        if (matchingCard != null) {
+            val newUsedLimit = if (isIncome) matchingCard.usedLimit + value else (matchingCard.usedLimit - value).coerceAtLeast(0.0)
+            repository.insertCreditCard(matchingCard.copy(usedLimit = newUsedLimit))
         }
     }
 
@@ -1527,71 +1574,64 @@ class TesseraViewModel(
     fun fetchFootballScores() {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoadingFootball.value = true
-            
-            // We'll directly load the dynamically generated matches for the configured teams
-            // to ensure we always show the "last" and "next" matches for the exact teams the user wants,
-            // as the basic API fixtures endpoint only returns random games of the day.
-            loadMockFootballScores()
-            _isLoadingFootball.value = false
-        }
-    }
+            try {
+                val result = fixtureRepository.getLatestFixtures()
+                if (result.isSuccess) {
+                    val fixtures = result.getOrNull()?.data ?: emptyList()
+                    val teams = _configuredFootballTeams.value
+                    val list = mutableListOf<com.example.data.FootballMatchInfo>()
 
-    private fun loadMockFootballScores() {
-        val now = java.time.LocalDateTime.now()
-        val formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM HH:mm")
-
-        val list = mutableListOf<com.example.data.FootballMatchInfo>()
-        val teams = _configuredFootballTeams.value
-        
-        for ((index, teamName) in teams.withIndex()) {
-            val lastDays = (index % 3) + 1L
-            val nextDays = (index % 4) + 2L
-            
-            val lastDate = now.minusDays(lastDays).withHour(20).withMinute(30).format(formatter)
-            val nextDate = now.plusDays(nextDays).withHour(16).withMinute(0).format(formatter)
-            
-            val isNational = teamName.equals("Brasil", true) || teamName.equals("Argentina", true) || teamName.equals("França", true)
-            
-            val opponentLast = if (isNational) "Inglaterra" else if (index % 2 == 0) "Vasco" else "Palmeiras"
-            val opponentNext = if (isNational) "Argentina" else if (index % 2 == 0) "Fluminense" else "São Paulo"
-            
-            val homeGoals = (0..3).random()
-            val awayGoals = (0..2).random()
-            
-            val lastMatch = com.example.data.MatchDetail(
-                homeTeamName = teamName,
-                homeTeamLogo = "https://media.api-sports.io/football/teams/${(index * 13 + 10) % 150}.png",
-                awayTeamName = opponentLast,
-                awayTeamLogo = "https://media.api-sports.io/football/teams/${(index * 17 + 20) % 150}.png",
-                homeGoals = homeGoals,
-                awayGoals = awayGoals,
-                statusShort = "FT",
-                dateFormatted = lastDate,
-                leagueName = if (isNational) "Amistoso" else "Série A"
-            )
-            
-            val nextMatch = com.example.data.MatchDetail(
-                homeTeamName = opponentNext,
-                homeTeamLogo = "https://media.api-sports.io/football/teams/${(index * 19 + 30) % 150}.png",
-                awayTeamName = teamName,
-                awayTeamLogo = "https://media.api-sports.io/football/teams/${(index * 13 + 10) % 150}.png",
-                homeGoals = null,
-                awayGoals = null,
-                statusShort = "NS",
-                dateFormatted = nextDate,
-                leagueName = if (isNational) "Eliminatórias" else "Série A"
-            )
-            
-            list.add(
-                com.example.data.FootballMatchInfo(
-                    teamName = teamName,
-                    lastMatch = lastMatch,
-                    nextMatch = nextMatch
-                )
-            )
+                    for (teamName in teams) {
+                        val teamFixtures = fixtures.filter { fixture ->
+                            fixture.participants?.any { it.name.contains(teamName, ignoreCase = true) } == true
+                        }
+                        
+                        if (teamFixtures.isNotEmpty()) {
+                            val sorted = teamFixtures.sortedBy { it.startingAt }
+                            
+                            val lastMatchDto = sorted.lastOrNull { 
+                                it.state?.state == "FT" || (it.startingAt < java.time.LocalDateTime.now().toString())
+                            }
+                            
+                            val nextMatchDto = sorted.firstOrNull { 
+                                it.state?.state == "NS" || it.state?.state == "TBA" || (it.startingAt >= java.time.LocalDateTime.now().toString())
+                            }
+                            
+                            val mapToDetail = { dto: com.example.data.sportmonks.FixtureDto ->
+                                val home = dto.participants?.getOrNull(0)
+                                val away = dto.participants?.getOrNull(1)
+                                
+                                com.example.data.MatchDetail(
+                                    homeTeamName = home?.name ?: "Time 1",
+                                    homeTeamLogo = home?.imagePath ?: "",
+                                    awayTeamName = away?.name ?: "Time 2",
+                                    awayTeamLogo = away?.imagePath ?: "",
+                                    homeGoals = if (dto.state?.state == "FT") (dto.scores?.getOrNull(0)?.score?.goals ?: 0) else null,
+                                    awayGoals = if (dto.state?.state == "FT") (dto.scores?.getOrNull(1)?.score?.goals ?: 0) else null,
+                                    statusShort = dto.state?.state ?: "NS",
+                                    dateFormatted = formatFootballDate(dto.startingAt),
+                                    leagueName = dto.league?.name ?: "Liga"
+                                )
+                            }
+                            
+                            val lastMatch = lastMatchDto?.let { mapToDetail(it) }
+                            val nextMatch = nextMatchDto?.let { mapToDetail(it) }
+                            
+                            list.add(com.example.data.FootballMatchInfo(teamName, lastMatch, nextMatch))
+                        } else {
+                            list.add(com.example.data.FootballMatchInfo(teamName, null, null))
+                        }
+                    }
+                    _footballMatches.value = list
+                } else {
+                    Log.e("TesseraViewModel", "Erro ao buscar placares: ${result.exceptionOrNull()?.message}")
+                }
+            } catch (e: Exception) {
+                Log.e("TesseraViewModel", "Erro na API de Futebol: ${e.message}")
+            } finally {
+                _isLoadingFootball.value = false
+            }
         }
-        
-        _footballMatches.value = list
     }
 
     private fun formatFootballDate(rawDate: String?): String {
@@ -1615,8 +1655,10 @@ class TesseraViewModel(
 
     init {
         loadUserBusLines()
-        fetchWeather()
+        loadConfiguredFootballTeams()
         fetchFootballScores()
+        fetchNews()
+        
         viewModelScope.launch(Dispatchers.IO) {
             val externalDir = applicationContext.getExternalFilesDir(null)
             val possiblePaths = mutableListOf<String>()

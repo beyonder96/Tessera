@@ -11,10 +11,15 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.ui.util.lerp
+import kotlin.math.absoluteValue
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -2174,6 +2179,7 @@ fun MainContent(
     val stepsRecords by mainViewModel.allStepsRecords.collectAsState(initial = emptyList())
     val weightRecords by mainViewModel.allWeightRecords.collectAsState(initial = emptyList())
     val healthProfile by mainViewModel.healthProfile.collectAsState(initial = null)
+    val newsArticles by mainViewModel.newsArticles.collectAsState(initial = emptyList())
 
     val todayStart = remember {
         java.util.Calendar.getInstance().apply {
@@ -2207,14 +2213,39 @@ fun MainContent(
         }
     }
 
+    val visibleModules = modules.filter { it.isVisible }
+    val pagerState = rememberPagerState(pageCount = { visibleModules.size })
+
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        modifier = Modifier.fillMaxWidth()
     ) {
-        modules.filter { it.isVisible }.forEach { mod ->
-            Box(modifier = Modifier.scrollFadeInOut()) {
+        HorizontalPager(
+            state = pagerState,
+            contentPadding = PaddingValues(horizontal = 24.dp),
+            pageSpacing = 16.dp
+        ) { page ->
+            val mod = visibleModules[page]
+            Box(
+                modifier = Modifier
+                    .graphicsLayer {
+                        val pageOffset = (
+                            (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                        ).absoluteValue
+                        val scale = lerp(
+                            start = 0.85f,
+                            stop = 1f,
+                            fraction = 1f - pageOffset.coerceIn(0f, 1f)
+                        )
+                        val alpha = lerp(
+                            start = 0.5f,
+                            stop = 1f,
+                            fraction = 1f - pageOffset.coerceIn(0f, 1f)
+                        )
+                        scaleX = scale
+                        scaleY = scale
+                        this.alpha = alpha
+                    }
+            ) {
                 when (mod.id) {
                     "finance" -> HomeFinanceWidget(transactions, bankAccounts, onNavigate)
                     "health" -> HealthWidget(medications, { mainViewModel.toggleMedicationTaken(it) }, latestWeight, todaySteps, bmi)
@@ -2224,8 +2255,27 @@ fun MainContent(
                 }
             }
         }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Row(
+            modifier = Modifier
+                .wrapContentWidth()
+                .align(Alignment.CenterHorizontally),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            repeat(visibleModules.size) { iteration ->
+                val color = if (pagerState.currentPage == iteration) Color.White else Color.White.copy(alpha = 0.3f)
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(color)
+                        .size(6.dp)
+                )
+            }
+        }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         
         TextButton(
             onClick = { showEditSheet = true },
@@ -2235,6 +2285,38 @@ fun MainContent(
             Spacer(modifier = Modifier.width(8.dp))
             Text("Editar Widgets", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
         }
+
+        if (newsArticles.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(24.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF1E252B).copy(alpha = 0.6f))
+                    .padding(vertical = 12.dp, horizontal = 16.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Public,
+                        contentDescription = "News",
+                        tint = Color(0xFF64FFDA),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    val tickerText = newsArticles.joinToString("   •   ") { it.title ?: "" }
+                    Text(
+                        text = tickerText,
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        modifier = Modifier.basicMarquee(
+                            iterations = Int.MAX_VALUE,
+                            velocity = 30.dp
+                        )
+                    )
+                }
+            }
+        }
     }
 
     if (showEditSheet) {
@@ -2243,7 +2325,7 @@ fun MainContent(
             containerColor = Color(0xFF1E252B),
             scrimColor = Color.Black.copy(alpha = 0.7f)
         ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
+            Column(modifier = Modifier.fillMaxWidth().padding(24.dp).verticalScroll(rememberScrollState())) {
                 Text(
                     text = "Editar Widgets da Home",
                     fontSize = 20.sp,
