@@ -3,6 +3,11 @@
 Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inteligente!
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
+## 🚀 Novidades da Versão 1.7.6
+
+- **Design Clássico Restaurado na Aba Hoje:** Retornamos ao layout clássico da aba **Hoje**, reativando a linha superior de métricas (`TopMetricsRow`) e o carrossel horizontal (`HorizontalPager`) com os widgets em tamanho real (Finanças, Saúde, Foco, Petz e Mercado).
+- **Remoção do Arco de Atividades:** Opcionalmente, removemos o arco central de progresso de atividades (`HeroMetric`), mantendo uma tela extremamente limpa focada nos widgets superiores e inferiores.
+
 ## 🚀 Novidades da Versão 1.7.5
 
 - **Restauração de Widgets Antigos:** A pedido dos usuários, trouxemos de volta os widgets clássicos na aba **Hoje** (Placar de futebol `FootballScoreboardPill` e letreiro de notícias `basicMarquee`) e na tela diária (Widget do X/Twitter `XTimelineWidget` e o feed expandido de notícias `NewsExpandedSection`).
@@ -14,8 +19,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
-- **Debug:** `app-debug-1.7.5.apk`
-- **Release:** `app-release-1.7.5.apk`
+- **Debug:** `app-debug-1.7.6.apk`
+- **Release:** `app-release-1.7.6.apk`
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.
