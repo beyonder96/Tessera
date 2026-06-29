@@ -142,9 +142,38 @@ import com.example.widget.HealthGlanceWidget
 import com.example.widget.MarketGlanceWidget
 import com.example.widget.PetsGlanceWidget
 
+import android.content.Intent
 class MainActivity : FragmentActivity() {
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleSpotifyIntent(intent)
+    }
+
+    private fun handleSpotifyIntent(intent: Intent?) {
+        val uri = intent?.data
+        if (uri != null && uri.scheme == "tessera" && uri.host == "spotify-callback") {
+            // Spotify returns the token in the fragment: #access_token=...
+            val fragment = uri.fragment
+            if (fragment != null && fragment.contains("access_token=")) {
+                val params = fragment.split("&").associate {
+                    val split = it.split("=")
+                    if (split.size == 2) split[0] to split[1] else it to ""
+                }
+                val token = params["access_token"]
+                if (token != null) {
+                    val sharedPrefs = getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE)
+                    sharedPrefs.edit().putString("spotify_access_token", token).apply()
+                    Toast.makeText(this, "Conectado ao Spotify com sucesso!", Toast.LENGTH_SHORT).show()
+                }
+            } else if (uri.getQueryParameter("error") != null) {
+                Toast.makeText(this, "Erro ao conectar ao Spotify: " + uri.getQueryParameter("error"), Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleSpotifyIntent(intent)
         val imageLoader = coil.ImageLoader.Builder(this)
             .components {
                 add(coil.decode.SvgDecoder.Factory())
@@ -923,51 +952,7 @@ fun HomeScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScro
             // Football Widget removido a pedido do usuário
             Spacer(modifier = Modifier.height(20.dp))
             
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .graphicsLayer {
-                        val scrollVal = scrollState.value
-                        alpha = (1f - (scrollVal / 400f)).coerceIn(0f, 1f)
-                        val scale = (1f - (scrollVal / 1500f)).coerceIn(0.9f, 1f)
-                        scaleX = scale
-                        scaleY = scale
-                        translationY = -scrollVal * 0.1f
-                    }
-                    .scrollFadeInOut()
-            ) {
-                TopMetricsRow(
-                    patrimony = realPatrimony,
-                    netWorth = netWorth,
-                    totalIncome = totalIncome,
-                    totalExpense = totalExpense,
-                    todaySteps = todaySteps,
-                    latestWeight = latestWeight,
-                    latestSleep = latestSleep,
-                    onNavigate = onNavigate
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .graphicsLayer {
-                        val scrollVal = scrollState.value
-                        alpha = (1f - (scrollVal / 550f)).coerceIn(0f, 1f)
-                        val scale = (1f - (scrollVal / 2000f)).coerceIn(0.92f, 1f)
-                        scaleX = scale
-                        scaleY = scale
-                        translationY = -scrollVal * 0.08f
-                    }
-                    .scrollFadeInOut()
-            ) {
-                val heroMetricState by mainViewModel.heroMetric.collectAsState(initial = null)
-                HeroMetric(heroMetricState, onNavigate)
-            }
-            
-            Spacer(modifier = Modifier.height(32.dp))
+                    // HeroMetric and TopMetricsRow were removed as per redesign
             
             MainContent(netWorth, petEvents, mainViewModel, petViewModel, onNavigate)
             Spacer(modifier = Modifier.height(140.dp))
@@ -2177,67 +2162,80 @@ fun MainContent(
     }
 
     val visibleModules = modules.filter { it.isVisible }
-    val pagerState = rememberPagerState(pageCount = { visibleModules.size })
-
     Column(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        HorizontalPager(
-            state = pagerState,
-            contentPadding = PaddingValues(horizontal = 24.dp),
-            pageSpacing = 16.dp
-        ) { page ->
-            val mod = visibleModules[page]
-            Box(
-                modifier = Modifier
-                    .graphicsLayer {
-                        val pageOffset = (
-                            (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
-                        ).absoluteValue
-                        val scale = lerp(
-                            start = 0.85f,
-                            stop = 1f,
-                            fraction = 1f - pageOffset.coerceIn(0f, 1f)
-                        )
-                        val alpha = lerp(
-                            start = 0.5f,
-                            stop = 1f,
-                            fraction = 1f - pageOffset.coerceIn(0f, 1f)
-                        )
-                        scaleX = scale
-                        scaleY = scale
-                        this.alpha = alpha
-                    }
+        visibleModules.chunked(2).forEach { rowModules ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                when (mod.id) {
-                    "finance" -> HomeFinanceWidget(transactions, bankAccounts, onNavigate)
-                    "health" -> HealthWidget(medications, { mainViewModel.toggleMedicationTaken(it) }, latestWeight, todaySteps, bmi)
-                    "goals" -> GoalsWidget(habits, purchaseGoals, routines, { mainViewModel.toggleHabitCompleted(it) }, onNavigate)
-                    "pets" -> PetsCard(pets, onNavigate)
-                    "market" -> MarketCard(marketItems, onNavigate)
+                rowModules.forEach { mod ->
+                    Box(modifier = Modifier.weight(1f)) {
+                        when (mod.id) {
+                            "finance" -> {
+                                val balance = bankAccounts.sumOf { it.balance }
+                                com.example.ui.components.PremiumSquareWidget(
+                                    title = "FINANÇAS",
+                                    value = String.format(java.util.Locale("pt", "BR"), "R$ %,.2f", balance),
+                                    subtitle = "Saldo total",
+                                    icon = Icons.Outlined.AttachMoney,
+                                    accentColor = Color(0xFF007AFF),
+                                    onClick = { onNavigate("finance") }
+                                )
+                            }
+                            "health" -> {
+                                com.example.ui.components.PremiumSquareWidget(
+                                    title = "SAÚDE",
+                                    value = "$todaySteps",
+                                    subtitle = "Passos hoje",
+                                    icon = Icons.Outlined.DirectionsWalk,
+                                    accentColor = Color(0xFF34C759),
+                                    onClick = { onNavigate("health") }
+                                )
+                            }
+                            "goals" -> {
+                                val completed = habits.count { it.isCompleted }
+                                com.example.ui.components.PremiumSquareWidget(
+                                    title = "FOCO & ROTINAS",
+                                    value = "$completed/${habits.size}",
+                                    subtitle = "Hábitos completos",
+                                    icon = Icons.Outlined.CheckCircle,
+                                    accentColor = Color(0xFF71D7CD),
+                                    onClick = { onNavigate("goals") }
+                                )
+                            }
+                            "pets" -> {
+                                com.example.ui.components.PremiumSquareWidget(
+                                    title = "MEUS PETZ",
+                                    value = "${pets.size}",
+                                    subtitle = "Pets ativos",
+                                    icon = Icons.Outlined.Pets,
+                                    accentColor = Color(0xFFFF9500),
+                                    onClick = { onNavigate("pets") }
+                                )
+                            }
+                            "market" -> {
+                                com.example.ui.components.PremiumSquareWidget(
+                                    title = "MERCADO",
+                                    value = "${marketItems.size}",
+                                    subtitle = "Itens pendentes",
+                                    icon = Icons.Outlined.LocalMall,
+                                    accentColor = Color(0xFFFF3B30),
+                                    onClick = { onNavigate("market") }
+                                )
+                            }
+                        }
+                    }
+                }
+                if (rowModules.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
         
         Spacer(modifier = Modifier.height(16.dp))
-        
-        Row(
-            modifier = Modifier
-                .wrapContentWidth()
-                .align(Alignment.CenterHorizontally),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            repeat(visibleModules.size) { iteration ->
-                val color = if (pagerState.currentPage == iteration) Color.White else Color.White.copy(alpha = 0.3f)
-                Box(
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(color)
-                        .size(6.dp)
-                )
-            }
-        }
-
         Spacer(modifier = Modifier.height(16.dp))
         
         TextButton(

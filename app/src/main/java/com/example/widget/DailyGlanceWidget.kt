@@ -101,7 +101,7 @@ fun DailyWidgetContent(context: Context, balance: Double, steps: Long, petComple
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(Color(0xFF0D1517))
+            .background(Color(0xFF1E252B))
             .appWidgetBackground()
             .cornerRadius(20.dp)
             .padding(16.dp)
@@ -112,7 +112,7 @@ fun DailyWidgetContent(context: Context, balance: Double, steps: Long, petComple
         Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "DAILY BRIEF",
-                style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF71D7CD), night = Color(0xFF71D7CD)), fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF64FFDA), night = Color(0xFF64FFDA)), fontSize = 10.sp, fontWeight = FontWeight.Bold),
                 modifier = GlanceModifier.defaultWeight()
             )
             Text("TESSERA", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x66FFFFFF), night = Color(0x66FFFFFF)), fontSize = 9.sp, fontWeight = FontWeight.Bold))

@@ -80,7 +80,7 @@ fun FinanceWidgetContent(context: Context, totalIncome: Double, totalExpense: Do
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(Color(0xFF0D1517))
+            .background(Color(0xFF1E252B))
             .appWidgetBackground()
             .cornerRadius(20.dp)
             .padding(16.dp)
@@ -106,7 +106,7 @@ fun FinanceWidgetContent(context: Context, totalIncome: Double, totalExpense: Do
         Row(modifier = GlanceModifier.fillMaxWidth()) {
             Column(modifier = GlanceModifier.defaultWeight()) {
                 Text("Receitas", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x99FFFFFF), night = Color(0x99FFFFFF)), fontSize = 10.sp))
-                Text("R$ ${String.format(Locale("pt", "BR"), "%,.0f", totalIncome)}", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF71D7CD), night = Color(0xFF71D7CD)), fontSize = 13.sp, fontWeight = FontWeight.Bold))
+                Text("R$ ${String.format(Locale("pt", "BR"), "%,.0f", totalIncome)}", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF64FFDA), night = Color(0xFF64FFDA)), fontSize = 13.sp, fontWeight = FontWeight.Bold))
             }
             Column(modifier = GlanceModifier.defaultWeight(), horizontalAlignment = Alignment.End) {
                 Text("Despesas", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x99FFFFFF), night = Color(0x99FFFFFF)), fontSize = 10.sp))

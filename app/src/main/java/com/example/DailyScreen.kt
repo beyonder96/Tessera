@@ -49,6 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.components.SpotifyRecentlyPlayedWidget
+import com.example.ui.components.PremiumWeatherWidget
 import com.example.ui.theme.*
 import com.example.viewmodel.TesseraViewModel
 import com.example.viewmodel.PetViewModel
@@ -324,31 +325,8 @@ fun DailyScreen(
                             weatherState = weatherState
                         )
 
-                        // 2. CORE FEATURE - TESSERA AI SUMMARY CARD
-                        DailyBriefingCard(
-                            personalizedSummary = personalizedAISummary
-                        )
-
-                        // 3. METRICS & TRACKING CARDS ROW
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            Box(modifier = Modifier.weight(1f)) {
-                                SleepCyclesCard(
-                                    efficiency = sleepEfficiency,
-                                    startTime = startTimeText,
-                                    endTime = endTimeText
-                                )
-                            }
-                            Box(modifier = Modifier.weight(1f)) {
-                                var moodValue by remember { mutableStateOf(0.5f) }
-                                InnerStateCard(
-                                    value = moodValue,
-                                    onValueChange = { moodValue = it }
-                                )
-                            }
-                        }
+                        // 2. PREMIUM WEATHER WIDGET
+                        PremiumWeatherWidget(weatherState)
 
                         // 4. CONNECTIVITY FLOATING DOCK/PILL
                         ConnectivityDock(
@@ -361,19 +339,13 @@ fun DailyScreen(
                         SpotifyRecentlyPlayedWidget(
                             accessToken = spotifyAccessToken,
                             onConnectClick = {
-                                val activity = context as? android.app.Activity
-                                if (activity != null) {
-                                    val request = com.spotify.sdk.android.auth.AuthorizationRequest.Builder(
-                                        "516e4fdbb4e040bfbab885614b32c8bb",
-                                        com.spotify.sdk.android.auth.AuthorizationResponse.Type.TOKEN,
-                                        "tessera://spotify-callback"
-                                    ).setScopes(arrayOf("user-read-recently-played"))
-                                     .setShowDialog(true)
-                                     .build()
-                                    
-                                    val intent = com.spotify.sdk.android.auth.AuthorizationClient.createLoginActivityIntent(activity, request)
-                                    spotifyAuthLauncher.launch(intent)
-                                }
+                                val clientId = "516e4fdbb4e040bfbab885614b32c8bb"
+                                val redirectUri = "tessera://spotify-callback"
+                                val scopes = "user-read-recently-played"
+                                val authUrl = "https://accounts.spotify.com/authorize?client_id=$clientId&response_type=token&redirect_uri=$redirectUri&scope=$scopes"
+                                
+                                val customTabsIntent = androidx.browser.customtabs.CustomTabsIntent.Builder().build()
+                                customTabsIntent.launchUrl(context, android.net.Uri.parse(authUrl))
                             },
                             onDisconnectClick = {
                                 viewModel.disconnectSpotify()
@@ -386,20 +358,10 @@ fun DailyScreen(
                         // 4.7 NEWS EXPANDED WIDGET
                         // Notícias removidas a pedido do usuário
 
-                        // 5. FOOTER - QUIET THE MIND CAROUSEL
-                        QuietTheMindSection(onSessionClick = { activeMindSession = it })
                     }
                 }
             }
         }
-    }
-
-    if (activeMindSession != null) {
-        QuietTheMindPlayerDialog(
-            sessionTitle = activeMindSession!!.first,
-            imageUrl = activeMindSession!!.second,
-            onDismiss = { activeMindSession = null }
-        )
     }
 }
 

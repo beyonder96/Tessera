@@ -73,7 +73,7 @@ fun PetsWidgetContent(context: Context, completedCount: Int, totalCount: Int, ne
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(Color(0xFF0D1517))
+            .background(Color(0xFF1E252B))
             .appWidgetBackground()
             .cornerRadius(20.dp)
             .padding(16.dp)
@@ -103,7 +103,7 @@ fun PetsWidgetContent(context: Context, completedCount: Int, totalCount: Int, ne
                 Text("Próxima atividade:", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x99FFFFFF), night = Color(0x99FFFFFF)), fontSize = 10.sp))
                 Text(nextEventText, style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White), fontSize = 13.sp, fontWeight = FontWeight.Bold))
             } else {
-                Text("Todas as atividades concluídas!", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF71D7CD), night = Color(0xFF71D7CD)), fontSize = 13.sp))
+                Text("Todas as atividades concluídas!", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF64FFDA), night = Color(0xFF64FFDA)), fontSize = 13.sp))
             }
         }
     }

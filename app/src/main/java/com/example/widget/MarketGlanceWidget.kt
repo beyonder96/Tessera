@@ -66,7 +66,7 @@ fun MarketWidgetContent(context: Context, items: List<MarketItem>) {
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(Color(0xFF0D1517))
+            .background(Color(0xFF1E252B))
             .appWidgetBackground()
             .cornerRadius(20.dp)
             .padding(16.dp)
@@ -93,7 +93,7 @@ fun MarketWidgetContent(context: Context, items: List<MarketItem>) {
         Spacer(modifier = GlanceModifier.height(10.dp))
         Column(modifier = GlanceModifier.fillMaxWidth()) {
             if (items.isEmpty()) {
-                Text("Tudo comprado!", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF71D7CD), night = Color(0xFF71D7CD)), fontSize = 13.sp))
+                Text("Tudo comprado!", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF64FFDA), night = Color(0xFF64FFDA)), fontSize = 13.sp))
             } else {
                 items.take(2).forEach { item ->
                     val qtyText = if (item.unit == "Kg") "${item.quantity} Kg" else "${item.quantity.toInt()} un"

@@ -191,6 +191,58 @@ fun RoutinesListView(
             contentPadding = PaddingValues(bottom = 140.dp), // Fix FAB overlap
             modifier = Modifier.fillMaxSize()
         ) {
+            if (routines.isEmpty()) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape)
+                                .background(Color(0x0AFFFFFF)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Outlined.Lightbulb, contentDescription = null, tint = Color(0xFFF9A826), modifier = Modifier.size(36.dp))
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Nenhuma rotina criada",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Comece com um modelo clássico ou crie a sua.",
+                            color = Color(0xFF81928F),
+                            fontSize = 14.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Button(
+                            onClick = {
+                                val routineId = (1000..9999).random()
+                                viewModel.addRoutine("Milagre da Manhã", "wb_sunny", routineId)
+                                viewModel.addRoutineStep(routineId, "Silêncio (Meditação)", 300, "spa", 0)
+                                viewModel.addRoutineStep(routineId, "Afirmações", 120, "record_voice_over", 1)
+                                viewModel.addRoutineStep(routineId, "Visualização", 180, "visibility", 2)
+                                viewModel.addRoutineStep(routineId, "Exercício", 900, "fitness_center", 3)
+                                viewModel.addRoutineStep(routineId, "Leitura", 1200, "menu_book", 4)
+                                viewModel.addRoutineStep(routineId, "Escrita (Diário)", 300, "edit", 5)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF26200F)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Adicionar Modelo 'Milagre da Manhã'", color = Color(0xFFF9A826), fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+
             items(routines, key = { it.id }) { routine ->
                 val steps by viewModel.getStepsForRoutine(routine.id).collectAsStateWithLifecycle(initialValue = emptyList())
                 val totalDuration = steps.sumOf { it.durationSeconds }
