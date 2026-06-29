@@ -57,8 +57,7 @@ import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-// Chat Message structure local to this screen
-data class ChatMessage(val id: String, val text: String, val isUser: Boolean)
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,11 +85,26 @@ fun DailyScreen(
     val weatherState by viewModel.weatherState.collectAsStateWithLifecycle(initialValue = null)
     val dailyBriefingText by viewModel.dailyBriefingText.collectAsStateWithLifecycle(initialValue = null)
     val newsArticles by viewModel.newsArticles.collectAsStateWithLifecycle(initialValue = emptyList())
+    val spotifyAccessToken by viewModel.spotifyAccessToken.collectAsStateWithLifecycle(initialValue = null)
 
-    // Local Chat Message list and input states
-    var chatInputText by remember { mutableStateOf("") }
-    var chatMessages by remember { mutableStateOf(listOf<ChatMessage>()) }
-    var isThinking by remember { mutableStateOf(false) }
+    val spotifyAuthLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val response = com.spotify.sdk.android.auth.AuthorizationClient.getResponse(result.resultCode, result.data)
+        when (response.type) {
+            com.spotify.sdk.android.auth.AuthorizationResponse.Type.TOKEN -> {
+                viewModel.saveSpotifyToken(response.accessToken)
+                android.widget.Toast.makeText(context, "Conectado ao Spotify com sucesso!", android.widget.Toast.LENGTH_SHORT).show()
+            }
+            com.spotify.sdk.android.auth.AuthorizationResponse.Type.ERROR -> {
+                android.widget.Toast.makeText(context, "Erro ao conectar ao Spotify: " + response.error, android.widget.Toast.LENGTH_LONG).show()
+            }
+            else -> {}
+        }
+    }
+
+
+
     var activeMindSession by remember { mutableStateOf<Pair<String, String>?>(null) }
 
 
@@ -310,64 +324,9 @@ fun DailyScreen(
                             weatherState = weatherState
                         )
 
-                        // 2. CORE FEATURE - TESSERA AI CHAT INTEGRATION CARD
-                        TesseraAIChatCard(
-                            personalizedSummary = personalizedAISummary,
-                            messages = chatMessages,
-                            isThinking = isThinking,
-                            inputText = chatInputText,
-                            onInputChange = { chatInputText = it },
-                            onSendMessage = {
-                                val userText = chatInputText
-                                chatInputText = ""
-                                val msgId = System.currentTimeMillis().toString()
-                                chatMessages = chatMessages + ChatMessage(msgId, userText, true)
-                                isThinking = true
-                                
-                                coroutineScope.launch {
-                                    val petsString = if (petEvents.isEmpty()) "Nenhum compromisso pendente hoje." else petEvents.joinToString("; ") { "${it.petName}: ${it.title} (${if(it.isCompleted) "Concluído" else "Pendente"})" }
-                                    val marketString = if (marketItems.isEmpty()) "Nenhuma compra pendente." else marketItems.joinToString("; ") { "${it.name} (${it.quantity} ${it.unit})${if (it.isChecked || it.isBought) " (Comprado)" else " (Pendente)"}" }
-                                    val medsString = if (medications.isEmpty()) "Nenhum medicamento agendado." else medications.joinToString("; ") { "${it.name} (${it.dosage}) às ${it.time} - ${if (it.isTaken) "Tomado" else "Pendente"}" }
-                                    
-                                    val hiddenContext = """
-                                        [Contexto] Nome do Usuário: $userName
-                                        [Contexto] Patrimônio consolidado: R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", totalPatrimony)}
-                                        [Contexto] Compromissos dos Pets: $petsString
-                                        [Contexto] Lista de Compras (Mercado): $marketString
-                                        [Contexto] Medicamentos e Remédios: $medsString
-                                        
-                                        Pergunta do usuário: "$userText"
-                                    """.trimIndent()
-                                    
-                                    val response = if (viewModel.isLocalLLMActive) {
-                                        try {
-                                            viewModel.generateAIResponse(hiddenContext)
-                                        } catch (e: Exception) {
-                                            e.printStackTrace()
-                                            "A IA local não pôde responder."
-                                        }
-                                    } else {
-                                        kotlinx.coroutines.delay(1200)
-                                        val cleanText = userText.lowercase()
-                                        when {
-                                            cleanText.contains("sono") || cleanText.contains("dormir") -> {
-                                                "Você registrou $sleepText de sono com eficiência estimada de $sleepEfficiency% de ontem para hoje. Excelente nível de descanso!"
-                                            }
-                                            cleanText.contains("tarefa") || cleanText.contains("foco") || cleanText.contains("hábito") -> {
-                                                val completed = habits.count { it.isCompleted }
-                                                val total = habits.size
-                                                "Você concluiu $completed de $total rituais hoje. O foco está concentrado para a tarde!"
-                                            }
-                                            else -> {
-                                                "Olá, $userName! Analisei o status de hoje. Patrimônio em R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", totalPatrimony)}. Pets e medicamentos monitorados. Como posso te auxiliar?"
-                                            }
-                                        }
-                                    }
-                                    chatMessages = chatMessages + ChatMessage("resp_$msgId", response, false)
-                                    isThinking = false
-                                }
-                            },
-                            onResetChat = { chatMessages = emptyList() }
+                        // 2. CORE FEATURE - TESSERA AI SUMMARY CARD
+                        DailyBriefingCard(
+                            personalizedSummary = personalizedAISummary
                         )
 
                         // 3. METRICS & TRACKING CARDS ROW
@@ -399,7 +358,26 @@ fun DailyScreen(
                         )
 
                         // 4.5 SPOTIFY RECENTLY PLAYED WIDGET
-                        // Spotify removido a pedido do usuário
+                        SpotifyRecentlyPlayedWidget(
+                            accessToken = spotifyAccessToken,
+                            onConnectClick = {
+                                val activity = context as? android.app.Activity
+                                if (activity != null) {
+                                    val request = com.spotify.sdk.android.auth.AuthorizationRequest.Builder(
+                                        "516e4fdbb4e040bfbab885614b32c8bb",
+                                        com.spotify.sdk.android.auth.AuthorizationResponse.Type.TOKEN,
+                                        "tessera://spotify-callback"
+                                    ).setScopes(arrayOf("user-read-recently-played"))
+                                     .build()
+                                    
+                                    val intent = com.spotify.sdk.android.auth.AuthorizationClient.createLoginActivityIntent(activity, request)
+                                    spotifyAuthLauncher.launch(intent)
+                                }
+                            },
+                            onDisconnectClick = {
+                                viewModel.disconnectSpotify()
+                            }
+                        )
                         
                         // 4.6 X TIMELINE WIDGET
                         // X Timeline removida a pedido do usuário
@@ -604,19 +582,12 @@ fun HeaderGreetingSection(
     }
 }
 
-// 2. TesseraAIChatCard Component
+// 2. DailyBriefingCard Component
 @Composable
-fun TesseraAIChatCard(
-    personalizedSummary: String,
-    messages: List<ChatMessage>,
-    isThinking: Boolean,
-    inputText: String,
-    onInputChange: (String) -> Unit,
-    onSendMessage: () -> Unit,
-    onResetChat: () -> Unit
+fun DailyBriefingCard(
+    personalizedSummary: String
 ) {
-    // Pulse animation for border glowing neon accent
-    val infiniteTransition = rememberInfiniteTransition(label = "NeonChatGlow")
+    val infiniteTransition = rememberInfiniteTransition(label = "NeonBriefGlow")
     val pulseGlowVal by infiniteTransition.animateFloat(
         initialValue = 0.25f,
         targetValue = 0.65f,
@@ -624,7 +595,7 @@ fun TesseraAIChatCard(
             animation = tween(2000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "ChatPulseAlpha"
+        label = "BriefPulseAlpha"
     )
 
     Box(
@@ -645,183 +616,34 @@ fun TesseraAIChatCard(
             .padding(20.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            // Chat Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Outlined.AutoAwesome,
-                        contentDescription = null,
-                        tint = Color(0xFF71D7CD),
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "TESSERA AI ASSISTANT",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF71D7CD),
-                        letterSpacing = 1.5.sp
-                    )
-                }
-                
-                if (messages.isNotEmpty()) {
-                    Text(
-                        text = "VER RESUMO",
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0x66FFFFFF),
-                        letterSpacing = 1.sp,
-                        modifier = Modifier
-                            .clickable { onResetChat() }
-                            .padding(4.dp)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Outlined.AutoAwesome,
+                    contentDescription = null,
+                    tint = Color(0xFF71D7CD),
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "TESSERA AI SUMMARY",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF71D7CD),
+                    letterSpacing = 1.5.sp
+                )
             }
 
-            // Chat Messages / AI Summary display Box
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .animateContentSize()
-            ) {
-                if (messages.isEmpty()) {
-                    Text(
-                        text = personalizedSummary,
-                        fontFamily = FontFamily.Serif,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Light,
-                        color = Color.White.copy(alpha = 0.9f),
-                        lineHeight = 26.sp
-                    )
-                } else {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 240.dp)
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        messages.forEach { message ->
-                            Column(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = if (message.isUser) Icons.Rounded.Person else Icons.Rounded.Face,
-                                        contentDescription = null,
-                                        tint = if (message.isUser) Color.White.copy(alpha = 0.5f) else Color(0xFF71D7CD),
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = if (message.isUser) "Você" else "Tessera AI",
-                                        color = if (message.isUser) Color.White.copy(alpha = 0.5f) else Color(0xFF71D7CD),
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                                Text(
-                                    text = message.text,
-                                    color = if (message.isUser) Color.White else Color.White.copy(alpha = 0.8f),
-                                    fontSize = 14.sp,
-                                    lineHeight = 20.sp,
-                                    modifier = Modifier.padding(start = 20.dp)
-                                )
-                            }
-                        }
-                        
-                        if (isThinking) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp))
-                                        .background(Color(0x0AFFFFFF))
-                                        .padding(horizontal = 14.dp, vertical = 10.dp)
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        val pulseAnim = rememberInfiniteTransition(label = "ProcessingChat")
-                                        val alpha by pulseAnim.animateFloat(
-                                            initialValue = 0.3f, targetValue = 1f,
-                                            animationSpec = infiniteRepeatable(
-                                                animation = tween(600, easing = LinearEasing),
-                                                repeatMode = RepeatMode.Reverse
-                                            ),
-                                            label = "DotAlpha"
-                                        )
-                                        Icon(Icons.Outlined.AutoAwesome, null, tint = Color(0xFF71D7CD).copy(alpha = alpha), modifier = Modifier.size(12.dp))
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Processando...", color = Color(0xFF71D7CD).copy(alpha = alpha), fontSize = 11.sp)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Sleek Chat Input Field
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(28.dp))
-                    .background(Color(0x1AFFFFFF))
-                    .border(1.dp, Color(0x1FFFFFFF), RoundedCornerShape(28.dp))
-                    .padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(modifier = Modifier.weight(1f)) {
-                    if (inputText.isEmpty()) {
-                        Text(
-                            text = "Conversar com Tessera AI...",
-                            color = Color.White.copy(alpha = 0.35f),
-                            fontSize = 13.sp
-                        )
-                    }
-                    androidx.compose.foundation.text.BasicTextField(
-                        value = inputText,
-                        onValueChange = onInputChange,
-                        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 13.sp),
-                        modifier = Modifier.fillMaxWidth(),
-                        maxLines = 3,
-                        cursorBrush = SolidColor(Color(0xFF71D7CD))
-                    )
-                }
-                
-                IconButton(
-                    onClick = { /* Decorative or placeholder voice command */ },
-                    modifier = Modifier.size(34.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Mic,
-                        contentDescription = "Comando de voz",
-                        tint = Color.White.copy(alpha = 0.5f),
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(if (inputText.isNotBlank() && !isThinking) Color(0xFF71D7CD) else Color(0x1AFFFFFF))
-                        .clickable(enabled = inputText.isNotBlank() && !isThinking) { onSendMessage() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Enviar Mensagem",
-                        tint = if (inputText.isNotBlank() && !isThinking) Color.Black else Color.White.copy(alpha = 0.3f),
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
+            Text(
+                text = personalizedSummary,
+                fontFamily = FontFamily.Serif,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Light,
+                color = Color.White.copy(alpha = 0.9f),
+                lineHeight = 26.sp
+            )
         }
     }
 }

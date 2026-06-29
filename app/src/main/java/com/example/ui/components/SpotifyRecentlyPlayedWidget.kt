@@ -7,7 +7,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Headphones
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,15 +22,11 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
-import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
 
 data class SpotifyTrack(
     val id: String,
@@ -39,31 +37,31 @@ data class SpotifyTrack(
 )
 
 @Composable
-fun SpotifyRecentlyPlayedWidget(accessToken: String? = null) {
+fun SpotifyRecentlyPlayedWidget(
+    accessToken: String?,
+    onConnectClick: () -> Unit,
+    onDisconnectClick: () -> Unit
+) {
     val context = LocalContext.current
     var tracks by remember { mutableStateOf<List<SpotifyTrack>?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
+    var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(accessToken) {
         if (accessToken.isNullOrBlank()) {
-            delay(1500)
-            tracks = listOf(
-                SpotifyTrack("1", "Nightcall", "Kavinsky", "https://i.scdn.co/image/ab67616d000048512410a273e9112fc7e263cde6", "2023-10-27T10:00:00Z"),
-                SpotifyTrack("2", "Resonance", "HOME", "https://i.scdn.co/image/ab67616d0000485186fa323136a5369bbde12975", "2023-10-27T09:45:00Z"),
-                SpotifyTrack("3", "After Dark", "MrKitty", "https://i.scdn.co/image/ab67616d00004851eb32c4b2caea0af8e8c847e3", "2023-10-27T08:30:00Z"),
-                SpotifyTrack("4", "Little Dark Age", "MGMT", "https://i.scdn.co/image/ab67616d000048518b32e2c2ebdd76f2f9f8e404", "2023-10-27T07:15:00Z")
-            )
+            tracks = null
             isLoading = false
             return@LaunchedEffect
         }
 
+        isLoading = true
+        errorMessage = null
         try {
             val result = withContext(Dispatchers.IO) {
                 val url = URL("https://api.spotify.com/v1/me/player/recently-played?limit=4")
                 val connection = url.openConnection() as HttpURLConnection
                 connection.requestMethod = "GET"
-                connection.setRequestProperty("Authorization", "Bearer " + accessToken)
+                connection.setRequestProperty("Authorization", "Bearer $accessToken")
                 
                 if (connection.responseCode == 200) {
                     val response = connection.inputStream.bufferedReader().use { it.readText() }
@@ -86,6 +84,9 @@ fun SpotifyRecentlyPlayedWidget(accessToken: String? = null) {
                         parsedTracks.add(SpotifyTrack(id, name, artistName, imageUrl, playedAt))
                     }
                     parsedTracks
+                } else if (connection.responseCode == 401) {
+                    // Token expirado/inválido
+                    null
                 } else {
                     null
                 }
@@ -93,7 +94,8 @@ fun SpotifyRecentlyPlayedWidget(accessToken: String? = null) {
             if (result != null) {
                 tracks = result
             } else {
-                errorMessage = "Falha ao carregar."
+                errorMessage = "Sua sessão do Spotify expirou ou falhou ao carregar."
+                onDisconnectClick() // Desconecta para forçar re-login em caso de erro 401/nulo
             }
         } catch (e: Exception) {
             errorMessage = e.message ?: e.toString()
@@ -120,100 +122,189 @@ fun SpotifyRecentlyPlayedWidget(accessToken: String? = null) {
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color(0x08FFFFFF))
-            .border(1.dp, Color(0x0AFFFFFF), RoundedCornerShape(16.dp))
-            .padding(16.dp)
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(
-                text = "RECENTLY PLAYED",
-                color = Color.White.copy(alpha = 0.5f),
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.5.sp
-            )
+    if (accessToken.isNullOrBlank()) {
+        // Estado Desconectado: Card de Promoção de Login
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color(0x0CFFFFFF))
+                .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(24.dp))
+                .padding(20.dp)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Headphones,
+                        contentDescription = null,
+                        tint = Color(0xFF1DB954),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "SPOTIFY INTEGRATION",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1DB954),
+                        letterSpacing = 1.5.sp
+                    )
+                }
 
-            if (isLoading) {
-                repeat(4) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0x1AFFFFFF))
+                Text(
+                    text = "Conecte seu Spotify para exibir suas músicas tocadas recentemente diretamente neste painel diário.",
+                    fontSize = 14.sp,
+                    color = Color.White.copy(alpha = 0.7f),
+                    lineHeight = 20.sp
+                )
+
+                Button(
+                    onClick = onConnectClick,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF1DB954),
+                        contentColor = Color.Black
+                    ),
+                    shape = RoundedCornerShape(28.dp),
+                    modifier = Modifier.fillMaxWidth(0.9f)
+                ) {
+                    Text(
+                        text = "CONECTAR SPOTIFY",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        letterSpacing = 1.sp
+                    )
+                }
+            }
+        }
+    } else {
+        // Estado Conectado: Lista de Músicas Tocadas Recentemente
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color(0x0CFFFFFF))
+                .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(24.dp))
+                .padding(20.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Outlined.Headphones,
+                            contentDescription = null,
+                            tint = Color(0xFF1DB954),
+                            modifier = Modifier.size(16.dp)
                         )
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Box(modifier = Modifier.height(14.dp).fillMaxWidth(0.6f).background(Color(0x1AFFFFFF), RoundedCornerShape(4.dp)))
-                            Box(modifier = Modifier.height(10.dp).fillMaxWidth(0.4f).background(Color(0x1AFFFFFF), RoundedCornerShape(4.dp)))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "RECENTLY PLAYED",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1DB954),
+                            letterSpacing = 1.5.sp
+                        )
+                    }
+
+                    Text(
+                        text = "DESCONECTAR",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White.copy(alpha = 0.4f),
+                        letterSpacing = 1.sp,
+                        modifier = Modifier
+                            .clickable { onDisconnectClick() }
+                            .padding(4.dp)
+                    )
+                }
+
+                if (isLoading) {
+                    repeat(4) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0x1AFFFFFF))
+                            )
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Box(modifier = Modifier.height(14.dp).fillMaxWidth(0.6f).background(Color(0x1AFFFFFF), RoundedCornerShape(4.dp)))
+                                Box(modifier = Modifier.height(10.dp).fillMaxWidth(0.4f).background(Color(0x1AFFFFFF), RoundedCornerShape(4.dp)))
+                            }
                         }
                     }
-                }
-            } else if (!errorMessage.isNullOrBlank() || tracks.isNullOrEmpty()) {
-                Text(
-                    text = errorMessage ?: "Nenhum histórico recente.",
-                    color = Color.White.copy(alpha = 0.5f),
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(vertical = 12.dp)
-                )
-            } else {
-                tracks?.forEach { track ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable {
-                                try {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("spotify:track:" + track.id))
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://open.spotify.com/track/" + track.id))
-                                    context.startActivity(intent)
-                                }
-                            }
-                            .padding(vertical = 4.dp, horizontal = 4.dp)
-                    ) {
-                        AsyncImage(
-                            model = track.albumImageUrl,
-                            contentDescription = "Capa de " + track.name,
+                } else if (!errorMessage.isNullOrBlank() || tracks.isNullOrEmpty()) {
+                    Text(
+                        text = errorMessage ?: "Nenhum histórico recente.",
+                        color = Color.White.copy(alpha = 0.5f),
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                } else {
+                    tracks?.forEach { track ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
-                                .size(40.dp)
+                                .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0x1AFFFFFF)),
-                            contentScale = ContentScale.Crop
-                        )
-                        
-                        Spacer(modifier = Modifier.width(12.dp))
-                        
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = track.name,
-                                color = Color.White.copy(alpha = 0.9f),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1
+                                .clickable {
+                                    try {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("spotify:track:" + track.id))
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://open.spotify.com/track/" + track.id))
+                                        context.startActivity(intent)
+                                    }
+                                }
+                                .padding(vertical = 4.dp, horizontal = 4.dp)
+                        ) {
+                            AsyncImage(
+                                model = track.albumImageUrl,
+                                contentDescription = "Capa de " + track.name,
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0x1AFFFFFF)),
+                                contentScale = ContentScale.Crop
                             )
+                            
+                            Spacer(modifier = Modifier.width(12.dp))
+                            
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = track.name,
+                                    color = Color.White.copy(alpha = 0.9f),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = track.artistName,
+                                    color = Color.White.copy(alpha = 0.5f),
+                                    fontSize = 12.sp,
+                                    maxLines = 1
+                                )
+                            }
+
                             Text(
-                                text = track.artistName,
-                                color = Color.White.copy(alpha = 0.5f),
-                                fontSize = 12.sp,
-                                maxLines = 1
+                                text = formatTimeAgo(track.playedAt),
+                                color = Color.White.copy(alpha = 0.4f),
+                                fontSize = 10.sp
                             )
                         }
-
-                        Text(
-                            text = formatTimeAgo(track.playedAt),
-                            color = Color.White.copy(alpha = 0.4f),
-                            fontSize = 10.sp
-                        )
                     }
                 }
             }

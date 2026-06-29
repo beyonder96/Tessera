@@ -3,9 +3,9 @@
 Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inteligente! 
 Acompanhe suas finanças, transporte público (SPTrans), metas diárias, notícias e bem-estar em um único lugar.
 
-## 🚀 Novidades da Versão 1.7.1
-- **Máxima Performance e Estabilidade:** Foram removidos widgets pesados (Notícias, Futebol e Spotify) que executavam requisições em background excessivas, causando travamentos e consumo alto de memória RAM. O app agora inicia de forma ultra-rápida.
-- **Tessera AI Chat:** Nova interface no estilo Perplexity (fluida, sem balões) com Mascote Animado vetorial incorporado e backgrounds em glassmorphism.
+## 🚀 Novidades da Versão 1.7.2
+- **Correções na SPTrans:** O ponto de ônibus mais próximo agora usa a localização real forçada (`getCurrentLocation`). Linhas sem paradas da API Olho Vivo não desaparecem mais da aba "Meus Ônibus".
+- **Integração Spotify Ativa:** O widget do Spotify e a re-autenticação foram restabelecidos e estão funcionando.
 
 ---
 
@@ -13,10 +13,10 @@ Acompanhe suas finanças, transporte público (SPTrans), metas diárias, notíci
 
 Você pode baixar e instalar a nova versão do aplicativo diretamente no seu celular clicando nos botões abaixo (dependendo da sua necessidade):
 
-[![Download Versão RELEASE](https://img.shields.io/badge/Download_RELEASE-Versão_1.7.1-brightgreen?style=for-the-badge&logo=android)](https://github.com/aistudio/tessera/releases/latest/download/app-release.apk)
+[![Download Versão RELEASE](https://img.shields.io/badge/Download_RELEASE-Versão_1.7.2-brightgreen?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/releases/latest/download/app-release.apk)
 *(Recomendado para o dia a dia, mais rápido e otimizado)*
 
-[![Download Versão DEBUG](https://img.shields.io/badge/Download_DEBUG-Versão_1.7.1-blue?style=for-the-badge&logo=android)](https://github.com/aistudio/tessera/releases/latest/download/app-debug.apk)
+[![Download Versão DEBUG](https://img.shields.io/badge/Download_DEBUG-Versão_1.7.2-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/releases/latest/download/app-debug.apk)
 *(Recomendado para testes, exibe mais logs em caso de erros)*
 
 ### 🛡️ Play Protect e Segurança (Aplicativo Desconhecido)

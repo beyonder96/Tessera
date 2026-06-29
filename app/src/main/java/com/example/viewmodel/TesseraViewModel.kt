@@ -1,7 +1,6 @@
 package com.example.viewmodel
 
 import android.content.Context
-import com.example.LocalLLMManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -68,15 +67,7 @@ class TesseraViewModel(
     private val _heroMetric = MutableStateFlow<DynamicHeroMetric?>(null)
     val heroMetric: StateFlow<DynamicHeroMetric?> = _heroMetric.asStateFlow()
 
-    val localLLMManager = LocalLLMManager(applicationContext)
-    val aiDiagnosticStatus: StateFlow<String> = localLLMManager.diagnosticStatus
 
-    val isLocalLLMActive: Boolean
-        get() = localLLMManager.isLocalActive
-
-    suspend fun generateAIResponse(userPrompt: String): String {
-        return localLLMManager.generateResponse(userPrompt)
-    }
 
     // Weather structures
     data class WeatherInfo(
@@ -93,6 +84,9 @@ class TesseraViewModel(
     val dailyBriefingText: StateFlow<String?> = _dailyBriefingText.asStateFlow()
 
     private val sharedPrefs = applicationContext.getSharedPreferences("tessera_prefs", Context.MODE_PRIVATE)
+
+    private val _spotifyAccessToken = MutableStateFlow<String?>(null)
+    val spotifyAccessToken: StateFlow<String?> = _spotifyAccessToken.asStateFlow()
 
     private val _homeBackgroundUri = MutableStateFlow(
         sharedPrefs.getString("home_background_uri", "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop")
@@ -113,6 +107,16 @@ class TesseraViewModel(
     fun updateGlassmorphismLevel(level: String) {
         sharedPrefs.edit().putString("glassmorphism_level", level).apply()
         _glassmorphismLevel.value = level
+    }
+
+    fun saveSpotifyToken(token: String) {
+        sharedPrefs.edit().putString("spotify_access_token", token).apply()
+        _spotifyAccessToken.value = token
+    }
+
+    fun disconnectSpotify() {
+        sharedPrefs.edit().remove("spotify_access_token").apply()
+        _spotifyAccessToken.value = null
     }
 
     // Football Integration (Sportmonks)
@@ -468,97 +472,8 @@ class TesseraViewModel(
                 val fallbackBriefing = "Você dormiu $sleepText com $sleepEfficiency% de eficiência. $habitsText$petText$stepsText"
                 _dailyBriefingText.value = fallbackBriefing
 
-                // Try to use AI if active
-                if (localLLMManager.isLocalActive) {
-                    val summaryPrompt = """
-                        Você é a Tessera AI, uma companheira de conversação amigável e atenciosa.
-                        Gere um breve resumo matinal/diário personalizado em português de até 2 ou 3 frases para o usuário Kenned, baseado nos dados:
-                        - Sono de ontem: $sleepText de sono com eficiência estimada de $sleepEfficiency%.
-                        - Passos de hoje: $todaySteps de 10.000 passos concluídos.
-                        - Hábitos: $completedHabits de $totalHabits rituais diários concluídos.
-                        - Saldo atual/Patrimônio: R$ $realBalance
-                        - Compromissos pet: Marie e Churchill têm ${petEvents.count { !it.isCompleted }} pendentes.
-                        - Compras pendentes no mercado: $pendingMarketCount itens.
-                        - Medicamentos pendentes: $pendingMeds.
-                        
-                        Fale diretamente ao Kenned com tom positivo, motivador e minimalista. Não mencione formatação técnica, apenas o texto fluido do resumo.
-                    """.trimIndent()
-                    
-                    try {
-                        val aiBrief = localLLMManager.generateResponse(summaryPrompt)
-                        if (aiBrief.isNotBlank()) {
-                            _dailyBriefingText.value = aiBrief
-                        }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-
-                    val prompt = """
-                        Você é a Tessera AI analisando os dados locais do Kenned:
-                        - Passos de hoje: $todaySteps/10000
-                        - Hábitos diários: $completedHabits/$totalHabits concluídos
-                        - Saldo atual: R$ $realBalance
-                        - Itens pendentes no mercado: $pendingMarketCount
-                        - Medicamentos pendentes hoje: $pendingMeds
-                        
-                        Determine a métrica prioritária de hoje (responda no formato METRIC: [PASSOS|HABITOS|FINANCAS|MERCADO] | META: [META_VALOR] | VALOR: [VALOR_VALOR] | ICONE: [DirectionsWalk|CheckCircle|AttachMoney|LocalMall]).
-                        Gere também exatamente 3 cards de insights no formato:
-                        CARD 1: [TITULO] | [DESCRICAO] | [ICONE: Medication|LocalMall|AttachMoney|Pets|Timer] | [CATEGORIA: health|market|finance|pets|goals]
-                        CARD 2: ...
-                        CARD 3: ...
-                    """.trimIndent()
-                    
-                    val aiResponse = localLLMManager.generateResponse(prompt)
-                    var parsedMetric: DynamicHeroMetric? = null
-                    val parsedInsights = mutableListOf<InsightCard>()
-
-                    try {
-                        val lines = aiResponse.split("\n")
-                        for (line in lines) {
-                            if (line.startsWith("METRIC:")) {
-                                val parts = line.substringAfter("METRIC:").split("|").map { it.trim() }
-                                val mName = parts[0]
-                                val mMeta = parts.find { it.startsWith("META:") }?.substringAfter("META:")?.toFloatOrNull() ?: 100f
-                                val mVal = parts.find { it.startsWith("VALOR:") }?.substringAfter("VALOR:")?.toFloatOrNull() ?: 0f
-                                val mIcon = parts.find { it.startsWith("ICONE:") }?.substringAfter("ICONE:") ?: "CheckCircle"
-                                
-                                val (name, label, color) = when (mName) {
-                                    "PASSOS" -> Triple("PASSOS COMPLETADOS", "PASSOS DIÁRIOS", "#34C759")
-                                    "HABITOS" -> Triple("RITUAIS DIÁRIOS", "HÁBITOS DE HOJE", "#71D7CD")
-                                    "MERCADO" -> Triple("COMPRAS PENDENTES", "ITENS NO MERCADO", "#FF3B30")
-                                    else -> Triple("BALANÇO FINANCEIRO", "SALDO DE HOJE", "#007AFF")
-                                }
-                                parsedMetric = DynamicHeroMetric(name, label, mVal, mMeta, mIcon, color)
-                            } else if (line.startsWith("CARD")) {
-                                val content = line.substringAfter(":").trim()
-                                val parts = content.split("|").map { it.trim() }
-                                if (parts.size >= 4) {
-                                    parsedInsights.add(
-                                        InsightCard(
-                                            id = "ai_insight_${parsedInsights.size}",
-                                            title = parts[0],
-                                            description = parts[1],
-                                            iconName = parts[2],
-                                            category = parts[3]
-                                        )
-                                    )
-                                }
-                            }
-                        }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-
-                    if (parsedMetric != null && parsedInsights.isNotEmpty()) {
-                        _heroMetric.value = parsedMetric
-                        _aiInsights.value = parsedInsights.take(3)
-                        return@launch
-                    }
-                }
-
                 _heroMetric.value = fallbackMetric
                 _aiInsights.value = fallbackInsights.take(3)
-
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -690,6 +605,18 @@ class TesseraViewModel(
                     val location = locationManager.getLastKnownLocation(provider)
                     if (location != null) {
                         _userLocation.value = location.latitude to location.longitude
+                        fetchBusPredictions()
+                    } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                        locationManager.getCurrentLocation(
+                            provider,
+                            null,
+                            context.mainExecutor
+                        ) { newLocation ->
+                            if (newLocation != null) {
+                                _userLocation.value = newLocation.latitude to newLocation.longitude
+                                fetchBusPredictions()
+                            }
+                        }
                     }
                 }
             } catch (e: SecurityException) {
@@ -744,35 +671,54 @@ class TesseraViewModel(
                 for ((codigo, numero, destino) in savedLinesList) {
                     try {
                         val paradas = com.example.data.SPTransApi.service.getParadasPorLinha(codigo)
-                        if (paradas.isEmpty()) continue
                         
                         // Find closest stop if user location is available, otherwise use the first one
-                        val closestStop = if (userLoc != null) {
-                            paradas.minByOrNull { calculateDistance(userLoc.first, userLoc.second, it.py, it.px) }
-                        } else {
-                            paradas.firstOrNull()
-                        }
+                        val closestStop = if (paradas.isNotEmpty()) {
+                            if (userLoc != null) {
+                                paradas.minByOrNull { calculateDistance(userLoc.first, userLoc.second, it.py, it.px) }
+                            } else {
+                                paradas.firstOrNull()
+                            }
+                        } else null
+                        
+                        var horario = "Sem prev."
+                        var stopName = "Nenhuma parada disp."
                         
                         if (closestStop != null) {
-                            val previsaoResponse = com.example.data.SPTransApi.service.getPrevisaoParada(closestStop.cp, codigo)
-                            val linhaPrevisao = previsaoResponse.p?.l?.find { it.cl == codigo }
-                            
-                            val proximoVeiculo = linhaPrevisao?.vs?.minByOrNull { it.t }
-                            val horario = proximoVeiculo?.t ?: "Sem prev."
-                            
-                            results.add(
-                                com.example.data.SavedBusLine(
-                                    id = codigo.toString(),
-                                    lineCode = codigo,
-                                    lineNumber = numero,
-                                    destination = destino,
-                                    estimatedArrivalText = horario,
-                                    stopName = closestStop.np
-                                )
-                            )
+                            stopName = closestStop.np
+                            try {
+                                val previsaoResponse = com.example.data.SPTransApi.service.getPrevisaoParada(closestStop.cp, codigo)
+                                val linhaPrevisao = previsaoResponse.p?.l?.find { it.cl == codigo }
+                                val proximoVeiculo = linhaPrevisao?.vs?.minByOrNull { it.t }
+                                horario = proximoVeiculo?.t ?: "Sem prev."
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
                         }
+                        
+                        results.add(
+                            com.example.data.SavedBusLine(
+                                id = codigo.toString(),
+                                lineCode = codigo,
+                                lineNumber = numero,
+                                destination = destino,
+                                estimatedArrivalText = horario,
+                                stopName = stopName
+                            )
+                        )
                     } catch (e: Exception) {
                         e.printStackTrace()
+                        // Still add it so it doesn't disappear from the UI on network error
+                        results.add(
+                            com.example.data.SavedBusLine(
+                                id = codigo.toString(),
+                                lineCode = codigo,
+                                lineNumber = numero,
+                                destination = destino,
+                                estimatedArrivalText = "Erro",
+                                stopName = "Erro de conexão"
+                            )
+                        )
                     }
                 }
                 _savedBusLines.value = results
@@ -1666,18 +1612,9 @@ class TesseraViewModel(
         loadConfiguredFootballTeams()
         fetchFootballScores()
         fetchNews()
+        _spotifyAccessToken.value = sharedPrefs.getString("spotify_access_token", null)
         
         viewModelScope.launch(Dispatchers.IO) {
-            val externalDir = applicationContext.getExternalFilesDir(null)
-            val possiblePaths = mutableListOf<String>()
-            if (externalDir != null) {
-                possiblePaths.add(java.io.File(externalDir, "gemma-2b-it-cpu-int4.bin").absolutePath)
-                possiblePaths.add(java.io.File(externalDir, "gemma-4-e2b-it-qat.bin").absolutePath)
-            }
-            possiblePaths.add("/storage/emulated/0/Download/gemma-2b-it-cpu-int4.bin")
-            possiblePaths.add("/storage/emulated/0/Download/gemma-4-e2b-it-qat.bin")
-            val finalPath = possiblePaths.find { java.io.File(it).exists() } ?: possiblePaths.first()
-            localLLMManager.startInference(finalPath)
             refreshAIInsightsAndMetric()
         }
     }

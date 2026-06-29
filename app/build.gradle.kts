@@ -14,8 +14,8 @@ android {
     applicationId = "com.aistudio.tessera.xtrkna"
     minSdk = 26
     targetSdk = 35
-    versionCode = 25
-    versionName = "1.7.1"
+    versionCode = 26
+    versionName = "1.7.2"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     manifestPlaceholders["MAPS_API_KEY"] = "DUMMY_KEY"
@@ -138,8 +138,9 @@ dependencies {
   debugImplementation(libs.androidx.compose.ui.tooling)
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
-  implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
-  implementation("com.google.mediapipe:tasks-genai:0.10.14")
+  
+  // Spotify Auth
+  implementation("com.spotify.android:auth:2.1.1")
   
   implementation("androidx.health.connect:connect-client:1.1.0-alpha07")
   implementation("androidx.glance:glance-appwidget:1.1.0")
