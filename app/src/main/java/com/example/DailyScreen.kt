@@ -353,10 +353,12 @@ fun DailyScreen(
                         )
                         
                         // 4.6 X TIMELINE WIDGET
-                        // X Timeline removida a pedido do usuário
+                        com.example.ui.components.XTimelineWidget()
 
                         // 4.7 NEWS EXPANDED WIDGET
-                        // Notícias removidas a pedido do usuário
+                        if (newsArticles.isNotEmpty()) {
+                            NewsExpandedSection(articles = newsArticles.take(4))
+                        }
 
                     }
                 }

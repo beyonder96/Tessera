@@ -949,7 +949,24 @@ fun HomeScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScro
             }
             
             Spacer(modifier = Modifier.height(16.dp))
-            // Football Widget removido a pedido do usuário
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentSize(Alignment.Center)
+                    .graphicsLayer {
+                        val scrollVal = scrollState.value
+                        alpha = (1f - (scrollVal / 250f)).coerceIn(0f, 1f)
+                        val scale = (1f - (scrollVal / 1200f)).coerceIn(0.85f, 1f)
+                        scaleX = scale
+                        scaleY = scale
+                        translationY = -scrollVal * 0.12f
+                    }
+                    .scrollFadeInOut()
+            ) {
+                com.example.ui.components.FootballScoreboardPill(
+                    viewModel = mainViewModel
+                )
+            }
             Spacer(modifier = Modifier.height(20.dp))
             
                     // HeroMetric and TopMetricsRow were removed as per redesign
@@ -2247,7 +2264,37 @@ fun MainContent(
             Text("Editar Widgets", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
         }
 
-        // Notícias removidas a pedido do usuário
+        if (newsArticles.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(24.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF1E252B).copy(alpha = 0.6f))
+                    .padding(vertical = 12.dp, horizontal = 16.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Public,
+                        contentDescription = "News",
+                        tint = Color(0xFF64FFDA),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    val tickerText = newsArticles.joinToString("   •   ") { it.title ?: "" }
+                    Text(
+                        text = tickerText,
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        modifier = Modifier.basicMarquee(
+                            iterations = Int.MAX_VALUE,
+                            velocity = 30.dp
+                        )
+                    )
+                }
+            }
+        }
     }
 
     if (showEditSheet) {
