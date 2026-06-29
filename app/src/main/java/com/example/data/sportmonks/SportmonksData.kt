@@ -93,7 +93,7 @@ interface SportmonksApi {
     suspend fun getFixtures(
         @Query("api_token") apiToken: String,
         @Query("include") include: String = "participants;league;state;scores",
-        @Query("per_page") perPage: Int = 10
+        @Query("per_page") perPage: Int = 50
     ): retrofit2.Response<FixturesListResponse>
 }
 

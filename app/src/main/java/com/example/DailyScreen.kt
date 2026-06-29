@@ -399,7 +399,7 @@ fun DailyScreen(
                         SpotifyRecentlyPlayedWidget()
                         
                         // 4.6 X TIMELINE WIDGET
-                        com.example.ui.components.XTimelineWidget()
+                        // X Timeline removida a pedido do usuário
 
                         // 4.7 NEWS EXPANDED WIDGET
                         if (newsArticles.isNotEmpty()) {

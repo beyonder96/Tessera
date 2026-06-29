@@ -8,12 +8,15 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 
 class LocalLLMManager(private val context: Context) {
     private var generativeModel: GenerativeModel? = null
     private var llmInference: LlmInference? = null
     private var isGemmaLoaded = false
+    private val mutex = Mutex()
 
     val isLocalActive: Boolean
         get() = isGemmaLoaded
@@ -82,8 +85,10 @@ class LocalLLMManager(private val context: Context) {
                 // Tenta usar Gemma local se estiver ativo e carregado
                 val localEngine = llmInference
                 if (isGemmaLoaded && localEngine != null) {
-                    val response = localEngine.generateResponse(prompt)
-                    return@withContext response ?: "Desculpe, não consegui formular uma resposta local agora."
+                    return@withContext mutex.withLock {
+                        val response = localEngine.generateResponse(prompt)
+                        response ?: "Desculpe, não consegui formular uma resposta local agora."
+                    }
                 }
 
                 // Senão tenta usar Gemini como fallback

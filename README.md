@@ -3,10 +3,10 @@
 Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inteligente! 
 Acompanhe suas finanças, transporte público (SPTrans), metas diárias, notícias e bem-estar em um único lugar.
 
-## 🚀 Novidades da Versão 1.6.9
-- **Finanças Inteligentes:** Correção no cálculo de orçamentos comprometidos e restabelecimento imediato de limites de cartões de crédito.
-- **Transporte Público Real (SPTrans):** Integração 100% oficial com a API Olho Vivo. O app agora usa o seu GPS para encontrar o ponto de ônibus mais próximo da sua localização e traz a previsão exata de chegada do ônibus.
-- **Integração de Notícias:** Now Briefing animado e funcional na tela inicial.
+## 🚀 Novidades da Versão 1.7.0
+- **Estabilidade do App:** Remoção do widget do X (Twitter) que causava instabilidades e crashes nativos no WebView.
+- **Tessera AI (Local LLM):** Correção de concorrência (`wait for done=true`) no uso do Gemma 2B. Agora a IA pode lidar corretamente com processos em segundo plano enquanto você digita!
+- **Notícias & Futebol:** Otimização das buscas da API de notícias (adicionado User-Agent adequado) e do futebol (Sportmonks), com fallback automático para jogos globais caso seu time não esteja disponível na API gratuita.
 
 ---
 
@@ -14,7 +14,7 @@ Acompanhe suas finanças, transporte público (SPTrans), metas diárias, notíci
 
 Você pode baixar e instalar o aplicativo diretamente no seu celular clicando no botão abaixo:
 
-[![Download APK](https://img.shields.io/badge/Download_APK-Versão_1.6.9-brightgreen?style=for-the-badge&logo=android)](https://github.com/aistudio/tessera/releases/latest/download/app-release.apk)
+[![Download APK](https://img.shields.io/badge/Download_APK-Versão_1.7.0-brightgreen?style=for-the-badge&logo=android)](https://github.com/aistudio/tessera/releases/latest/download/app-release.apk)
 *(Nota: Substitua o link acima pelo link de release do seu repositório GitHub caso faça upload online)*
 
 ### 🛡️ Sobre Segurança e o Google Play Protect

@@ -1581,6 +1581,23 @@ class TesseraViewModel(
                     val teams = _configuredFootballTeams.value
                     val list = mutableListOf<com.example.data.FootballMatchInfo>()
 
+                    val mapToDetail = { dto: com.example.data.sportmonks.FixtureDto ->
+                        val home = dto.participants?.getOrNull(0)
+                        val away = dto.participants?.getOrNull(1)
+                        
+                        com.example.data.MatchDetail(
+                            homeTeamName = home?.name ?: "Time 1",
+                            homeTeamLogo = home?.imagePath ?: "",
+                            awayTeamName = away?.name ?: "Time 2",
+                            awayTeamLogo = away?.imagePath ?: "",
+                            homeGoals = if (dto.state?.state == "FT") (dto.scores?.getOrNull(0)?.score?.goals ?: 0) else null,
+                            awayGoals = if (dto.state?.state == "FT") (dto.scores?.getOrNull(1)?.score?.goals ?: 0) else null,
+                            statusShort = dto.state?.state ?: "NS",
+                            dateFormatted = formatFootballDate(dto.startingAt),
+                            leagueName = dto.league?.name ?: "Liga"
+                        )
+                    }
+
                     for (teamName in teams) {
                         val teamFixtures = fixtures.filter { fixture ->
                             fixture.participants?.any { it.name.contains(teamName, ignoreCase = true) } == true
@@ -1597,29 +1614,20 @@ class TesseraViewModel(
                                 it.state?.state == "NS" || it.state?.state == "TBA" || (it.startingAt >= java.time.LocalDateTime.now().toString())
                             }
                             
-                            val mapToDetail = { dto: com.example.data.sportmonks.FixtureDto ->
-                                val home = dto.participants?.getOrNull(0)
-                                val away = dto.participants?.getOrNull(1)
-                                
-                                com.example.data.MatchDetail(
-                                    homeTeamName = home?.name ?: "Time 1",
-                                    homeTeamLogo = home?.imagePath ?: "",
-                                    awayTeamName = away?.name ?: "Time 2",
-                                    awayTeamLogo = away?.imagePath ?: "",
-                                    homeGoals = if (dto.state?.state == "FT") (dto.scores?.getOrNull(0)?.score?.goals ?: 0) else null,
-                                    awayGoals = if (dto.state?.state == "FT") (dto.scores?.getOrNull(1)?.score?.goals ?: 0) else null,
-                                    statusShort = dto.state?.state ?: "NS",
-                                    dateFormatted = formatFootballDate(dto.startingAt),
-                                    leagueName = dto.league?.name ?: "Liga"
-                                )
-                            }
-                            
                             val lastMatch = lastMatchDto?.let { mapToDetail(it) }
                             val nextMatch = nextMatchDto?.let { mapToDetail(it) }
                             
                             list.add(com.example.data.FootballMatchInfo(teamName, lastMatch, nextMatch))
                         } else {
-                            list.add(com.example.data.FootballMatchInfo(teamName, null, null))
+                            // Fallback para API gratuita: Se não encontrar o time, mostra destaques disponíveis
+                            val fallbackSorted = fixtures.sortedBy { it.startingAt }
+                            val fallbackLast = fallbackSorted.lastOrNull { 
+                                it.state?.state == "FT" || (it.startingAt < java.time.LocalDateTime.now().toString())
+                            }
+                            val fallbackNext = fallbackSorted.firstOrNull { 
+                                it.state?.state == "NS" || it.state?.state == "TBA" || (it.startingAt >= java.time.LocalDateTime.now().toString())
+                            }
+                            list.add(com.example.data.FootballMatchInfo("$teamName (Indisponível - Destaque)", fallbackLast?.let { mapToDetail(it) }, fallbackNext?.let { mapToDetail(it) }))
                         }
                     }
                     _footballMatches.value = list

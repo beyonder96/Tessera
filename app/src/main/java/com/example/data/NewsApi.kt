@@ -34,9 +34,10 @@ data class NewsSource(
 )
 
 interface NewsService {
-    @GET("v2/top-headlines")
+    @GET("v2/everything")
     suspend fun getTopHeadlines(
-        @Query("country") country: String = "br",
+        @Query("q") query: String = "noticias OR brasil",
+        @Query("language") language: String = "pt",
         @Query("apiKey") apiKey: String
     ): Response<NewsResponse>
 
@@ -47,8 +48,15 @@ interface NewsService {
             val logging = HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BASIC
             }
+            val userAgentInterceptor = okhttp3.Interceptor { chain ->
+                val request = chain.request().newBuilder()
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                    .build()
+                chain.proceed(request)
+            }
             val okHttpClient = OkHttpClient.Builder()
                 .addInterceptor(logging)
+                .addInterceptor(userAgentInterceptor)
                 .connectTimeout(15, TimeUnit.SECONDS)
                 .readTimeout(15, TimeUnit.SECONDS)
                 .build()
