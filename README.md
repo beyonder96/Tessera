@@ -3,28 +3,31 @@
 Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inteligente! 
 Acompanhe suas finanças, transporte público (SPTrans), metas diárias, notícias e bem-estar em um único lugar.
 
-## 🚀 Novidades da Versão 1.7.0
-- **Estabilidade do App:** Remoção do widget do X (Twitter) que causava instabilidades e crashes nativos no WebView.
-- **Tessera AI (Local LLM):** Correção de concorrência (`wait for done=true`) no uso do Gemma 2B. Agora a IA pode lidar corretamente com processos em segundo plano enquanto você digita!
-- **Notícias & Futebol:** Otimização das buscas da API de notícias (adicionado User-Agent adequado) e do futebol (Sportmonks), com fallback automático para jogos globais caso seu time não esteja disponível na API gratuita.
+## 🚀 Novidades da Versão 1.7.1
+- **Máxima Performance e Estabilidade:** Foram removidos widgets pesados (Notícias, Futebol e Spotify) que executavam requisições em background excessivas, causando travamentos e consumo alto de memória RAM. O app agora inicia de forma ultra-rápida.
+- **Tessera AI Chat:** Nova interface no estilo Perplexity (fluida, sem balões) com Mascote Animado vetorial incorporado e backgrounds em glassmorphism.
 
 ---
 
 ## 📥 Download e Instalação
 
-Você pode baixar e instalar o aplicativo diretamente no seu celular clicando no botão abaixo:
+Você pode baixar e instalar a nova versão do aplicativo diretamente no seu celular clicando nos botões abaixo (dependendo da sua necessidade):
 
-[![Download APK](https://img.shields.io/badge/Download_APK-Versão_1.7.0-brightgreen?style=for-the-badge&logo=android)](https://github.com/aistudio/tessera/releases/latest/download/app-release.apk)
-*(Nota: Substitua o link acima pelo link de release do seu repositório GitHub caso faça upload online)*
+[![Download Versão RELEASE](https://img.shields.io/badge/Download_RELEASE-Versão_1.7.1-brightgreen?style=for-the-badge&logo=android)](https://github.com/aistudio/tessera/releases/latest/download/app-release.apk)
+*(Recomendado para o dia a dia, mais rápido e otimizado)*
 
-### 🛡️ Sobre Segurança e o Google Play Protect
-Ao instalar o APK diretamente fora da Google Play Store, o **Google Play Protect** pode emitir um aviso padrão de "Aplicativo Desconhecido". 
-Para validar a segurança e instalar sem problemas:
+[![Download Versão DEBUG](https://img.shields.io/badge/Download_DEBUG-Versão_1.7.1-blue?style=for-the-badge&logo=android)](https://github.com/aistudio/tessera/releases/latest/download/app-debug.apk)
+*(Recomendado para testes, exibe mais logs em caso de erros)*
 
-1. Baixe o arquivo `.apk` pelo link acima (ou transfira do Android Studio para o seu celular).
-2. Ao abrir o arquivo, o sistema pedirá permissão para **"Instalar de fontes desconhecidas"**. Autorize o seu navegador ou gerenciador de arquivos.
-3. Se o **Play Protect** bloquear a instalação exibindo uma tela vermelha ou aviso, clique em **"Mais detalhes"** (More details) e em seguida clique em **"Instalar assim mesmo"** (Install anyway).
-4. O Tessera foi assinado digitalmente e todas as suas permissões (GPS, Saúde) são solicitadas dinamicamente apenas quando você tenta utilizá-las, respeitando todas as políticas de segurança modernas do Android 14+.
+### 🛡️ Play Protect e Segurança (Aplicativo Desconhecido)
+Como este aplicativo é distribuído fora da Google Play Store e nós, como desenvolvedores, ainda não pagamos a licença de desenvolvedor oficial do Google Play, a ferramenta **Google Play Protect** exibirá um aviso de que "O Desenvolvedor não é reconhecido" e pode bloquear a instalação. **Isso é completamente normal para aplicativos baixados fora da loja.**
+
+**O que fazer para instalar:**
+1. Ao tentar instalar o arquivo `.apk`, o Play Protect abrirá uma tela de aviso vermelha ou branca dizendo "Aplicativo desconhecido bloqueado".
+2. Clique no botão **"Mais Detalhes"** (ou "More details") que aparece nessa mensagem de aviso.
+3. Em seguida, clique na opção **"Instalar assim mesmo"** (ou "Install anyway") que aparecerá na tela.
+4. (Opcional) Se o seu celular pedir para enviar o app para verificação do Google, você pode clicar em "Não enviar".
+5. O aplicativo será instalado com sucesso! Nossas permissões (como o Health Connect) são 100% locais e seguras.
 
 ---
 

@@ -15,6 +15,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Face
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -396,15 +399,13 @@ fun DailyScreen(
                         )
 
                         // 4.5 SPOTIFY RECENTLY PLAYED WIDGET
-                        SpotifyRecentlyPlayedWidget()
+                        // Spotify removido a pedido do usuário
                         
                         // 4.6 X TIMELINE WIDGET
                         // X Timeline removida a pedido do usuário
 
                         // 4.7 NEWS EXPANDED WIDGET
-                        if (newsArticles.isNotEmpty()) {
-                            NewsExpandedSection(articles = newsArticles.take(4))
-                        }
+                        // Notícias removidas a pedido do usuário
 
                         // 5. FOOTER - QUIET THE MIND CAROUSEL
                         QuietTheMindSection(onSessionClick = { activeMindSession = it })
@@ -705,30 +706,32 @@ fun TesseraAIChatCard(
                             .verticalScroll(rememberScrollState())
                     ) {
                         messages.forEach { message ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(
-                                            RoundedCornerShape(
-                                                topStart = 16.dp,
-                                                topEnd = 16.dp,
-                                                bottomStart = if (message.isUser) 16.dp else 4.dp,
-                                                bottomEnd = if (message.isUser) 4.dp else 16.dp
-                                            )
-                                        )
-                                        .background(if (message.isUser) Color(0xFF1C1C28) else Color(0x1F71D7CD))
-                                        .padding(horizontal = 14.dp, vertical = 10.dp)
-                                ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = if (message.isUser) Icons.Rounded.Person else Icons.Rounded.Face,
+                                        contentDescription = null,
+                                        tint = if (message.isUser) Color.White.copy(alpha = 0.5f) else Color(0xFF71D7CD),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = message.text,
-                                        color = Color.White,
-                                        fontSize = 13.sp,
-                                        lineHeight = 18.sp
+                                        text = if (message.isUser) "Você" else "Tessera AI",
+                                        color = if (message.isUser) Color.White.copy(alpha = 0.5f) else Color(0xFF71D7CD),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold
                                     )
                                 }
+                                Text(
+                                    text = message.text,
+                                    color = if (message.isUser) Color.White else Color.White.copy(alpha = 0.8f),
+                                    fontSize = 14.sp,
+                                    lineHeight = 20.sp,
+                                    modifier = Modifier.padding(start = 20.dp)
+                                )
                             }
                         }
                         
