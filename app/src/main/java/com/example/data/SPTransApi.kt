@@ -89,6 +89,8 @@ data class PrevisaoLinhaResponse(
 data class ParadaPrevisao(
     @Json(name = "cp") val cp: Int, // Codigo parada
     @Json(name = "np") val np: String, // Nome parada
+    @Json(name = "py") val py: Double?,
+    @Json(name = "px") val px: Double?,
     @Json(name = "vs") val vs: List<VeiculoPrevisao>?
 )
 

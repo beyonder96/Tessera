@@ -50,7 +50,11 @@ fun parseHexColor(hex: String): Color {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
+fun FinanceScreen(
+    onHomeClick: () -> Unit,
+    viewModel: TesseraViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
+    onNavigateToInvoiceHub: (String) -> Unit
+) {
     val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
     val bankAccounts by viewModel.allBankAccounts.collectAsStateWithLifecycle()
     val creditCards by viewModel.allCreditCards.collectAsStateWithLifecycle()
@@ -337,7 +341,7 @@ fun FinanceScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                 creditCards = creditCards,
                 selectedFilterName = selectedFilterName,
                 onCardClick = { cardName ->
-                    selectedFilterName = if (selectedFilterName == cardName) null else cardName
+                    onNavigateToInvoiceHub(cardName)
                 }
             )
 

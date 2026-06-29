@@ -465,13 +465,27 @@ fun TesseraApp() {
                     })
                 }
                 composable("finance") {
-                    FinanceScreen(onHomeClick = { 
-                        navController.navigate("home") {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
+                    FinanceScreen(
+                        onHomeClick = { 
+                            navController.navigate("home") {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }, 
+                        viewModel = viewModel,
+                        onNavigateToInvoiceHub = { cardName ->
+                            navController.navigate("invoice_hub/$cardName")
                         }
-                    }, viewModel = viewModel)
+                    )
+                }
+                composable("invoice_hub/{cardName}") { backStackEntry ->
+                    val cardName = backStackEntry.arguments?.getString("cardName") ?: ""
+                    InvoiceHubScreen(
+                        cardName = cardName,
+                        viewModel = viewModel,
+                        onBack = { navController.popBackStack() }
+                    )
                 }
                 composable("health") {
                     HealthScreen(viewModel = viewModel, onHomeClick = { 
@@ -483,13 +497,17 @@ fun TesseraApp() {
                     })
                 }
                 composable("goals") {
-                    GoalsScreen(onHomeClick = { 
-                        navController.navigate("home") {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }, viewModel = viewModel)
+                    ZenithScreen(
+                        onHomeClick = { 
+                            navController.navigate("home") {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }, 
+                        viewModel = viewModel,
+                        initialPage = viewModel.selectedGoalsTab
+                    )
                 }
                 composable("market") {
                     MarketScreen(onHomeClick = { 

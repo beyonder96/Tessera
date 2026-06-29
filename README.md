@@ -3,9 +3,9 @@
 Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inteligente! 
 Acompanhe suas finanças, transporte público (SPTrans), metas diárias, notícias e bem-estar em um único lugar.
 
-## 🚀 Novidades da Versão 1.7.2
-- **Correções na SPTrans:** O ponto de ônibus mais próximo agora usa a localização real forçada (`getCurrentLocation`). Linhas sem paradas da API Olho Vivo não desaparecem mais da aba "Meus Ônibus".
-- **Integração Spotify Ativa:** O widget do Spotify e a re-autenticação foram restabelecidos e estão funcionando.
+## 🚀 Novidades da Versão 1.7.3
+- **Correções na SPTrans:** O ponto de ônibus mais próximo agora usa a localização real forçada (`getCurrentLocation`). Linhas sem paradas da API Olho Vivo não desaparecem mais da aba "Meus Ônibus". Corrigido bug de parsing.
+- **Foco e Rotinas:** Zenith Hub adicionado. Novo cronômetro circular e microanimações incorporadas.
 
 ---
 
@@ -13,10 +13,10 @@ Acompanhe suas finanças, transporte público (SPTrans), metas diárias, notíci
 
 Você pode baixar e instalar a nova versão do aplicativo diretamente no seu celular clicando nos botões abaixo (dependendo da sua necessidade):
 
-[![Download Versão RELEASE](https://img.shields.io/badge/Download_RELEASE-Versão_1.7.2-brightgreen?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/releases/latest/download/app-release.apk)
+[![Download Versão RELEASE](https://img.shields.io/badge/Download_RELEASE-Versão_1.7.3-brightgreen?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/releases/latest/download/app-release-1.7.3.apk)
 *(Recomendado para o dia a dia, mais rápido e otimizado)*
 
-[![Download Versão DEBUG](https://img.shields.io/badge/Download_DEBUG-Versão_1.7.2-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/releases/latest/download/app-debug.apk)
+[![Download Versão DEBUG](https://img.shields.io/badge/Download_DEBUG-Versão_1.7.3-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/releases/latest/download/app-debug-1.7.3.apk)
 *(Recomendado para testes, exibe mais logs em caso de erros)*
 
 ### 🛡️ Play Protect e Segurança (Aplicativo Desconhecido)

@@ -15,7 +15,7 @@ android {
     minSdk = 26
     targetSdk = 35
     versionCode = 26
-    versionName = "1.7.2"
+    versionName = "1.7.3"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     manifestPlaceholders["MAPS_API_KEY"] = "DUMMY_KEY"

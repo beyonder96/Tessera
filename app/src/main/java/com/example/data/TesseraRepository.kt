@@ -63,6 +63,14 @@ class TesseraRepository(private val dao: TesseraDao) {
         dao.deleteCreditCard(card)
     }
 
+    suspend fun payInvoice(cardId: Int) {
+        dao.payInvoice(cardId)
+    }
+
+    suspend fun clearAllFinances() {
+        dao.clearAllFinances()
+    }
+
     val allHabits: Flow<List<Habit>> = dao.getAllHabits()
     val allPurchaseGoals: Flow<List<PurchaseGoal>> = dao.getAllPurchaseGoals()
 

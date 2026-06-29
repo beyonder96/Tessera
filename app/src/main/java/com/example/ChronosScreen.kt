@@ -693,6 +693,7 @@ fun ManageRoutineDialog(
     }
 }
 
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun RoutinePlayerView(
     routine: Routine,
@@ -719,6 +720,8 @@ fun RoutinePlayerView(
     }
 
     val currentStep = steps.getOrNull(currentStepIndex) ?: steps.first()
+    val nextStep = steps.getOrNull(currentStepIndex + 1)
+    
     var secondsLeft by remember(currentStep) { mutableStateOf(currentStep.durationSeconds) }
     var isTimerRunning by remember { mutableStateOf(true) }
 
@@ -910,51 +913,128 @@ fun RoutinePlayerView(
                 )
             }
 
-            // Circular Timer Display
+            // Circular Timer Display (Glassmorphism & Neon)
             Box(
-                modifier = Modifier.size(260.dp),
+                modifier = Modifier
+                    .size(280.dp)
+                    .clip(CircleShape)
+                    .background(Color(0x05FFFFFF))
+                    .border(1.dp, Color(0x0AFFFFFF), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
+                Canvas(modifier = Modifier.fillMaxSize().padding(12.dp)) {
                     drawArc(
-                        color = Color(0x0CFFFFFF),
+                        color = Color(0x14FFFFFF),
                         startAngle = -90f,
                         sweepAngle = 360f,
                         useCenter = false,
-                        style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
+                        style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
                     )
                     drawArc(
-                        color = Color(0xFF71D7CD),
+                        brush = Brush.sweepGradient(
+                            colors = listOf(Color(0xFF71D7CD), Color(0xFFD7B4F3), Color(0xFF71D7CD))
+                        ),
                         startAngle = -90f,
                         sweepAngle = animatedProgress * 360f,
                         useCenter = false,
-                        style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
+                        style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
                     )
                 }
 
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = stepIcon,
-                        contentDescription = null,
-                        tint = Color(0xFF71D7CD),
-                        modifier = Modifier.size(48.dp)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
+                AnimatedContent(
+                    targetState = currentStep.id,
+                    transitionSpec = {
+                        scaleIn(tween(500)) togetherWith scaleOut(tween(500))
+                    },
+                    label = "StepContentAnimation"
+                ) { _ ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(CircleShape)
+                                .background(Color(0x1A71D7CD)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = stepIcon,
+                                contentDescription = null,
+                                tint = Color(0xFF71D7CD),
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = currentStep.title,
+                            fontFamily = FontFamily.Serif,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 26.sp,
+                            color = Color.White,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 24.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = String.format("%02d:%02d", secondsLeft / 60, secondsLeft % 60),
+                            fontSize = 48.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White,
+                            letterSpacing = 2.sp
+                        )
+                    }
+                }
+            }
+            
+            // Next Step Preview
+            if (nextStep != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth(0.85f)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0x0AFFFFFF))
+                        .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(20.dp))
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x14FFFFFF)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = getChronosIcon(nextStep.iconName),
+                            contentDescription = null,
+                            tint = Color(0xFF81928F),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "A seguir",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF71D7CD),
+                            letterSpacing = 1.sp
+                        )
+                        Text(
+                            text = nextStep.title,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFFBDC9C6)
+                        )
+                    }
                     Text(
-                        text = currentStep.title,
-                        fontFamily = FontFamily.Serif,
+                        text = "${nextStep.durationSeconds / 60}m",
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 24.sp,
-                        color = Color.White
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = String.format("%02d:%02d", secondsLeft / 60, secondsLeft % 60),
-                        fontSize = 44.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = Color(0xFF81928F)
                     )
                 }
+            } else {
+                Spacer(modifier = Modifier.height(72.dp))
             }
 
             // Controls and Mute Button
@@ -1007,19 +1087,29 @@ fun RoutinePlayerView(
                         Icon(Icons.Outlined.Close, contentDescription = "Cancelar", tint = Color.White)
                     }
 
-                    // Play / Pause
-                    IconButton(
-                        onClick = { isTimerRunning = !isTimerRunning },
+                    // Play / Pause (Animated)
+                    Box(
                         modifier = Modifier
-                            .size(64.dp)
-                            .background(Color(0xFF71D7CD), CircleShape)
+                            .size(72.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF71D7CD))
+                            .clickable { isTimerRunning = !isTimerRunning },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = if (isTimerRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = "Controle",
-                            tint = Color.Black,
-                            modifier = Modifier.size(32.dp)
-                        )
+                        AnimatedContent(
+                            targetState = isTimerRunning,
+                            transitionSpec = {
+                                scaleIn() togetherWith scaleOut()
+                            },
+                            label = "PlayPauseAnimation"
+                        ) { running ->
+                            Icon(
+                                imageVector = if (running) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = "Controle",
+                                tint = Color.Black,
+                                modifier = Modifier.size(36.dp)
+                            )
+                        }
                     }
 
                     // Skip Step

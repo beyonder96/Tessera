@@ -670,29 +670,67 @@ class TesseraViewModel(
                 
                 for ((codigo, numero, destino) in savedLinesList) {
                     try {
-                        val paradas = com.example.data.SPTransApi.service.getParadasPorLinha(codigo)
+                        var closestCp = -1
+                        var stopName = "Nenhum ponto encontrado"
+                        var horario = "Sem prev."
+
+                        // Try to get static stops first
+                        var paradas = emptyList<com.example.data.SPTransParada>()
+                        try {
+                            paradas = com.example.data.SPTransApi.service.getParadasPorLinha(codigo)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
                         
-                        // Find closest stop if user location is available, otherwise use the first one
-                        val closestStop = if (paradas.isNotEmpty()) {
-                            if (userLoc != null) {
+                        var closestStaticStop: com.example.data.SPTransParada? = null
+                        if (paradas.isNotEmpty()) {
+                            closestStaticStop = if (userLoc != null) {
                                 paradas.minByOrNull { calculateDistance(userLoc.first, userLoc.second, it.py, it.px) }
                             } else {
                                 paradas.firstOrNull()
                             }
-                        } else null
-                        
-                        var horario = "Sem prev."
-                        var stopName = "Nenhuma parada disp."
-                        
-                        if (closestStop != null) {
-                            stopName = closestStop.np
-                            try {
-                                val previsaoResponse = com.example.data.SPTransApi.service.getPrevisaoParada(closestStop.cp, codigo)
-                                val linhaPrevisao = previsaoResponse.p?.l?.find { it.cl == codigo }
-                                val proximoVeiculo = linhaPrevisao?.vs?.minByOrNull { it.t }
+                        }
+
+                        // Now try to get predictions for the whole line
+                        try {
+                            val previsaoResponse = com.example.data.SPTransApi.service.getPrevisaoLinha(codigo)
+                            val dynamicStops = previsaoResponse.ps ?: emptyList()
+                            
+                            // If we didn't find static stops, try to use dynamic stops to find the closest one
+                            if (closestStaticStop == null && dynamicStops.isNotEmpty()) {
+                                val closestDynamic = if (userLoc != null) {
+                                    dynamicStops.minByOrNull { calculateDistance(userLoc.first, userLoc.second, it.py ?: 0.0, it.px ?: 0.0) }
+                                } else {
+                                    dynamicStops.firstOrNull()
+                                }
+                                if (closestDynamic != null) {
+                                    closestCp = closestDynamic.cp
+                                    stopName = closestDynamic.np
+                                    val proximoVeiculo = closestDynamic.vs?.minByOrNull { it.t }
+                                    horario = proximoVeiculo?.t ?: "Sem prev."
+                                }
+                            } else if (closestStaticStop != null) {
+                                // We have a static stop, let's find its prediction in the dynamic response
+                                closestCp = closestStaticStop.cp
+                                stopName = closestStaticStop.np
+                                val dynamicMatch = dynamicStops.find { it.cp == closestCp }
+                                val proximoVeiculo = dynamicMatch?.vs?.minByOrNull { it.t }
                                 horario = proximoVeiculo?.t ?: "Sem prev."
-                            } catch (e: Exception) {
-                                e.printStackTrace()
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            // If Previsao/Linha fails, fallback to Previsao/Parada if we have a static stop
+                            if (closestStaticStop != null) {
+                                closestCp = closestStaticStop.cp
+                                stopName = closestStaticStop.np
+                                try {
+                                    val fallbackPrev = com.example.data.SPTransApi.service.getPrevisaoParada(closestCp, codigo)
+                                    val linhaPrevisao = fallbackPrev.p?.l?.find { it.cl == codigo }
+                                    val proximoVeiculo = linhaPrevisao?.vs?.minByOrNull { it.t }
+                                    horario = proximoVeiculo?.t ?: "Sem prev."
+                                } catch (e2: Exception) {
+                                    e2.printStackTrace()
+                                }
                             }
                         }
                         
@@ -716,7 +754,7 @@ class TesseraViewModel(
                                 lineNumber = numero,
                                 destination = destino,
                                 estimatedArrivalText = "Erro",
-                                stopName = "Erro de conexão"
+                                stopName = "Erro ao carregar dados"
                             )
                         )
                     }
@@ -939,8 +977,20 @@ class TesseraViewModel(
     }
 
     fun deleteCreditCard(card: CreditCard) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             repository.deleteCreditCard(card)
+        }
+    }
+
+    fun payInvoice(cardId: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.payInvoice(cardId)
+        }
+    }
+
+    fun clearAllFinances() {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.clearAllFinances()
         }
     }
 

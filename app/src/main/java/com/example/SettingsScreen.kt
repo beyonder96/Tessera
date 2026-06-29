@@ -175,6 +175,31 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
             }
         }
     }
+    var showResetFinancesDialog by remember { mutableStateOf(false) }
+
+    if (showResetFinancesDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetFinancesDialog = false },
+            title = { Text("Zerar Finanças", color = Color.White) },
+            text = { Text("Isso apagará todas as transações, cartões de crédito e contas bancárias. Tem certeza?", color = Color.White.copy(alpha=0.7f)) },
+            containerColor = Color(0xFF1E1E1E),
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.clearAllFinances()
+                    showResetFinancesDialog = false
+                    Toast.makeText(context, "Finanças zeradas com sucesso!", Toast.LENGTH_SHORT).show()
+                }) {
+                    Text("Zerar", color = Color(0xFFE57373))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetFinancesDialog = false }) {
+                    Text("Cancelar", color = Color.White.copy(alpha=0.7f))
+                }
+            }
+        )
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             containerColor = Color.Transparent,
@@ -1258,6 +1283,19 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                             Icon(Icons.Outlined.CloudDownload, contentDescription = null, tint = Color(0xFFE57373), modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Restaurar Arquivo de Backup", color = Color(0xFFE57373), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        }
+
+                        OutlinedButton(
+                            onClick = { showResetFinancesDialog = true },
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE57373).copy(alpha=0.4f)),
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier.fillMaxWidth().height(52.dp).bounceClick {
+                                showResetFinancesDialog = true
+                            }
+                        ) {
+                            Icon(Icons.Outlined.DeleteForever, contentDescription = null, tint = Color(0xFFE57373), modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Zerar Finanças", color = Color(0xFFE57373), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }

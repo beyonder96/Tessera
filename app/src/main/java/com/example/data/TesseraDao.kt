@@ -64,6 +64,26 @@ interface TesseraDao {
     @Delete
     suspend fun deleteCreditCard(card: CreditCard)
 
+    @Query("UPDATE credit_cards SET usedLimit = 0.0 WHERE id = :cardId")
+    suspend fun payInvoice(cardId: Int)
+
+    // Finance clear operations
+    @Query("DELETE FROM transactions")
+    suspend fun clearAllTransactions()
+
+    @Query("DELETE FROM bank_accounts")
+    suspend fun clearAllBankAccounts()
+
+    @Query("DELETE FROM credit_cards")
+    suspend fun clearAllCreditCards()
+
+    @androidx.room.Transaction
+    suspend fun clearAllFinances() {
+        clearAllTransactions()
+        clearAllBankAccounts()
+        clearAllCreditCards()
+    }
+
     // Habits
     @Query("SELECT * FROM habits ORDER BY orderIndex ASC")
     fun getAllHabits(): Flow<List<Habit>>
