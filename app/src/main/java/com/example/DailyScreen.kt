@@ -368,6 +368,7 @@ fun DailyScreen(
                                         com.spotify.sdk.android.auth.AuthorizationResponse.Type.TOKEN,
                                         "tessera://spotify-callback"
                                     ).setScopes(arrayOf("user-read-recently-played"))
+                                     .setShowDialog(true)
                                      .build()
                                     
                                     val intent = com.spotify.sdk.android.auth.AuthorizationClient.createLoginActivityIntent(activity, request)

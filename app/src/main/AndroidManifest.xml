@@ -24,6 +24,7 @@
 
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
+        <package android:name="com.spotify.music" />
     </queries>
 
     <application
