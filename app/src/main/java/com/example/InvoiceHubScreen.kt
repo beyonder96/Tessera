@@ -54,6 +54,29 @@ fun InvoiceHubScreen(
 
     // A fatura é calculada pelas transações com o nome do cartão
     val cardTransactions = allTransactions.filter { it.accountOrCardName == cardName }
+    val transactionsSum = cardTransactions.filter { !it.isIncome }.sumOf { it.value } - cardTransactions.filter { it.isIncome }.sumOf { it.value }
+    val discrepancy = card.usedLimit - transactionsSum
+
+    val displayTransactions = remember(cardTransactions, discrepancy, cardName) {
+        val list = mutableListOf<Transaction>()
+        if (Math.abs(discrepancy) > 0.01) {
+            list.add(
+                Transaction(
+                    id = -1,
+                    title = if (discrepancy > 0) "Fatura Anterior / Saldo" else "Ajuste de Fatura",
+                    subtitle = "Ajuste automático do limite",
+                    value = Math.abs(discrepancy),
+                    isIncome = discrepancy < 0,
+                    timestamp = System.currentTimeMillis(),
+                    category = "Ajuste",
+                    accountOrCardName = cardName,
+                    isRealized = true
+                )
+            )
+        }
+        list.addAll(cardTransactions.sortedByDescending { it.timestamp })
+        list
+    }
     
     var showPayInvoiceDialog by remember { mutableStateOf(false) }
 
@@ -140,7 +163,7 @@ fun InvoiceHubScreen(
                     )
                 }
 
-                if (cardTransactions.isEmpty()) {
+                if (displayTransactions.isEmpty()) {
                     item {
                         Box(
                             modifier = Modifier.fillMaxWidth().height(100.dp).then(PremiumGlassModifier),
@@ -150,7 +173,7 @@ fun InvoiceHubScreen(
                         }
                     }
                 } else {
-                    items(cardTransactions) { tx ->
+                    items(displayTransactions) { tx ->
                         CardTransactionItem(tx, currencyFormat)
                     }
                 }
