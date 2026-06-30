@@ -31,6 +31,9 @@ import kotlinx.coroutines.flow.combine
 import java.util.Calendar
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
+import android.content.SharedPreferences
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
 import com.example.data.FootballService
 import com.example.data.FootballMatchInfo
@@ -84,6 +87,36 @@ class TesseraViewModel(
     val dailyBriefingText: StateFlow<String?> = _dailyBriefingText.asStateFlow()
 
     private val sharedPrefs = applicationContext.getSharedPreferences("tessera_prefs", Context.MODE_PRIVATE)
+
+    enum class FinanceAction {
+        ADD_EXPENSE,
+        ADD_INCOME
+    }
+
+    enum class HealthAction {
+        ADD_STEPS,
+        ADD_SLEEP
+    }
+
+    private val _financeActionTrigger = MutableSharedFlow<FinanceAction>(extraBufferCapacity = 1)
+    val financeActionTrigger = _financeActionTrigger.asSharedFlow()
+
+    private val _healthActionTrigger = MutableSharedFlow<HealthAction>(extraBufferCapacity = 1)
+    val healthActionTrigger = _healthActionTrigger.asSharedFlow()
+
+    fun triggerFinanceAction(action: FinanceAction) {
+        _financeActionTrigger.tryEmit(action)
+    }
+
+    fun triggerHealthAction(action: HealthAction) {
+        _healthActionTrigger.tryEmit(action)
+    }
+
+    private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { sharedPreferences, key ->
+        if (key == "spotify_access_token") {
+            _spotifyAccessToken.value = sharedPreferences.getString("spotify_access_token", null)
+        }
+    }
 
     private val _spotifyAccessToken = MutableStateFlow<String?>(null)
     val spotifyAccessToken: StateFlow<String?> = _spotifyAccessToken.asStateFlow()
@@ -1658,6 +1691,7 @@ class TesseraViewModel(
     }
 
     init {
+        sharedPrefs.registerOnSharedPreferenceChangeListener(preferenceChangeListener)
         loadUserBusLines()
         loadConfiguredFootballTeams()
         fetchFootballScores()
@@ -1667,6 +1701,11 @@ class TesseraViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             refreshAIInsightsAndMetric()
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        sharedPrefs.unregisterOnSharedPreferenceChangeListener(preferenceChangeListener)
     }
 
 }

@@ -75,6 +75,11 @@ class FakeTesseraDao : TesseraDao {
     override suspend fun insertRoutineStep(step: RoutineStep) {}
     override suspend fun clearStepsForRoutine(routineId: Int) {}
     override suspend fun deleteRoutine(routine: Routine) {}
+
+    override suspend fun payInvoice(cardId: Int) {}
+    override suspend fun clearAllTransactions() {}
+    override suspend fun clearAllBankAccounts() {}
+    override suspend fun clearAllCreditCards() {}
 }
 
 class PetViewModelTest {

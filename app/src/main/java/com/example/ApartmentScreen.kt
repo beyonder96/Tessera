@@ -501,18 +501,6 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(
-                            onClick = onHomeClick,
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Home,
-                                contentDescription = "Home",
-                                tint = Color.White.copy(alpha = 0.8f),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "MEU APÊ",
                             fontSize = 14.sp,

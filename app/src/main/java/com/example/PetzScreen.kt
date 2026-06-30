@@ -606,14 +606,7 @@ fun PetzScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                IconButton(
-                                    onClick = onHomeClick,
-                                    modifier = Modifier
-                                        .clip(CircleShape)
-                                        .background(Color.Black.copy(alpha = 0.3f))
-                                ) {
-                                    Icon(Icons.Outlined.Home, contentDescription = "Home", tint = Color.White)
-                                }
+                                Spacer(modifier = Modifier.size(40.dp))
 
                                 LiquidTabSelector(
                                     pets = pets,

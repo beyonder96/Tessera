@@ -265,37 +265,80 @@ fun DailyScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
         ) {
-            // Minimalist Header Bar
-            Row(
+            // ------------------- TOP BAR & COLLAPSE LOGIC (Estilo Petz) -------------------
+            val isCompact = scrollState.value > 100
+            val normalAlpha by animateFloatAsState(targetValue = if (isCompact) 0f else 1f, animationSpec = tween(250), label = "normalAlpha")
+            val compactAlpha by animateFloatAsState(targetValue = if (isCompact) 1f else 0f, animationSpec = tween(250), label = "compactAlpha")
+
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                contentAlignment = Alignment.Center
             ) {
-                IconButton(
-                    onClick = onBack,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(Color(0x0AFFFFFF), CircleShape)
-                        .border(1.dp, Color(0x1AFFFFFF), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Voltar à Home",
-                        tint = Color.White.copy(alpha = 0.8f),
-                        modifier = Modifier.size(18.dp)
-                    )
+                // 1. Barra Normal
+                if (normalAlpha > 0.05f) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .graphicsLayer {
+                                alpha = normalAlpha
+                                scaleX = 0.92f + (normalAlpha * 0.08f)
+                                scaleY = 0.92f + (normalAlpha * 0.08f)
+                            },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        IconButton(
+                            onClick = onBack,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(Color(0x0AFFFFFF), CircleShape)
+                                .border(1.dp, Color(0x1AFFFFFF), CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Voltar à Home",
+                                tint = Color.White.copy(alpha = 0.8f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Text(
+                            text = "NOW BRIEFING",
+                            fontFamily = FontFamily.SansSerif,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                            color = Color.White.copy(alpha = 0.4f),
+                            letterSpacing = 2.5.sp
+                        )
+                        Box(modifier = Modifier.size(40.dp)) // Anchor balance spacer
+                    }
                 }
-                Text(
-                    text = "NOW BRIEFING",
-                    fontFamily = FontFamily.SansSerif,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 11.sp,
-                    color = Color.White.copy(alpha = 0.4f),
-                    letterSpacing = 2.5.sp
-                )
-                Box(modifier = Modifier.size(40.dp)) // Anchor balance spacer
+
+                // 2. Barra Compacta
+                if (compactAlpha > 0.05f) {
+                    Row(
+                        modifier = Modifier
+                            .graphicsLayer {
+                                alpha = compactAlpha
+                                translationY = (1f - compactAlpha) * (-15f)
+                            }
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color.Black.copy(alpha = 0.75f))
+                            .border(1.dp, Color(0xFF9E8AF0).copy(alpha = 0.5f), RoundedCornerShape(20.dp))
+                            .padding(horizontal = 20.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "NOW BRIEFING",
+                            color = Color(0xFF9E8AF0),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.5.sp
+                        )
+                    }
+                }
             }
 
             Column(
@@ -342,7 +385,28 @@ fun DailyScreen(
                                 val clientId = "516e4fdbb4e040bfbab885614b32c8bb"
                                 val redirectUri = "tessera://spotify-callback"
                                 val scopes = "user-read-recently-played"
-                                val authUrl = "https://accounts.spotify.com/authorize?client_id=$clientId&response_type=token&redirect_uri=$redirectUri&scope=$scopes"
+                                
+                                // PKCE Generation
+                                val secureRandom = java.security.SecureRandom()
+                                val codeVerifierBytes = ByteArray(32)
+                                secureRandom.nextBytes(codeVerifierBytes)
+                                val codeVerifier = android.util.Base64.encodeToString(
+                                    codeVerifierBytes,
+                                    android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING or android.util.Base64.NO_WRAP
+                                )
+                                
+                                val bytes = codeVerifier.toByteArray(java.nio.charset.StandardCharsets.US_ASCII)
+                                val messageDigest = java.security.MessageDigest.getInstance("SHA-256")
+                                val digest = messageDigest.digest(bytes)
+                                val codeChallenge = android.util.Base64.encodeToString(
+                                    digest,
+                                    android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING or android.util.Base64.NO_WRAP
+                                )
+                                
+                                val sharedPrefs = context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE)
+                                sharedPrefs.edit().putString("spotify_code_verifier", codeVerifier).apply()
+                                
+                                val authUrl = "https://accounts.spotify.com/authorize?client_id=$clientId&response_type=code&redirect_uri=$redirectUri&scope=$scopes&code_challenge_method=S256&code_challenge=$codeChallenge"
                                 
                                 val customTabsIntent = androidx.browser.customtabs.CustomTabsIntent.Builder().build()
                                 customTabsIntent.launchUrl(context, android.net.Uri.parse(authUrl))
@@ -352,13 +416,7 @@ fun DailyScreen(
                             }
                         )
                         
-                        // 4.6 X TIMELINE WIDGET
-                        com.example.ui.components.XTimelineWidget()
-
-                        // 4.7 NEWS EXPANDED WIDGET
-                        if (newsArticles.isNotEmpty()) {
-                            NewsExpandedSection(articles = newsArticles.take(4))
-                        }
+                        // Removed Twitter and News widgets as per requirements
 
                     }
                 }
@@ -439,31 +497,7 @@ fun HeaderGreetingSection(
                             color = Color.White
                         )
                     }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            text = tempVal,
-                            fontSize = 20.sp,
-                            fontFamily = FontFamily.Serif,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.LocationOn,
-                                contentDescription = null,
-                                tint = Color.White.copy(alpha = 0.6f),
-                                modifier = Modifier.size(10.dp)
-                            )
-                            Text(
-                                text = weatherState?.city ?: "São Paulo",
-                                fontSize = 10.sp,
-                                color = Color.White.copy(alpha = 0.6f)
-                            )
-                        }
-                    }
+
                 }
 
                 // Semicircle celestial arc path drawn inside Canvas

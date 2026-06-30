@@ -230,15 +230,6 @@ fun ZenithScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onHomeClick, modifier = Modifier.size(28.dp)) {
-                            Icon(
-                                imageVector = Icons.Outlined.Home,
-                                contentDescription = "Home",
-                                tint = Color(0xFFBDC9C6),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = titleText.uppercase(),
                             fontSize = 14.sp,

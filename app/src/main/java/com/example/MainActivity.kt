@@ -83,6 +83,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.drawBehind
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -130,6 +131,9 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.composed
 import androidx.compose.ui.platform.LocalConfiguration
 
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.fragment.app.FragmentActivity
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
@@ -152,21 +156,64 @@ class MainActivity : FragmentActivity() {
     private fun handleSpotifyIntent(intent: Intent?) {
         val uri = intent?.data
         if (uri != null && uri.scheme == "tessera" && uri.host == "spotify-callback") {
-            // Spotify returns the token in the fragment: #access_token=...
-            val fragment = uri.fragment
-            if (fragment != null && fragment.contains("access_token=")) {
-                val params = fragment.split("&").associate {
-                    val split = it.split("=")
-                    if (split.size == 2) split[0] to split[1] else it to ""
+            val code = uri.getQueryParameter("code")
+            val error = uri.getQueryParameter("error")
+            if (code != null) {
+                val sharedPrefs = getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE)
+                val codeVerifier = sharedPrefs.getString("spotify_code_verifier", null)
+                if (codeVerifier != null) {
+                    val clientId = "516e4fdbb4e040bfbab885614b32c8bb"
+                    val redirectUri = "tessera://spotify-callback"
+                    
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        try {
+                            val client = okhttp3.OkHttpClient()
+                            val requestBody = okhttp3.FormBody.Builder()
+                                .add("client_id", clientId)
+                                .add("grant_type", "authorization_code")
+                                .add("code", code)
+                                .add("redirect_uri", redirectUri)
+                                .add("code_verifier", codeVerifier)
+                                .build()
+                            val request = okhttp3.Request.Builder()
+                                .url("https://accounts.spotify.com/api/token")
+                                .post(requestBody)
+                                .build()
+                            
+                            val response = client.newCall(request).execute()
+                            val bodyString = response.body?.string()
+                            if (response.isSuccessful && bodyString != null) {
+                                val jsonObject = org.json.JSONObject(bodyString)
+                                val accessToken = jsonObject.optString("access_token")
+                                if (!accessToken.isNullOrEmpty()) {
+                                    withContext(Dispatchers.Main) {
+                                        sharedPrefs.edit()
+                                            .putString("spotify_access_token", accessToken)
+                                            .remove("spotify_code_verifier")
+                                            .apply()
+                                        Toast.makeText(this@MainActivity, "Conectado ao Spotify com sucesso!", Toast.LENGTH_SHORT).show()
+                                    }
+                                } else {
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(this@MainActivity, "Erro ao processar token do Spotify", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            } else {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(this@MainActivity, "Erro na autenticação do Spotify: ${response.message}", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(this@MainActivity, "Falha na conexão: ${e.message}", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
+                } else {
+                    Toast.makeText(this, "Erro: Verificador de código não encontrado.", Toast.LENGTH_LONG).show()
                 }
-                val token = params["access_token"]
-                if (token != null) {
-                    val sharedPrefs = getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE)
-                    sharedPrefs.edit().putString("spotify_access_token", token).apply()
-                    Toast.makeText(this, "Conectado ao Spotify com sucesso!", Toast.LENGTH_SHORT).show()
-                }
-            } else if (uri.getQueryParameter("error") != null) {
-                Toast.makeText(this, "Erro ao conectar ao Spotify: " + uri.getQueryParameter("error"), Toast.LENGTH_LONG).show()
+            } else if (error != null) {
+                Toast.makeText(this, "Erro ao conectar ao Spotify: $error", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -610,6 +657,7 @@ fun TesseraApp() {
                     .padding(bottom = innerPadding.calculateBottomPadding())
             ) {
                 BottomNavBar(
+                    viewModel = viewModel,
                     isExpanded = isFabExpanded,
                     onExpandedChange = { isFabExpanded = it },
                     onHoveredItemChange = { fabHoveredItem = it },
@@ -2275,38 +2323,6 @@ fun MainContent(
             Spacer(modifier = Modifier.width(8.dp))
             Text("Editar Widgets", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
         }
-
-        if (newsArticles.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(24.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF1E252B).copy(alpha = 0.6f))
-                    .padding(vertical = 12.dp, horizontal = 16.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Public,
-                        contentDescription = "News",
-                        tint = Color(0xFF64FFDA),
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    val tickerText = newsArticles.joinToString("   •   ") { it.title ?: "" }
-                    Text(
-                        text = tickerText,
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 13.sp,
-                        maxLines = 1,
-                        modifier = Modifier.basicMarquee(
-                            iterations = Int.MAX_VALUE,
-                            velocity = 30.dp
-                        )
-                    )
-                }
-            }
-        }
     }
 
     if (showEditSheet) {
@@ -3933,6 +3949,7 @@ fun CircularNavButton(
 
 @Composable
 fun BottomNavBar(
+    viewModel: TesseraViewModel,
     isExpanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     onHoveredItemChange: (String?) -> Unit,
@@ -3940,47 +3957,178 @@ fun BottomNavBar(
     onNavigate: (String) -> Unit = {},
     onCameraClick: () -> Unit = {}
 ) {
+    var displayedRoute by remember { mutableStateOf(currentRoute) }
+    val scaleAnim = remember { androidx.compose.animation.core.Animatable(1f) }
+    var pivotX by remember { mutableStateOf(0.5f) }
+    val rippleFraction = remember { androidx.compose.animation.core.Animatable(0f) }
+    val scope = rememberCoroutineScope()
+
+    fun getRouteIndex(route: String): Int {
+        return when (route) {
+            "home" -> 0
+            "finance" -> 1
+            "market" -> 2
+            "health" -> 1
+            else -> 0
+        }
+    }
+
+    LaunchedEffect(currentRoute) {
+        if (currentRoute != displayedRoute) {
+            val oldIdx = getRouteIndex(displayedRoute)
+            val newIdx = getRouteIndex(currentRoute)
+            val clickedIdx = if (currentRoute == "home") 0 else newIdx
+            val pivot = when (clickedIdx) {
+                0 -> 0.125f
+                1 -> 0.375f
+                2 -> 0.625f
+                3 -> 0.875f
+                else -> 0.5f
+            }
+            pivotX = pivot
+            
+            scope.launch {
+                rippleFraction.snapTo(0f)
+                rippleFraction.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(durationMillis = 400, easing = androidx.compose.animation.core.LinearOutSlowInEasing)
+                )
+            }
+            
+            scaleAnim.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+            )
+            
+            displayedRoute = currentRoute
+            
+            scaleAnim.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
+            )
+        }
+    }
+
+    val handleTabClick: (String, Int) -> Unit = { route, clickedIndex ->
+        val pivot = when (clickedIndex) {
+            0 -> 0.125f
+            1 -> 0.375f
+            2 -> 0.625f
+            3 -> 0.875f
+            else -> 0.5f
+        }
+        pivotX = pivot
+        
+        scope.launch {
+            launch {
+                rippleFraction.snapTo(0f)
+                rippleFraction.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(durationMillis = 400, easing = androidx.compose.animation.core.LinearOutSlowInEasing)
+                )
+            }
+            scaleAnim.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+            )
+            onNavigate(route)
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 16.dp),
+            .padding(horizontal = 20.dp, vertical = 16.dp)
+            .drawBehind {
+                if (rippleFraction.value > 0f && rippleFraction.value < 1f) {
+                    val radius = size.width * rippleFraction.value * 1.2f
+                    drawCircle(
+                        color = PrimaryTeal.copy(alpha = 0.2f * (1f - rippleFraction.value)),
+                        radius = radius,
+                        center = Offset(size.width * pivotX, size.height / 2f)
+                    )
+                }
+            },
         contentAlignment = Alignment.BottomCenter
     ) {
         Row(
-            modifier = Modifier.wrapContentSize(),
+            modifier = Modifier
+                .wrapContentSize()
+                .graphicsLayer {
+                    scaleX = scaleAnim.value
+                    scaleY = scaleAnim.value
+                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(pivotX, 0.5f)
+                },
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 1. Hoje Tab Button
-            CircularNavButton(
-                icon = Icons.Outlined.LightMode,
-                contentDescription = "Hoje",
-                isActive = currentRoute == "home",
-                onClick = { onNavigate("home") }
-            )
+            when (displayedRoute) {
+                "finance" -> {
+                    CircularNavButton(
+                        icon = Icons.Outlined.LightMode,
+                        contentDescription = "Hoje",
+                        isActive = false,
+                        onClick = { handleTabClick("home", 0) }
+                    )
+                    CircularNavButton(
+                        icon = Icons.Default.ArrowDownward,
+                        contentDescription = "Despesa",
+                        isActive = false,
+                        onClick = { viewModel.triggerFinanceAction(TesseraViewModel.FinanceAction.ADD_EXPENSE) }
+                    )
+                    CircularNavButton(
+                        icon = Icons.Default.ArrowUpward,
+                        contentDescription = "Receita",
+                        isActive = false,
+                        onClick = { viewModel.triggerFinanceAction(TesseraViewModel.FinanceAction.ADD_INCOME) }
+                    )
+                }
+                "health" -> {
+                    CircularNavButton(
+                        icon = Icons.Outlined.LightMode,
+                        contentDescription = "Hoje",
+                        isActive = false,
+                        onClick = { handleTabClick("home", 0) }
+                    )
+                    CircularNavButton(
+                        icon = Icons.Outlined.DirectionsWalk,
+                        contentDescription = "Passos",
+                        isActive = false,
+                        onClick = { viewModel.triggerHealthAction(TesseraViewModel.HealthAction.ADD_STEPS) }
+                    )
+                    CircularNavButton(
+                        icon = Icons.Outlined.Bedtime,
+                        contentDescription = "Sono",
+                        isActive = false,
+                        onClick = { viewModel.triggerHealthAction(TesseraViewModel.HealthAction.ADD_SLEEP) }
+                    )
+                }
+                else -> {
+                    CircularNavButton(
+                        icon = Icons.Outlined.LightMode,
+                        contentDescription = "Hoje",
+                        isActive = displayedRoute == "home",
+                        onClick = { handleTabClick("home", 0) }
+                    )
+                    CircularNavButton(
+                        icon = Icons.Outlined.AccountBalanceWallet,
+                        contentDescription = "Finanças",
+                        isActive = displayedRoute == "finance",
+                        onClick = { handleTabClick("finance", 1) }
+                    )
+                    CircularNavButton(
+                        icon = Icons.Outlined.Storefront,
+                        contentDescription = "Mercado",
+                        isActive = displayedRoute == "market",
+                        onClick = { handleTabClick("market", 2) }
+                    )
+                }
+            }
 
-            // 2. Finanças Tab Button
-            CircularNavButton(
-                icon = Icons.Outlined.AccountBalanceWallet,
-                contentDescription = "Finanças",
-                isActive = currentRoute == "finance",
-                onClick = { onNavigate("finance") }
-            )
-
-            // 3. Mercado Tab Button
-            CircularNavButton(
-                icon = Icons.Outlined.Storefront,
-                contentDescription = "Mercado",
-                isActive = currentRoute == "market",
-                onClick = { onNavigate("market") }
-            )
-
-            // 4. ADD / PLUS Button (Toggles menu)
             Box(
                 modifier = Modifier.size(56.dp)
             ) {
-                // Ambient Glow
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -3992,7 +4140,6 @@ fun BottomNavBar(
                         )
                 )
 
-                // Button
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -4003,8 +4150,8 @@ fun BottomNavBar(
                             } else {
                                 Brush.verticalGradient(
                                     colors = listOf(
-                                        Color(0x2BFFFFFF), // Glossy top glare (Liquid Glass)
-                                        Color(0x06FFFFFF)  // Translucent base
+                                        Color(0x2BFFFFFF),
+                                        Color(0x06FFFFFF)
                                     )
                                 )
                             }

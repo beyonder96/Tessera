@@ -268,6 +268,19 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
     var showSleepDialog by remember { mutableStateOf(false) }
     var showStepsDialog by remember { mutableStateOf(false) }
     var showMedicationDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        viewModel.healthActionTrigger.collect { action ->
+            when (action) {
+                TesseraViewModel.HealthAction.ADD_STEPS -> {
+                    showStepsDialog = true
+                }
+                TesseraViewModel.HealthAction.ADD_SLEEP -> {
+                    showSleepDialog = true
+                }
+            }
+        }
+    }
     
     val listState = rememberLazyListState()
     val isCompact by remember {
@@ -1077,14 +1090,6 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                                     horizontalArrangement = Arrangement.Start,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    IconButton(onClick = onHomeClick) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.Home,
-                                            contentDescription = "Home",
-                                            tint = OnBackgroundDark.copy(alpha = 0.7f)
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = "Saúde",
                                         fontFamily = FontFamily.Serif,

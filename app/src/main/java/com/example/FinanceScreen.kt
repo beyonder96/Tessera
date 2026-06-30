@@ -69,6 +69,23 @@ fun FinanceScreen(
     var selectedFilterName by remember { mutableStateOf<String?>(null) }
     var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
 
+    LaunchedEffect(Unit) {
+        viewModel.financeActionTrigger.collect { action ->
+            when (action) {
+                TesseraViewModel.FinanceAction.ADD_EXPENSE -> {
+                    defaultIsIncomeForAdd = false
+                    editingTransaction = null
+                    showAddDialog = true
+                }
+                TesseraViewModel.FinanceAction.ADD_INCOME -> {
+                    defaultIsIncomeForAdd = true
+                    editingTransaction = null
+                    showAddDialog = true
+                }
+            }
+        }
+    }
+
     // Group accounts balances by type
     val checkingBalance = bankAccounts.filter { it.type == "Corrente" }.sumOf { it.balance }
     val savingsBalance = bankAccounts.filter { it.type == "Poupança" }.sumOf { it.balance }
@@ -434,15 +451,6 @@ fun FinanceScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onHomeClick, modifier = Modifier.size(28.dp)) {
-                            Icon(
-                                imageVector = Icons.Outlined.Home,
-                                contentDescription = "Home",
-                                tint = Color(0xFFBDC9C6),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "FINANÇAS",
                             fontSize = 14.sp,

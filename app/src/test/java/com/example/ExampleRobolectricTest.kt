@@ -18,6 +18,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import com.example.ui.theme.MyApplicationTheme
+import com.example.data.TesseraRepository
+import com.example.viewmodel.TesseraViewModel
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
@@ -45,6 +47,9 @@ class ExampleRobolectricTest {
 
     @Test
     fun `render bottom nav bar`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val repository = TesseraRepository(FakeTesseraDao())
+        val viewModel = TesseraViewModel(repository, context)
         composeTestRule.setContent {
             MyApplicationTheme {
                 Box(
@@ -55,6 +60,7 @@ class ExampleRobolectricTest {
                     contentAlignment = androidx.compose.ui.Alignment.BottomCenter
                 ) {
                     BottomNavBar(
+                        viewModel = viewModel,
                         isExpanded = false,
                         onExpandedChange = {},
                         onHoveredItemChange = {},
