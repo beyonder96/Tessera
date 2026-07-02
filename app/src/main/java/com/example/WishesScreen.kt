@@ -107,7 +107,7 @@ fun getFallbackImages(query: String): List<PexelsPhoto> {
 }
 
 fun searchPexelsImagesApi(query: String): List<PexelsPhoto> {
-    val apiKey = "f7eXW83WdZkSj70P4cT0gYkF7lY2vQ1eL8Y1jQ1c4a0b"
+    val apiKey = com.example.BuildConfig.WISHES_API_KEY
     if (query.isBlank()) {
         return getFallbackImages("")
     }

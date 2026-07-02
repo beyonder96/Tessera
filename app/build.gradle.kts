@@ -14,8 +14,8 @@ android {
     applicationId = "com.aistudio.tessera.xtrkna"
     minSdk = 26
     targetSdk = 35
-    versionCode = 31
-    versionName = "1.7.7"
+    versionCode = 32
+    versionName = "1.7.8"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     manifestPlaceholders["MAPS_API_KEY"] = "DUMMY_KEY"
@@ -112,6 +112,7 @@ dependencies {
   implementation(libs.coil.svg)
   implementation(libs.converter.moshi)
   // implementation(libs.firebase.ai)
+  implementation(libs.firebase.firestore)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
   implementation(libs.logging.interceptor)

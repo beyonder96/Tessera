@@ -22,6 +22,9 @@ class BootReceiver : BroadcastReceiver() {
                     for (med in meds) {
                         AlarmScheduler.scheduleMedicationAlarm(context, med.name, med.dosage, med.time)
                     }
+                    val sharedPrefs = context.getSharedPreferences("tessera_prefs", Context.MODE_PRIVATE)
+                    val vrResetDate = sharedPrefs.getInt("vr_reset_date", 1)
+                    AlarmScheduler.scheduleVrAlarm(context, vrResetDate)
                 } catch (e: Exception) {
                     e.printStackTrace()
                 } finally {

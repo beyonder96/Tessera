@@ -151,6 +151,15 @@ fun TransportScreen(
             ) {
                 // Header Title inside scroll
                 Text(
+                    text = "TRANSPORTE SP",
+                    color = Color.White,
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Black,
+                    fontFamily = FontFamily.SansSerif,
+                    letterSpacing = (-1).sp,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                Text(
                     text = "Status e Previsões em Tempo Real",
                     color = Color.Gray,
                     fontSize = 14.sp,

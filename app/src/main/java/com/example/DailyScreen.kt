@@ -265,79 +265,41 @@ fun DailyScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
         ) {
-            // ------------------- TOP BAR & COLLAPSE LOGIC (Estilo Petz) -------------------
-            val isCompact = scrollState.value > 100
-            val normalAlpha by animateFloatAsState(targetValue = if (isCompact) 0f else 1f, animationSpec = tween(250), label = "normalAlpha")
-            val compactAlpha by animateFloatAsState(targetValue = if (isCompact) 1f else 0f, animationSpec = tween(250), label = "compactAlpha")
-
+            // ------------------- TOP BAR -------------------
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp, vertical = 12.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // 1. Barra Normal
-                if (normalAlpha > 0.05f) {
-                    Row(
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    IconButton(
+                        onClick = onBack,
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .graphicsLayer {
-                                alpha = normalAlpha
-                                scaleX = 0.92f + (normalAlpha * 0.08f)
-                                scaleY = 0.92f + (normalAlpha * 0.08f)
-                            },
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .size(40.dp)
+                            .background(Color(0x0AFFFFFF), CircleShape)
+                            .border(1.dp, Color(0x1AFFFFFF), CircleShape)
                     ) {
-                        IconButton(
-                            onClick = onBack,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .background(Color(0x0AFFFFFF), CircleShape)
-                                .border(1.dp, Color(0x1AFFFFFF), CircleShape)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Voltar à Home",
-                                tint = Color.White.copy(alpha = 0.8f),
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        Text(
-                            text = "NOW BRIEFING",
-                            fontFamily = FontFamily.SansSerif,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp,
-                            color = Color.White.copy(alpha = 0.4f),
-                            letterSpacing = 2.5.sp
-                        )
-                        Box(modifier = Modifier.size(40.dp)) // Anchor balance spacer
-                    }
-                }
-
-                // 2. Barra Compacta
-                if (compactAlpha > 0.05f) {
-                    Row(
-                        modifier = Modifier
-                            .graphicsLayer {
-                                alpha = compactAlpha
-                                translationY = (1f - compactAlpha) * (-15f)
-                            }
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color.Black.copy(alpha = 0.75f))
-                            .border(1.dp, Color(0xFF9E8AF0).copy(alpha = 0.5f), RoundedCornerShape(20.dp))
-                            .padding(horizontal = 20.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "NOW BRIEFING",
-                            color = Color(0xFF9E8AF0),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.5.sp
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Voltar à Home",
+                            tint = Color.White.copy(alpha = 0.8f),
+                            modifier = Modifier.size(18.dp)
                         )
                     }
+                    Text(
+                        text = "NOW BRIEFING",
+                        fontFamily = FontFamily.SansSerif,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                        color = Color.White.copy(alpha = 0.4f),
+                        letterSpacing = 2.5.sp
+                    )
+                    Box(modifier = Modifier.size(40.dp)) // Anchor balance spacer
                 }
             }
 

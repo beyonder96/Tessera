@@ -24,6 +24,10 @@ class TesseraRepository(private val dao: TesseraDao) {
         dao.updateMarketItem(item)
     }
 
+    suspend fun deleteMarketItem(item: MarketItem) {
+        dao.deleteMarketItem(item)
+    }
+
     suspend fun updatePetEvent(event: PetEvent) {
         dao.updatePetEvent(event)
     }

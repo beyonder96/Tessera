@@ -26,6 +26,9 @@ interface TesseraDao {
     @Update
     suspend fun updateMarketItem(item: MarketItem)
 
+    @Delete
+    suspend fun deleteMarketItem(item: MarketItem)
+
     @Query("SELECT COUNT(*) FROM pet_events")
     suspend fun getPetEventsCount(): Int
 

@@ -1,6 +1,10 @@
 package com.example
 
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -79,6 +83,11 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
 
     val pagerState = rememberPagerState(pageCount = { 2 })
     val coroutineScope = rememberCoroutineScope()
+    var showAddDialog by remember { mutableStateOf(false) }
+    var showShareDialog by remember { mutableStateOf(false) }
+    val marketListId by viewModel.marketListId.collectAsStateWithLifecycle()
+    val syncStatus by viewModel.syncManager.syncStatus.collectAsStateWithLifecycle()
+    val isFirebaseConfigured by viewModel.syncManager.isConfigured.collectAsStateWithLifecycle()
     
     val selectedTab = pagerState.currentPage
     val currentTabTitle = if (selectedTab == 0) "PLANEJAMENTO" else "NO MERCADO"
@@ -118,7 +127,12 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                     if (targetTab == 0) {
                         PlanningBottomBar(viewModel)
                     } else {
-                        ShoppingBottomBar(cartTotal, formattedTotal, onCheckout = { viewModel.checkoutCart() })
+                        ShoppingBottomBar(
+                            cartTotal = cartTotal,
+                            formattedTotal = formattedTotal,
+                            onCheckout = { viewModel.checkoutCart() },
+                            onAddClick = { showAddDialog = true }
+                        )
                     }
                 }
             }
@@ -181,6 +195,17 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                                 fontWeight = FontWeight.Black,
                                 color = Color.White,
                                 letterSpacing = 2.sp
+                            )
+                        }
+                        
+                        IconButton(
+                            onClick = { showShareDialog = true },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Compartilhar Lista",
+                                tint = Color(0xFF71D7CD)
                             )
                         }
                     }
@@ -279,6 +304,27 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                     )
                 }
             }
+        }
+
+        if (showAddDialog) {
+            DynamicAddMarketItemDialog(
+                onDismiss = { showAddDialog = false },
+                onConfirm = { name, price, qty, unit ->
+                    viewModel.addMarketItem(name = name, price = price, quantity = qty, unit = unit, isChecked = true)
+                    showAddDialog = false
+                }
+            )
+        }
+
+        if (showShareDialog) {
+            ShareMarketListDialog(
+                marketListId = marketListId,
+                syncStatus = syncStatus,
+                isFirebaseConfigured = isFirebaseConfigured,
+                onDismiss = { showShareDialog = false },
+                onStartShare = { listId -> viewModel.startMarketSharing(listId) },
+                onStopShare = { viewModel.stopMarketSharing() }
+            )
         }
     }
 }
@@ -783,7 +829,12 @@ fun PlanningBottomBar(viewModel: TesseraViewModel) {
 }
 
 @Composable
-fun ShoppingBottomBar(cartTotal: Double, formattedTotal: String, onCheckout: () -> Unit) {
+fun ShoppingBottomBar(
+    cartTotal: Double,
+    formattedTotal: String,
+    onCheckout: () -> Unit,
+    onAddClick: () -> Unit
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -805,18 +856,552 @@ fun ShoppingBottomBar(cartTotal: Double, formattedTotal: String, onCheckout: () 
                 Text(formattedTotal, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Black)
             }
             
-            Button(
-                onClick = onCheckout,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF71D7CD),
-                    contentColor = Color.Black,
-                    disabledContainerColor = Color(0xFF2A3634)
-                ),
-                shape = RoundedCornerShape(20.dp),
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
-                enabled = cartTotal > 0
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("FINALIZAR", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                IconButton(
+                    onClick = onAddClick,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(Color(0xFF2A3634), CircleShape)
+                        .border(1.dp, Color(0xFF71D7CD).copy(alpha = 0.5f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Adicionar Item",
+                        tint = Color(0xFF71D7CD)
+                    )
+                }
+
+                Button(
+                    onClick = onCheckout,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF71D7CD),
+                        contentColor = Color.Black,
+                        disabledContainerColor = Color(0xFF2A3634)
+                    ),
+                    shape = RoundedCornerShape(20.dp),
+                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
+                    enabled = cartTotal > 0
+                ) {
+                    Text("FINALIZAR", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DynamicAddMarketItemDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (name: String, price: Double, quantity: Double, unit: String) -> Unit
+) {
+    var step by remember { mutableIntStateOf(1) }
+    var productName by remember { mutableStateOf("") }
+    var unitType by remember { mutableStateOf("un") } // "un" or "kg"
+    var quantityText by remember { mutableStateOf("") }
+    var priceText by remember { mutableStateOf("") }
+
+    val focusRequester = remember { FocusRequester() }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F1312)),
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .border(1.dp, Color(0x3371D7CD), RoundedCornerShape(24.dp))
+                .imePadding()
+        ) {
+            AnimatedContent(
+                targetState = step,
+                transitionSpec = {
+                    if (targetState > initialState) {
+                        (slideInHorizontally { width -> width } + fadeIn()).togetherWith(
+                            slideOutHorizontally { width -> -width } + fadeOut()
+                        )
+                    } else {
+                        (slideInHorizontally { width -> -width } + fadeIn()).togetherWith(
+                            slideOutHorizontally { width -> width } + fadeOut()
+                        )
+                    }.using(
+                        SizeTransform(clip = false)
+                    )
+                },
+                label = "DialogStepTransition"
+            ) { currentStep ->
+                Column(
+                    modifier = Modifier
+                        .padding(24.dp)
+                        .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    when (currentStep) {
+                        1 -> {
+                            Text(
+                                text = "Qual o nome do produto?",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                textAlign = TextAlign.Center
+                            )
+                            
+                            OutlinedTextField(
+                                value = productName,
+                                onValueChange = { productName = it },
+                                placeholder = { Text("Ex: Tomate", color = Color(0xFF5E6D6A)) },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(
+                                    imeAction = ImeAction.Next,
+                                    keyboardType = KeyboardType.Text
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onNext = {
+                                        if (productName.isNotBlank()) {
+                                            step = 2
+                                        }
+                                    }
+                                ),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFF71D7CD),
+                                    unfocusedBorderColor = Color(0xFF3D4947),
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White,
+                                    cursorColor = Color(0xFF71D7CD)
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .focusRequester(focusRequester),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            
+                            // Auto-focus the field when step 1 starts
+                            LaunchedEffect(Unit) {
+                                focusRequester.requestFocus()
+                            }
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                TextButton(onClick = onDismiss) {
+                                    Text("Cancelar", color = Color(0xFF81928F))
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Button(
+                                    onClick = { step = 2 },
+                                    enabled = productName.isNotBlank(),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF71D7CD),
+                                        contentColor = Color.Black,
+                                        disabledContainerColor = Color(0xFF2A3634)
+                                    ),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Text("Avançar", fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                        2 -> {
+                            Text(
+                                text = "Como é vendido?",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                textAlign = TextAlign.Center
+                            )
+                            
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                // Unit Selection
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(if (unitType == "un") Color(0xFF71D7CD).copy(alpha = 0.15f) else Color(0xFF141918))
+                                        .border(
+                                            width = 1.dp,
+                                            color = if (unitType == "un") Color(0xFF71D7CD) else Color(0x33FFFFFF),
+                                            shape = RoundedCornerShape(16.dp)
+                                        )
+                                        .clickable {
+                                            unitType = "un"
+                                            if (quantityText.isBlank()) quantityText = "1"
+                                            step = 3
+                                        }
+                                        .padding(vertical = 24.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            imageVector = Icons.Default.ShoppingCart,
+                                            contentDescription = null,
+                                            tint = if (unitType == "un") Color(0xFF71D7CD) else Color(0xFF81928F),
+                                            modifier = Modifier.size(32.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "Por Unidade",
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (unitType == "un") Color.White else Color(0xFF81928F),
+                                            fontSize = 14.sp
+                                        )
+                                    }
+                                }
+                                
+                                // Weight Selection
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(if (unitType == "kg") Color(0xFF71D7CD).copy(alpha = 0.15f) else Color(0xFF141918))
+                                        .border(
+                                            width = 1.dp,
+                                            color = if (unitType == "kg") Color(0xFF71D7CD) else Color(0x33FFFFFF),
+                                            shape = RoundedCornerShape(16.dp)
+                                        )
+                                        .clickable {
+                                            unitType = "kg"
+                                            if (quantityText.isBlank() || quantityText == "1") quantityText = "0.000"
+                                            step = 3
+                                        }
+                                        .padding(vertical = 24.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            imageVector = Icons.Default.Info,
+                                            contentDescription = null,
+                                            tint = if (unitType == "kg") Color(0xFF71D7CD) else Color(0xFF81928F),
+                                            modifier = Modifier.size(32.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "A Quilo (Kg)",
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (unitType == "kg") Color.White else Color(0xFF81928F),
+                                            fontSize = 14.sp
+                                        )
+                                    }
+                                }
+                            }
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Start
+                            ) {
+                                TextButton(onClick = { step = 1 }) {
+                                    Text("Voltar", color = Color(0xFF81928F))
+                                }
+                            }
+                        }
+                        3 -> {
+                            Text(
+                                text = productName,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                textAlign = TextAlign.Center
+                            )
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = quantityText,
+                                    onValueChange = { input ->
+                                        val sanitized = if (input.startsWith("0") && input.length > 1 && input[1].isDigit()) {
+                                            input.substring(1)
+                                        } else {
+                                            input
+                                        }
+                                        quantityText = sanitized
+                                    },
+                                    label = { Text(if (unitType == "kg") "Peso (Kg)" else "Quantidade", color = Color(0xFF81928F), fontSize = 12.sp) },
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = KeyboardType.Decimal,
+                                        imeAction = ImeAction.Next
+                                    ),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = Color(0xFF71D7CD),
+                                        unfocusedBorderColor = Color(0xFF3D4947),
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White,
+                                        cursorColor = Color(0xFF71D7CD)
+                                    ),
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                
+                                OutlinedTextField(
+                                    value = priceText,
+                                    onValueChange = { input ->
+                                        val sanitized = if (input.startsWith("0") && input.length > 1 && input[1].isDigit()) {
+                                            input.substring(1)
+                                        } else {
+                                            input
+                                        }
+                                        priceText = sanitized
+                                    },
+                                    label = { Text("Preço", color = Color(0xFF81928F), fontSize = 12.sp) },
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = KeyboardType.Decimal,
+                                        imeAction = ImeAction.Done
+                                    ),
+                                    keyboardActions = KeyboardActions(
+                                        onDone = {
+                                            val qty = parseDoubleSafely(quantityText)
+                                            val prc = parseDoubleSafely(priceText)
+                                            if (qty > 0 && prc > 0) {
+                                                onConfirm(productName, prc, qty, unitType)
+                                            }
+                                        }
+                                    ),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = Color(0xFF71D7CD),
+                                        unfocusedBorderColor = Color(0xFF3D4947),
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White,
+                                        cursorColor = Color(0xFF71D7CD)
+                                    ),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .focusRequester(focusRequester),
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                            }
+                            
+                            // Auto-focus the price field when step 3 starts
+                            LaunchedEffect(Unit) {
+                                focusRequester.requestFocus()
+                            }
+                            
+                            val parsedQty = parseDoubleSafely(quantityText)
+                            val parsedPrc = parseDoubleSafely(priceText)
+                            val totalVal = parsedQty * parsedPrc
+                            val formattedTotal = String.format(Locale("pt", "BR"), "R$ %,.2f", totalVal)
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text("Total Estimado", color = Color(0xFF81928F), fontSize = 12.sp)
+                                    Text(formattedTotal, color = Color(0xFF71D7CD), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                }
+                                
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    TextButton(onClick = { step = 2 }) {
+                                        Text("Voltar", color = Color(0xFF81928F))
+                                    }
+                                    Button(
+                                        onClick = {
+                                            onConfirm(productName, parsedPrc, parsedQty, unitType)
+                                        },
+                                        enabled = parsedQty > 0 && parsedPrc > 0,
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFF71D7CD),
+                                            contentColor = Color.Black,
+                                            disabledContainerColor = Color(0xFF2A3634)
+                                        ),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Text("Adicionar", fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ShareMarketListDialog(
+    marketListId: String?,
+    syncStatus: com.example.data.MarketSyncManager.SyncStatus,
+    isFirebaseConfigured: Boolean,
+    onDismiss: () -> Unit,
+    onStartShare: (String) -> Unit,
+    onStopShare: () -> Unit
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    val shareLink = "https://tessera-market.web.app/?listId=${marketListId ?: ""}"
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F1312)),
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .border(1.dp, Color(0x3371D7CD), RoundedCornerShape(24.dp))
+                .padding(20.dp)
+        ) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Sincronização em Tempo Real",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    textAlign = TextAlign.Center
+                )
+
+                if (!isFirebaseConfigured) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0x1AFF0000))
+                            .border(1.dp, Color(0x4DFF0000), RoundedCornerShape(12.dp))
+                            .padding(16.dp)
+                    ) {
+                        Text(
+                            text = "O Firebase não está configurado. Por favor, adicione as chaves FIREBASE_API_KEY, FIREBASE_PROJECT_ID e FIREBASE_APP_ID no seu arquivo .env para habilitar a sincronização em tempo real.",
+                            color = Color(0xFFFF6B6B),
+                            fontSize = 14.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
+                    Button(
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF2A3634),
+                            contentColor = Color.White
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Fechar")
+                    }
+                } else {
+                    if (marketListId != null) {
+                        // Sincronização Ativa
+                        val statusText = when (syncStatus) {
+                            com.example.data.MarketSyncManager.SyncStatus.CONNECTING -> "Conectando..."
+                            com.example.data.MarketSyncManager.SyncStatus.CONNECTED -> "Conectado"
+                            com.example.data.MarketSyncManager.SyncStatus.ERROR -> "Erro de Conexão"
+                            else -> "Inativo"
+                        }
+                        val statusColor = when (syncStatus) {
+                            com.example.data.MarketSyncManager.SyncStatus.CONNECTED -> Color(0xFF71D7CD)
+                            com.example.data.MarketSyncManager.SyncStatus.CONNECTING -> Color(0xFFFFD54F)
+                            com.example.data.MarketSyncManager.SyncStatus.ERROR -> Color(0xFFFF5252)
+                            else -> Color(0xFF81928F)
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(statusColor)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Sincronização: $statusText",
+                                color = statusColor,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        }
+
+                        // Link read-only box
+                        OutlinedTextField(
+                            value = shareLink,
+                            onValueChange = {},
+                            readOnly = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFF3D4947),
+                                unfocusedBorderColor = Color(0xFF3D4947),
+                                focusedTextColor = Color(0xFF81928F),
+                                unfocusedTextColor = Color(0xFF81928F)
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Button(
+                                onClick = {
+                                    val annotatedString = androidx.compose.ui.text.buildAnnotatedString { append(shareLink) }
+                                    clipboardManager.setText(annotatedString)
+                                    android.widget.Toast.makeText(context, "Link copiado!", android.widget.Toast.LENGTH_SHORT).show()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF71D7CD), contentColor = Color.Black),
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Copiar Link", fontWeight = FontWeight.Bold)
+                            }
+
+                            Button(
+                                onClick = onStopShare,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5252), contentColor = Color.White),
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Parar Sinc", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    } else {
+                        // Sincronização Inativa
+                        Text(
+                            text = "Compartilhe sua lista de compras em tempo real com outra pessoa. Ela poderá ver e marcar itens no carrinho diretamente do navegador!",
+                            color = Color(0xFFBDC9C6),
+                            fontSize = 14.sp,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Button(
+                            onClick = {
+                                val uniqueId = java.util.UUID.randomUUID().toString().take(8)
+                                onStartShare(uniqueId)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF71D7CD), contentColor = Color.Black),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Gerar Link e Sincronizar", fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    TextButton(onClick = onDismiss) {
+                        Text("Voltar", color = Color(0xFF81928F))
+                    }
+                }
             }
         }
     }

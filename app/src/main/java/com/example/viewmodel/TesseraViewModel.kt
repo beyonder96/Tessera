@@ -47,6 +47,28 @@ class TesseraViewModel(
     private val applicationContext: Context
 ) : ViewModel() {
 
+    val syncManager = com.example.data.MarketSyncManager(applicationContext, repository)
+    private val marketSharedPrefs = applicationContext.getSharedPreferences("tessera_market_prefs", Context.MODE_PRIVATE)
+    val marketListId = MutableStateFlow<String?>(marketSharedPrefs.getString("shared_list_id", null))
+
+    init {
+        marketListId.value?.let { id ->
+            syncManager.startSync(id)
+        }
+    }
+
+    fun startMarketSharing(listId: String) {
+        marketSharedPrefs.edit().putString("shared_list_id", listId).apply()
+        marketListId.value = listId
+        syncManager.startSync(listId)
+    }
+
+    fun stopMarketSharing() {
+        marketSharedPrefs.edit().remove("shared_list_id").apply()
+        marketListId.value = null
+        syncManager.stopSync()
+    }
+
     data class InsightCard(
         val id: String,
         val title: String,
@@ -142,6 +164,52 @@ class TesseraViewModel(
         _glassmorphismLevel.value = level
     }
 
+    private val _vrResetDate = MutableStateFlow(sharedPrefs.getInt("vr_reset_date", 1))
+    val vrResetDate: StateFlow<Int> = _vrResetDate.asStateFlow()
+
+    private val _vrBalance = MutableStateFlow(sharedPrefs.getFloat("vr_balance", 0f))
+    val vrBalance: StateFlow<Float> = _vrBalance.asStateFlow()
+
+    private val _vrLastPromptMonth = MutableStateFlow(sharedPrefs.getInt("vr_last_prompt_month", -1))
+    private val _showVrPrompt = MutableStateFlow(false)
+    val showVrPrompt: StateFlow<Boolean> = _showVrPrompt.asStateFlow()
+
+    init {
+        checkVrPrompt()
+    }
+
+    fun setVrResetDate(date: Int) {
+        sharedPrefs.edit().putInt("vr_reset_date", date).apply()
+        _vrResetDate.value = date
+        checkVrPrompt()
+    }
+
+    fun updateVrBalance(balance: Float) {
+        sharedPrefs.edit().putFloat("vr_balance", balance).apply()
+        _vrBalance.value = balance
+        val currentMonth = java.util.Calendar.getInstance().get(java.util.Calendar.MONTH)
+        sharedPrefs.edit().putInt("vr_last_prompt_month", currentMonth).apply()
+        _vrLastPromptMonth.value = currentMonth
+        _showVrPrompt.value = false
+    }
+
+    fun dismissVrPrompt() {
+        _showVrPrompt.value = false
+        val currentMonth = java.util.Calendar.getInstance().get(java.util.Calendar.MONTH)
+        sharedPrefs.edit().putInt("vr_last_prompt_month", currentMonth).apply()
+        _vrLastPromptMonth.value = currentMonth
+    }
+
+    fun checkVrPrompt() {
+        val calendar = java.util.Calendar.getInstance()
+        val currentDay = calendar.get(java.util.Calendar.DAY_OF_MONTH)
+        val currentMonth = calendar.get(java.util.Calendar.MONTH)
+        
+        if (currentDay == _vrResetDate.value && _vrLastPromptMonth.value != currentMonth) {
+            _showVrPrompt.value = true
+        }
+    }
+
     fun saveSpotifyToken(token: String) {
         sharedPrefs.edit().putString("spotify_access_token", token).apply()
         _spotifyAccessToken.value = token
@@ -169,7 +237,7 @@ class TesseraViewModel(
     val configuredFootballTeams: StateFlow<List<String>> = _configuredFootballTeams.asStateFlow()
 
     private val newsService = NewsService.create()
-    private val newsApiKey = "d47edb4744604172abec5be172a5acc2"
+    private val newsApiKey = com.example.BuildConfig.NEWS_API_KEY
 
     private val _newsArticles = MutableStateFlow<List<NewsArticle>>(emptyList())
     val newsArticles: StateFlow<List<NewsArticle>> = _newsArticles.asStateFlow()
@@ -1027,10 +1095,10 @@ class TesseraViewModel(
         }
     }
 
-    fun addMarketItem(name: String, category: String = "Geral", price: Double = 0.0, quantity: Double = 1.0, unit: String = "un") {
+    fun addMarketItem(name: String, category: String = "Geral", price: Double = 0.0, quantity: Double = 1.0, unit: String = "un", isChecked: Boolean = false) {
         viewModelScope.launch {
             repository.insertMarketItem(
-                MarketItem(name = name, isChecked = false, isBought = false, orderIndex = 0, category = category, price = price, quantity = quantity, unit = unit)
+                MarketItem(name = name, isChecked = isChecked, isBought = false, orderIndex = 0, category = category, price = price, quantity = quantity, unit = unit)
             )
         }
     }

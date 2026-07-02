@@ -3991,47 +3991,49 @@ fun BottomNavBar(
                 rippleFraction.snapTo(0f)
                 rippleFraction.animateTo(
                     targetValue = 1f,
-                    animationSpec = tween(durationMillis = 400, easing = androidx.compose.animation.core.LinearOutSlowInEasing)
+                    animationSpec = tween(durationMillis = 800, easing = androidx.compose.animation.core.LinearOutSlowInEasing)
                 )
             }
             
             scaleAnim.animateTo(
                 targetValue = 0f,
-                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
             )
             
             displayedRoute = currentRoute
             
             scaleAnim.animateTo(
                 targetValue = 1f,
-                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
+                animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing)
             )
         }
     }
 
     val handleTabClick: (String, Int) -> Unit = { route, clickedIndex ->
-        val pivot = when (clickedIndex) {
-            0 -> 0.125f
-            1 -> 0.375f
-            2 -> 0.625f
-            3 -> 0.875f
-            else -> 0.5f
-        }
-        pivotX = pivot
-        
-        scope.launch {
-            launch {
-                rippleFraction.snapTo(0f)
-                rippleFraction.animateTo(
-                    targetValue = 1f,
-                    animationSpec = tween(durationMillis = 400, easing = androidx.compose.animation.core.LinearOutSlowInEasing)
-                )
+        if (route != displayedRoute) {
+            val pivot = when (clickedIndex) {
+                0 -> 0.125f
+                1 -> 0.375f
+                2 -> 0.625f
+                3 -> 0.875f
+                else -> 0.5f
             }
-            scaleAnim.animateTo(
-                targetValue = 0f,
-                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
-            )
-            onNavigate(route)
+            pivotX = pivot
+            
+            scope.launch {
+                launch {
+                    rippleFraction.snapTo(0f)
+                    rippleFraction.animateTo(
+                        targetValue = 1f,
+                        animationSpec = tween(durationMillis = 800, easing = androidx.compose.animation.core.LinearOutSlowInEasing)
+                    )
+                }
+                scaleAnim.animateTo(
+                    targetValue = 0f,
+                    animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
+                )
+                onNavigate(route)
+            }
         }
     }
 
@@ -4042,7 +4044,7 @@ fun BottomNavBar(
             .padding(horizontal = 20.dp, vertical = 16.dp)
             .drawBehind {
                 if (rippleFraction.value > 0f && rippleFraction.value < 1f) {
-                    val radius = size.width * rippleFraction.value * 1.2f
+                    val radius = 48.dp.toPx() * rippleFraction.value
                     drawCircle(
                         color = PrimaryTeal.copy(alpha = 0.2f * (1f - rippleFraction.value)),
                         radius = radius,
@@ -4395,7 +4397,7 @@ fun LockScreen(onUnlocked: () -> Unit) {
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2500, easing = LinearEasing),
+            animation = tween(4000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "Wave1"
@@ -4404,7 +4406,7 @@ fun LockScreen(onUnlocked: () -> Unit) {
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2500, easing = LinearEasing, delayMillis = 1250),
+            animation = tween(4000, easing = LinearEasing, delayMillis = 2000),
             repeatMode = RepeatMode.Restart
         ),
         label = "Wave2"

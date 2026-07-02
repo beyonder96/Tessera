@@ -216,7 +216,7 @@ object NetworkModule {
     
     fun provideFixtureRepository(api: SportmonksApi): FixtureRepository {
         // Lembre-se de colocar sua chave aqui, via BuildConfig ou Secrets!
-        val apiToken = "s9M1yUatdExguK89eVzkubPv15aZO0hsQoRXjzh01b7g2nUGFPy5qxjmXOqo" 
+        val apiToken = com.example.BuildConfig.SPORTMONKS_API_TOKEN
         return FixtureRepository(api, apiToken)
     }
 }

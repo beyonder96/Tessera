@@ -1,0 +1,79 @@
+Reusing configuration cache.
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:generateDebugBuildConfig UP-TO-DATE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:generateDebugGlobalSynthetics UP-TO-DATE
+> Task :app:mergeDebugAssets UP-TO-DATE
+> Task :app:compressDebugAssets UP-TO-DATE
+> Task :app:desugarDebugFileDependencies UP-TO-DATE
+> Task :app:processDebugNavigationResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:generateDebugRFile UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:compileDebugNavigationResources UP-TO-DATE
+> Task :app:checkDebugDuplicateClasses UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:mergeLibDexDebug UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:kspDebugKotlin UP-TO-DATE
+> Task :app:mergeDebugJniLibFolders UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:mergeDebugNativeLibs UP-TO-DATE
+> Task :app:stripDebugDebugSymbols UP-TO-DATE
+> Task :app:validateSigningDebug UP-TO-DATE
+> Task :app:writeDebugAppMetadata UP-TO-DATE
+> Task :app:writeDebugSigningConfigVersions UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :app:mergeExtDexDebug
+> Task :app:compileDebugKotlin
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/ChronosScreen.kt:66:26 'constructor(p0: Int, p1: Int, p2: Int, p3: Int, p4: Int, p5: Int): AudioTrack' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/ChronosScreen.kt:1111:79 'val Icons.Outlined.VolumeUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Outlined.VolumeUp.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/ChronosScreen.kt:1111:108 'val Icons.Outlined.VolumeMute: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Outlined.VolumeMute.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/ChronosScreen.kt:1198:38 'val Icons.Outlined.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Outlined.MenuBook.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/DailyScreen.kt:118:76 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:202:73 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:264:89 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:316:111 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:321:115 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:332:116 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:607:74 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:626:82 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:670:78 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:892:76 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:901:99 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:931:92 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:951:92 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:971:92 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:1121:58 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:1215:54 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:1307:40 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:1312:40 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:1523:48 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:1588:82 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:1747:46 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:1862:73 'val Icons.Outlined.Label: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Outlined.Label.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:2451:60 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:2496:60 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/FinanceScreen.kt:2990:64 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/HealthScreen.kt:1344:41 'val Icons.Outlined.DirectionsWalk: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Outlined.DirectionsWalk.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/HealthScreen.kt:1774:37 'val Icons.Outlined.DirectionsWalk: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Outlined.DirectionsWalk.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/InvoiceHubScreen.kt:45:27 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/MainActivity.kt:1517:48 'val Icons.Outlined.DirectionsWalk: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Outlined.DirectionsWalk.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/MainActivity.kt:1520:54 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/MainActivity.kt:1521:54 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/MainActivity.kt:1882:44 'val Icons.Outlined.DirectionsWalk: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Outlined.DirectionsWalk.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/MainActivity.kt:2056:44 'val Icons.Outlined.DirectionsWalk: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Outlined.DirectionsWalk.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/MainActivity.kt:2624:39 'val Icons.Outlined.DirectionsWalk: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Outlined.DirectionsWalk.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/MainActivity.kt:2633:64 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/MainActivity.kt:2640:73 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/MainActivity.kt:2981:62 'val Icons.Outlined.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Outlined.MenuBook.
+w: file:///home/kenned/Documentos/Tessera/app/src/main/java/com/example/MainActivity.kt:3306:57 'val Icons.Filled.ArrowForward: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowForward.
