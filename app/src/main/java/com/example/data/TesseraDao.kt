@@ -14,8 +14,11 @@ interface TesseraDao {
     @Delete
     suspend fun deleteTransaction(transaction: Transaction)
 
-    @Query("SELECT * FROM market_items WHERE isBought = 0 ORDER BY orderIndex ASC")
+    @Query("SELECT * FROM market_items WHERE isBought = 0 AND inMarket = 0 ORDER BY orderIndex ASC")
     fun getPendingMarketItems(): Flow<List<MarketItem>>
+
+    @Query("SELECT * FROM market_items WHERE isBought = 0 AND inMarket = 1 ORDER BY orderIndex ASC")
+    fun getShoppingMarketItems(): Flow<List<MarketItem>>
 
     @Query("SELECT * FROM market_items WHERE isBought = 1 ORDER BY id DESC")
     fun getBoughtMarketItems(): Flow<List<MarketItem>>
@@ -28,6 +31,9 @@ interface TesseraDao {
 
     @Delete
     suspend fun deleteMarketItem(item: MarketItem)
+
+    @Query("DELETE FROM market_items WHERE LOWER(name) IN (:names) AND inMarket = 0")
+    suspend fun deletePlanningItemsByNames(names: List<String>)
 
     @Query("SELECT COUNT(*) FROM pet_events")
     suspend fun getPetEventsCount(): Int

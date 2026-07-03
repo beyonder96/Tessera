@@ -230,6 +230,9 @@ class TesseraViewModel(
     private val _footballMatches = MutableStateFlow<List<com.example.data.FootballMatchInfo>>(emptyList())
     val footballMatches: StateFlow<List<com.example.data.FootballMatchInfo>> = _footballMatches.asStateFlow()
 
+    private val _availableFootballTeams = MutableStateFlow<List<String>>(emptyList())
+    val availableFootballTeams: StateFlow<List<String>> = _availableFootballTeams.asStateFlow()
+
     private val _isLoadingFootball = MutableStateFlow(false)
     val isLoadingFootball: StateFlow<Boolean> = _isLoadingFootball.asStateFlow()
 
@@ -376,6 +379,9 @@ class TesseraViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val pendingMarketItems: StateFlow<List<MarketItem>> = repository.pendingMarketItems
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val shoppingMarketItems: StateFlow<List<MarketItem>> = repository.shoppingMarketItems
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val boughtMarketItems: StateFlow<List<MarketItem>> = repository.boughtMarketItems
@@ -1095,10 +1101,10 @@ class TesseraViewModel(
         }
     }
 
-    fun addMarketItem(name: String, category: String = "Geral", price: Double = 0.0, quantity: Double = 1.0, unit: String = "un", isChecked: Boolean = false) {
+    fun addMarketItem(name: String, category: String = "Geral", price: Double = 0.0, quantity: Double = 1.0, unit: String = "un", isChecked: Boolean = false, inMarket: Boolean = false) {
         viewModelScope.launch {
             repository.insertMarketItem(
-                MarketItem(name = name, isChecked = isChecked, isBought = false, orderIndex = 0, category = category, price = price, quantity = quantity, unit = unit)
+                MarketItem(name = name, isChecked = isChecked, isBought = false, orderIndex = 0, category = category, price = price, quantity = quantity, unit = unit, inMarket = inMarket)
             )
         }
     }
@@ -1123,10 +1129,18 @@ class TesseraViewModel(
 
     fun checkoutCart() {
         viewModelScope.launch {
-            val pending = repository.pendingMarketItems.first()
-            val inCart = pending.filter { it.isChecked }
+            val shoppingItems = repository.shoppingMarketItems.first()
+            val inCart = shoppingItems.filter { it.isChecked }
+            val inCartNames = inCart.map { it.name.lowercase().trim() }.distinct()
+            
+            // Delete checked items from cart
             inCart.forEach { item ->
-                repository.updateMarketItem(item.copy(isBought = true, isChecked = false))
+                repository.deleteMarketItem(item)
+            }
+            
+            // Delete same items from planning
+            if (inCartNames.isNotEmpty()) {
+                repository.deletePlanningItemsByNames(inCartNames)
             }
         }
     }
@@ -1695,7 +1709,25 @@ class TesseraViewModel(
                         )
                     }
 
+                    val uniqueTeams = fixtures.flatMap { fixture ->
+                        fixture.participants?.mapNotNull { it.name } ?: emptyList()
+                    }.distinct().sorted()
+                    _availableFootballTeams.value = uniqueTeams
+
                     for (teamName in teams) {
+                        if (teamName.equals("Jogos da Rodada", ignoreCase = true)) {
+                            // Mostrar o próximo jogo geral da rodada ou o mais recente que estiver rolando/terminado
+                            val sorted = fixtures.sortedBy { it.startingAt }
+                            val lastMatchDto = sorted.lastOrNull { 
+                                it.state?.state == "FT" || it.state?.state == "LIVE" || it.state?.state == "IN_PLAY" || it.state?.state == "HT" || (it.startingAt < java.time.LocalDateTime.now().toString())
+                            }
+                            val nextMatchDto = sorted.firstOrNull { 
+                                it.state?.state == "NS" || it.state?.state == "TBA" || (it.startingAt >= java.time.LocalDateTime.now().toString())
+                            }
+                            list.add(com.example.data.FootballMatchInfo("Jogos da Rodada", lastMatchDto?.let { mapToDetail(it) }, nextMatchDto?.let { mapToDetail(it) }))
+                            continue
+                        }
+
                         val teamFixtures = fixtures.filter { fixture ->
                             fixture.participants?.any { it.name.contains(teamName, ignoreCase = true) } == true
                         }

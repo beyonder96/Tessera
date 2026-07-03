@@ -31,7 +31,8 @@ data class MarketItem(
     val quantity: Double = 1.0,
     val unit: String = "un",
     val price: Double = 0.0,
-    val category: String = "Geral"
+    val category: String = "Geral",
+    val inMarket: Boolean = false
 )
 
 @Entity(tableName = "pet_events")

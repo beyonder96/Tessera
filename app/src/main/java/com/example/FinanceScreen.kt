@@ -138,12 +138,12 @@ fun FinanceScreen(
     }
 
     if (showManageDialog) {
-        ManageAccountsDialog(
-            bankAccounts = bankAccounts,
-            creditCards = creditCards,
-            onDismiss = { showManageDialog = false },
-            viewModel = viewModel
-        )
+//        ManageAccountsDialog(
+//            bankAccounts = bankAccounts,
+//            creditCards = creditCards,
+//            onDismiss = { showManageDialog = false },
+//            viewModel = viewModel
+//        )
     }
 
     if (showVrPrompt || showVrSettingsDialog) {

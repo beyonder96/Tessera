@@ -79,6 +79,7 @@ fun parseDoubleSafely(input: String): Double {
 @Composable
 fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
     val pendingItems by viewModel.pendingMarketItems.collectAsStateWithLifecycle()
+    val shoppingItems by viewModel.shoppingMarketItems.collectAsStateWithLifecycle()
     val boughtItems by viewModel.boughtMarketItems.collectAsStateWithLifecycle()
 
     val pagerState = rememberPagerState(pageCount = { 2 })
@@ -92,7 +93,7 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
     val selectedTab = pagerState.currentPage
     val currentTabTitle = if (selectedTab == 0) "PLANEJAMENTO" else "NO MERCADO"
     
-    val cartTotal = pendingItems.filter { it.isChecked }.sumOf { it.price * it.quantity }
+    val cartTotal = shoppingItems.filter { it.isChecked }.sumOf { it.price * it.quantity }
     val formattedTotal = String.format(Locale("pt", "BR"), "R$ %,.2f", cartTotal)
 
     val planningListState = rememberLazyListState()
@@ -152,7 +153,7 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                         PlanningView(viewModel, pendingItems, boughtItems, planningListState)
                     } else {
                         ShoppingView(
-                            pendingItems = pendingItems,
+                            pendingItems = shoppingItems,
                             listState = shoppingListState,
                             onItemToggle = { viewModel.toggleMarketItemChecked(it) },
                             onItemUpdate = { item, price, qty, unit -> 
@@ -310,7 +311,7 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
             DynamicAddMarketItemDialog(
                 onDismiss = { showAddDialog = false },
                 onConfirm = { name, price, qty, unit ->
-                    viewModel.addMarketItem(name = name, price = price, quantity = qty, unit = unit, isChecked = true)
+                    viewModel.addMarketItem(name = name, price = price, quantity = qty, unit = unit, isChecked = true, inMarket = true)
                     showAddDialog = false
                 }
             )

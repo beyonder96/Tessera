@@ -3,6 +3,13 @@
 Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inteligente!
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
+## 🚀 Novidades da Versão 1.7.9
+
+- **Independência das Listas de Mercado e Planejamento:** A aba de Planejamento e No Mercado agora operam com itens separados no banco de dados. Itens adicionados em "No Mercado" já entram marcados por padrão.
+- **Integração de Deleção Inteligente:** Ao finalizar a compra, os itens marcados na aba de mercado são excluídos do banco, e o app agora automaticamente apaga os itens com o mesmo nome na aba de Planejamento!
+- **Autocompletar na API de Futebol:** Na tela de configurações, a caixa de adição de times ganhou autocompletar dinâmico direto com base nos dados da API, evitando nomes incorretos.
+- **Jogos da Rodada:** Configurado o fluxo base para suporte à opção de listar os próximos confrontos diretos da rodada atual.
+
 ## 🚀 Novidades da Versão 1.7.6
 
 - **Design Clássico Restaurado na Aba Hoje:** Retornamos ao layout clássico da aba **Hoje**, reativando a linha superior de métricas (`TopMetricsRow`) e o carrossel horizontal (`HorizontalPager`) com os widgets em tamanho real (Finanças, Saúde, Foco, Petz e Mercado).
@@ -19,8 +26,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
-- **Debug:** `app-debug-1.7.8.apk`
-- **Release:** `app-release-1.7.8.apk`
+- **Debug:** `app-debug-1.7.9.apk`
+- **Release:** `app-release-1.7.9.apk`
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.

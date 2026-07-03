@@ -110,6 +110,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
     val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
     val petEvents by viewModel.allPetEvents.collectAsState(initial = emptyList())
     val configuredFootballTeams by viewModel.configuredFootballTeams.collectAsState()
+    val availableFootballTeams by viewModel.availableFootballTeams.collectAsState()
 
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
@@ -1188,6 +1189,30 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                         ),
                                         singleLine = true
                                     )
+
+                                    val filteredTeams = availableFootballTeams.filter { it.contains(tempTeamName, ignoreCase = true) }.take(5)
+                                    if (tempTeamName.isNotBlank() && filteredTeams.isNotEmpty() && tempTeamName != filteredTeams.firstOrNull()) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(Color.White.copy(alpha = 0.05f))
+                                        ) {
+                                            filteredTeams.forEach { teamName ->
+                                                Text(
+                                                    text = teamName,
+                                                    color = Color.White,
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clickable { tempTeamName = teamName }
+                                                        .padding(vertical = 12.dp, horizontal = 16.dp)
+                                                )
+                                                if (teamName != filteredTeams.last()) {
+                                                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.1f)))
+                                                }
+                                            }
+                                        }
+                                    }
 
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),

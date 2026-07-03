@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 class TesseraRepository(private val dao: TesseraDao) {
     val allTransactions: Flow<List<Transaction>> = dao.getAllTransactions()
     val pendingMarketItems: Flow<List<MarketItem>> = dao.getPendingMarketItems()
+    val shoppingMarketItems: Flow<List<MarketItem>> = dao.getShoppingMarketItems()
     val boughtMarketItems: Flow<List<MarketItem>> = dao.getBoughtMarketItems()
     val allPetEvents: Flow<List<PetEvent>> = dao.getAllPetEvents()
 
@@ -26,6 +27,10 @@ class TesseraRepository(private val dao: TesseraDao) {
 
     suspend fun deleteMarketItem(item: MarketItem) {
         dao.deleteMarketItem(item)
+    }
+
+    suspend fun deletePlanningItemsByNames(names: List<String>) {
+        dao.deletePlanningItemsByNames(names)
     }
 
     suspend fun updatePetEvent(event: PetEvent) {
