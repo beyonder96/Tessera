@@ -38,8 +38,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 import com.example.data.FootballService
 import com.example.data.FootballMatchInfo
 import com.example.data.sportmonks.NetworkModule
-import com.example.data.NewsArticle
-import com.example.data.NewsService
+import com.example.data.RssArticle
+import com.example.data.RssRepository
 import android.util.Log
 
 class TesseraViewModel(
@@ -227,8 +227,8 @@ class TesseraViewModel(
     )
     private val fixtureRepository = NetworkModule.provideFixtureRepository(sportmonksApi)
 
-    private val _footballMatches = MutableStateFlow<List<com.example.data.FootballMatchInfo>>(emptyList())
-    val footballMatches: StateFlow<List<com.example.data.FootballMatchInfo>> = _footballMatches.asStateFlow()
+    private val _featuredMatch = MutableStateFlow<com.example.data.DetailedFixture?>(null)
+    val featuredMatch: StateFlow<com.example.data.DetailedFixture?> = _featuredMatch.asStateFlow()
 
     private val _availableFootballTeams = MutableStateFlow<List<String>>(emptyList())
     val availableFootballTeams: StateFlow<List<String>> = _availableFootballTeams.asStateFlow()
@@ -239,11 +239,10 @@ class TesseraViewModel(
     private val _configuredFootballTeams = MutableStateFlow<List<String>>(emptyList())
     val configuredFootballTeams: StateFlow<List<String>> = _configuredFootballTeams.asStateFlow()
 
-    private val newsService = NewsService.create()
-    private val newsApiKey = com.example.BuildConfig.NEWS_API_KEY
+    private val rssRepository = RssRepository()
 
-    private val _newsArticles = MutableStateFlow<List<NewsArticle>>(emptyList())
-    val newsArticles: StateFlow<List<NewsArticle>> = _newsArticles.asStateFlow()
+    private val _newsArticles = MutableStateFlow<List<RssArticle>>(emptyList())
+    val newsArticles: StateFlow<List<RssArticle>> = _newsArticles.asStateFlow()
 
     fun loadConfiguredFootballTeams() {
         val teams = sharedPrefs.getStringSet("football_teams", setOf("Brasil", "Flamengo")) ?: setOf("Brasil", "Flamengo")
@@ -267,13 +266,10 @@ class TesseraViewModel(
     fun fetchNews() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val response = newsService.getTopHeadlines(apiKey = newsApiKey)
-                if (response.isSuccessful) {
-                    val articles = response.body()?.articles ?: emptyList()
-                    _newsArticles.value = articles.filter { !it.title.isNullOrBlank() }
-                }
+                val articles = rssRepository.getLatestNews()
+                _newsArticles.value = articles
             } catch (e: Exception) {
-                Log.e("TesseraViewModel", "Erro ao buscar notícias: ${e.message}")
+                Log.e("TesseraViewModel", "Erro ao buscar notícias RSS: ${e.message}")
             }
         }
     }
@@ -1686,17 +1682,15 @@ class TesseraViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             _isLoadingFootball.value = true
             try {
-                val result = fixtureRepository.getLatestFixtures()
+                // Fetch the specific fixture ID 19621904 requested by user
+                val result = fixtureRepository.getFixture(19621904)
                 if (result.isSuccess) {
-                    val fixtures = result.getOrNull()?.data ?: emptyList()
-                    val teams = _configuredFootballTeams.value
-                    val list = mutableListOf<com.example.data.FootballMatchInfo>()
-
-                    val mapToDetail = { dto: com.example.data.sportmonks.FixtureDto ->
+                    val dto = result.getOrNull()?.data
+                    if (dto != null) {
                         val home = dto.participants?.getOrNull(0)
                         val away = dto.participants?.getOrNull(1)
                         
-                        com.example.data.MatchDetail(
+                        val matchDetail = com.example.data.MatchDetail(
                             homeTeamName = home?.name ?: "Time 1",
                             homeTeamLogo = home?.imagePath ?: "",
                             awayTeamName = away?.name ?: "Time 2",
@@ -1707,59 +1701,46 @@ class TesseraViewModel(
                             dateFormatted = formatFootballDate(dto.startingAt),
                             leagueName = dto.league?.name ?: "Liga"
                         )
+
+                        val events = dto.events?.map { e ->
+                            com.example.data.MatchEvent(
+                                id = e.id,
+                                minute = e.minute,
+                                typeName = e.type?.name ?: "Evento",
+                                typeCode = e.type?.code,
+                                playerName = e.player?.displayName ?: e.player?.name ?: "Desconhecido",
+                                isHomeTeam = e.participantId == home?.id
+                            )
+                        } ?: emptyList()
+
+                        val homeLineup = dto.lineups?.filter { it.participantId == home?.id }?.map { l ->
+                            com.example.data.MatchLineup(
+                                playerId = l.playerId,
+                                playerName = l.player?.displayName ?: l.player?.name ?: "Jogador",
+                                playerImage = l.player?.imagePath,
+                                position = l.formationPosition
+                            )
+                        } ?: emptyList()
+
+                        val awayLineup = dto.lineups?.filter { it.participantId == away?.id }?.map { l ->
+                            com.example.data.MatchLineup(
+                                playerId = l.playerId,
+                                playerName = l.player?.displayName ?: l.player?.name ?: "Jogador",
+                                playerImage = l.player?.imagePath,
+                                position = l.formationPosition
+                            )
+                        } ?: emptyList()
+
+                        val detailedFixture = com.example.data.DetailedFixture(
+                            matchDetail = matchDetail,
+                            venueName = dto.venue?.name,
+                            events = events.sortedBy { it.minute },
+                            homeLineup = homeLineup.sortedBy { it.position ?: 99 },
+                            awayLineup = awayLineup.sortedBy { it.position ?: 99 }
+                        )
+
+                        _featuredMatch.value = detailedFixture
                     }
-
-                    val uniqueTeams = fixtures.flatMap { fixture ->
-                        fixture.participants?.mapNotNull { it.name } ?: emptyList()
-                    }.distinct().sorted()
-                    _availableFootballTeams.value = uniqueTeams
-
-                    for (teamName in teams) {
-                        if (teamName.equals("Jogos da Rodada", ignoreCase = true)) {
-                            // Mostrar o próximo jogo geral da rodada ou o mais recente que estiver rolando/terminado
-                            val sorted = fixtures.sortedBy { it.startingAt }
-                            val lastMatchDto = sorted.lastOrNull { 
-                                it.state?.state == "FT" || it.state?.state == "LIVE" || it.state?.state == "IN_PLAY" || it.state?.state == "HT" || (it.startingAt < java.time.LocalDateTime.now().toString())
-                            }
-                            val nextMatchDto = sorted.firstOrNull { 
-                                it.state?.state == "NS" || it.state?.state == "TBA" || (it.startingAt >= java.time.LocalDateTime.now().toString())
-                            }
-                            list.add(com.example.data.FootballMatchInfo("Jogos da Rodada", lastMatchDto?.let { mapToDetail(it) }, nextMatchDto?.let { mapToDetail(it) }))
-                            continue
-                        }
-
-                        val teamFixtures = fixtures.filter { fixture ->
-                            fixture.participants?.any { it.name.contains(teamName, ignoreCase = true) } == true
-                        }
-                        
-                        if (teamFixtures.isNotEmpty()) {
-                            val sorted = teamFixtures.sortedBy { it.startingAt }
-                            
-                            val lastMatchDto = sorted.lastOrNull { 
-                                it.state?.state == "FT" || (it.startingAt < java.time.LocalDateTime.now().toString())
-                            }
-                            
-                            val nextMatchDto = sorted.firstOrNull { 
-                                it.state?.state == "NS" || it.state?.state == "TBA" || (it.startingAt >= java.time.LocalDateTime.now().toString())
-                            }
-                            
-                            val lastMatch = lastMatchDto?.let { mapToDetail(it) }
-                            val nextMatch = nextMatchDto?.let { mapToDetail(it) }
-                            
-                            list.add(com.example.data.FootballMatchInfo(teamName, lastMatch, nextMatch))
-                        } else {
-                            // Fallback para API gratuita: Se não encontrar o time, mostra destaques disponíveis
-                            val fallbackSorted = fixtures.sortedBy { it.startingAt }
-                            val fallbackLast = fallbackSorted.lastOrNull { 
-                                it.state?.state == "FT" || (it.startingAt < java.time.LocalDateTime.now().toString())
-                            }
-                            val fallbackNext = fallbackSorted.firstOrNull { 
-                                it.state?.state == "NS" || it.state?.state == "TBA" || (it.startingAt >= java.time.LocalDateTime.now().toString())
-                            }
-                            list.add(com.example.data.FootballMatchInfo("$teamName (Indisponível - Destaque)", fallbackLast?.let { mapToDetail(it) }, fallbackNext?.let { mapToDetail(it) }))
-                        }
-                    }
-                    _footballMatches.value = list
                 } else {
                     Log.e("TesseraViewModel", "Erro ao buscar placares: ${result.exceptionOrNull()?.message}")
                 }

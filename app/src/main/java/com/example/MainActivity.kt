@@ -585,6 +585,9 @@ fun TesseraApp() {
                         initialPage = viewModel.selectedGoalsTab
                     )
                 }
+                composable("chat") {
+                    TesseraChatScreen()
+                }
                 composable("market") {
                     MarketScreen(onHomeClick = { 
                         navController.navigate("home") {
@@ -997,25 +1000,7 @@ fun HomeScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScro
             }
             
             Spacer(modifier = Modifier.height(16.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentSize(Alignment.Center)
-                    .graphicsLayer {
-                        val scrollVal = scrollState.value
-                        alpha = (1f - (scrollVal / 250f)).coerceIn(0f, 1f)
-                        val scale = (1f - (scrollVal / 1200f)).coerceIn(0.85f, 1f)
-                        scaleX = scale
-                        scaleY = scale
-                        translationY = -scrollVal * 0.12f
-                    }
-                    .scrollFadeInOut()
-            ) {
-                com.example.ui.components.FootballScoreboardPill(
-                    viewModel = mainViewModel
-                )
-            }
-            Spacer(modifier = Modifier.height(20.dp))
+
 
             Box(
                 modifier = Modifier
@@ -2217,7 +2202,7 @@ fun MainContent(
     val stepsRecords by mainViewModel.allStepsRecords.collectAsState(initial = emptyList())
     val weightRecords by mainViewModel.allWeightRecords.collectAsState(initial = emptyList())
     val healthProfile by mainViewModel.healthProfile.collectAsState(initial = null)
-    val newsArticles by mainViewModel.newsArticles.collectAsState(initial = emptyList())
+
 
     val todayStart = remember {
         java.util.Calendar.getInstance().apply {
@@ -3969,6 +3954,7 @@ fun BottomNavBar(
             "finance" -> 1
             "market" -> 2
             "health" -> 1
+            "chat" -> 3
             else -> 0
         }
     }
@@ -4124,6 +4110,12 @@ fun BottomNavBar(
                         contentDescription = "Mercado",
                         isActive = displayedRoute == "market",
                         onClick = { handleTabClick("market", 2) }
+                    )
+                    CircularNavButton(
+                        icon = Icons.Outlined.AutoAwesome,
+                        contentDescription = "Chat",
+                        isActive = displayedRoute == "chat",
+                        onClick = { handleTabClick("chat", 3) }
                     )
                 }
             }

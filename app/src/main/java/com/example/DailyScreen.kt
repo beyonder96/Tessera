@@ -333,6 +333,9 @@ fun DailyScreen(
                         // 2. PREMIUM WEATHER WIDGET
                         PremiumWeatherWidget(weatherState)
 
+                        // 3. FOOTBALL HIGHLIGHT MATCH WIDGET
+                        com.example.ui.components.DetailedMatchWidget(viewModel = viewModel)
+
                         // 4. CONNECTIVITY FLOATING DOCK/PILL
                         ConnectivityDock(
                             onBellClick = {
@@ -378,8 +381,8 @@ fun DailyScreen(
                             }
                         )
                         
-                        // Removed Twitter and News widgets as per requirements
-
+                        // 5. RSS DAILY NEWS WIDGET
+                        com.example.ui.components.RssNewsWidget(articles = newsArticles)
                     }
                 }
             }
@@ -1177,74 +1180,4 @@ fun QuietTheMindPlayerDialog(
     }
 }
 
-@Composable
-fun NewsExpandedSection(articles: List<com.example.data.NewsArticle>) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "ÚLTIMAS NOTÍCIAS",
-                fontFamily = FontFamily.SansSerif,
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.sp,
-                color = Color.White.copy(alpha = 0.5f),
-                letterSpacing = 2.sp
-            )
-            Icon(
-                imageVector = Icons.Default.Public,
-                contentDescription = null,
-                tint = Color(0xFF64FFDA),
-                modifier = Modifier.size(14.dp)
-            )
-        }
 
-        articles.forEach { article ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF1E252B).copy(alpha = 0.6f))
-                    .clickable { /* Opcional: abrir URL externa */ }
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (!article.urlToImage.isNullOrEmpty()) {
-                    coil.compose.AsyncImage(
-                        model = article.urlToImage,
-                        contentDescription = null,
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                        modifier = Modifier
-                            .size(64.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.DarkGray)
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                }
-                
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = article.title ?: "Sem título",
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = article.source?.name ?: "Fonte desconhecida",
-                        color = Color(0xFF64FFDA).copy(alpha = 0.8f),
-                        fontSize = 11.sp,
-                        maxLines = 1
-                    )
-                }
-            }
-        }
-    }
-}

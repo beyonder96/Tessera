@@ -17,3 +17,27 @@ data class MatchDetail(
     val dateFormatted: String, // "20/06 16:00" ou similar
     val leagueName: String
 )
+
+data class DetailedFixture(
+    val matchDetail: MatchDetail,
+    val venueName: String?,
+    val events: List<MatchEvent>,
+    val homeLineup: List<MatchLineup>,
+    val awayLineup: List<MatchLineup>
+)
+
+data class MatchEvent(
+    val id: Long,
+    val minute: Int,
+    val typeName: String,
+    val typeCode: String?,
+    val playerName: String,
+    val isHomeTeam: Boolean
+)
+
+data class MatchLineup(
+    val playerId: Long,
+    val playerName: String,
+    val playerImage: String?,
+    val position: Int?
+)

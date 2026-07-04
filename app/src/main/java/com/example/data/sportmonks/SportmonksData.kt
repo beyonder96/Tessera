@@ -37,7 +37,10 @@ data class FixtureDto(
     @Json(name = "participants") val participants: List<ParticipantDto>? = null,
     @Json(name = "league") val league: LeagueDto? = null,
     @Json(name = "state") val state: StateDto? = null,
-    @Json(name = "scores") val scores: List<ScoreDto>? = null
+    @Json(name = "scores") val scores: List<ScoreDto>? = null,
+    @Json(name = "events") val events: List<EventDto>? = null,
+    @Json(name = "lineups") val lineups: List<LineupDto>? = null,
+    @Json(name = "venue") val venue: VenueDto? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -77,6 +80,61 @@ data class ScoreDto(
 data class ParticipantScoreDto(
     @Json(name = "goals") val goals: Int,
     @Json(name = "participant") val participant: String
+)
+
+// --- Event & Lineup Models ---
+
+@JsonClass(generateAdapter = true)
+data class EventDto(
+    @Json(name = "id") val id: Long,
+    @Json(name = "fixture_id") val fixtureId: Long,
+    @Json(name = "type_id") val typeId: Long,
+    @Json(name = "participant_id") val participantId: Long,
+    @Json(name = "player_id") val playerId: Long?,
+    @Json(name = "minute") val minute: Int,
+    @Json(name = "extra_minute") val extraMinute: Int?,
+    @Json(name = "type") val type: TypeDto?,
+    @Json(name = "player") val player: PlayerDto?
+)
+
+@JsonClass(generateAdapter = true)
+data class LineupDto(
+    @Json(name = "id") val id: Long,
+    @Json(name = "fixture_id") val fixtureId: Long,
+    @Json(name = "player_id") val playerId: Long,
+    @Json(name = "participant_id") val participantId: Long,
+    @Json(name = "formation_position") val formationPosition: Int?,
+    @Json(name = "player") val player: PlayerDto?,
+    @Json(name = "details") val details: List<LineupDetailDto>? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class LineupDetailDto(
+    @Json(name = "id") val id: Long,
+    @Json(name = "type_id") val typeId: Long,
+    @Json(name = "type") val type: TypeDto?
+)
+
+@JsonClass(generateAdapter = true)
+data class TypeDto(
+    @Json(name = "id") val id: Long,
+    @Json(name = "name") val name: String,
+    @Json(name = "code") val code: String?
+)
+
+@JsonClass(generateAdapter = true)
+data class PlayerDto(
+    @Json(name = "id") val id: Long,
+    @Json(name = "name") val name: String,
+    @Json(name = "display_name") val displayName: String?,
+    @Json(name = "image_path") val imagePath: String?
+)
+
+@JsonClass(generateAdapter = true)
+data class VenueDto(
+    @Json(name = "id") val id: Long,
+    @Json(name = "name") val name: String,
+    @Json(name = "city_name") val cityName: String?
 )
 
 // --- API ---

@@ -14,8 +14,8 @@ android {
     applicationId = "com.aistudio.tessera.xtrkna"
     minSdk = 26
     targetSdk = 35
-    versionCode = 33
-    versionName = "1.7.9"
+    versionCode = 34
+    versionName = "1.8.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     manifestPlaceholders["MAPS_API_KEY"] = "DUMMY_KEY"
@@ -143,6 +143,12 @@ dependencies {
   
   // Spotify Auth
   implementation("com.spotify.android:auth:2.1.1")
+  
+  // RSS Parser
+  implementation("com.prof18.rssparser:rssparser:6.0.10")
+
+  // Gemini Generative AI
+  implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
   
   implementation("androidx.health.connect:connect-client:1.1.0-alpha07")
   implementation("androidx.glance:glance-appwidget:1.1.0")

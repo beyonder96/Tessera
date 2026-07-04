@@ -3,6 +3,12 @@
 Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inteligente!
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
+## 🚀 Novidades da Versão 1.8.0
+
+- **Tessera Chat (Gemini SDK):** Integração nativa de IA usando a novíssima biblioteca do Gemini para Android. Agora a Tessera tem uma aba própria de chat acessível direto pela navegação principal, pronta para te ajudar nas tarefas e planejamento diário! O chat conta com efeito *Glassmorphism* super elegante.
+- **Futebol Profissional:** O acompanhamento de jogos foi inteiramente reformulado! O velho widget tipo "pílula" foi substituído pelo espetacular `DetailedMatchWidget` na tela principal de Daily, trazendo todos os eventos (gols, cartões amarelos e vermelhos, pênaltis perdidos e alterações) e estatísticas detalhadas com ícones personalizados.
+- **Notícias de Alta Performance (RSS):** Substituímos o uso engessado e custoso da News API por um feed direto via RSS ultrarrápido (`com.prof18.rssparser:rssparser:6.0.10`). Acompanhe o G1, BBC e muito mais diretamente da sua tela, tudo rodando em altíssima velocidade em *background*.
+
 ## 🚀 Novidades da Versão 1.7.9
 
 - **Independência das Listas de Mercado e Planejamento:** A aba de Planejamento e No Mercado agora operam com itens separados no banco de dados. Itens adicionados em "No Mercado" já entram marcados por padrão.
@@ -26,8 +32,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
-- **Debug:** `app-debug-1.7.9.apk`
-- **Release:** `app-release-1.7.9.apk`
+- **Debug:** `app-debug-1.8.0.apk`
+- **Release:** `app-release-1.8.0.apk`
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.
