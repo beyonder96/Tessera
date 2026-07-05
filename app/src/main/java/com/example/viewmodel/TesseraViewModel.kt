@@ -1682,9 +1682,27 @@ class TesseraViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             _isLoadingFootball.value = true
             try {
-                // Fetch the specific fixture ID 19621904 requested by user
-                val result = fixtureRepository.getFixture(19621904)
-                if (result.isSuccess) {
+                var targetFixtureId: Long? = null
+                
+                // Fetch latest fixtures
+                val latestResult = fixtureRepository.getLatestFixtures()
+                if (latestResult.isSuccess) {
+                    val dtoList = latestResult.getOrNull()?.data
+                    if (!dtoList.isNullOrEmpty()) {
+                        val teamsToWatch = _configuredFootballTeams.value.map { it.lowercase() }
+                        val preferredFixture = dtoList.find { fixture ->
+                            fixture.participants?.any { participant ->
+                                teamsToWatch.any { team -> participant.name.lowercase().contains(team) }
+                            } == true
+                        } ?: dtoList.firstOrNull()
+                        
+                        targetFixtureId = preferredFixture?.id
+                    }
+                }
+
+                if (targetFixtureId != null) {
+                    val result = fixtureRepository.getFixture(targetFixtureId)
+                    if (result.isSuccess) {
                     val dto = result.getOrNull()?.data
                     if (dto != null) {
                         val home = dto.participants?.getOrNull(0)
@@ -1741,8 +1759,11 @@ class TesseraViewModel(
 
                         _featuredMatch.value = detailedFixture
                     }
+                    } else {
+                        Log.e("TesseraViewModel", "Erro ao buscar placares: ${result.exceptionOrNull()?.message}")
+                    }
                 } else {
-                    Log.e("TesseraViewModel", "Erro ao buscar placares: ${result.exceptionOrNull()?.message}")
+                    Log.e("TesseraViewModel", "Nenhuma partida encontrada na API")
                 }
             } catch (e: Exception) {
                 Log.e("TesseraViewModel", "Erro na API de Futebol: ${e.message}")

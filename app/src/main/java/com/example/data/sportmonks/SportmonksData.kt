@@ -144,7 +144,7 @@ interface SportmonksApi {
     suspend fun getFixture(
         @Path("id") fixtureId: Long,
         @Query("api_token") apiToken: String,
-        @Query("include") include: String = "participants;league;venue;state;scores;events.type;events.period;events.player;xGFixture.type;lineups.player;lineups.xGlineup.type;lineups.details.type"
+        @Query("include") include: String = "participants;league;venue;state;scores;events.type;events.period;events.player;lineups.player;lineups.details.type"
     ): retrofit2.Response<FixtureResponse>
 
     @GET("v3/football/fixtures")
