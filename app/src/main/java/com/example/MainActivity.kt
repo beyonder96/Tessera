@@ -1,6 +1,9 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 package com.example
 
+import com.example.ui.components.MetricItem
+import com.example.ui.components.MetricItemWithProgress
+import com.example.ui.components.MetricItemWithNeonPulse
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent

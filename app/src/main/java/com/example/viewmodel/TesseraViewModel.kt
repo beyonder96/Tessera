@@ -239,7 +239,7 @@ class TesseraViewModel(
     private val _configuredFootballTeams = MutableStateFlow<List<String>>(emptyList())
     val configuredFootballTeams: StateFlow<List<String>> = _configuredFootballTeams.asStateFlow()
 
-    private val rssRepository = RssRepository(application)
+    private val rssRepository = RssRepository(applicationContext)
 
     private val _newsArticles = MutableStateFlow<List<RssArticle>>(emptyList())
     val newsArticles: StateFlow<List<RssArticle>> = _newsArticles.asStateFlow()
@@ -1834,7 +1834,7 @@ class TesseraViewModel(
         loadUserBusLines()
         loadConfiguredFootballTeams()
         fetchFootballScores()
-        fetchNews()
+        refreshNews()
         _spotifyAccessToken.value = sharedPrefs.getString("spotify_access_token", null)
         
         viewModelScope.launch(Dispatchers.IO) {

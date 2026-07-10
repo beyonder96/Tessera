@@ -17,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -86,18 +87,7 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
     )
     
     // We bind Lottie progress to the user's selected progress instead of looping it
-    val lottieAnimatable = rememberLottieAnimatable()
-    LaunchedEffect(animatedProgress, composition) {
-        if (composition != null) {
-            // Animate to the specific frame/progress
-            lottieAnimatable.animate(
-                composition = composition,
-                initialProgress = lottieAnimatable.progress,
-                targetProgress = animatedProgress,
-                animationSpec = tween(1000)
-            )
-        }
-    }
+
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -122,7 +112,7 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                 } else {
                     LottieAnimation(
                         composition = composition,
-                        progress = { lottieAnimatable.progress },
+                        progress = { animatedProgress },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
