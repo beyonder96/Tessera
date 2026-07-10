@@ -8,6 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Apartment
@@ -33,7 +34,8 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.draw.drawBehind
-import com.airbnb.lottie.compose.*
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.outlined.Event
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,12 +83,11 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
     val compactAlpha by animateFloatAsState(targetValue = if (isCompact) 1f else 0f, animationSpec = tween(250), label = "compactAlpha")
     val accentColor = Color(0xFFD4AF37) // Luxurious Gold
 
-    // Lottie Composition
-    val composition by rememberLottieComposition(
-        LottieCompositionSpec.Url("https://lottie.host/17e25fb5-db8d-4e20-a681-43da2d9489d8/rV3d8aQJtG.json")
-    )
-    
-    // We bind Lottie progress to the user's selected progress instead of looping it
+    var showDateDialog by remember { mutableStateOf(false) }
+    var expectedDate by remember { 
+        mutableStateOf(sharedPrefs.getString("apartment_date", "Dez 2026") ?: "Dez 2026") 
+    }
+    var tempDate by remember { mutableStateOf(expectedDate) }
 
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -107,15 +108,12 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                     .padding(16.dp),
                 contentAlignment = Alignment.Center
             ) {
-                if (composition == null) {
-                    CircularProgressIndicator(color = accentColor)
-                } else {
-                    LottieAnimation(
-                        composition = composition,
-                        progress = { animatedProgress },
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Outlined.Apartment,
+                    contentDescription = "Obra",
+                    tint = animatedPhaseColor,
+                    modifier = Modifier.size(160.dp)
+                )
                 
                 if (progress >= 1.0f) {
                     Column(
@@ -155,18 +153,19 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                     .drawBehind {
                         val strokeWidth = 3.dp.toPx()
                         val progressWidth = size.width * progress
+                        val drawY = size.height - 24.dp.toPx() // Moved up to prevent clipping
                         
                         drawLine(
                             color = Color(0x1AD4AF37),
-                            start = Offset(0f, size.height - strokeWidth / 2f),
-                            end = Offset(size.width, size.height - strokeWidth / 2f),
+                            start = Offset(0f, drawY),
+                            end = Offset(size.width, drawY),
                             strokeWidth = strokeWidth
                         )
                         
                         drawLine(
                             color = animatedPhaseColor,
-                            start = Offset(0f, size.height - strokeWidth / 2f),
-                            end = Offset(progressWidth, size.height - strokeWidth / 2f),
+                            start = Offset(0f, drawY),
+                            end = Offset(progressWidth, drawY),
                             strokeWidth = strokeWidth
                         )
                         
@@ -174,16 +173,16 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                             drawCircle(
                                 brush = Brush.radialGradient(
                                     colors = listOf(animatedPhaseColor, Color.Transparent),
-                                    center = Offset(progressWidth, size.height - strokeWidth / 2f),
+                                    center = Offset(progressWidth, drawY),
                                     radius = 12.dp.toPx()
                                 ),
                                 radius = 12.dp.toPx(),
-                                center = Offset(progressWidth, size.height - strokeWidth / 2f)
+                                center = Offset(progressWidth, drawY)
                             )
                             drawCircle(
                                 color = Color.White,
                                 radius = 4.dp.toPx(),
-                                center = Offset(progressWidth, size.height - strokeWidth / 2f)
+                                center = Offset(progressWidth, drawY)
                             )
                         }
                     }
@@ -254,9 +253,16 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Column {
+                        Column(modifier = Modifier.clickable { 
+                            tempDate = expectedDate
+                            showDateDialog = true 
+                        }) {
                             Text("Previsão", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp)
-                            Text("Dez 2026", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(expectedDate, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(Icons.Filled.Edit, contentDescription = "Editar", tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(12.dp))
+                            }
                         }
                         Column(horizontalAlignment = Alignment.End) {
                             Text("Status", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp)
@@ -330,5 +336,34 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                 }
             }
         }
+    }
+
+    if (showDateDialog) {
+        AlertDialog(
+            onDismissRequest = { showDateDialog = false },
+            title = { Text("Previsão de Conclusão") },
+            text = {
+                OutlinedTextField(
+                    value = tempDate,
+                    onValueChange = { tempDate = it },
+                    label = { Text("Data (ex: Dez 2026)") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    expectedDate = tempDate
+                    sharedPrefs.edit().putString("apartment_date", tempDate).apply()
+                    showDateDialog = false
+                }) {
+                    Text("Salvar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDateDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 }

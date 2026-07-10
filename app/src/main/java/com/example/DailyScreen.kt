@@ -290,42 +290,10 @@ fun DailyScreen(
                 .statusBarsPadding()
         ) {
             // ------------------- TOP BAR -------------------
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 12.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    IconButton(
-                        onClick = onBack,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(Color(0x0AFFFFFF), CircleShape)
-                            .border(1.dp, Color(0x1AFFFFFF), CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Voltar à Home",
-                            tint = Color.White.copy(alpha = 0.8f),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    Text(
-                        text = "NOW BRIEFING",
-                        fontFamily = FontFamily.SansSerif,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp,
-                        color = Color.White.copy(alpha = 0.4f),
-                        letterSpacing = 2.5.sp
-                    )
-                    Box(modifier = Modifier.size(40.dp)) // Anchor balance spacer
-                }
-            }
+            TopHeader(
+                onOpenSettings = { onNavigate("settings") },
+                onOpenMetro = { onNavigate("transport") }
+            )
 
             Column(
                 modifier = Modifier
@@ -346,13 +314,40 @@ fun DailyScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
-                        // 1. GREETING & CELESTIAL ARC
+                        // 1. GREETING
                         HeaderGreetingSection(
                             userName = userName,
                             hour = hour,
                             greeting = greeting,
                             weatherState = weatherState
                         )
+
+                        // 1.2. AI SEARCH BOX
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp)
+                                .clip(RoundedCornerShape(28.dp))
+                                .then(PremiumGlassModifier)
+                                .clickable { onNavigate("chat") }
+                                .padding(horizontal = 20.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Outlined.AutoAwesome,
+                                    contentDescription = "AI",
+                                    tint = PrimaryTeal,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = "Pergunte à Tessera AI...",
+                                    color = Color.White.copy(alpha = 0.6f),
+                                    fontSize = 16.sp
+                                )
+                            }
+                        }
 
                         // 1.5. HOME SCREEN METRICS WIDGETS
                         Row(
@@ -522,121 +517,6 @@ fun HeaderGreetingSection(
             color = Color.White,
             textAlign = TextAlign.Center
         )
-        
-        Spacer(modifier = Modifier.height(28.dp))
-
-        // Celestial Arc Glass Card
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.95f)
-                .clip(RoundedCornerShape(24.dp))
-                .background(Color(0x08FFFFFF))
-                .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(24.dp))
-                .padding(20.dp)
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                // Header of Arc Card
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = celestialState.substringBefore(" / ").uppercase(),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White.copy(alpha = 0.4f),
-                            letterSpacing = 1.5.sp
-                        )
-                        Text(
-                            text = celestialState.substringAfter(" / "),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color.White
-                        )
-                    }
-
-                }
-
-                // Semicircle celestial arc path drawn inside Canvas
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(90.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        val width = size.width
-                        val height = size.height
-                        
-                        val arcTopLeft = Offset(10.dp.toPx(), 10.dp.toPx())
-                        val arcSize = Size(width - 20.dp.toPx(), height * 2 - 20.dp.toPx())
-                        
-                        // Draw empty background track
-                        drawArc(
-                            color = Color.White.copy(alpha = 0.1f),
-                            startAngle = 180f,
-                            sweepAngle = 180f,
-                            useCenter = false,
-                            topLeft = arcTopLeft,
-                            size = arcSize,
-                            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
-                        )
-                        
-                        // Compute dot progress on the arc based on hours
-                        val dotProgress = when (hour) {
-                            in 5..11 -> (hour - 5) / 7f
-                            in 12..17 -> (hour - 12) / 6f
-                            else -> {
-                                if (hour >= 18) (hour - 18) / 10f else (hour + 6) / 10f
-                            }
-                        }
-                        val sweepAngle = 180f * dotProgress
-                        
-                        // Active colored glow arc
-                        drawArc(
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(
-                                    glowColor.copy(alpha = 0.1f),
-                                    glowColor
-                                )
-                            ),
-                            startAngle = 180f,
-                            sweepAngle = sweepAngle,
-                            useCenter = false,
-                            topLeft = arcTopLeft,
-                            size = arcSize,
-                            style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
-                        )
-                        
-                        // Calculate coordinates of the dot
-                        val angleRad = Math.toRadians((180f + sweepAngle).toDouble())
-                        val rx = (width - 20.dp.toPx()) / 2f
-                        val ry = (height * 2 - 20.dp.toPx()) / 2f
-                        val cx = width / 2f
-                        val cy = height - 10.dp.toPx()
-                        
-                        val dotX = cx + rx * Math.cos(angleRad)
-                        val dotY = cy + ry * Math.sin(angleRad)
-                        
-                        // Glowing outer circle for dot
-                        drawCircle(
-                            color = glowColor,
-                            radius = 8.dp.toPx(),
-                            center = Offset(dotX.toFloat(), dotY.toFloat()),
-                            alpha = 0.4f
-                        )
-                        // Inner bright dot
-                        drawCircle(
-                            color = Color.White,
-                            radius = 4.dp.toPx(),
-                            center = Offset(dotX.toFloat(), dotY.toFloat())
-                        )
-                    }
-                }
-            }
-        }
     }
 }
 

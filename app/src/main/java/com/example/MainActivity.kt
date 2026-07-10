@@ -3662,7 +3662,6 @@ fun BottomNavBar(
             "finance" -> 1
             "market" -> 2
             "health" -> 1
-            "chat" -> 3
             else -> 0
         }
     }
@@ -3673,10 +3672,9 @@ fun BottomNavBar(
             val newIdx = getRouteIndex(currentRoute)
             val clickedIdx = if (currentRoute == "home") 0 else newIdx
             val pivot = when (clickedIdx) {
-                0 -> 0.125f
-                1 -> 0.375f
-                2 -> 0.625f
-                3 -> 0.875f
+                0 -> 0.166f
+                1 -> 0.5f
+                2 -> 0.833f
                 else -> 0.5f
             }
             pivotX = pivot
@@ -3706,10 +3704,9 @@ fun BottomNavBar(
     val handleTabClick: (String, Int) -> Unit = { route, clickedIndex ->
         if (route != displayedRoute) {
             val pivot = when (clickedIndex) {
-                0 -> 0.125f
-                1 -> 0.375f
-                2 -> 0.625f
-                3 -> 0.875f
+                0 -> 0.166f
+                1 -> 0.5f
+                2 -> 0.833f
                 else -> 0.5f
             }
             pivotX = pivot
@@ -3818,12 +3815,6 @@ fun BottomNavBar(
                         contentDescription = "Mercado",
                         isActive = displayedRoute == "market",
                         onClick = { handleTabClick("market", 2) }
-                    )
-                    CircularNavButton(
-                        icon = Icons.Outlined.AutoAwesome,
-                        contentDescription = "Chat",
-                        isActive = displayedRoute == "chat",
-                        onClick = { handleTabClick("chat", 3) }
                     )
                 }
             }
