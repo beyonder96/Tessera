@@ -32,6 +32,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.BankAccount
 import com.example.data.CreditCard
+import com.example.data.BenefitCard
 import com.example.data.Transaction
 import com.example.ui.components.PremiumGlassModifier
 import com.example.viewmodel.TesseraViewModel
@@ -53,21 +54,18 @@ fun parseHexColor(hex: String): Color {
 fun FinanceScreen(
     onHomeClick: () -> Unit,
     viewModel: TesseraViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
-    onNavigateToInvoiceHub: (String) -> Unit
+    onNavigateToInvoiceHub: (String) -> Unit,
+    onNavigateToBenefitHub: (String) -> Unit
 ) {
     val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
     val bankAccounts by viewModel.allBankAccounts.collectAsStateWithLifecycle()
     val creditCards by viewModel.allCreditCards.collectAsStateWithLifecycle()
+    val benefitCards by viewModel.allBenefitCards.collectAsStateWithLifecycle()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var showManageDialog by remember { mutableStateOf(false) }
     var showAdjustBalanceDialog by remember { mutableStateOf(false) }
 
-    val vrBalance by viewModel.vrBalance.collectAsStateWithLifecycle()
-    val vrResetDate by viewModel.vrResetDate.collectAsStateWithLifecycle()
-    val showVrPrompt by viewModel.showVrPrompt.collectAsStateWithLifecycle()
-    var showVrSettingsDialog by remember { mutableStateOf(false) }
-    
     var isPrivacyModeEnabled by remember { mutableStateOf(true) }
     var defaultIsIncomeForAdd by remember { mutableStateOf(false) }
     
@@ -138,93 +136,15 @@ fun FinanceScreen(
     }
 
     if (showManageDialog) {
-//        ManageAccountsDialog(
-//            bankAccounts = bankAccounts,
-//            creditCards = creditCards,
-//            onDismiss = { showManageDialog = false },
-//            viewModel = viewModel
-//        )
+        com.example.ui.components.ManageCardsDialog(
+            creditCards = creditCards,
+            benefitCards = benefitCards,
+            viewModel = viewModel,
+            onDismiss = { showManageDialog = false }
+        )
     }
 
-    if (showVrPrompt || showVrSettingsDialog) {
-        var inputBalance by remember { mutableStateOf(if (showVrPrompt) "" else vrBalance.toString()) }
-        var inputDate by remember { mutableStateOf(vrResetDate.toString()) }
-        
-        Dialog(onDismissRequest = { 
-            if (showVrPrompt) viewModel.dismissVrPrompt() 
-            showVrSettingsDialog = false 
-        }) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xED070909)),
-                shape = RoundedCornerShape(28.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, Color(0x2BFFFFFF), RoundedCornerShape(28.dp))
-            ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Text(
-                        text = if (showVrPrompt) "Atualizar Saldo do VR" else "Configurar Vale Refeição",
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    
-                    if (showVrPrompt) {
-                        Text("Chegou o dia! Qual o seu saldo atual do VR?", color = Color(0x99FFFFFF), fontSize = 14.sp)
-                    } else {
-                        OutlinedTextField(
-                            value = inputDate,
-                            onValueChange = { inputDate = it.filter { c -> c.isDigit() } },
-                            label = { Text("Dia de Recarga (1-31)", color = Color(0x99FFFFFF)) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFFE94057),
-                                unfocusedBorderColor = Color(0x33FFFFFF),
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
 
-                    OutlinedTextField(
-                        value = inputBalance,
-                        onValueChange = { inputBalance = it },
-                        label = { Text("Saldo Atual", color = Color(0x99FFFFFF)) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = androidx.compose.ui.text.input.ImeAction.Done),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFFE94057),
-                            unfocusedBorderColor = Color(0x33FFFFFF),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Button(
-                        onClick = {
-                            val bal = inputBalance.replace(",", ".").toFloatOrNull() ?: 0f
-                            if (showVrPrompt) {
-                                viewModel.updateVrBalance(bal)
-                            } else {
-                                val d = inputDate.toIntOrNull() ?: 1
-                                viewModel.setVrResetDate(d.coerceIn(1, 31))
-                                viewModel.updateVrBalance(bal)
-                                showVrSettingsDialog = false
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE94057))
-                    ) {
-                        Text("Salvar", color = Color.White, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-    }
 
     if (showAdjustBalanceDialog) {
         AdjustBalancesDialog(
@@ -441,12 +361,15 @@ fun FinanceScreen(
             )
             CreditCardsCarousel(
                 creditCards = creditCards,
+                benefitCards = benefitCards,
                 selectedFilterName = selectedFilterName,
                 onCardClick = { cardName ->
-                    onNavigateToInvoiceHub(cardName)
-                },
-                vrBalance = vrBalance,
-                onVrClick = { showVrSettingsDialog = true }
+                    if (benefitCards.any { it.name == cardName }) {
+                        onNavigateToBenefitHub(cardName)
+                    } else {
+                        onNavigateToInvoiceHub(cardName)
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -1096,12 +1019,11 @@ fun SectionHeader(
 @Composable
 fun CreditCardsCarousel(
     creditCards: List<CreditCard>,
+    benefitCards: List<BenefitCard>,
     selectedFilterName: String?,
-    onCardClick: (String) -> Unit,
-    vrBalance: Float = 0f,
-    onVrClick: () -> Unit = {}
+    onCardClick: (String) -> Unit
 ) {
-    if (creditCards.isEmpty()) {
+    if (creditCards.isEmpty() && benefitCards.isEmpty()) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1123,62 +1045,87 @@ fun CreditCardsCarousel(
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // VR Card
-            Box(
-                modifier = Modifier
-                    .width(280.dp)
-                    .height(160.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(
-                                Color(0xFFE94057).copy(alpha = 0.35f),
-                                Color(0x14000000),
-                                Color(0x33000000)
+            benefitCards.forEach { card ->
+                val isSelected = selectedFilterName == card.name
+                val cardColor = parseHexColor(card.colorHex)
+
+                Box(
+                    modifier = Modifier
+                        .width(280.dp)
+                        .height(160.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(
+                                    cardColor.copy(alpha = 0.35f),
+                                    Color(0x14000000),
+                                    Color(0x33000000)
+                                )
                             )
                         )
-                    )
-                    .border(
-                        width = 1.dp,
-                        brush = Brush.linearGradient(
-                            colors = listOf(Color.White.copy(alpha = 0.25f), Color(0x05FFFFFF))
-                        ),
-                        shape = RoundedCornerShape(24.dp)
-                    )
-                    .clickable { onVrClick() }
-                    .padding(20.dp)
-            ) {
-                Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "VALE REFEIÇÃO",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            color = Color.White,
-                            letterSpacing = 1.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                        .border(
+                            width = if (isSelected) 2.5.dp else 1.dp,
+                            brush = Brush.linearGradient(
+                                colors = if (isSelected) {
+                                    listOf(cardColor, Color.White, cardColor)
+                                } else {
+                                    listOf(Color.White.copy(alpha = 0.25f), Color(0x05FFFFFF))
+                                }
+                            ),
+                            shape = RoundedCornerShape(24.dp)
                         )
-                        Icon(Icons.Outlined.Restaurant, contentDescription = null, tint = Color.White)
+                        .clickable { onCardClick(card.name) }
+                        .padding(20.dp)
+                ) {
+                    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = card.name.uppercase(),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = Color.White,
+                                letterSpacing = 1.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Icon(Icons.Outlined.Restaurant, contentDescription = null, tint = Color.White)
+                        }
+                        
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = String.format(Locale("pt", "BR"), "R$ %,.2f", card.balance),
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Serif,
+                                color = cardColor,
+                                letterSpacing = 1.sp
+                            )
+                        }
+                        
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+                            Column {
+                                Text(
+                                    text = "Saldo Atual",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFFBDC9C6),
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = card.holderName,
+                                    fontSize = 10.sp,
+                                    color = Color(0xFF808A89),
+                                    fontWeight = FontWeight.Normal
+                                )
+                            }
+                            Text(
+                                text = "•••• ${card.numberLastFour}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFFDFE3E2)
+                            )
+                        }
                     }
-                    
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = String.format(Locale("pt", "BR"), "R$ %,.2f", vrBalance),
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Serif,
-                            color = Color(0xFFE94057),
-                            letterSpacing = 1.sp
-                        )
-                    }
-                    
-                    Text(
-                        text = "Saldo Atual",
-                        fontSize = 11.sp,
-                        color = Color(0xFFBDC9C6),
-                        fontWeight = FontWeight.Medium
-                    )
                 }
             }
 

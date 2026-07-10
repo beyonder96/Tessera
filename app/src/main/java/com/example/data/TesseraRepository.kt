@@ -76,6 +76,17 @@ class TesseraRepository(private val dao: TesseraDao) {
         dao.payInvoice(cardId)
     }
 
+    // Benefit Cards
+    val allBenefitCards: Flow<List<BenefitCard>> = dao.getAllBenefitCards()
+
+    suspend fun insertBenefitCard(card: BenefitCard) {
+        dao.insertBenefitCard(card)
+    }
+
+    suspend fun deleteBenefitCard(card: BenefitCard) {
+        dao.deleteBenefitCard(card)
+    }
+
     suspend fun clearAllFinances() {
         dao.clearAllFinances()
     }

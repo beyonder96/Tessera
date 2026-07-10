@@ -65,6 +65,16 @@ data class CreditCard(
     val holderName: String
 )
 
+@Entity(tableName = "benefit_cards")
+data class BenefitCard(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val name: String,
+    val balance: Double,
+    val numberLastFour: String,
+    val colorHex: String,
+    val holderName: String
+)
+
 @Entity(tableName = "habits")
 data class Habit(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,

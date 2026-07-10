@@ -76,6 +76,16 @@ interface TesseraDao {
     @Query("UPDATE credit_cards SET usedLimit = 0.0 WHERE id = :cardId")
     suspend fun payInvoice(cardId: Int)
 
+    // Benefit Card Queries
+    @Query("SELECT * FROM benefit_cards ORDER BY id ASC")
+    fun getAllBenefitCards(): Flow<List<BenefitCard>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBenefitCard(card: BenefitCard)
+
+    @Delete
+    suspend fun deleteBenefitCard(card: BenefitCard)
+
     // Finance clear operations
     @Query("DELETE FROM transactions")
     suspend fun clearAllTransactions()

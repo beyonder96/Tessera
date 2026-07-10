@@ -3,13 +3,17 @@
 Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inteligente!
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
+## 🚀 Novidades da Versão 1.8.5
+
+- **Tessera AI Chat Minimalista (Estilo Premium):** Nossa assistente virtual ganhou uma cara nova! Abandonamos as antigas "bolhas de bate-papo" para dar espaço a um visual estilo iOS, muito mais limpo, imersivo e sem bordas. Adicionamos uma nova Tela de Boas-Vindas com cards interativos de atalhos e ajustamos a tipografia para ser impactante. Além disso, agora há um atalho no topo para limpar facilmente o histórico da sessão.
+- **Novo Gerenciador de Vale-Refeição:** A área de VR na aba de Finanças foi inteiramente reestruturada. Agora ela funciona como um gerenciador completo (nos mesmos moldes dos cartões de crédito), permitindo visualizar o saldo dinâmico atual, titular do cartão e um extrato completo com histórico de entradas e saídas persistidos em banco de dados!
+
 ## 🚀 Novidades da Versão 1.8.2
 
 - **Ajustes de UI (Daily Briefing):** Removemos o widget "Golden Sun" e a seta de voltar da tela de Briefing para uma interface mais limpa. A aba de IA foi movida da navegação inferior para o topo da tela do Daily Briefing como uma elegante barra de pesquisa. O acesso às configurações e o perfil do usuário retornaram ao cabeçalho.
 - **Meu Apê (Construção & Reformas):** A animação Lottie do progresso (que ficava em carregamento infinito) foi substituída por um ícone estático premium iluminado. O gráfico inferior foi ajustado para não ser cortado na tela. A data estimada de término, antes fixa, agora pode ser editada ao tocar nela!
 
 ## 🚀 Novidades da Versão 1.8.0
-
 
 - **Tessera Chat (Gemini SDK):** Integração nativa de IA usando a novíssima biblioteca do Gemini para Android. Agora a Tessera tem uma aba própria de chat acessível direto pela navegação principal, pronta para te ajudar nas tarefas e planejamento diário! O chat conta com efeito *Glassmorphism* super elegante.
 - **Futebol Profissional:** O acompanhamento de jogos foi inteiramente reformulado! O velho widget tipo "pílula" foi substituído pelo espetacular `DetailedMatchWidget` na tela principal de Daily, trazendo todos os eventos (gols, cartões amarelos e vermelhos, pênaltis perdidos e alterações) e estatísticas detalhadas com ícones personalizados.
@@ -38,8 +42,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
-- **Debug:** `app-debug-1.8.4.apk`
-- **Release:** `app-release-1.8.4.apk`
+- **Debug:** `app-debug-1.8.5.apk`
+- **Release:** `app-release-1.8.5.apk`
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.

@@ -556,12 +556,23 @@ fun TesseraApp() {
                         viewModel = viewModel,
                         onNavigateToInvoiceHub = { cardName ->
                             navController.navigate("invoice_hub/$cardName")
+                        },
+                        onNavigateToBenefitHub = { cardName ->
+                            navController.navigate("benefit_hub/$cardName")
                         }
                     )
                 }
                 composable("invoice_hub/{cardName}") { backStackEntry ->
                     val cardName = backStackEntry.arguments?.getString("cardName") ?: ""
                     InvoiceHubScreen(
+                        cardName = cardName,
+                        viewModel = viewModel,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+                composable("benefit_hub/{cardName}") { backStackEntry ->
+                    val cardName = backStackEntry.arguments?.getString("cardName") ?: ""
+                    BenefitHubScreen(
                         cardName = cardName,
                         viewModel = viewModel,
                         onBack = { navController.popBackStack() }

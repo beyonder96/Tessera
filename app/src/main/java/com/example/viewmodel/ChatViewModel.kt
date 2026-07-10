@@ -30,13 +30,12 @@ class ChatViewModel : ViewModel() {
     private val chat = generativeModel.startChat()
 
     init {
-        // Welcome message
-        _messages.value = listOf(
-            ChatMessage(
-                text = "Olá! Eu sou a Tessera. Como posso ajudar no seu dia de hoje?",
-                isUser = false
-            )
-        )
+        // Welcome message removida para mostrar o WelcomeScreen customizado inicial
+    }
+
+    fun clearChat() {
+        _messages.value = emptyList()
+        // O ideal seria resetar a sessão do Gemini também, mas manteremos o StateFlow limpo para fins de UI
     }
 
     fun sendMessage(userMessage: String) {

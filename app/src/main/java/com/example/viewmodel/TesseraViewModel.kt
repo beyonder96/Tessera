@@ -270,6 +270,7 @@ class TesseraViewModel(
         // Initial fetches
         _rssFeeds.value = rssRepository.getFeeds()
         refreshNews()
+        fetchWeather()
     }
 
     fun addRssFeed(name: String, url: String) {
@@ -420,6 +421,9 @@ class TesseraViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allCreditCards: StateFlow<List<CreditCard>> = repository.allCreditCards
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allBenefitCards: StateFlow<List<com.example.data.BenefitCard>> = repository.allBenefitCards
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val healthProfile: StateFlow<HealthProfile?> = repository.healthProfile
@@ -644,6 +648,27 @@ class TesseraViewModel(
 
     private val _busError = MutableStateFlow<String?>(null)
     val busError: StateFlow<String?> = _busError.asStateFlow()
+
+    fun addBenefitCard(name: String, balance: Double, numberLastFour: String, colorHex: String, holderName: String, id: Int = 0) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.insertBenefitCard(
+                com.example.data.BenefitCard(
+                    id = id,
+                    name = name,
+                    balance = balance,
+                    numberLastFour = numberLastFour,
+                    colorHex = colorHex,
+                    holderName = holderName
+                )
+            )
+        }
+    }
+
+    fun deleteBenefitCard(card: com.example.data.BenefitCard) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.deleteBenefitCard(card)
+        }
+    }
 
     fun getSavedBusLinesFromPrefs(): Set<String> {
         return sharedPrefs.getStringSet("saved_bus_lines", setOf(
@@ -1061,6 +1086,15 @@ class TesseraViewModel(
         if (matchingCard != null) {
             val newUsedLimit = if (isIncome) (matchingCard.usedLimit - value).coerceAtLeast(0.0) else matchingCard.usedLimit + value
             repository.insertCreditCard(matchingCard.copy(usedLimit = newUsedLimit))
+            return
+        }
+        val benefitCards = repository.allBenefitCards.first()
+        val matchingBenefit = benefitCards.find { it.name == name }
+        if (matchingBenefit != null) {
+            if (isRealized) {
+                val newBalance = if (isIncome) matchingBenefit.balance + value else matchingBenefit.balance - value
+                repository.insertBenefitCard(matchingBenefit.copy(balance = newBalance))
+            }
         }
     }
 
@@ -1079,6 +1113,15 @@ class TesseraViewModel(
         if (matchingCard != null) {
             val newUsedLimit = if (isIncome) matchingCard.usedLimit + value else (matchingCard.usedLimit - value).coerceAtLeast(0.0)
             repository.insertCreditCard(matchingCard.copy(usedLimit = newUsedLimit))
+            return
+        }
+        val benefitCards = repository.allBenefitCards.first()
+        val matchingBenefit = benefitCards.find { it.name == name }
+        if (matchingBenefit != null) {
+            if (isRealized) {
+                val newBalance = if (isIncome) matchingBenefit.balance - value else matchingBenefit.balance + value
+                repository.insertBenefitCard(matchingBenefit.copy(balance = newBalance))
+            }
         }
     }
 

@@ -18,6 +18,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -51,27 +55,30 @@ fun TesseraChatScreen(chatViewModel: ChatViewModel = viewModel()) {
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF0F172A))
-            .padding(top = 48.dp, bottom = 16.dp, start = 16.dp, end = 16.dp)
+            .padding(top = 48.dp, bottom = 120.dp, start = 16.dp, end = 16.dp)
     ) {
         // Header Minimalista
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(bottom = 24.dp)
+            modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Outlined.AutoAwesome,
-                contentDescription = null,
-                tint = Color(0xFFE2E8F0),
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Tessera AI",
+                text = "AI Assistant",
                 color = Color(0xFFF8FAFC),
-                fontSize = 20.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.5.sp
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.5).sp
             )
+            if (messages.isNotEmpty()) {
+                IconButton(onClick = { chatViewModel.clearChat() }) {
+                    Icon(
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = "Limpar Histórico",
+                        tint = Color(0xFF64748B)
+                    )
+                }
+            }
         }
 
         // Area Central (Lista ou Welcome Screen)
@@ -185,49 +192,56 @@ fun WelcomeScreen(onPromptSelect: (String) -> Unit) {
         enter = slideInHorizontally(initialOffsetX = { 50 }, animationSpec = tween(500)) + fadeIn(tween(500))
     ) {
         Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+            verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                imageVector = Icons.Outlined.AutoAwesome,
-                contentDescription = null,
-                tint = Color(0xFF38BDF8),
-                modifier = Modifier.size(64.dp)
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                text = "Como posso ajudar?",
-                color = Color(0xFFF8FAFC),
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = (-0.5).sp
-            )
-            Spacer(modifier = Modifier.height(48.dp))
-
-            val prompts = listOf(
-                "O que eu posso gerenciar no meu apê?",
-                "Sugira um cardápio para esta semana.",
-                "Quais os próximos passos da obra?"
+            val prompts = listOf<Triple<String, String, androidx.compose.ui.graphics.vector.ImageVector>>(
+                Triple("O que eu posso gerenciar no meu apê?", "Visão geral da sua casa", Icons.Outlined.Home),
+                Triple("Sugira um cardápio para esta semana", "Receitas fáceis e rápidas", Icons.Outlined.Star),
+                Triple("Quais os próximos passos da obra?", "Acompanhe seu progresso", Icons.Outlined.Build)
             )
 
-            prompts.forEach { prompt ->
-                Box(
+            prompts.forEach { (title, subtitle, icon) ->
+                Row(
                     modifier = Modifier
-                        .fillMaxWidth(0.9f)
-                        .padding(vertical = 6.dp)
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFF1E293B))
-                        .border(1.dp, Color(0xFF334155), RoundedCornerShape(16.dp))
-                        .clickable { onPromptSelect(prompt) }
-                        .padding(16.dp)
+                        .background(Color(0xFF1E293B)) // Cor de fundo do card, semelhante ao print
+                        .clickable { onPromptSelect(title) }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = prompt,
-                        color = Color(0xFFCBD5E1),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF0F172A)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = Color(0xFF94A3B8),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column {
+                        Text(
+                            text = title,
+                            color = Color(0xFFF8FAFC),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = subtitle,
+                            color = Color(0xFF64748B),
+                            fontSize = 14.sp
+                        )
+                    }
                 }
             }
         }
@@ -252,25 +266,13 @@ fun AnimatedMessageRow(message: ChatMessage, onTick: () -> Unit) {
         ) {
             Box(
                 modifier = Modifier
-                    .widthIn(max = 300.dp)
-                    .clip(
-                        RoundedCornerShape(
-                            topStart = 24.dp,
-                            topEnd = 24.dp,
-                            bottomStart = if (message.isUser) 24.dp else 4.dp,
-                            bottomEnd = if (message.isUser) 4.dp else 24.dp
-                        )
-                    )
-                    .background(
-                        if (message.isUser) Color(0xFF38BDF8)
-                        else Color(0xFF1E293B)
-                    )
-                    .padding(horizontal = 20.dp, vertical = 14.dp)
+                    .widthIn(max = 340.dp)
+                    .padding(vertical = 8.dp)
             ) {
                 if (message.isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
-                        color = Color(0xFF38BDF8),
+                        color = Color(0xFFF8FAFC),
                         strokeWidth = 2.dp
                     )
                 } else if (!message.isUser) {
@@ -281,9 +283,9 @@ fun AnimatedMessageRow(message: ChatMessage, onTick: () -> Unit) {
                 } else {
                     Text(
                         text = message.text,
-                        color = Color(0xFF0F172A),
+                        color = Color(0xFF94A3B8), // Cinza discreto estilo iOS
                         fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
+                        fontWeight = FontWeight.Normal,
                         lineHeight = 24.sp
                     )
                 }
@@ -312,10 +314,10 @@ fun TypewriterText(fullText: String, onTick: () -> Unit) {
     Text(
         text = parseMarkdown(displayedText),
         color = Color(0xFFF8FAFC),
-        fontSize = 16.sp,
-        fontWeight = FontWeight.Medium,
-        lineHeight = 26.sp, // Espaçamento luxuoso Apple-style
-        letterSpacing = 0.3.sp
+        fontSize = 20.sp, // Aumentado para estilo Apple
+        fontWeight = FontWeight.Bold, // Bold para dar destaque
+        lineHeight = 28.sp,
+        letterSpacing = (-0.5).sp
     )
 }
 

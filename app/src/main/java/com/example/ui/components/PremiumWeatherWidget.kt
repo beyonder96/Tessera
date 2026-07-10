@@ -98,7 +98,7 @@ fun PremiumWeatherWidget(weatherState: TesseraViewModel.WeatherInfo?) {
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "São Paulo, SP",
+                            text = weatherState?.city ?: "São Paulo, SP",
                             color = Color.White.copy(alpha = 0.5f),
                             fontSize = 12.sp
                         )
