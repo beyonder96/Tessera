@@ -123,6 +123,7 @@ class TesseraRepository(private val dao: TesseraDao) {
     
     suspend fun insertSleepRecord(record: SleepRecord) = dao.insertSleepRecord(record)
     suspend fun clearHealthConnectSleepRecords() = dao.clearHealthConnectSleepRecords()
+    suspend fun clearManualSleepForDay(startOfDay: Long, endOfDay: Long) = dao.clearManualSleepForDay(startOfDay, endOfDay)
 
     val allPets: Flow<List<PetEntity>> = dao.getAllPets()
 
@@ -174,6 +175,10 @@ class TesseraRepository(private val dao: TesseraDao) {
 
     suspend fun clearHealthConnectStepsRecords() {
         dao.clearHealthConnectStepsRecords()
+    }
+
+    suspend fun clearManualStepsForDay(startOfDay: Long, endOfDay: Long) {
+        dao.clearManualStepsForDay(startOfDay, endOfDay)
     }
 
     // Routines

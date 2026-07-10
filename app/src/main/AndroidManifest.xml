@@ -11,6 +11,8 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
     <!-- Health Connect Permissions -->
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
@@ -43,6 +45,8 @@
         
         <receiver android:name="com.example.notifications.MedicationReceiver" android:exported="false" />
         <receiver android:name="com.example.notifications.ReminderReceiver" android:exported="false" />
+        
+        <service android:name="com.example.notifications.GlobalMedicationService" android:exported="false" />
         
         <receiver
             android:name="com.example.notifications.BootReceiver"

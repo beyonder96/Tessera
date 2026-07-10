@@ -239,7 +239,7 @@ class TesseraViewModel(
     private val _configuredFootballTeams = MutableStateFlow<List<String>>(emptyList())
     val configuredFootballTeams: StateFlow<List<String>> = _configuredFootballTeams.asStateFlow()
 
-    private val rssRepository = RssRepository()
+    private val rssRepository = RssRepository(application)
 
     private val _newsArticles = MutableStateFlow<List<RssArticle>>(emptyList())
     val newsArticles: StateFlow<List<RssArticle>> = _newsArticles.asStateFlow()
@@ -263,8 +263,29 @@ class TesseraViewModel(
         fetchFootballScores()
     }
 
-    fun fetchNews() {
-        viewModelScope.launch(Dispatchers.IO) {
+    private val _rssFeeds = MutableStateFlow<Map<String, String>>(emptyMap())
+    val rssFeeds: StateFlow<Map<String, String>> = _rssFeeds.asStateFlow()
+
+    init {
+        // Initial fetches
+        _rssFeeds.value = rssRepository.getFeeds()
+        refreshNews()
+    }
+
+    fun addRssFeed(name: String, url: String) {
+        rssRepository.addFeed(name, url)
+        _rssFeeds.value = rssRepository.getFeeds()
+        refreshNews()
+    }
+
+    fun removeRssFeed(name: String) {
+        rssRepository.removeFeed(name)
+        _rssFeeds.value = rssRepository.getFeeds()
+        refreshNews()
+    }
+
+    fun refreshNews() {
+        viewModelScope.launch {
             try {
                 val articles = rssRepository.getLatestNews()
                 _newsArticles.value = articles
@@ -1457,12 +1478,28 @@ class TesseraViewModel(
 
     fun addManualSleepRecord(startTime: Long, endTime: Long, durationHours: Double) {
         viewModelScope.launch {
+            val cal = java.util.Calendar.getInstance().apply { timeInMillis = endTime }
+            cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+            cal.set(java.util.Calendar.MINUTE, 0)
+            cal.set(java.util.Calendar.SECOND, 0)
+            cal.set(java.util.Calendar.MILLISECOND, 0)
+            val startOfDay = cal.timeInMillis
+            val endOfDay = startOfDay + 86400000L - 1L
+            repository.clearManualSleepForDay(startOfDay, endOfDay)
             repository.insertSleepRecord(SleepRecord(startTime = startTime, endTime = endTime, durationHours = durationHours, source = "manual"))
         }
     }
 
     fun addManualStepsRecord(count: Long, startTime: Long, endTime: Long) {
         viewModelScope.launch {
+            val cal = java.util.Calendar.getInstance().apply { timeInMillis = endTime }
+            cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+            cal.set(java.util.Calendar.MINUTE, 0)
+            cal.set(java.util.Calendar.SECOND, 0)
+            cal.set(java.util.Calendar.MILLISECOND, 0)
+            val startOfDay = cal.timeInMillis
+            val endOfDay = startOfDay + 86400000L - 1L
+            repository.clearManualStepsForDay(startOfDay, endOfDay)
             repository.insertStepsRecord(StepsRecord(count = count, startTime = startTime, endTime = endTime, source = "manual"))
         }
     }

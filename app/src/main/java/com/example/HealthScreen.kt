@@ -626,10 +626,52 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
     // Dialog: Registrar Passos
     if (showStepsDialog) {
         var inputSteps by remember { mutableStateOf("") }
+        var stepDateMs by remember {
+            mutableStateOf(Calendar.getInstance().timeInMillis)
+        }
+        val stepDateStr = remember(stepDateMs) {
+            val cal = Calendar.getInstance().apply { timeInMillis = stepDateMs }
+            String.format(Locale.getDefault(), "%02d/%02d/%04d", cal.get(Calendar.DAY_OF_MONTH), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.YEAR))
+        }
+
         Dialog(onDismissRequest = { showStepsDialog = false }) {
             Box(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color(0xFF070909)).border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(24.dp)).padding(24.dp)) {
                 Column {
                     Text("REGISTRAR PASSOS", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Spacer(modifier = Modifier.height(20.dp))
+                    
+                    Text("DATA", color = Color(0xFF879391), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF131817))
+                            .clickable {
+                                val cal = Calendar.getInstance().apply { timeInMillis = stepDateMs }
+                                DatePickerDialog(
+                                    context,
+                                    { _, y, m, d ->
+                                        cal.set(Calendar.YEAR, y)
+                                        cal.set(Calendar.MONTH, m)
+                                        cal.set(Calendar.DAY_OF_MONTH, d)
+                                        stepDateMs = cal.timeInMillis
+                                    },
+                                    cal.get(Calendar.YEAR),
+                                    cal.get(Calendar.MONTH),
+                                    cal.get(Calendar.DAY_OF_MONTH)
+                                ).show()
+                            }
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Outlined.CalendarToday, null, tint = PrimaryTeal, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(stepDateStr, color = Color.White, fontSize = 14.sp)
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     Text("QUANTIDADE DE PASSOS", color = Color(0xFF879391), fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -649,16 +691,20 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                         Button(
                             onClick = {
                                 val count = inputSteps.toLongOrNull()
-                                if (count != null) {
-                                    val now = System.currentTimeMillis()
-                                    viewModel.addManualStepsRecord(count, now - 3600000, now) // Assume 1 hora de caminhada
+                                if (count != null && count > 0) {
+                                    val cal = Calendar.getInstance().apply { timeInMillis = stepDateMs }
+                                    cal.set(Calendar.HOUR_OF_DAY, 12)
+                                    cal.set(Calendar.MINUTE, 0)
+                                    cal.set(Calendar.SECOND, 0)
+                                    val now = cal.timeInMillis
+                                    viewModel.addManualStepsRecord(count, now - 3600000, now) // Assume 1 hora de caminhada no meio do dia
                                     if (healthProfile?.isHealthConnectEnabled == true) {
                                         coroutineScope.launch {
                                             healthConnectManager.writeStepsRecord(count, now - 3600000, now)
                                         }
                                     }
+                                    showStepsDialog = false
                                 }
-                                showStepsDialog = false
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal, contentColor = Color.Black)
                         ) {
@@ -1543,9 +1589,17 @@ fun WeightChartCard(records: List<WeightRecord>, targetWeight: Double?, onRegist
                     val x = index * stepX
                     val normalizedY = 1f - ((record.weightKg - minWeight) / range).toFloat()
                     val y = normalizedY * height
-                    val point = Offset(x, y)
-                    points.add(point)
-                    if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                    points.add(Offset(x, y))
+                }
+
+                if (points.isNotEmpty()) {
+                    path.moveTo(points.first().x, points.first().y)
+                    for (i in 0 until points.size - 1) {
+                        val p1 = points[i]
+                        val p2 = points[i + 1]
+                        val cx = (p1.x + p2.x) / 2f
+                        path.cubicTo(cx, p1.y, cx, p2.y, p2.x, p2.y)
+                    }
                 }
 
                 if (targetWeight != null && targetWeight > 0) {
@@ -1744,7 +1798,13 @@ fun StepsChartCard(records: List<StepsRecord>) {
             val startOfDay = dayCal.timeInMillis
             val endOfDay = startOfDay + 86400000L - 1L
             val dayRecords = records.filter { it.endTime in startOfDay..endOfDay }
-            val totalSteps = dayRecords.sumOf { it.count }
+            
+            val manualRecords = dayRecords.filter { it.source == "manual" }
+            val totalSteps = if (manualRecords.isNotEmpty()) {
+                manualRecords.sumOf { it.count }
+            } else {
+                dayRecords.sumOf { it.count }
+            }
             
             val dayName = when (dayCal.get(Calendar.DAY_OF_WEEK)) {
                 Calendar.SUNDAY -> "Dom"
@@ -1926,7 +1986,13 @@ fun SleepChartCard(records: List<SleepRecord>) {
             val startOfDay = dayCal.timeInMillis
             val endOfDay = startOfDay + 86400000L - 1L
             val dayRecords = records.filter { it.endTime in startOfDay..endOfDay }
-            val totalHours = dayRecords.sumOf { it.durationHours }
+            
+            val manualRecords = dayRecords.filter { it.source == "manual" }
+            val totalHours = if (manualRecords.isNotEmpty()) {
+                manualRecords.sumOf { it.durationHours }
+            } else {
+                dayRecords.sumOf { it.durationHours }
+            }
             
             val dayName = when (dayCal.get(Calendar.DAY_OF_WEEK)) {
                 Calendar.SUNDAY -> "Dom"

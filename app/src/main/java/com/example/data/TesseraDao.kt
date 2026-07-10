@@ -159,6 +159,9 @@ interface TesseraDao {
     @Query("DELETE FROM sleep_records WHERE source = 'Health Connect'")
     suspend fun clearHealthConnectSleepRecords()
 
+    @Query("DELETE FROM sleep_records WHERE source = 'manual' AND endTime >= :startOfDay AND endTime <= :endOfDay")
+    suspend fun clearManualSleepForDay(startOfDay: Long, endOfDay: Long)
+
     // Pets Queries
     @Query("SELECT * FROM pets ORDER BY name ASC")
     fun getAllPets(): Flow<List<PetEntity>>
@@ -204,6 +207,9 @@ interface TesseraDao {
 
     @Query("DELETE FROM steps_records WHERE source = 'Health Connect'")
     suspend fun clearHealthConnectStepsRecords()
+
+    @Query("DELETE FROM steps_records WHERE source = 'manual' AND endTime >= :startOfDay AND endTime <= :endOfDay")
+    suspend fun clearManualStepsForDay(startOfDay: Long, endOfDay: Long)
 
     // Routines
     @Query("SELECT * FROM routines ORDER BY id ASC")

@@ -25,6 +25,12 @@ class BootReceiver : BroadcastReceiver() {
                     val sharedPrefs = context.getSharedPreferences("tessera_prefs", Context.MODE_PRIVATE)
                     val vrResetDate = sharedPrefs.getInt("vr_reset_date", 1)
                     AlarmScheduler.scheduleVrAlarm(context, vrResetDate)
+                    
+                    val stepsTime = sharedPrefs.getString("steps_reminder_time", "20:00") ?: "20:00"
+                    AlarmScheduler.scheduleDailyReminder(context, "STEPS", stepsTime)
+                    
+                    val sleepTime = sharedPrefs.getString("sleep_reminder_time", "08:00") ?: "08:00"
+                    AlarmScheduler.scheduleDailyReminder(context, "SLEEP", sleepTime)
                 } catch (e: Exception) {
                     e.printStackTrace()
                 } finally {

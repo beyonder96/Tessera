@@ -155,6 +155,9 @@ dependencies {
   implementation("androidx.glance:glance-material3:1.1.0")
   implementation("androidx.biometric:biometric:1.2.0-alpha05")
   implementation("androidx.fragment:fragment-ktx:1.6.2")
+  
+  // Lottie for animations
+  implementation("com.airbnb.android:lottie-compose:6.4.0")
 }
 
 abstract class CopyApkTask : org.gradle.api.DefaultTask() {

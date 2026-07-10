@@ -50,6 +50,10 @@ import coil.compose.AsyncImage
 import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.components.SpotifyRecentlyPlayedWidget
 import com.example.ui.components.PremiumWeatherWidget
+import com.example.ui.components.MetricItem
+import com.example.ui.components.MetricItemWithProgress
+import com.example.ui.components.MetricItemWithNeonPulse
+import com.example.ui.components.OuraMetricItem
 import com.example.ui.theme.*
 import com.example.viewmodel.TesseraViewModel
 import com.example.viewmodel.PetViewModel
@@ -191,6 +195,23 @@ fun DailyScreen(
         viewModel.refreshAIInsightsAndMetric()
         delay(80)
         animateItems = true
+
+    var financeIndex by remember { mutableStateOf(0) }
+    var healthIndex by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        while(true) {
+            kotlinx.coroutines.delay(4000L)
+            financeIndex = (financeIndex + 1) % 4
+            healthIndex = (healthIndex + 1) % 3
+        }
+    }
+    val netWorth = totalIncome - totalExpense
+    val todayStart = java.util.Calendar.getInstance().apply { set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0); set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0) }.timeInMillis
+    val todayEnd = java.util.Calendar.getInstance().apply { set(java.util.Calendar.HOUR_OF_DAY, 23); set(java.util.Calendar.MINUTE, 59); set(java.util.Calendar.SECOND, 59); set(java.util.Calendar.MILLISECOND, 999) }.timeInMillis
+    val todaySteps = stepsRecords.filter { it.startTime >= todayStart && it.endTime <= todayEnd }.sumOf { it.count }
+    val latestWeight = weightRecords.lastOrNull()?.weightKg ?: 70.0
+    val aptProgress = sharedPrefs.getFloat("apartment_progress", 0.75f)
+
     }
 
     Box(
@@ -324,11 +345,425 @@ fun DailyScreen(
                     ) {
                         // 1. GREETING & CELESTIAL ARC
                         HeaderGreetingSection(
+                        // 1.5. HOME SCREEN METRICS WIDGETS
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Widget 1 (Finanças)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = financeIndex, animationSpec = tween(500), label = "FinanceRotation") { idx ->
+                                    val valIdx = when(idx) {
+                                        0 -> totalPatrimony
+                                        1 -> netWorth
+                                        2 -> totalIncome
+                                        else -> totalExpense
+                                    }
+                                    val labelIdx = when(idx) {
+                                        0 -> "PATRIMÔNIO"
+                                        1 -> "SALDO"
+                                        2 -> "RECEITAS"
+                                        else -> "DESPESAS"
+                                    }
+                                    val iconIdx = when(idx) {
+                                        0 -> Icons.Outlined.AccountBalance
+                                        1 -> Icons.Outlined.AccountBalanceWallet
+                                        2 -> Icons.Outlined.ArrowUpward
+                                        else -> Icons.Outlined.ArrowDownward
+                                    }
+                                    val formattedIdx = if (valIdx >= 1000) "${(valIdx / 1000).toInt()}k" else valIdx.toInt().toString()
+                                    MetricItem(iconIdx, formattedIdx, labelIdx, onClick = { onNavigate("finance") })
+                                }
+                            }
+
+                            // Widget 2 (Saúde)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = healthIndex, animationSpec = tween(500), label = "HealthRotation") { idx ->
+                                    val iconIdx = when (idx) {
+                                        0 -> Icons.Outlined.Bedtime
+                                        1 -> Icons.Outlined.MonitorWeight
+                                        else -> Icons.Outlined.DirectionsWalk
+                                    }
+                                    val valIdx = when (idx) {
+                                        0 -> String.format(java.util.Locale("pt", "BR"), "%.1fh", latestSleep)
+                                        1 -> String.format(java.util.Locale("pt", "BR"), "%.1f", latestWeight)
+                                        else -> todaySteps.toString()
+                                    }
+                                    val labelIdx = when (idx) {
+                                        0 -> "SONO"
+                                        1 -> "PESO"
+                                        else -> "PASSOS"
+                                    }
+                                    val progressIdx = when (idx) {
+                                        0 -> (latestSleep / 10.0).toFloat().coerceIn(0f, 1f)
+                                        1 -> (latestWeight / 120.0f).toFloat().coerceIn(0f, 1f)
+                                        else -> (todaySteps.toFloat() / 10000f).coerceIn(0f, 1f)
+                                    }
+                                    val colorIdx = when (idx) {
+                                        0 -> PrimaryTeal
+                                        1 -> TertiaryPurple
+                                        else -> Color(0xFF4D96FF)
+                                    }
+                                    MetricItemWithProgress(iconIdx, valIdx, labelIdx, colorIdx, progressIdx, onClick = { onNavigate("health") })
+                                }
+                            }
+
+                            // Widget 3 (Apartamento)
+                            MetricItemWithProgress(Icons.Outlined.Construction, "${(aptProgress * 100).toInt()}%", "OBRA", SecondaryGold, aptProgress, onClick = { onNavigate("apartment") })
+                        }
+
                             greeting = greeting,
+                        // 1.5. HOME SCREEN METRICS WIDGETS
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Widget 1 (Finanças)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = financeIndex, animationSpec = tween(500), label = "FinanceRotation") { idx ->
+                                    val valIdx = when(idx) {
+                                        0 -> totalPatrimony
+                                        1 -> netWorth
+                                        2 -> totalIncome
+                                        else -> totalExpense
+                                    }
+                                    val labelIdx = when(idx) {
+                                        0 -> "PATRIMÔNIO"
+                                        1 -> "SALDO"
+                                        2 -> "RECEITAS"
+                                        else -> "DESPESAS"
+                                    }
+                                    val iconIdx = when(idx) {
+                                        0 -> Icons.Outlined.AccountBalance
+                                        1 -> Icons.Outlined.AccountBalanceWallet
+                                        2 -> Icons.Outlined.ArrowUpward
+                                        else -> Icons.Outlined.ArrowDownward
+                                    }
+                                    val formattedIdx = if (valIdx >= 1000) "${(valIdx / 1000).toInt()}k" else valIdx.toInt().toString()
+                                    MetricItem(iconIdx, formattedIdx, labelIdx, onClick = { onNavigate("finance") })
+                                }
+                            }
+
+                            // Widget 2 (Saúde)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = healthIndex, animationSpec = tween(500), label = "HealthRotation") { idx ->
+                                    val iconIdx = when (idx) {
+                                        0 -> Icons.Outlined.Bedtime
+                                        1 -> Icons.Outlined.MonitorWeight
+                                        else -> Icons.Outlined.DirectionsWalk
+                                    }
+                                    val valIdx = when (idx) {
+                                        0 -> String.format(java.util.Locale("pt", "BR"), "%.1fh", latestSleep)
+                                        1 -> String.format(java.util.Locale("pt", "BR"), "%.1f", latestWeight)
+                                        else -> todaySteps.toString()
+                                    }
+                                    val labelIdx = when (idx) {
+                                        0 -> "SONO"
+                                        1 -> "PESO"
+                                        else -> "PASSOS"
+                                    }
+                                    val progressIdx = when (idx) {
+                                        0 -> (latestSleep / 10.0).toFloat().coerceIn(0f, 1f)
+                                        1 -> (latestWeight / 120.0f).toFloat().coerceIn(0f, 1f)
+                                        else -> (todaySteps.toFloat() / 10000f).coerceIn(0f, 1f)
+                                    }
+                                    val colorIdx = when (idx) {
+                                        0 -> PrimaryTeal
+                                        1 -> TertiaryPurple
+                                        else -> Color(0xFF4D96FF)
+                                    }
+                                    MetricItemWithProgress(iconIdx, valIdx, labelIdx, colorIdx, progressIdx, onClick = { onNavigate("health") })
+                                }
+                            }
+
+                            // Widget 3 (Apartamento)
+                            MetricItemWithProgress(Icons.Outlined.Construction, "${(aptProgress * 100).toInt()}%", "OBRA", SecondaryGold, aptProgress, onClick = { onNavigate("apartment") })
+                        }
+
                             userName = userName,
+                        // 1.5. HOME SCREEN METRICS WIDGETS
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Widget 1 (Finanças)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = financeIndex, animationSpec = tween(500), label = "FinanceRotation") { idx ->
+                                    val valIdx = when(idx) {
+                                        0 -> totalPatrimony
+                                        1 -> netWorth
+                                        2 -> totalIncome
+                                        else -> totalExpense
+                                    }
+                                    val labelIdx = when(idx) {
+                                        0 -> "PATRIMÔNIO"
+                                        1 -> "SALDO"
+                                        2 -> "RECEITAS"
+                                        else -> "DESPESAS"
+                                    }
+                                    val iconIdx = when(idx) {
+                                        0 -> Icons.Outlined.AccountBalance
+                                        1 -> Icons.Outlined.AccountBalanceWallet
+                                        2 -> Icons.Outlined.ArrowUpward
+                                        else -> Icons.Outlined.ArrowDownward
+                                    }
+                                    val formattedIdx = if (valIdx >= 1000) "${(valIdx / 1000).toInt()}k" else valIdx.toInt().toString()
+                                    MetricItem(iconIdx, formattedIdx, labelIdx, onClick = { onNavigate("finance") })
+                                }
+                            }
+
+                            // Widget 2 (Saúde)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = healthIndex, animationSpec = tween(500), label = "HealthRotation") { idx ->
+                                    val iconIdx = when (idx) {
+                                        0 -> Icons.Outlined.Bedtime
+                                        1 -> Icons.Outlined.MonitorWeight
+                                        else -> Icons.Outlined.DirectionsWalk
+                                    }
+                                    val valIdx = when (idx) {
+                                        0 -> String.format(java.util.Locale("pt", "BR"), "%.1fh", latestSleep)
+                                        1 -> String.format(java.util.Locale("pt", "BR"), "%.1f", latestWeight)
+                                        else -> todaySteps.toString()
+                                    }
+                                    val labelIdx = when (idx) {
+                                        0 -> "SONO"
+                                        1 -> "PESO"
+                                        else -> "PASSOS"
+                                    }
+                                    val progressIdx = when (idx) {
+                                        0 -> (latestSleep / 10.0).toFloat().coerceIn(0f, 1f)
+                                        1 -> (latestWeight / 120.0f).toFloat().coerceIn(0f, 1f)
+                                        else -> (todaySteps.toFloat() / 10000f).coerceIn(0f, 1f)
+                                    }
+                                    val colorIdx = when (idx) {
+                                        0 -> PrimaryTeal
+                                        1 -> TertiaryPurple
+                                        else -> Color(0xFF4D96FF)
+                                    }
+                                    MetricItemWithProgress(iconIdx, valIdx, labelIdx, colorIdx, progressIdx, onClick = { onNavigate("health") })
+                                }
+                            }
+
+                            // Widget 3 (Apartamento)
+                            MetricItemWithProgress(Icons.Outlined.Construction, "${(aptProgress * 100).toInt()}%", "OBRA", SecondaryGold, aptProgress, onClick = { onNavigate("apartment") })
+                        }
+
                             hour = hour,
+                        // 1.5. HOME SCREEN METRICS WIDGETS
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Widget 1 (Finanças)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = financeIndex, animationSpec = tween(500), label = "FinanceRotation") { idx ->
+                                    val valIdx = when(idx) {
+                                        0 -> totalPatrimony
+                                        1 -> netWorth
+                                        2 -> totalIncome
+                                        else -> totalExpense
+                                    }
+                                    val labelIdx = when(idx) {
+                                        0 -> "PATRIMÔNIO"
+                                        1 -> "SALDO"
+                                        2 -> "RECEITAS"
+                                        else -> "DESPESAS"
+                                    }
+                                    val iconIdx = when(idx) {
+                                        0 -> Icons.Outlined.AccountBalance
+                                        1 -> Icons.Outlined.AccountBalanceWallet
+                                        2 -> Icons.Outlined.ArrowUpward
+                                        else -> Icons.Outlined.ArrowDownward
+                                    }
+                                    val formattedIdx = if (valIdx >= 1000) "${(valIdx / 1000).toInt()}k" else valIdx.toInt().toString()
+                                    MetricItem(iconIdx, formattedIdx, labelIdx, onClick = { onNavigate("finance") })
+                                }
+                            }
+
+                            // Widget 2 (Saúde)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = healthIndex, animationSpec = tween(500), label = "HealthRotation") { idx ->
+                                    val iconIdx = when (idx) {
+                                        0 -> Icons.Outlined.Bedtime
+                                        1 -> Icons.Outlined.MonitorWeight
+                                        else -> Icons.Outlined.DirectionsWalk
+                                    }
+                                    val valIdx = when (idx) {
+                                        0 -> String.format(java.util.Locale("pt", "BR"), "%.1fh", latestSleep)
+                                        1 -> String.format(java.util.Locale("pt", "BR"), "%.1f", latestWeight)
+                                        else -> todaySteps.toString()
+                                    }
+                                    val labelIdx = when (idx) {
+                                        0 -> "SONO"
+                                        1 -> "PESO"
+                                        else -> "PASSOS"
+                                    }
+                                    val progressIdx = when (idx) {
+                                        0 -> (latestSleep / 10.0).toFloat().coerceIn(0f, 1f)
+                                        1 -> (latestWeight / 120.0f).toFloat().coerceIn(0f, 1f)
+                                        else -> (todaySteps.toFloat() / 10000f).coerceIn(0f, 1f)
+                                    }
+                                    val colorIdx = when (idx) {
+                                        0 -> PrimaryTeal
+                                        1 -> TertiaryPurple
+                                        else -> Color(0xFF4D96FF)
+                                    }
+                                    MetricItemWithProgress(iconIdx, valIdx, labelIdx, colorIdx, progressIdx, onClick = { onNavigate("health") })
+                                }
+                            }
+
+                            // Widget 3 (Apartamento)
+                            MetricItemWithProgress(Icons.Outlined.Construction, "${(aptProgress * 100).toInt()}%", "OBRA", SecondaryGold, aptProgress, onClick = { onNavigate("apartment") })
+                        }
+
                             weatherState = weatherState
+                        // 1.5. HOME SCREEN METRICS WIDGETS
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Widget 1 (Finanças)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = financeIndex, animationSpec = tween(500), label = "FinanceRotation") { idx ->
+                                    val valIdx = when(idx) {
+                                        0 -> totalPatrimony
+                                        1 -> netWorth
+                                        2 -> totalIncome
+                                        else -> totalExpense
+                                    }
+                                    val labelIdx = when(idx) {
+                                        0 -> "PATRIMÔNIO"
+                                        1 -> "SALDO"
+                                        2 -> "RECEITAS"
+                                        else -> "DESPESAS"
+                                    }
+                                    val iconIdx = when(idx) {
+                                        0 -> Icons.Outlined.AccountBalance
+                                        1 -> Icons.Outlined.AccountBalanceWallet
+                                        2 -> Icons.Outlined.ArrowUpward
+                                        else -> Icons.Outlined.ArrowDownward
+                                    }
+                                    val formattedIdx = if (valIdx >= 1000) "${(valIdx / 1000).toInt()}k" else valIdx.toInt().toString()
+                                    MetricItem(iconIdx, formattedIdx, labelIdx, onClick = { onNavigate("finance") })
+                                }
+                            }
+
+                            // Widget 2 (Saúde)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = healthIndex, animationSpec = tween(500), label = "HealthRotation") { idx ->
+                                    val iconIdx = when (idx) {
+                                        0 -> Icons.Outlined.Bedtime
+                                        1 -> Icons.Outlined.MonitorWeight
+                                        else -> Icons.Outlined.DirectionsWalk
+                                    }
+                                    val valIdx = when (idx) {
+                                        0 -> String.format(java.util.Locale("pt", "BR"), "%.1fh", latestSleep)
+                                        1 -> String.format(java.util.Locale("pt", "BR"), "%.1f", latestWeight)
+                                        else -> todaySteps.toString()
+                                    }
+                                    val labelIdx = when (idx) {
+                                        0 -> "SONO"
+                                        1 -> "PESO"
+                                        else -> "PASSOS"
+                                    }
+                                    val progressIdx = when (idx) {
+                                        0 -> (latestSleep / 10.0).toFloat().coerceIn(0f, 1f)
+                                        1 -> (latestWeight / 120.0f).toFloat().coerceIn(0f, 1f)
+                                        else -> (todaySteps.toFloat() / 10000f).coerceIn(0f, 1f)
+                                    }
+                                    val colorIdx = when (idx) {
+                                        0 -> PrimaryTeal
+                                        1 -> TertiaryPurple
+                                        else -> Color(0xFF4D96FF)
+                                    }
+                                    MetricItemWithProgress(iconIdx, valIdx, labelIdx, colorIdx, progressIdx, onClick = { onNavigate("health") })
+                                }
+                            }
+
+                            // Widget 3 (Apartamento)
+                            MetricItemWithProgress(Icons.Outlined.Construction, "${(aptProgress * 100).toInt()}%", "OBRA", SecondaryGold, aptProgress, onClick = { onNavigate("apartment") })
+                        }
+
                         )
+                        // 1.5. HOME SCREEN METRICS WIDGETS
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Widget 1 (Finanças)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = financeIndex, animationSpec = tween(500), label = "FinanceRotation") { idx ->
+                                    val valIdx = when(idx) {
+                                        0 -> totalPatrimony
+                                        1 -> netWorth
+                                        2 -> totalIncome
+                                        else -> totalExpense
+                                    }
+                                    val labelIdx = when(idx) {
+                                        0 -> "PATRIMÔNIO"
+                                        1 -> "SALDO"
+                                        2 -> "RECEITAS"
+                                        else -> "DESPESAS"
+                                    }
+                                    val iconIdx = when(idx) {
+                                        0 -> Icons.Outlined.AccountBalance
+                                        1 -> Icons.Outlined.AccountBalanceWallet
+                                        2 -> Icons.Outlined.ArrowUpward
+                                        else -> Icons.Outlined.ArrowDownward
+                                    }
+                                    val formattedIdx = if (valIdx >= 1000) "${(valIdx / 1000).toInt()}k" else valIdx.toInt().toString()
+                                    MetricItem(iconIdx, formattedIdx, labelIdx, onClick = { onNavigate("finance") })
+                                }
+                            }
+
+                            // Widget 2 (Saúde)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = healthIndex, animationSpec = tween(500), label = "HealthRotation") { idx ->
+                                    val iconIdx = when (idx) {
+                                        0 -> Icons.Outlined.Bedtime
+                                        1 -> Icons.Outlined.MonitorWeight
+                                        else -> Icons.Outlined.DirectionsWalk
+                                    }
+                                    val valIdx = when (idx) {
+                                        0 -> String.format(java.util.Locale("pt", "BR"), "%.1fh", latestSleep)
+                                        1 -> String.format(java.util.Locale("pt", "BR"), "%.1f", latestWeight)
+                                        else -> todaySteps.toString()
+                                    }
+                                    val labelIdx = when (idx) {
+                                        0 -> "SONO"
+                                        1 -> "PESO"
+                                        else -> "PASSOS"
+                                    }
+                                    val progressIdx = when (idx) {
+                                        0 -> (latestSleep / 10.0).toFloat().coerceIn(0f, 1f)
+                                        1 -> (latestWeight / 120.0f).toFloat().coerceIn(0f, 1f)
+                                        else -> (todaySteps.toFloat() / 10000f).coerceIn(0f, 1f)
+                                    }
+                                    val colorIdx = when (idx) {
+                                        0 -> PrimaryTeal
+                                        1 -> TertiaryPurple
+                                        else -> Color(0xFF4D96FF)
+                                    }
+                                    MetricItemWithProgress(iconIdx, valIdx, labelIdx, colorIdx, progressIdx, onClick = { onNavigate("health") })
+                                }
+                            }
+
+                            // Widget 3 (Apartamento)
+                            MetricItemWithProgress(Icons.Outlined.Construction, "${(aptProgress * 100).toInt()}%", "OBRA", SecondaryGold, aptProgress, onClick = { onNavigate("apartment") })
+                        }
+
 
                         // 2. PREMIUM WEATHER WIDGET
                         PremiumWeatherWidget(weatherState)
@@ -393,11 +828,425 @@ fun DailyScreen(
 // 1. HeaderGreetingSection Component
 @Composable
 fun HeaderGreetingSection(
+                        // 1.5. HOME SCREEN METRICS WIDGETS
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Widget 1 (Finanças)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = financeIndex, animationSpec = tween(500), label = "FinanceRotation") { idx ->
+                                    val valIdx = when(idx) {
+                                        0 -> totalPatrimony
+                                        1 -> netWorth
+                                        2 -> totalIncome
+                                        else -> totalExpense
+                                    }
+                                    val labelIdx = when(idx) {
+                                        0 -> "PATRIMÔNIO"
+                                        1 -> "SALDO"
+                                        2 -> "RECEITAS"
+                                        else -> "DESPESAS"
+                                    }
+                                    val iconIdx = when(idx) {
+                                        0 -> Icons.Outlined.AccountBalance
+                                        1 -> Icons.Outlined.AccountBalanceWallet
+                                        2 -> Icons.Outlined.ArrowUpward
+                                        else -> Icons.Outlined.ArrowDownward
+                                    }
+                                    val formattedIdx = if (valIdx >= 1000) "${(valIdx / 1000).toInt()}k" else valIdx.toInt().toString()
+                                    MetricItem(iconIdx, formattedIdx, labelIdx, onClick = { onNavigate("finance") })
+                                }
+                            }
+
+                            // Widget 2 (Saúde)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = healthIndex, animationSpec = tween(500), label = "HealthRotation") { idx ->
+                                    val iconIdx = when (idx) {
+                                        0 -> Icons.Outlined.Bedtime
+                                        1 -> Icons.Outlined.MonitorWeight
+                                        else -> Icons.Outlined.DirectionsWalk
+                                    }
+                                    val valIdx = when (idx) {
+                                        0 -> String.format(java.util.Locale("pt", "BR"), "%.1fh", latestSleep)
+                                        1 -> String.format(java.util.Locale("pt", "BR"), "%.1f", latestWeight)
+                                        else -> todaySteps.toString()
+                                    }
+                                    val labelIdx = when (idx) {
+                                        0 -> "SONO"
+                                        1 -> "PESO"
+                                        else -> "PASSOS"
+                                    }
+                                    val progressIdx = when (idx) {
+                                        0 -> (latestSleep / 10.0).toFloat().coerceIn(0f, 1f)
+                                        1 -> (latestWeight / 120.0f).toFloat().coerceIn(0f, 1f)
+                                        else -> (todaySteps.toFloat() / 10000f).coerceIn(0f, 1f)
+                                    }
+                                    val colorIdx = when (idx) {
+                                        0 -> PrimaryTeal
+                                        1 -> TertiaryPurple
+                                        else -> Color(0xFF4D96FF)
+                                    }
+                                    MetricItemWithProgress(iconIdx, valIdx, labelIdx, colorIdx, progressIdx, onClick = { onNavigate("health") })
+                                }
+                            }
+
+                            // Widget 3 (Apartamento)
+                            MetricItemWithProgress(Icons.Outlined.Construction, "${(aptProgress * 100).toInt()}%", "OBRA", SecondaryGold, aptProgress, onClick = { onNavigate("apartment") })
+                        }
+
     greeting: String,
+                        // 1.5. HOME SCREEN METRICS WIDGETS
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Widget 1 (Finanças)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = financeIndex, animationSpec = tween(500), label = "FinanceRotation") { idx ->
+                                    val valIdx = when(idx) {
+                                        0 -> totalPatrimony
+                                        1 -> netWorth
+                                        2 -> totalIncome
+                                        else -> totalExpense
+                                    }
+                                    val labelIdx = when(idx) {
+                                        0 -> "PATRIMÔNIO"
+                                        1 -> "SALDO"
+                                        2 -> "RECEITAS"
+                                        else -> "DESPESAS"
+                                    }
+                                    val iconIdx = when(idx) {
+                                        0 -> Icons.Outlined.AccountBalance
+                                        1 -> Icons.Outlined.AccountBalanceWallet
+                                        2 -> Icons.Outlined.ArrowUpward
+                                        else -> Icons.Outlined.ArrowDownward
+                                    }
+                                    val formattedIdx = if (valIdx >= 1000) "${(valIdx / 1000).toInt()}k" else valIdx.toInt().toString()
+                                    MetricItem(iconIdx, formattedIdx, labelIdx, onClick = { onNavigate("finance") })
+                                }
+                            }
+
+                            // Widget 2 (Saúde)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = healthIndex, animationSpec = tween(500), label = "HealthRotation") { idx ->
+                                    val iconIdx = when (idx) {
+                                        0 -> Icons.Outlined.Bedtime
+                                        1 -> Icons.Outlined.MonitorWeight
+                                        else -> Icons.Outlined.DirectionsWalk
+                                    }
+                                    val valIdx = when (idx) {
+                                        0 -> String.format(java.util.Locale("pt", "BR"), "%.1fh", latestSleep)
+                                        1 -> String.format(java.util.Locale("pt", "BR"), "%.1f", latestWeight)
+                                        else -> todaySteps.toString()
+                                    }
+                                    val labelIdx = when (idx) {
+                                        0 -> "SONO"
+                                        1 -> "PESO"
+                                        else -> "PASSOS"
+                                    }
+                                    val progressIdx = when (idx) {
+                                        0 -> (latestSleep / 10.0).toFloat().coerceIn(0f, 1f)
+                                        1 -> (latestWeight / 120.0f).toFloat().coerceIn(0f, 1f)
+                                        else -> (todaySteps.toFloat() / 10000f).coerceIn(0f, 1f)
+                                    }
+                                    val colorIdx = when (idx) {
+                                        0 -> PrimaryTeal
+                                        1 -> TertiaryPurple
+                                        else -> Color(0xFF4D96FF)
+                                    }
+                                    MetricItemWithProgress(iconIdx, valIdx, labelIdx, colorIdx, progressIdx, onClick = { onNavigate("health") })
+                                }
+                            }
+
+                            // Widget 3 (Apartamento)
+                            MetricItemWithProgress(Icons.Outlined.Construction, "${(aptProgress * 100).toInt()}%", "OBRA", SecondaryGold, aptProgress, onClick = { onNavigate("apartment") })
+                        }
+
     userName: String,
+                        // 1.5. HOME SCREEN METRICS WIDGETS
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Widget 1 (Finanças)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = financeIndex, animationSpec = tween(500), label = "FinanceRotation") { idx ->
+                                    val valIdx = when(idx) {
+                                        0 -> totalPatrimony
+                                        1 -> netWorth
+                                        2 -> totalIncome
+                                        else -> totalExpense
+                                    }
+                                    val labelIdx = when(idx) {
+                                        0 -> "PATRIMÔNIO"
+                                        1 -> "SALDO"
+                                        2 -> "RECEITAS"
+                                        else -> "DESPESAS"
+                                    }
+                                    val iconIdx = when(idx) {
+                                        0 -> Icons.Outlined.AccountBalance
+                                        1 -> Icons.Outlined.AccountBalanceWallet
+                                        2 -> Icons.Outlined.ArrowUpward
+                                        else -> Icons.Outlined.ArrowDownward
+                                    }
+                                    val formattedIdx = if (valIdx >= 1000) "${(valIdx / 1000).toInt()}k" else valIdx.toInt().toString()
+                                    MetricItem(iconIdx, formattedIdx, labelIdx, onClick = { onNavigate("finance") })
+                                }
+                            }
+
+                            // Widget 2 (Saúde)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = healthIndex, animationSpec = tween(500), label = "HealthRotation") { idx ->
+                                    val iconIdx = when (idx) {
+                                        0 -> Icons.Outlined.Bedtime
+                                        1 -> Icons.Outlined.MonitorWeight
+                                        else -> Icons.Outlined.DirectionsWalk
+                                    }
+                                    val valIdx = when (idx) {
+                                        0 -> String.format(java.util.Locale("pt", "BR"), "%.1fh", latestSleep)
+                                        1 -> String.format(java.util.Locale("pt", "BR"), "%.1f", latestWeight)
+                                        else -> todaySteps.toString()
+                                    }
+                                    val labelIdx = when (idx) {
+                                        0 -> "SONO"
+                                        1 -> "PESO"
+                                        else -> "PASSOS"
+                                    }
+                                    val progressIdx = when (idx) {
+                                        0 -> (latestSleep / 10.0).toFloat().coerceIn(0f, 1f)
+                                        1 -> (latestWeight / 120.0f).toFloat().coerceIn(0f, 1f)
+                                        else -> (todaySteps.toFloat() / 10000f).coerceIn(0f, 1f)
+                                    }
+                                    val colorIdx = when (idx) {
+                                        0 -> PrimaryTeal
+                                        1 -> TertiaryPurple
+                                        else -> Color(0xFF4D96FF)
+                                    }
+                                    MetricItemWithProgress(iconIdx, valIdx, labelIdx, colorIdx, progressIdx, onClick = { onNavigate("health") })
+                                }
+                            }
+
+                            // Widget 3 (Apartamento)
+                            MetricItemWithProgress(Icons.Outlined.Construction, "${(aptProgress * 100).toInt()}%", "OBRA", SecondaryGold, aptProgress, onClick = { onNavigate("apartment") })
+                        }
+
     hour: Int,
+                        // 1.5. HOME SCREEN METRICS WIDGETS
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Widget 1 (Finanças)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = financeIndex, animationSpec = tween(500), label = "FinanceRotation") { idx ->
+                                    val valIdx = when(idx) {
+                                        0 -> totalPatrimony
+                                        1 -> netWorth
+                                        2 -> totalIncome
+                                        else -> totalExpense
+                                    }
+                                    val labelIdx = when(idx) {
+                                        0 -> "PATRIMÔNIO"
+                                        1 -> "SALDO"
+                                        2 -> "RECEITAS"
+                                        else -> "DESPESAS"
+                                    }
+                                    val iconIdx = when(idx) {
+                                        0 -> Icons.Outlined.AccountBalance
+                                        1 -> Icons.Outlined.AccountBalanceWallet
+                                        2 -> Icons.Outlined.ArrowUpward
+                                        else -> Icons.Outlined.ArrowDownward
+                                    }
+                                    val formattedIdx = if (valIdx >= 1000) "${(valIdx / 1000).toInt()}k" else valIdx.toInt().toString()
+                                    MetricItem(iconIdx, formattedIdx, labelIdx, onClick = { onNavigate("finance") })
+                                }
+                            }
+
+                            // Widget 2 (Saúde)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = healthIndex, animationSpec = tween(500), label = "HealthRotation") { idx ->
+                                    val iconIdx = when (idx) {
+                                        0 -> Icons.Outlined.Bedtime
+                                        1 -> Icons.Outlined.MonitorWeight
+                                        else -> Icons.Outlined.DirectionsWalk
+                                    }
+                                    val valIdx = when (idx) {
+                                        0 -> String.format(java.util.Locale("pt", "BR"), "%.1fh", latestSleep)
+                                        1 -> String.format(java.util.Locale("pt", "BR"), "%.1f", latestWeight)
+                                        else -> todaySteps.toString()
+                                    }
+                                    val labelIdx = when (idx) {
+                                        0 -> "SONO"
+                                        1 -> "PESO"
+                                        else -> "PASSOS"
+                                    }
+                                    val progressIdx = when (idx) {
+                                        0 -> (latestSleep / 10.0).toFloat().coerceIn(0f, 1f)
+                                        1 -> (latestWeight / 120.0f).toFloat().coerceIn(0f, 1f)
+                                        else -> (todaySteps.toFloat() / 10000f).coerceIn(0f, 1f)
+                                    }
+                                    val colorIdx = when (idx) {
+                                        0 -> PrimaryTeal
+                                        1 -> TertiaryPurple
+                                        else -> Color(0xFF4D96FF)
+                                    }
+                                    MetricItemWithProgress(iconIdx, valIdx, labelIdx, colorIdx, progressIdx, onClick = { onNavigate("health") })
+                                }
+                            }
+
+                            // Widget 3 (Apartamento)
+                            MetricItemWithProgress(Icons.Outlined.Construction, "${(aptProgress * 100).toInt()}%", "OBRA", SecondaryGold, aptProgress, onClick = { onNavigate("apartment") })
+                        }
+
     weatherState: TesseraViewModel.WeatherInfo?
+                        // 1.5. HOME SCREEN METRICS WIDGETS
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Widget 1 (Finanças)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = financeIndex, animationSpec = tween(500), label = "FinanceRotation") { idx ->
+                                    val valIdx = when(idx) {
+                                        0 -> totalPatrimony
+                                        1 -> netWorth
+                                        2 -> totalIncome
+                                        else -> totalExpense
+                                    }
+                                    val labelIdx = when(idx) {
+                                        0 -> "PATRIMÔNIO"
+                                        1 -> "SALDO"
+                                        2 -> "RECEITAS"
+                                        else -> "DESPESAS"
+                                    }
+                                    val iconIdx = when(idx) {
+                                        0 -> Icons.Outlined.AccountBalance
+                                        1 -> Icons.Outlined.AccountBalanceWallet
+                                        2 -> Icons.Outlined.ArrowUpward
+                                        else -> Icons.Outlined.ArrowDownward
+                                    }
+                                    val formattedIdx = if (valIdx >= 1000) "${(valIdx / 1000).toInt()}k" else valIdx.toInt().toString()
+                                    MetricItem(iconIdx, formattedIdx, labelIdx, onClick = { onNavigate("finance") })
+                                }
+                            }
+
+                            // Widget 2 (Saúde)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = healthIndex, animationSpec = tween(500), label = "HealthRotation") { idx ->
+                                    val iconIdx = when (idx) {
+                                        0 -> Icons.Outlined.Bedtime
+                                        1 -> Icons.Outlined.MonitorWeight
+                                        else -> Icons.Outlined.DirectionsWalk
+                                    }
+                                    val valIdx = when (idx) {
+                                        0 -> String.format(java.util.Locale("pt", "BR"), "%.1fh", latestSleep)
+                                        1 -> String.format(java.util.Locale("pt", "BR"), "%.1f", latestWeight)
+                                        else -> todaySteps.toString()
+                                    }
+                                    val labelIdx = when (idx) {
+                                        0 -> "SONO"
+                                        1 -> "PESO"
+                                        else -> "PASSOS"
+                                    }
+                                    val progressIdx = when (idx) {
+                                        0 -> (latestSleep / 10.0).toFloat().coerceIn(0f, 1f)
+                                        1 -> (latestWeight / 120.0f).toFloat().coerceIn(0f, 1f)
+                                        else -> (todaySteps.toFloat() / 10000f).coerceIn(0f, 1f)
+                                    }
+                                    val colorIdx = when (idx) {
+                                        0 -> PrimaryTeal
+                                        1 -> TertiaryPurple
+                                        else -> Color(0xFF4D96FF)
+                                    }
+                                    MetricItemWithProgress(iconIdx, valIdx, labelIdx, colorIdx, progressIdx, onClick = { onNavigate("health") })
+                                }
+                            }
+
+                            // Widget 3 (Apartamento)
+                            MetricItemWithProgress(Icons.Outlined.Construction, "${(aptProgress * 100).toInt()}%", "OBRA", SecondaryGold, aptProgress, onClick = { onNavigate("apartment") })
+                        }
+
 ) {
+                        // 1.5. HOME SCREEN METRICS WIDGETS
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Widget 1 (Finanças)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = financeIndex, animationSpec = tween(500), label = "FinanceRotation") { idx ->
+                                    val valIdx = when(idx) {
+                                        0 -> totalPatrimony
+                                        1 -> netWorth
+                                        2 -> totalIncome
+                                        else -> totalExpense
+                                    }
+                                    val labelIdx = when(idx) {
+                                        0 -> "PATRIMÔNIO"
+                                        1 -> "SALDO"
+                                        2 -> "RECEITAS"
+                                        else -> "DESPESAS"
+                                    }
+                                    val iconIdx = when(idx) {
+                                        0 -> Icons.Outlined.AccountBalance
+                                        1 -> Icons.Outlined.AccountBalanceWallet
+                                        2 -> Icons.Outlined.ArrowUpward
+                                        else -> Icons.Outlined.ArrowDownward
+                                    }
+                                    val formattedIdx = if (valIdx >= 1000) "${(valIdx / 1000).toInt()}k" else valIdx.toInt().toString()
+                                    MetricItem(iconIdx, formattedIdx, labelIdx, onClick = { onNavigate("finance") })
+                                }
+                            }
+
+                            // Widget 2 (Saúde)
+                            Box(modifier = Modifier.width(76.dp)) {
+                                Crossfade(targetState = healthIndex, animationSpec = tween(500), label = "HealthRotation") { idx ->
+                                    val iconIdx = when (idx) {
+                                        0 -> Icons.Outlined.Bedtime
+                                        1 -> Icons.Outlined.MonitorWeight
+                                        else -> Icons.Outlined.DirectionsWalk
+                                    }
+                                    val valIdx = when (idx) {
+                                        0 -> String.format(java.util.Locale("pt", "BR"), "%.1fh", latestSleep)
+                                        1 -> String.format(java.util.Locale("pt", "BR"), "%.1f", latestWeight)
+                                        else -> todaySteps.toString()
+                                    }
+                                    val labelIdx = when (idx) {
+                                        0 -> "SONO"
+                                        1 -> "PESO"
+                                        else -> "PASSOS"
+                                    }
+                                    val progressIdx = when (idx) {
+                                        0 -> (latestSleep / 10.0).toFloat().coerceIn(0f, 1f)
+                                        1 -> (latestWeight / 120.0f).toFloat().coerceIn(0f, 1f)
+                                        else -> (todaySteps.toFloat() / 10000f).coerceIn(0f, 1f)
+                                    }
+                                    val colorIdx = when (idx) {
+                                        0 -> PrimaryTeal
+                                        1 -> TertiaryPurple
+                                        else -> Color(0xFF4D96FF)
+                                    }
+                                    MetricItemWithProgress(iconIdx, valIdx, labelIdx, colorIdx, progressIdx, onClick = { onNavigate("health") })
+                                }
+                            }
+
+                            // Widget 3 (Apartamento)
+                            MetricItemWithProgress(Icons.Outlined.Construction, "${(aptProgress * 100).toInt()}%", "OBRA", SecondaryGold, aptProgress, onClick = { onNavigate("apartment") })
+                        }
+
     val tempVal = if (weatherState != null) "${weatherState.temp.toInt()}°C" else "18°C"
     
     // Choose dynamic text based on the celestial arc status

@@ -93,13 +93,17 @@ class MedicationReceiver : BroadcastReceiver() {
                 }
                 
                 if (shouldShow) {
-                    NotificationHelper.createNotificationChannel(context)
-                    NotificationHelper.showNotification(
-                        context = context,
-                        title = "Hora do Remédio: $medName",
-                        message = messageText,
-                        notificationId = medName.hashCode()
-                    )
+                    val serviceIntent = Intent(context, GlobalMedicationService::class.java).apply {
+                        putExtra("medicationId", matchingMed.id)
+                        putExtra("medicationName", medName)
+                        putExtra("medicationDosage", medDosage)
+                        putExtra("medicationTime", matchingMed.time)
+                    }
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        context.startForegroundService(serviceIntent)
+                    } else {
+                        context.startService(serviceIntent)
+                    }
                 }
                 
                 // Reagenda o alarme exato para o próximo dia
@@ -119,13 +123,15 @@ class MedicationReceiver : BroadcastReceiver() {
                     }
                 }
             } else {
-                NotificationHelper.createNotificationChannel(context)
-                NotificationHelper.showNotification(
-                    context = context,
-                    title = "Hora do Remédio: $medName",
-                    message = messageText,
-                    notificationId = medName.hashCode()
-                )
+                val serviceIntent = Intent(context, GlobalMedicationService::class.java).apply {
+                    putExtra("medicationName", medName)
+                    putExtra("medicationDosage", medDosage)
+                }
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    context.startForegroundService(serviceIntent)
+                } else {
+                    context.startService(serviceIntent)
+                }
             }
         }
     }
