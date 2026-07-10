@@ -38,8 +38,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
-- **Debug:** `app-debug-1.8.3.apk`
-- **Release:** `app-release-1.8.3.apk`
+- **Debug:** `app-debug-1.8.4.apk`
+- **Release:** `app-release-1.8.4.apk`
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.
