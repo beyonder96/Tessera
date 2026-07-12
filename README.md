@@ -3,7 +3,7 @@
 Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inteligente!
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
-## 🚀 Novidades da Versão 1.8.5
+## 🚀 Novidades da Versão 1.8.6
 
 - **Tessera AI Chat Minimalista (Estilo Premium):** Nossa assistente virtual ganhou uma cara nova! Abandonamos as antigas "bolhas de bate-papo" para dar espaço a um visual estilo iOS, muito mais limpo, imersivo e sem bordas. Adicionamos uma nova Tela de Boas-Vindas com cards interativos de atalhos e ajustamos a tipografia para ser impactante. Além disso, agora há um atalho no topo para limpar facilmente o histórico da sessão.
 - **Novo Gerenciador de Vale-Refeição:** A área de VR na aba de Finanças foi inteiramente reestruturada. Agora ela funciona como um gerenciador completo (nos mesmos moldes dos cartões de crédito), permitindo visualizar o saldo dinâmico atual, titular do cartão e um extrato completo com histórico de entradas e saídas persistidos em banco de dados!
@@ -42,8 +42,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
-- **Debug:** `app-debug-1.8.5.apk`
-- **Release:** `app-release-1.8.5.apk`
+- **Debug:** `app-debug-1.8.6.apk`
+- **Release:** `app-release-1.8.6.apk`
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.

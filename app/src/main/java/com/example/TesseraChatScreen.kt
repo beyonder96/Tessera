@@ -276,10 +276,17 @@ fun AnimatedMessageRow(message: ChatMessage, onTick: () -> Unit) {
                         strokeWidth = 2.dp
                     )
                 } else if (!message.isUser) {
-                    TypewriterText(
-                        fullText = message.text,
-                        onTick = onTick
-                    )
+                    Column {
+                        val widgetType = extractWidgetType(message.text)
+                        if (widgetType != null) {
+                            ChatWidgetCard(type = widgetType)
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                        TypewriterText(
+                            fullText = removeWidgetTags(message.text),
+                            onTick = onTick
+                        )
+                    }
                 } else {
                     Text(
                         text = message.text,
@@ -379,6 +386,118 @@ fun parseMarkdown(text: String): AnnotatedString {
                         currentIndex = codeIndex + 1
                     }
                 }
+            }
+        }
+    }
+}
+
+fun extractWidgetType(text: String): String? {
+    val regex = "\\[WIDGET:([A-Z]+)\\]".toRegex()
+    return regex.find(text)?.groupValues?.get(1)
+}
+
+fun removeWidgetTags(text: String): String {
+    val regex = "\\[WIDGET:[A-Z]+\\]".toRegex()
+    return text.replace(regex, "").trim()
+}
+
+@Composable
+fun ChatWidgetCard(type: String) {
+    when (type) {
+        "FINANCE" -> FinanceChatWidget()
+        "PETS" -> PetsChatWidget()
+        "APARTMENT" -> ApartmentChatWidget()
+    }
+}
+
+@Composable
+fun FinanceChatWidget() {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF0F172A)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Outlined.Star, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(20.dp))
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text("Resumo Financeiro", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("Gasto Mensal: R$ 2.450,00", color = Color(0xFF94A3B8), fontSize = 14.sp)
+            }
+        }
+    }
+}
+
+@Composable
+fun PetsChatWidget() {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF0F172A)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Outlined.Home, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(20.dp))
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text("Carteira Pet", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("Próxima Vacina: Raiva em 10 dias", color = Color(0xFF94A3B8), fontSize = 14.sp)
+            }
+        }
+    }
+}
+
+@Composable
+fun ApartmentChatWidget() {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF0F172A)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Outlined.Build, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(20.dp))
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text("Progresso da Obra", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("Pintura: 80% Concluído", color = Color(0xFF94A3B8), fontSize = 14.sp)
             }
         }
     }
