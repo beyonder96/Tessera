@@ -390,14 +390,24 @@ fun PlanningView(viewModel: TesseraViewModel, pendingItems: List<MarketItem>, bo
         item { Spacer(modifier = Modifier.height(32.dp)) }
 
         item {
-            Text(
-                text = "Histórico Recente",
-                fontFamily = FontFamily.Serif,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 22.sp,
-                color = Color(0xFFDFE3E2),
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Histórico Recente",
+                    fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 22.sp,
+                    color = Color(0xFFDFE3E2)
+                )
+                if (boughtItems.isNotEmpty()) {
+                    IconButton(onClick = { viewModel.clearCompletedMarketItems() }) {
+                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Limpar Histórico", tint = Color.Gray)
+                    }
+                }
+            }
         }
         
         if (boughtItems.isEmpty()) {

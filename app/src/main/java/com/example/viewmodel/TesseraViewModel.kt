@@ -38,8 +38,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import com.example.data.FootballService
 import com.example.data.FootballMatchInfo
 import com.example.data.sportmonks.NetworkModule
-import com.example.data.RssArticle
-import com.example.data.RssRepository
 import android.util.Log
 
 class TesseraViewModel(
@@ -135,13 +133,10 @@ class TesseraViewModel(
     }
 
     private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { sharedPreferences, key ->
-        if (key == "spotify_access_token") {
-            _spotifyAccessToken.value = sharedPreferences.getString("spotify_access_token", null)
-        }
+        // Removed spotify token check
     }
 
-    private val _spotifyAccessToken = MutableStateFlow<String?>(null)
-    val spotifyAccessToken: StateFlow<String?> = _spotifyAccessToken.asStateFlow()
+
 
     private val _homeBackgroundUri = MutableStateFlow(
         sharedPrefs.getString("home_background_uri", "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop")
@@ -176,6 +171,7 @@ class TesseraViewModel(
 
     init {
         checkVrPrompt()
+        fetchWeather()
     }
 
     fun setVrResetDate(date: Int) {
@@ -210,15 +206,7 @@ class TesseraViewModel(
         }
     }
 
-    fun saveSpotifyToken(token: String) {
-        sharedPrefs.edit().putString("spotify_access_token", token).apply()
-        _spotifyAccessToken.value = token
-    }
 
-    fun disconnectSpotify() {
-        sharedPrefs.edit().remove("spotify_access_token").apply()
-        _spotifyAccessToken.value = null
-    }
 
     // Football Integration (Sportmonks)
     private val sportmonksApi = NetworkModule.provideSportmonksApi(
@@ -239,11 +227,6 @@ class TesseraViewModel(
     private val _configuredFootballTeams = MutableStateFlow<List<String>>(emptyList())
     val configuredFootballTeams: StateFlow<List<String>> = _configuredFootballTeams.asStateFlow()
 
-    private val rssRepository = RssRepository(applicationContext)
-
-    private val _newsArticles = MutableStateFlow<List<RssArticle>>(emptyList())
-    val newsArticles: StateFlow<List<RssArticle>> = _newsArticles.asStateFlow()
-
     fun loadConfiguredFootballTeams() {
         val teams = sharedPrefs.getStringSet("football_teams", setOf("Brasil", "Flamengo")) ?: setOf("Brasil", "Flamengo")
         _configuredFootballTeams.value = teams.toList()
@@ -262,40 +245,6 @@ class TesseraViewModel(
         sharedPrefs.edit().putStringSet("football_teams", updated).apply()
         fetchFootballScores()
     }
-
-    private val _rssFeeds = MutableStateFlow<Map<String, String>>(emptyMap())
-    val rssFeeds: StateFlow<Map<String, String>> = _rssFeeds.asStateFlow()
-
-    init {
-        // Initial fetches
-        _rssFeeds.value = rssRepository.getFeeds()
-        refreshNews()
-        fetchWeather()
-    }
-
-    fun addRssFeed(name: String, url: String) {
-        rssRepository.addFeed(name, url)
-        _rssFeeds.value = rssRepository.getFeeds()
-        refreshNews()
-    }
-
-    fun removeRssFeed(name: String) {
-        rssRepository.removeFeed(name)
-        _rssFeeds.value = rssRepository.getFeeds()
-        refreshNews()
-    }
-
-    fun refreshNews() {
-        viewModelScope.launch {
-            try {
-                val articles = rssRepository.getLatestNews()
-                _newsArticles.value = articles
-            } catch (e: Exception) {
-                Log.e("TesseraViewModel", "Erro ao buscar notícias RSS: ${e.message}")
-            }
-        }
-    }
-
 
     fun fetchWeather() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -1180,6 +1129,14 @@ class TesseraViewModel(
             repository.updateMarketItem(item.copy(price = price, quantity = quantity, unit = unit))
         }
     }
+    fun clearCompletedMarketItems() {
+        viewModelScope.launch {
+            val boughtItems = repository.boughtMarketItems.first()
+            boughtItems.forEach { item ->
+                repository.deleteMarketItem(item)
+            }
+        }
+    }
 
     fun markMarketItemBought(item: MarketItem) {
         viewModelScope.launch {
@@ -1877,8 +1834,8 @@ class TesseraViewModel(
         loadUserBusLines()
         loadConfiguredFootballTeams()
         fetchFootballScores()
-        refreshNews()
-        _spotifyAccessToken.value = sharedPrefs.getString("spotify_access_token", null)
+
+
         
         viewModelScope.launch(Dispatchers.IO) {
             refreshAIInsightsAndMetric()

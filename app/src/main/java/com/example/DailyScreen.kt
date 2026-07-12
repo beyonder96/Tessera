@@ -51,7 +51,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.ui.components.PremiumGlassModifier
-import com.example.ui.components.SpotifyRecentlyPlayedWidget
+
 import com.example.ui.components.PremiumWeatherWidget
 import com.example.ui.components.MetricItem
 import com.example.ui.components.MetricItemWithProgress
@@ -92,24 +92,7 @@ fun DailyScreen(
     val medications by viewModel.allMedications.collectAsStateWithLifecycle(initialValue = emptyList())
     val weatherState by viewModel.weatherState.collectAsStateWithLifecycle(initialValue = null)
     val dailyBriefingText by viewModel.dailyBriefingText.collectAsStateWithLifecycle(initialValue = null)
-    val newsArticles by viewModel.newsArticles.collectAsStateWithLifecycle(initialValue = emptyList())
-    val spotifyAccessToken by viewModel.spotifyAccessToken.collectAsStateWithLifecycle(initialValue = null)
 
-    val spotifyAuthLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        val response = com.spotify.sdk.android.auth.AuthorizationClient.getResponse(result.resultCode, result.data)
-        when (response.type) {
-            com.spotify.sdk.android.auth.AuthorizationResponse.Type.TOKEN -> {
-                viewModel.saveSpotifyToken(response.accessToken)
-                android.widget.Toast.makeText(context, "Conectado ao Spotify com sucesso!", android.widget.Toast.LENGTH_SHORT).show()
-            }
-            com.spotify.sdk.android.auth.AuthorizationResponse.Type.ERROR -> {
-                android.widget.Toast.makeText(context, "Erro ao conectar ao Spotify: " + response.error, android.widget.Toast.LENGTH_LONG).show()
-            }
-            else -> {}
-        }
-    }
 
 
 
@@ -432,46 +415,9 @@ fun DailyScreen(
                             }
                         )
 
-                        // 4.5 SPOTIFY RECENTLY PLAYED WIDGET
-                        SpotifyRecentlyPlayedWidget(
-                            accessToken = spotifyAccessToken,
-                            onConnectClick = {
-                                val clientId = "516e4fdbb4e040bfbab885614b32c8bb"
-                                val redirectUri = "tessera://spotify-callback"
-                                val scopes = "user-read-recently-played"
-                                
-                                // PKCE Generation
-                                val secureRandom = java.security.SecureRandom()
-                                val codeVerifierBytes = ByteArray(32)
-                                secureRandom.nextBytes(codeVerifierBytes)
-                                val codeVerifier = android.util.Base64.encodeToString(
-                                    codeVerifierBytes,
-                                    android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING or android.util.Base64.NO_WRAP
-                                )
-                                
-                                val bytes = codeVerifier.toByteArray(java.nio.charset.StandardCharsets.US_ASCII)
-                                val messageDigest = java.security.MessageDigest.getInstance("SHA-256")
-                                val digest = messageDigest.digest(bytes)
-                                val codeChallenge = android.util.Base64.encodeToString(
-                                    digest,
-                                    android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING or android.util.Base64.NO_WRAP
-                                )
-                                
-                                val sharedPrefs = context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE)
-                                sharedPrefs.edit().putString("spotify_code_verifier", codeVerifier).apply()
-                                
-                                val authUrl = "https://accounts.spotify.com/authorize?client_id=$clientId&response_type=code&redirect_uri=$redirectUri&scope=$scopes&code_challenge_method=S256&code_challenge=$codeChallenge"
-                                
-                                val customTabsIntent = androidx.browser.customtabs.CustomTabsIntent.Builder().build()
-                                customTabsIntent.launchUrl(context, android.net.Uri.parse(authUrl))
-                            },
-                            onDisconnectClick = {
-                                viewModel.disconnectSpotify()
-                            }
-                        )
-                        
-                        // 5. RSS DAILY NEWS WIDGET
-                        com.example.ui.components.RssNewsWidget(articles = newsArticles)
+                        // 4.5 SPOTIFY EMBED WIDGET
+                        com.example.ui.components.SpotifyEmbedWidget()
+
                     }
                 }
             }

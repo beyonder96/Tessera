@@ -94,7 +94,11 @@ fun DetailedMatchWidget(
 
             if (match == null) {
                 Box(modifier = Modifier.fillMaxWidth().height(150.dp), contentAlignment = Alignment.Center) {
-                    Text("Carregando informações da partida...", color = Color.White.copy(alpha = 0.5f), fontSize = 13.sp)
+                    if (isLoading) {
+                        Text("Carregando informações da partida...", color = Color.White.copy(alpha = 0.5f), fontSize = 13.sp)
+                    } else {
+                        Text("Nenhuma partida recente encontrada.", color = Color.White.copy(alpha = 0.5f), fontSize = 13.sp)
+                    }
                 }
             } else {
                 val m = match!!

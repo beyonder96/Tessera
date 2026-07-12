@@ -138,7 +138,28 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                         color = textColor
                     )
                 }
+            }
 
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // O Efeito Glassmorphic (Prédio SVG)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .clip(RoundedCornerShape(32.dp))
+                    .background(glassBg)
+                    .border(1.dp, glassBorder, RoundedCornerShape(32.dp))
+                    .padding(24.dp),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                GlassmorphicBuilding(progress = progress, isDay = isDay)
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // Toggle Dia/Noite Movido para cá
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                 IconButton(
                     onClick = { isDay = !isDay },
                     modifier = Modifier
@@ -154,23 +175,7 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(40.dp))
-
-            // O Efeito Glassmorphic (Prédio SVG)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(380.dp)
-                    .clip(RoundedCornerShape(32.dp))
-                    .background(glassBg)
-                    .border(1.dp, glassBorder, RoundedCornerShape(32.dp))
-                    .padding(24.dp),
-                contentAlignment = Alignment.BottomCenter
-            ) {
-                GlassmorphicBuilding(progress = progress, isDay = isDay)
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Barra de Progresso Interativa (Slider)
             Box(

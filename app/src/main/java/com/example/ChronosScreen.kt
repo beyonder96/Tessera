@@ -968,7 +968,7 @@ fun RoutinePlayerView(
             // Circular Timer Display (Glassmorphism & Neon)
             Box(
                 modifier = Modifier
-                    .size(280.dp)
+                    .size(300.dp)
                     .clip(CircleShape)
                     .background(Color(0x05FFFFFF))
                     .border(1.dp, Color(0x0AFFFFFF), CircleShape),
@@ -1020,7 +1020,7 @@ fun RoutinePlayerView(
                             text = currentStep.title,
                             fontFamily = FontFamily.Serif,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 26.sp,
+                            fontSize = 22.sp,
                             color = Color.White,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(horizontal = 24.dp)
@@ -1028,7 +1028,7 @@ fun RoutinePlayerView(
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = String.format("%02d:%02d", secondsLeft / 60, secondsLeft % 60),
-                            fontSize = 48.sp,
+                            fontSize = 42.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color.White,
                             letterSpacing = 2.sp

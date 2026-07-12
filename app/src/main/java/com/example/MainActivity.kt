@@ -153,77 +153,12 @@ import android.content.Intent
 class MainActivity : FragmentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        handleSpotifyIntent(intent)
     }
 
-    private fun handleSpotifyIntent(intent: Intent?) {
-        val uri = intent?.data
-        if (uri != null && uri.scheme == "tessera" && uri.host == "spotify-callback") {
-            val code = uri.getQueryParameter("code")
-            val error = uri.getQueryParameter("error")
-            if (code != null) {
-                val sharedPrefs = getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE)
-                val codeVerifier = sharedPrefs.getString("spotify_code_verifier", null)
-                if (codeVerifier != null) {
-                    val clientId = "516e4fdbb4e040bfbab885614b32c8bb"
-                    val redirectUri = "tessera://spotify-callback"
-                    
-                    lifecycleScope.launch(Dispatchers.IO) {
-                        try {
-                            val client = okhttp3.OkHttpClient()
-                            val requestBody = okhttp3.FormBody.Builder()
-                                .add("client_id", clientId)
-                                .add("grant_type", "authorization_code")
-                                .add("code", code)
-                                .add("redirect_uri", redirectUri)
-                                .add("code_verifier", codeVerifier)
-                                .build()
-                            val request = okhttp3.Request.Builder()
-                                .url("https://accounts.spotify.com/api/token")
-                                .post(requestBody)
-                                .build()
-                            
-                            val response = client.newCall(request).execute()
-                            val bodyString = response.body?.string()
-                            if (response.isSuccessful && bodyString != null) {
-                                val jsonObject = org.json.JSONObject(bodyString)
-                                val accessToken = jsonObject.optString("access_token")
-                                if (!accessToken.isNullOrEmpty()) {
-                                    withContext(Dispatchers.Main) {
-                                        sharedPrefs.edit()
-                                            .putString("spotify_access_token", accessToken)
-                                            .remove("spotify_code_verifier")
-                                            .apply()
-                                        Toast.makeText(this@MainActivity, "Conectado ao Spotify com sucesso!", Toast.LENGTH_SHORT).show()
-                                    }
-                                } else {
-                                    withContext(Dispatchers.Main) {
-                                        Toast.makeText(this@MainActivity, "Erro ao processar token do Spotify", Toast.LENGTH_LONG).show()
-                                    }
-                                }
-                            } else {
-                                withContext(Dispatchers.Main) {
-                                    Toast.makeText(this@MainActivity, "Erro na autenticação do Spotify: ${response.message}", Toast.LENGTH_LONG).show()
-                                }
-                            }
-                        } catch (e: Exception) {
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(this@MainActivity, "Falha na conexão: ${e.message}", Toast.LENGTH_LONG).show()
-                            }
-                        }
-                    }
-                } else {
-                    Toast.makeText(this, "Erro: Verificador de código não encontrado.", Toast.LENGTH_LONG).show()
-                }
-            } else if (error != null) {
-                Toast.makeText(this, "Erro ao conectar ao Spotify: $error", Toast.LENGTH_LONG).show()
-            }
-        }
-    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        handleSpotifyIntent(intent)
         val imageLoader = coil.ImageLoader.Builder(this)
             .components {
                 add(coil.decode.SvgDecoder.Factory())
