@@ -54,8 +54,9 @@ class ChatViewModel : ViewModel() {
                 _messages.value = _messages.value.dropLast(1) + ChatMessage(text = responseText, isUser = false)
             } catch (e: Exception) {
                 e.printStackTrace()
+                val errorDetails = e.message ?: e.toString()
                 _messages.value = _messages.value.dropLast(1) + ChatMessage(
-                    text = "Ocorreu um erro ao conectar com o Gemini. Verifique sua chave de API e conexão.",
+                    text = "Ocorreu um erro ao conectar com o Gemini: $errorDetails",
                     isUser = false
                 )
             }
