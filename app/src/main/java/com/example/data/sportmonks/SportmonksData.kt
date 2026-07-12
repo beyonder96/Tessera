@@ -147,8 +147,10 @@ interface SportmonksApi {
         @Query("include") include: String = "participants;league;venue;state;scores;events.type;events.period;events.player;lineups.player;lineups.details.type"
     ): retrofit2.Response<FixtureResponse>
 
-    @GET("v3/football/fixtures")
-    suspend fun getFixtures(
+    @GET("v3/football/fixtures/between/{start_date}/{end_date}")
+    suspend fun getFixturesBetween(
+        @Path("start_date") startDate: String,
+        @Path("end_date") endDate: String,
         @Query("api_token") apiToken: String,
         @Query("include") include: String = "participants;league;state;scores",
         @Query("per_page") perPage: Int = 50
@@ -195,12 +197,12 @@ class FixtureRepository(
         return mutex.withLock {
             val currentTime = System.currentTimeMillis()
             
-            if (cachedFixture != null && (currentTime - lastFetchTime) < cacheDurationMillis) {
+            if (cachedFixture != null && cachedFixture!!.data.id == fixtureId && (currentTime - lastFetchTime) < cacheDurationMillis) {
                 Log.i("FixtureRepository", "Retornando dados do cache em memória (Poupando Rate Limit).")
                 return@withLock Result.success(cachedFixture!!)
             }
 
-            Log.i("FixtureRepository", "Cache expirado. Buscando na API Sportmonks...")
+            Log.i("FixtureRepository", "Cache expirado ou ID diferente. Buscando na API Sportmonks...")
 
             try {
                 val response = api.getFixture(fixtureId = fixtureId, apiToken = apiToken)
@@ -227,7 +229,15 @@ class FixtureRepository(
     suspend fun getLatestFixtures(): Result<FixturesListResponse> {
         return mutex.withLock {
             try {
-                val response = api.getFixtures(apiToken = apiToken)
+                val now = java.time.LocalDate.now()
+                val startDate = now.minusDays(2).toString()
+                val endDate = now.plusDays(3).toString()
+                
+                val response = api.getFixturesBetween(
+                    startDate = startDate,
+                    endDate = endDate,
+                    apiToken = apiToken
+                )
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body != null) {
