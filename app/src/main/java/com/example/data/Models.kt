@@ -236,3 +236,16 @@ data class RoutineStep(
     val orderIndex: Int,
     val checkQuestions: String = ""
 )
+
+@Entity(tableName = "debts")
+data class Debt(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val title: String,
+    val description: String,
+    val value: Double,
+    val dueDate: Long,
+    val isPaid: Boolean = false,
+    val creditorName: String = "",
+    val installmentsTotal: Int = 1,
+    val installmentsPaid: Int = 0
+)

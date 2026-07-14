@@ -795,8 +795,40 @@ fun DailyScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScr
     
     val transactions by mainViewModel.allTransactions.collectAsState()
     val bankAccounts by mainViewModel.allBankAccounts.collectAsState()
-    val realIncome = remember(transactions) { transactions.filter { it.isIncome }.sumOf { it.value } }
-    val realExpense = remember(transactions) { transactions.filter { !it.isIncome }.sumOf { it.value } }
+    val benefitCards by mainViewModel.allBenefitCards.collectAsState(initial = emptyList())
+
+    val currentMonthStart = remember {
+        java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.DAY_OF_MONTH, 1)
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+    }
+    val currentMonthEnd = remember {
+        java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.DAY_OF_MONTH, getActualMaximum(java.util.Calendar.DAY_OF_MONTH))
+            set(java.util.Calendar.HOUR_OF_DAY, 23)
+            set(java.util.Calendar.MINUTE, 59)
+            set(java.util.Calendar.SECOND, 59)
+            set(java.util.Calendar.MILLISECOND, 999)
+        }.timeInMillis
+    }
+    val currentMonthTransactions = remember(transactions, currentMonthStart, currentMonthEnd) {
+        transactions.filter { it.timestamp in currentMonthStart..currentMonthEnd }
+    }
+
+    val realIncome = remember(currentMonthTransactions, benefitCards) { 
+        currentMonthTransactions.filter { tx -> 
+            tx.isIncome && benefitCards.none { card -> card.name == tx.accountOrCardName } 
+        }.sumOf { it.value } 
+    }
+    val realExpense = remember(currentMonthTransactions, benefitCards) { 
+        currentMonthTransactions.filter { tx -> 
+            !tx.isIncome && benefitCards.none { card -> card.name == tx.accountOrCardName } 
+        }.sumOf { it.value } 
+    }
     val realBalance = realIncome - realExpense
     val realPatrimony = remember(bankAccounts) { bankAccounts.sumOf { it.balance } }
 
@@ -1847,6 +1879,7 @@ fun MainContent(
     val insights by mainViewModel.aiInsights.collectAsState(initial = emptyList())
     val transactions by mainViewModel.allTransactions.collectAsState(initial = emptyList())
     val bankAccounts by mainViewModel.allBankAccounts.collectAsState(initial = emptyList())
+    val benefitCards by mainViewModel.allBenefitCards.collectAsState(initial = emptyList())
     val marketItems by mainViewModel.pendingMarketItems.collectAsState(initial = emptyList())
     val medications by mainViewModel.allMedications.collectAsState(initial = emptyList())
     val habits by mainViewModel.allHabits.collectAsState(initial = emptyList())
@@ -1924,7 +1957,7 @@ fun MainContent(
                     }
             ) {
                 when (mod.id) {
-                    "finance" -> HomeFinanceWidget(transactions, bankAccounts, onNavigate)
+                    "finance" -> HomeFinanceWidget(transactions, bankAccounts, benefitCards, onNavigate)
                     "health" -> HealthWidget(medications, { mainViewModel.toggleMedicationTaken(it) }, latestWeight, todaySteps, bmi)
                     "goals" -> GoalsWidget(habits, purchaseGoals, routines, { mainViewModel.toggleHabitCompleted(it) }, onNavigate)
                     "pets" -> PetsCard(pets, onNavigate)
@@ -3232,11 +3265,36 @@ fun PetMedicalEvent(
 fun HomeFinanceWidget(
     transactions: List<com.example.data.Transaction>,
     bankAccounts: List<com.example.data.BankAccount>,
+    benefitCards: List<com.example.data.BenefitCard>,
     onNavigate: (String) -> Unit
 ) {
-    val currentMonthTransactions = transactions // In a real app we'd filter by current month
-    val totalIncome = currentMonthTransactions.filter { it.isIncome }.sumOf { it.value }
-    val totalExpense = currentMonthTransactions.filter { !it.isIncome }.sumOf { it.value }
+    val currentMonthStart = remember(transactions) {
+        java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.DAY_OF_MONTH, 1)
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+    }
+    val currentMonthEnd = remember(transactions) {
+        java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.DAY_OF_MONTH, getActualMaximum(java.util.Calendar.DAY_OF_MONTH))
+            set(java.util.Calendar.HOUR_OF_DAY, 23)
+            set(java.util.Calendar.MINUTE, 59)
+            set(java.util.Calendar.SECOND, 59)
+            set(java.util.Calendar.MILLISECOND, 999)
+        }.timeInMillis
+    }
+    val currentMonthTransactions = remember(transactions, currentMonthStart, currentMonthEnd) {
+        transactions.filter { it.timestamp in currentMonthStart..currentMonthEnd }
+    }
+    val totalIncome = currentMonthTransactions.filter { tx ->
+        tx.isIncome && benefitCards.none { card -> card.name == tx.accountOrCardName }
+    }.sumOf { it.value }
+    val totalExpense = currentMonthTransactions.filter { tx ->
+        !tx.isIncome && benefitCards.none { card -> card.name == tx.accountOrCardName }
+    }.sumOf { it.value }
     val balance = bankAccounts.sumOf { it.balance }
 
     val context = LocalContext.current
@@ -3355,6 +3413,7 @@ fun AISummaryWidget(
     transactions: List<com.example.data.Transaction>,
     petEvents: List<com.example.data.PetEvent>,
     pendingMarketCount: Int,
+    benefitCards: List<com.example.data.BenefitCard> = emptyList(),
     onNavigate: (String) -> Unit
 ) {
     var isExpanded by remember { mutableStateOf(false) }
@@ -3398,9 +3457,33 @@ fun AISummaryWidget(
                 )
             }
         } else {
-            val currentMonthTransactions = transactions
-            val totalIncome = currentMonthTransactions.filter { it.isIncome }.sumOf { it.value }
-            val totalExpense = currentMonthTransactions.filter { !it.isIncome }.sumOf { it.value }
+            val currentMonthStart = remember(transactions) {
+                java.util.Calendar.getInstance().apply {
+                    set(java.util.Calendar.DAY_OF_MONTH, 1)
+                    set(java.util.Calendar.HOUR_OF_DAY, 0)
+                    set(java.util.Calendar.MINUTE, 0)
+                    set(java.util.Calendar.SECOND, 0)
+                    set(java.util.Calendar.MILLISECOND, 0)
+                }.timeInMillis
+            }
+            val currentMonthEnd = remember(transactions) {
+                java.util.Calendar.getInstance().apply {
+                    set(java.util.Calendar.DAY_OF_MONTH, getActualMaximum(java.util.Calendar.DAY_OF_MONTH))
+                    set(java.util.Calendar.HOUR_OF_DAY, 23)
+                    set(java.util.Calendar.MINUTE, 59)
+                    set(java.util.Calendar.SECOND, 59)
+                    set(java.util.Calendar.MILLISECOND, 999)
+                }.timeInMillis
+            }
+            val currentMonthTransactions = remember(transactions, currentMonthStart, currentMonthEnd) {
+                transactions.filter { it.timestamp in currentMonthStart..currentMonthEnd }
+            }
+            val totalIncome = currentMonthTransactions.filter { tx ->
+                tx.isIncome && benefitCards.none { card -> card.name == tx.accountOrCardName }
+            }.sumOf { it.value }
+            val totalExpense = currentMonthTransactions.filter { tx ->
+                !tx.isIncome && benefitCards.none { card -> card.name == tx.accountOrCardName }
+            }.sumOf { it.value }
             val balance = totalIncome - totalExpense
 
             val completedPetRoutines = petEvents.count { it.isCompleted }

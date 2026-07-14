@@ -48,12 +48,34 @@ class FinanceGlanceWidget : GlanceAppWidget() {
                     coroutineScope {
                         val transactionsDef = async { db.tesseraDao().getAllTransactions().first() }
                         val bankAccountsDef = async { db.tesseraDao().getAllBankAccounts().first() }
+                        val benefitCardsDef = async { db.tesseraDao().getAllBenefitCards().first() }
                         
                         val transactions = transactionsDef.await()
                         val bankAccounts = bankAccountsDef.await()
+                        val benefitCards = benefitCardsDef.await()
                         
-                        totalIncome = transactions.filter { it.isIncome }.sumOf { it.value }
-                        totalExpense = transactions.filter { !it.isIncome }.sumOf { it.value }
+                        val currentMonthStart = java.util.Calendar.getInstance().apply {
+                            set(java.util.Calendar.DAY_OF_MONTH, 1)
+                            set(java.util.Calendar.HOUR_OF_DAY, 0)
+                            set(java.util.Calendar.MINUTE, 0)
+                            set(java.util.Calendar.SECOND, 0)
+                            set(java.util.Calendar.MILLISECOND, 0)
+                        }.timeInMillis
+                        val currentMonthEnd = java.util.Calendar.getInstance().apply {
+                            set(java.util.Calendar.DAY_OF_MONTH, getActualMaximum(java.util.Calendar.DAY_OF_MONTH))
+                            set(java.util.Calendar.HOUR_OF_DAY, 23)
+                            set(java.util.Calendar.MINUTE, 59)
+                            set(java.util.Calendar.SECOND, 59)
+                            set(java.util.Calendar.MILLISECOND, 999)
+                        }.timeInMillis
+                        val currentMonthTransactions = transactions.filter { it.timestamp in currentMonthStart..currentMonthEnd }
+
+                        totalIncome = currentMonthTransactions.filter { tx ->
+                            tx.isIncome && benefitCards.none { card -> card.name == tx.accountOrCardName }
+                        }.sumOf { it.value }
+                        totalExpense = currentMonthTransactions.filter { tx ->
+                            !tx.isIncome && benefitCards.none { card -> card.name == tx.accountOrCardName }
+                        }.sumOf { it.value }
                         balance = bankAccounts.sumOf { it.balance }
                     }
                 }

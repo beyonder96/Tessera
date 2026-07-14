@@ -88,6 +88,7 @@ fun DailyScreen(
     val marketItems by viewModel.pendingMarketItems.collectAsStateWithLifecycle(initialValue = emptyList())
     val habits by viewModel.allHabits.collectAsStateWithLifecycle(initialValue = emptyList())
     val healthProfile by viewModel.healthProfile.collectAsStateWithLifecycle(initialValue = null)
+    val benefitCards by viewModel.allBenefitCards.collectAsStateWithLifecycle(initialValue = emptyList())
     val bankAccounts by viewModel.allBankAccounts.collectAsStateWithLifecycle(initialValue = emptyList())
     val medications by viewModel.allMedications.collectAsStateWithLifecycle(initialValue = emptyList())
     val weatherState by viewModel.weatherState.collectAsStateWithLifecycle(initialValue = null)
@@ -128,8 +129,36 @@ fun DailyScreen(
     val userName = remember { sharedPrefs.getString("user_name", "Kenned") ?: "Kenned" }
 
     // Calculations for the dynamic summary
-    val totalIncome = transactions.filter { it.isIncome }.sumOf { it.value }
-    val totalExpense = transactions.filter { !it.isIncome }.sumOf { it.value }
+    val currentMonthStart = remember {
+        Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+    }
+    
+    val currentMonthEnd = remember {
+        Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
+            set(Calendar.HOUR_OF_DAY, 23)
+            set(Calendar.MINUTE, 59)
+            set(Calendar.SECOND, 59)
+            set(Calendar.MILLISECOND, 999)
+        }.timeInMillis
+    }
+
+    val currentMonthTransactions = remember(transactions, currentMonthStart, currentMonthEnd) {
+        transactions.filter { it.timestamp in currentMonthStart..currentMonthEnd }
+    }
+
+    val totalIncome = currentMonthTransactions.filter { tx ->
+        tx.isIncome && benefitCards.none { card -> card.name == tx.accountOrCardName }
+    }.sumOf { it.value }
+    val totalExpense = currentMonthTransactions.filter { tx ->
+        !tx.isIncome && benefitCards.none { card -> card.name == tx.accountOrCardName }
+    }.sumOf { it.value }
     val totalPatrimony = bankAccounts.sumOf { it.balance }
     
     val latestSleepRecord = sleepRecords.lastOrNull()
@@ -414,9 +443,6 @@ fun DailyScreen(
                                 Toast.makeText(context, "Todas as notificações locais estão em dia.", Toast.LENGTH_SHORT).show()
                             }
                         )
-
-                        // 4.5 SPOTIFY EMBED WIDGET
-                        com.example.ui.components.SpotifyEmbedWidget()
 
                     }
                 }

@@ -14,13 +14,12 @@ android {
     applicationId = "com.aistudio.tessera.xtrkna"
     minSdk = 26
     targetSdk = 35
-    versionCode = 41
-    versionName = "1.8.7"
+    versionCode = 42
+    versionName = "1.8.8"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     manifestPlaceholders["MAPS_API_KEY"] = "DUMMY_KEY"
     manifestPlaceholders["redirectSchemeName"] = "tessera"
-    manifestPlaceholders["redirectHostName"] = "spotify-callback"
   }
 
   signingConfigs {
@@ -141,8 +140,7 @@ dependencies {
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
   
-  // Spotify Auth
-  implementation("com.spotify.android:auth:2.1.1")
+
   
   // RSS Parser
   implementation("com.prof18.rssparser:rssparser:6.0.10")

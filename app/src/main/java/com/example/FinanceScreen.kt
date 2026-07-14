@@ -65,12 +65,21 @@ fun FinanceScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var showManageDialog by remember { mutableStateOf(false) }
     var showAdjustBalanceDialog by remember { mutableStateOf(false) }
+    var showDebtsPanel by remember { mutableStateOf(false) }
 
     var isPrivacyModeEnabled by remember { mutableStateOf(true) }
     var defaultIsIncomeForAdd by remember { mutableStateOf(false) }
     
     var selectedFilterName by remember { mutableStateOf<String?>(null) }
     var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
+
+    if (showDebtsPanel) {
+        DebtsScreen(
+            viewModel = viewModel,
+            onBack = { showDebtsPanel = false }
+        )
+        return
+    }
 
     LaunchedEffect(Unit) {
         viewModel.financeActionTrigger.collect { action ->
@@ -349,6 +358,58 @@ fun FinanceScreen(
                             }
                         }
                     }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Card do Painel de Dívidas
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(PremiumGlassModifier)
+                    .clickable { showDebtsPanel = true },
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x1AEF4444)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Payments,
+                            contentDescription = null,
+                            tint = Color(0xFFEF4444),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Painel de Dívidas",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Acompanhe tudo que deve e precisa pagar",
+                            fontSize = 11.sp,
+                            color = Color(0xFFBDC9C6)
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.4f),
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
 

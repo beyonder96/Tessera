@@ -48,6 +48,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.AccessTime
@@ -59,6 +60,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
     val userName = remember { sharedPrefs.getString("user_name", "Kenned") ?: "Kenned" }
+    var activeCategory by remember { mutableStateOf<String?>(null) }
     val packageInfo = remember {
         try {
             context.packageManager.getPackageInfo(context.packageName, 0)
@@ -209,18 +211,32 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                 TopAppBar(
                     title = { 
                         Text(
-                            "Configurações", 
+                            text = when (activeCategory) {
+                                "personalizacao" -> "Aparência e Temas"
+                                "privacidade" -> "Segurança e Privacidade"
+                                "metro" -> "Transporte e Trânsito"
+                                "futebol" -> "Esportes e Futebol"
+                                "dados" -> "Dados e Backup"
+                                else -> "Configurações"
+                            },
                             fontFamily = FontFamily.SansSerif, 
                             fontWeight = FontWeight.Bold, 
-                            fontSize = 24.sp, 
+                            fontSize = 22.sp, 
                             color = Color.White,
-                            letterSpacing = 1.sp
+                            letterSpacing = 0.5.sp
                         ) 
                     },
                     navigationIcon = { 
+                        val handleBack = {
+                            if (activeCategory != null) {
+                                activeCategory = null
+                            } else {
+                                onBack()
+                            }
+                        }
                         IconButton(
-                            onClick = onBack,
-                            modifier = Modifier.bounceClick { onBack() }
+                            onClick = handleBack,
+                            modifier = Modifier.bounceClick { handleBack() }
                         ) { 
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack, 
@@ -243,65 +259,209 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
             ) {
                 // User Profile Header Card
                 item {
-                    val profileUriStr = remember { sharedPrefs.getString("user_profile_uri", null) }
-                    val profileUri = remember(profileUriStr) { profileUriStr?.let { Uri.parse(it) } }
+                    if (activeCategory == null) {
+                        val profileUriStr = remember { sharedPrefs.getString("user_profile_uri", null) }
+                        val profileUri = remember(profileUriStr) { profileUriStr?.let { Uri.parse(it) } }
 
-                    Row(
-                        modifier = PremiumGlassModifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (profileUri != null) {
-                            AsyncImage(
-                                model = profileUri,
-                                contentDescription = "Foto de perfil",
-                                modifier = Modifier
-                                    .size(64.dp)
-                                    .clip(CircleShape)
-                                    .border(2.dp, SecondaryGold, CircleShape),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .size(64.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.08f))
-                                    .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Outlined.Person,
-                                    contentDescription = null,
-                                    tint = Color.White.copy(alpha = 0.7f),
-                                    modifier = Modifier.size(32.dp)
+                        Row(
+                            modifier = PremiumGlassModifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (profileUri != null) {
+                                AsyncImage(
+                                    model = profileUri,
+                                    contentDescription = "Foto de perfil",
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .clip(CircleShape)
+                                        .border(2.dp, SecondaryGold, CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.White.copy(alpha = 0.08f))
+                                        .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.Person,
+                                        contentDescription = null,
+                                        tint = Color.White.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    text = "Olá, $userName!",
+                                    color = Color.White,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.SansSerif
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Membro Tessera Premium",
+                                    color = SecondaryGold,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    letterSpacing = 1.sp
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text(
-                                text = "Olá, $userName!",
-                                color = Color.White,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.SansSerif
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Membro Tessera Premium",
-                                color = SecondaryGold,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                letterSpacing = 1.sp
-                            )
+                    }
+                }
+
+                // Main Categories Menu
+                item {
+                    if (activeCategory == null) {
+                        Card(
+                            modifier = PremiumGlassModifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                        ) {
+                            Column {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { activeCategory = "personalizacao" }
+                                        .padding(vertical = 16.dp, horizontal = 20.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(CircleShape)
+                                            .background(SecondaryGold.copy(alpha = 0.15f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Outlined.Palette, null, tint = SecondaryGold, modifier = Modifier.size(20.dp))
+                                    }
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Aparência e Temas", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text("Plano de fundo e estilo glassmorphism", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                                    }
+                                    Icon(Icons.Default.ChevronRight, null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
+                                }
+                                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.05f)))
+                                
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { activeCategory = "privacidade" }
+                                        .padding(vertical = 16.dp, horizontal = 20.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(CircleShape)
+                                            .background(PrimaryTeal.copy(alpha = 0.15f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Outlined.Fingerprint, null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
+                                    }
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Segurança e Privacidade", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text("Biometria, lembretes e Health Connect", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                                    }
+                                    Icon(Icons.Default.ChevronRight, null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
+                                }
+                                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.05f)))
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { activeCategory = "metro" }
+                                        .padding(vertical = 16.dp, horizontal = 20.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFF4FC3F7).copy(alpha = 0.15f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Outlined.DirectionsTransit, null, tint = Color(0xFF4FC3F7), modifier = Modifier.size(20.dp))
+                                    }
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Transporte e Trânsito", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text("Horários e linhas do metrô e trem", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                                    }
+                                    Icon(Icons.Default.ChevronRight, null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
+                                }
+                                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.05f)))
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { activeCategory = "futebol" }
+                                        .padding(vertical = 16.dp, horizontal = 20.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFF69F0AE).copy(alpha = 0.15f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Outlined.SportsSoccer, null, tint = Color(0xFF69F0AE), modifier = Modifier.size(20.dp))
+                                    }
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Esportes e Futebol", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text("Times e seleções monitorados", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                                    }
+                                    Icon(Icons.Default.ChevronRight, null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
+                                }
+                                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.05f)))
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { activeCategory = "dados" }
+                                        .padding(vertical = 16.dp, horizontal = 20.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFFE57373).copy(alpha = 0.15f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Outlined.Storage, null, tint = Color(0xFFE57373), modifier = Modifier.size(20.dp))
+                                    }
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Dados e Backup", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text("Importar, exportar e zerar dados", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                                    }
+                                    Icon(Icons.Default.ChevronRight, null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
+                                }
+                            }
                         }
                     }
                 }
 
                 item {
-                    SectionTitle("PERSONALIZAÇÃO", SecondaryGold)
+                    if (activeCategory == "personalizacao") {
+                        SectionTitle("PERSONALIZAÇÃO", SecondaryGold)
                     Column(
                         modifier = PremiumGlassModifier
                             .fillMaxWidth()
@@ -383,10 +543,12 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                             }
                         }
                     }
+                    }
                 }
 
                 item {
-                    SectionTitle("ESTILO DO GLASSMORPHISM", SecondaryGold)
+                    if (activeCategory == "personalizacao") {
+                        SectionTitle("ESTILO DO GLASSMORPHISM", SecondaryGold)
                     Column(
                         modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -511,10 +673,12 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                             }
                         }
                     }
+                    }
                 }
 
                 item {
-                    SectionTitle("PRIVACIDADE E SEGURANÇA", PrimaryTeal)
+                    if (activeCategory == "privacidade") {
+                        SectionTitle("PRIVACIDADE E SEGURANÇA", PrimaryTeal)
                     Column(
                         modifier = PremiumGlassModifier
                             .fillMaxWidth()
@@ -734,10 +898,12 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                             }
                         }
                     }
+                    }
                 }
 
                 item {
-                    SectionTitle("STATUS METROFERROVIÁRIO", Color(0xFF4FC3F7))
+                    if (activeCategory == "metro") {
+                        SectionTitle("STATUS METROFERROVIÁRIO", Color(0xFF4FC3F7))
                     
                     val showTimeDialog = remember { mutableStateOf(false) }
                     val alertTimes = remember { 
@@ -1063,10 +1229,12 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                             }
                         }
                     }
+                    }
                 }
 
                 item {
-                    SectionTitle("FUTEBOL E SELEÇÕES", Color(0xFF69F0AE))
+                    if (activeCategory == "futebol") {
+                        SectionTitle("FUTEBOL E SELEÇÕES", Color(0xFF69F0AE))
                     
                     val showTeamDialog = remember { mutableStateOf(false) }
                     
@@ -1245,11 +1413,13 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                             }
                         }
                     }
+                    }
                 }
 
 
                 item {
-                    SectionTitle("DADOS E BACKUP", Color(0xFFE57373))
+                    if (activeCategory == "dados") {
+                        SectionTitle("DADOS E BACKUP", Color(0xFFE57373))
                     Column(
                         modifier = PremiumGlassModifier
                             .fillMaxWidth()
@@ -1324,14 +1494,17 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                             Text("Zerar Finanças", color = Color(0xFFE57373), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
+                    }
                 }
                 
                 item {
-                    Spacer(modifier = Modifier.height(40.dp))
+                    if (activeCategory == null) {
+                        Spacer(modifier = Modifier.height(40.dp))
                     Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("TESSERA", fontFamily = FontFamily.SansSerif, fontSize = 14.sp, color = Color.White.copy(alpha=0.3f), letterSpacing = 3.sp, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text("v$appVersionName", fontSize = 11.sp, color = Color.White.copy(alpha=0.2f))
+                    }
                     }
                 }
             }

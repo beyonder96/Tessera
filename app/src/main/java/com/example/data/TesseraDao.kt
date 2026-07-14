@@ -248,4 +248,14 @@ interface TesseraDao {
 
     @Delete
     suspend fun deleteRoutine(routine: Routine)
+
+    // Debt Queries
+    @Query("SELECT * FROM debts ORDER BY dueDate ASC")
+    fun getAllDebts(): Flow<List<Debt>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertDebt(debt: Debt)
+
+    @Delete
+    suspend fun deleteDebt(debt: Debt)
 }

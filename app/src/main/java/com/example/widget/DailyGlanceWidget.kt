@@ -53,13 +53,35 @@ class DailyGlanceWidget : GlanceAppWidget() {
                         val stepsDef = async { db.tesseraDao().getAllStepsRecords().first() }
                         val petsDef = async { db.tesseraDao().getAllPetEvents().first() }
                         val marketDef = async { db.tesseraDao().getPendingMarketItems().first() }
+                        val benefitCardsDef = async { db.tesseraDao().getAllBenefitCards().first() }
 
                         val transactions = transactionsDef.await()
                         val stepsRecords = stepsDef.await()
                         val petEvents = petsDef.await()
                         val marketItems = marketDef.await()
+                        val benefitCards = benefitCardsDef.await()
 
-                        balance = transactions.filter { it.isIncome }.sumOf { it.value } - transactions.filter { !it.isIncome }.sumOf { it.value }
+                        val currentMonthStart = java.util.Calendar.getInstance().apply {
+                            set(java.util.Calendar.DAY_OF_MONTH, 1)
+                            set(java.util.Calendar.HOUR_OF_DAY, 0)
+                            set(java.util.Calendar.MINUTE, 0)
+                            set(java.util.Calendar.SECOND, 0)
+                            set(java.util.Calendar.MILLISECOND, 0)
+                        }.timeInMillis
+                        val currentMonthEnd = java.util.Calendar.getInstance().apply {
+                            set(java.util.Calendar.DAY_OF_MONTH, getActualMaximum(java.util.Calendar.DAY_OF_MONTH))
+                            set(java.util.Calendar.HOUR_OF_DAY, 23)
+                            set(java.util.Calendar.MINUTE, 59)
+                            set(java.util.Calendar.SECOND, 59)
+                            set(java.util.Calendar.MILLISECOND, 999)
+                        }.timeInMillis
+                        val currentMonthTransactions = transactions.filter { it.timestamp in currentMonthStart..currentMonthEnd }
+
+                        balance = currentMonthTransactions.filter { tx ->
+                            tx.isIncome && benefitCards.none { card -> card.name == tx.accountOrCardName }
+                        }.sumOf { tx -> tx.value } - currentMonthTransactions.filter { tx ->
+                            !tx.isIncome && benefitCards.none { card -> card.name == tx.accountOrCardName }
+                        }.sumOf { tx -> tx.value }
                         
                         val todayStart = Calendar.getInstance().apply {
                             set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)

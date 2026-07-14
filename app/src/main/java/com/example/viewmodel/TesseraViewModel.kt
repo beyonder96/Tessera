@@ -375,6 +375,9 @@ class TesseraViewModel(
     val allBenefitCards: StateFlow<List<com.example.data.BenefitCard>> = repository.allBenefitCards
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val allDebts: StateFlow<List<com.example.data.Debt>> = repository.allDebts
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val healthProfile: StateFlow<HealthProfile?> = repository.healthProfile
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
@@ -1033,8 +1036,10 @@ class TesseraViewModel(
         val cards = repository.allCreditCards.first()
         val matchingCard = cards.find { it.name == name }
         if (matchingCard != null) {
-            val newUsedLimit = if (isIncome) (matchingCard.usedLimit - value).coerceAtLeast(0.0) else matchingCard.usedLimit + value
-            repository.insertCreditCard(matchingCard.copy(usedLimit = newUsedLimit))
+            if (isRealized) {
+                val newUsedLimit = if (isIncome) (matchingCard.usedLimit - value).coerceAtLeast(0.0) else matchingCard.usedLimit + value
+                repository.insertCreditCard(matchingCard.copy(usedLimit = newUsedLimit))
+            }
             return
         }
         val benefitCards = repository.allBenefitCards.first()
@@ -1060,8 +1065,10 @@ class TesseraViewModel(
         val cards = repository.allCreditCards.first()
         val matchingCard = cards.find { it.name == name }
         if (matchingCard != null) {
-            val newUsedLimit = if (isIncome) matchingCard.usedLimit + value else (matchingCard.usedLimit - value).coerceAtLeast(0.0)
-            repository.insertCreditCard(matchingCard.copy(usedLimit = newUsedLimit))
+            if (isRealized) {
+                val newUsedLimit = if (isIncome) matchingCard.usedLimit + value else (matchingCard.usedLimit - value).coerceAtLeast(0.0)
+                repository.insertCreditCard(matchingCard.copy(usedLimit = newUsedLimit))
+            }
             return
         }
         val benefitCards = repository.allBenefitCards.first()
@@ -1219,7 +1226,7 @@ class TesseraViewModel(
 
                 // Recurrent and pending transactions (overdue)
                 repository.insertTransaction(Transaction(
-                    title = "Assinatura Spotify",
+                    title = "Assinatura de Música",
                     subtitle = "Mensalidade Premium",
                     value = 34.90,
                     isIncome = false,
@@ -1431,6 +1438,42 @@ class TesseraViewModel(
     fun deletePurchaseGoal(goal: PurchaseGoal) {
         viewModelScope.launch {
             repository.deletePurchaseGoal(goal)
+        }
+    }
+
+    fun insertDebt(debt: com.example.data.Debt) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.insertDebt(debt)
+        }
+    }
+
+    fun deleteDebt(debt: com.example.data.Debt) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.deleteDebt(debt)
+        }
+    }
+
+    fun payDebtInstallment(debt: com.example.data.Debt, accountName: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val nextInstallment = debt.installmentsPaid + 1
+            val isFullyPaid = nextInstallment >= debt.installmentsTotal
+            val updatedDebt = debt.copy(
+                installmentsPaid = nextInstallment,
+                isPaid = isFullyPaid
+            )
+            repository.insertDebt(updatedDebt)
+            
+            // Register a transaction
+            val installmentValue = debt.value / debt.installmentsTotal
+            addTransaction(
+                title = "Pgto: ${debt.title} ($nextInstallment/${debt.installmentsTotal})",
+                subtitle = "Parcela de Dívida",
+                value = installmentValue,
+                isIncome = false,
+                category = "Dívidas",
+                accountOrCardName = accountName,
+                isRealized = true
+            )
         }
     }
 

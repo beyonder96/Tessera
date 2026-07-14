@@ -52,8 +52,29 @@ fun InvoiceHubScreen(
         return
     }
 
-    // A fatura é calculada pelas transações com o nome do cartão
-    val cardTransactions = allTransactions.filter { it.accountOrCardName == cardName }
+    val currentMonthStart = remember {
+        java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.DAY_OF_MONTH, 1)
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+    }
+    val currentMonthEnd = remember {
+        java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.DAY_OF_MONTH, getActualMaximum(java.util.Calendar.DAY_OF_MONTH))
+            set(java.util.Calendar.HOUR_OF_DAY, 23)
+            set(java.util.Calendar.MINUTE, 59)
+            set(java.util.Calendar.SECOND, 59)
+            set(java.util.Calendar.MILLISECOND, 999)
+        }.timeInMillis
+    }
+
+    // A fatura é calculada pelas transações com o nome do cartão no mês atual
+    val cardTransactions = remember(allTransactions, cardName, currentMonthStart, currentMonthEnd) {
+        allTransactions.filter { it.accountOrCardName == cardName && it.timestamp in currentMonthStart..currentMonthEnd }
+    }
     val transactionsSum = cardTransactions.filter { !it.isIncome }.sumOf { it.value } - cardTransactions.filter { it.isIncome }.sumOf { it.value }
     val discrepancy = card.usedLimit - transactionsSum
 

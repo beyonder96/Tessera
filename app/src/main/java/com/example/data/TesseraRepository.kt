@@ -218,4 +218,14 @@ class TesseraRepository(private val dao: TesseraDao) {
     suspend fun deleteRoutine(routine: Routine) {
         dao.deleteRoutine(routine)
     }
+
+    val allDebts: Flow<List<Debt>> = dao.getAllDebts()
+
+    suspend fun insertDebt(debt: Debt) {
+        dao.insertDebt(debt)
+    }
+
+    suspend fun deleteDebt(debt: Debt) {
+        dao.deleteDebt(debt)
+    }
 }
