@@ -3,6 +3,13 @@
 Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inteligente!
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
+## 🚀 Novidades da Versão 1.9.0
+
+- **UI Minimalista (Bottom Sheets):** As antigas janelas modais de Adicionar Transação, Transferências e Gerenciamento de Cartões foram completamente substituídas por Bottom Sheets modernos e minimalistas (que deslizam suavemente da parte inferior da tela, estilo iOS). Muito mais clean e menos intrusivo!
+- **Integração do Cartão de Benefícios:** Agora é totalmente possível usar o seu Vale-Refeição/Alimentação diretamente na tela de Lançamentos de despesas e receitas.
+- **Transferências Funcionais:** A função de Transferência, que estava ausente, agora funciona perfeitamente, permitindo movimentar valores entre suas Contas de forma rápida e registrando o histórico de entradas e saídas.
+- **Formatação Numérica (BR):** Corrigimos a ausência dos separadores de milhares nas transações recentes. Valores como 1600,00 agora aparecem elegantes como 1.600,00.
+
 ## 🚀 Novidades da Versão 1.8.7
 
 - **Tessera AI Chat Minimalista (Estilo Premium):** Nossa assistente virtual ganhou uma cara nova! Abandonamos as antigas "bolhas de bate-papo" para dar espaço a um visual estilo iOS, muito mais limpo, imersivo e sem bordas. Adicionamos uma nova Tela de Boas-Vindas com cards interativos de atalhos e ajustamos a tipografia para ser impactante. Além disso, agora há um atalho no topo para limpar facilmente o histórico da sessão.
@@ -42,8 +49,9 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
-- **Debug:** `app-debug-1.8.9.apk`
-- **Release:** `app-release-1.8.9.apk`
+
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](.build-outputs/app-debug-1.8.9.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](.build-outputs/app-release-1.8.9.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.
