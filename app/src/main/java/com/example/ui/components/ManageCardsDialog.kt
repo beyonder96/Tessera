@@ -38,9 +38,11 @@ fun ManageCardsDialog(
     creditCards: List<CreditCard>,
     benefitCards: List<BenefitCard>,
     viewModel: TesseraViewModel,
+    initialEditingCreditCard: CreditCard? = null,
+    initialEditingBenefitCard: BenefitCard? = null,
     onDismiss: () -> Unit
 ) {
-    var isBenefitMode by remember { mutableStateOf(false) }
+    var isBenefitMode by remember { mutableStateOf(initialEditingBenefitCard != null) }
 
     var name by remember { mutableStateOf("") }
     var holderName by remember { mutableStateOf("") }
@@ -48,8 +50,30 @@ fun ManageCardsDialog(
     var limitOrBalance by remember { mutableStateOf("") }
     var colorHex by remember { mutableStateOf(colorPalette[0]) }
     
-    var editingCreditCard by remember { mutableStateOf<CreditCard?>(null) }
-    var editingBenefitCard by remember { mutableStateOf<BenefitCard?>(null) }
+    var editingCreditCard by remember { mutableStateOf<CreditCard?>(initialEditingCreditCard) }
+    var editingBenefitCard by remember { mutableStateOf<BenefitCard?>(initialEditingBenefitCard) }
+
+    LaunchedEffect(initialEditingCreditCard, initialEditingBenefitCard) {
+        if (initialEditingCreditCard != null) {
+            isBenefitMode = false
+            name = initialEditingCreditCard.name
+            holderName = initialEditingCreditCard.holderName
+            numberLastFour = initialEditingCreditCard.numberLastFour
+            limitOrBalance = initialEditingCreditCard.limit.toString()
+            colorHex = initialEditingCreditCard.colorHex
+            editingCreditCard = initialEditingCreditCard
+            editingBenefitCard = null
+        } else if (initialEditingBenefitCard != null) {
+            isBenefitMode = true
+            name = initialEditingBenefitCard.name
+            holderName = initialEditingBenefitCard.holderName
+            numberLastFour = initialEditingBenefitCard.numberLastFour
+            limitOrBalance = initialEditingBenefitCard.balance.toString()
+            colorHex = initialEditingBenefitCard.colorHex
+            editingCreditCard = null
+            editingBenefitCard = initialEditingBenefitCard
+        }
+    }
 
     fun resetForm() {
         name = ""

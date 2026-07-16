@@ -6,6 +6,8 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -63,9 +65,18 @@ fun FinanceScreen(
     val benefitCards by viewModel.allBenefitCards.collectAsStateWithLifecycle()
 
     var showAddDialog by remember { mutableStateOf(false) }
+    var showTransferDialog by remember { mutableStateOf(false) }
+    var editingLongClickAccount by remember { mutableStateOf<BankAccount?>(null) }
+    var editingLongClickCreditCard by remember { mutableStateOf<CreditCard?>(null) }
+    var editingLongClickBenefitCard by remember { mutableStateOf<BenefitCard?>(null) }
     var showManageDialog by remember { mutableStateOf(false) }
     var showAdjustBalanceDialog by remember { mutableStateOf(false) }
     var showDebtsPanel by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val sharedPrefs = remember(context) { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
+    val sumInvestmentsToBalance = sharedPrefs.getBoolean("sum_investments_to_balance", false)
+    val sumInvestmentsToSpendable = sharedPrefs.getBoolean("sum_investments_to_spendable", false)
 
     var isPrivacyModeEnabled by remember { mutableStateOf(true) }
     var defaultIsIncomeForAdd by remember { mutableStateOf(false) }
@@ -153,7 +164,27 @@ fun FinanceScreen(
         )
     }
 
+    editingLongClickAccount?.let { account ->
+        EditBankAccountDialog(
+            account = account,
+            viewModel = viewModel,
+            onDismiss = { editingLongClickAccount = null }
+        )
+    }
 
+    if (editingLongClickCreditCard != null || editingLongClickBenefitCard != null) {
+        com.example.ui.components.ManageCardsDialog(
+            creditCards = creditCards,
+            benefitCards = benefitCards,
+            viewModel = viewModel,
+            initialEditingCreditCard = editingLongClickCreditCard,
+            initialEditingBenefitCard = editingLongClickBenefitCard,
+            onDismiss = { 
+                editingLongClickCreditCard = null
+                editingLongClickBenefitCard = null
+            }
+        )
+    }
 
     if (showAdjustBalanceDialog) {
         AdjustBalancesDialog(
@@ -177,47 +208,26 @@ fun FinanceScreen(
         allTransactions.filter { it.timestamp >= currentMonthStart }
     }
 
-    val salaryValue = remember(currentMonthTransactions, creditCards) {
+    val salaryValue = remember(currentMonthTransactions, creditCards, benefitCards) {
         val incomeSum = currentMonthTransactions.filter { tx -> 
-            tx.isIncome && creditCards.none { card -> card.name == tx.accountOrCardName } 
+            tx.isIncome && 
+            tx.category != "Transferência" &&
+            creditCards.none { card -> card.name == tx.accountOrCardName } &&
+            benefitCards.none { card -> card.name == tx.accountOrCardName }
         }.sumOf { it.value }
         if (incomeSum > 0.0) incomeSum else 0.0
     }
 
-    val committedValue = remember(currentMonthTransactions, creditCards) {
+    val committedValue = remember(currentMonthTransactions, creditCards, benefitCards) {
         val expenseSum = currentMonthTransactions.filter { tx ->
-            !tx.isIncome
+            !tx.isIncome &&
+            tx.category != "Transferência" &&
+            benefitCards.none { card -> card.name == tx.accountOrCardName }
         }.sumOf { it.value }
         if (expenseSum > 0.0) expenseSum else 0.0
     }
 
-    val freeValue = salaryValue - committedValue
-
-    val upcomingBills = remember(allTransactions) {
-        val now = System.currentTimeMillis()
-        val endOfTomorrow = Calendar.getInstance().apply {
-            add(Calendar.DAY_OF_YEAR, 2)
-            set(Calendar.HOUR_OF_DAY, 23)
-            set(Calendar.MINUTE, 59)
-            set(Calendar.SECOND, 59)
-            set(Calendar.MILLISECOND, 999)
-        }.timeInMillis
-        allTransactions.filter { !it.isRealized && !it.isIncome && it.dueDate in (now..endOfTomorrow) }
-    }
-
-    val nextBill = upcomingBills.minByOrNull { it.dueDate }
-
-    val flowMessage = remember(nextBill) {
-        if (nextBill != null) {
-            val sdf = java.text.SimpleDateFormat("dd/MM", Locale.getDefault())
-            val dateStr = sdf.format(Date(nextBill.dueDate))
-            val isTomorrow = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, 1) }.get(Calendar.DAY_OF_YEAR) == Calendar.getInstance().apply { timeInMillis = nextBill.dueDate }.get(Calendar.DAY_OF_YEAR)
-            val dayText = if (isTomorrow) "amanhã" else "no dia $dateStr"
-            "${nextBill.title} vence $dayText. O valor (${String.format(Locale("pt", "BR"), "R$ %,.2f", nextBill.value)}) já está descontado do seu adiantamento acima."
-        } else {
-            "Água e Luz vencem amanhã. O valor (R$ 107,92) já está descontado do seu adiantamento acima."
-        }
-    }
+    val freeValue = checkingBalance + if (sumInvestmentsToSpendable) (savingsBalance + investmentBalance) else 0.0
 
     val scrollState = rememberScrollState()
     val isCompact = scrollState.value > 150
@@ -241,13 +251,13 @@ fun FinanceScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            val displayValue = remember(selectedFilterName, bankAccounts, creditCards, checkingBalance, savingsBalance, investmentBalance) {
+            val displayValue = remember(selectedFilterName, bankAccounts, creditCards, checkingBalance, savingsBalance, investmentBalance, sumInvestmentsToBalance) {
                 val activeCard = creditCards.find { it.name == selectedFilterName }
                 val activeAccount = bankAccounts.find { it.name == selectedFilterName }
                 when {
                     activeCard != null -> activeCard.usedLimit
                     activeAccount != null -> activeAccount.balance
-                    else -> checkingBalance + savingsBalance + investmentBalance
+                    else -> checkingBalance + if (sumInvestmentsToBalance) (savingsBalance + investmentBalance) else 0.0
                 }
             }
 
@@ -430,6 +440,10 @@ fun FinanceScreen(
                     } else {
                         onNavigateToInvoiceHub(cardName)
                     }
+                },
+                onCardLongClick = { cardName ->
+                    editingLongClickBenefitCard = benefitCards.find { it.name == cardName }
+                    editingLongClickCreditCard = creditCards.find { it.name == cardName }
                 }
             )
 
@@ -444,13 +458,11 @@ fun FinanceScreen(
                 selectedFilterName = selectedFilterName,
                 onAccountClick = { accountName ->
                     selectedFilterName = if (selectedFilterName == accountName) null else accountName
+                },
+                onAccountLongClick = { accountName ->
+                    editingLongClickAccount = bankAccounts.find { it.name == accountName }
                 }
             )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Atenção ao fluxo
-            FlowAlertCard(message = flowMessage)
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -466,10 +478,8 @@ fun FinanceScreen(
                     defaultIsIncomeForAdd = false
                     showAddDialog = true
                 },
-                onNewClick = {
-                    editingTransaction = null
-                    defaultIsIncomeForAdd = false
-                    showAddDialog = true
+                onTransferClick = {
+                    showTransferDialog = true
                 }
             )
 
@@ -749,60 +759,10 @@ fun RaloXCard(
 }
 
 @Composable
-fun FlowAlertCard(
-    message: String
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(PremiumGlassModifier)
-            .padding(16.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(Color(0x1AFF9800)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.AutoAwesome,
-                    contentDescription = null,
-                    tint = Color(0xFFFF9800),
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-            
-            Spacer(modifier = Modifier.width(12.dp))
-            
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Atenção ao fluxo",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = message,
-                    fontSize = 11.sp,
-                    color = Color(0xFFBDC9C6),
-                    lineHeight = 16.sp
-                )
-            }
-        }
-    }
-}
-
-@Composable
 fun ActionButtonsRow(
     onReceiveClick: () -> Unit,
     onPayClick: () -> Unit,
-    onNewClick: () -> Unit
+    onTransferClick: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -827,12 +787,12 @@ fun ActionButtonsRow(
             modifier = Modifier.weight(1f)
         )
         ActionButton(
-            title = "NOVO",
-            icon = Icons.Default.Add,
+            title = "TRANSFERIR",
+            icon = Icons.Default.SyncAlt,
             iconTint = Color.White,
             bgCircleColor = Color(0x1AFFFFFF),
             rotation = 0f,
-            onClick = onNewClick,
+            onClick = onTransferClick,
             modifier = Modifier.weight(1f)
         )
     }
@@ -1077,12 +1037,14 @@ fun SectionHeader(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun CreditCardsCarousel(
     creditCards: List<CreditCard>,
     benefitCards: List<BenefitCard>,
     selectedFilterName: String?,
-    onCardClick: (String) -> Unit
+    onCardClick: (String) -> Unit,
+    onCardLongClick: (String) -> Unit
 ) {
     if (creditCards.isEmpty() && benefitCards.isEmpty()) {
         Box(
@@ -1135,7 +1097,10 @@ fun CreditCardsCarousel(
                             ),
                             shape = RoundedCornerShape(24.dp)
                         )
-                        .clickable { onCardClick(card.name) }
+                        .combinedClickable(
+                            onClick = { onCardClick(card.name) },
+                            onLongClick = { onCardLongClick(card.name) }
+                        )
                         .padding(20.dp)
                 ) {
                     Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
@@ -1219,7 +1184,10 @@ fun CreditCardsCarousel(
                             ),
                             shape = RoundedCornerShape(24.dp)
                         )
-                        .clickable { onCardClick(card.name) }
+                        .combinedClickable(
+                            onClick = { onCardClick(card.name) },
+                            onLongClick = { onCardLongClick(card.name) }
+                        )
                         .padding(20.dp)
                 ) {
                     Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
@@ -1298,11 +1266,13 @@ fun CreditCardsCarousel(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun BankAccountsSection(
     bankAccounts: List<BankAccount>,
     selectedFilterName: String?,
-    onAccountClick: (String) -> Unit
+    onAccountClick: (String) -> Unit,
+    onAccountLongClick: (String) -> Unit
 ) {
     if (bankAccounts.isEmpty()) {
         Box(
@@ -1341,7 +1311,10 @@ fun BankAccountsSection(
                             brush = if (isSelected) SolidColor(accountColor) else SolidColor(Color(0x1AFFFFFF)),
                             shape = RoundedCornerShape(18.dp)
                         )
-                        .clickable { onAccountClick(account.name) }
+                        .combinedClickable(
+                            onClick = { onAccountClick(account.name) },
+                            onLongClick = { onAccountLongClick(account.name) }
+                        )
                         .padding(12.dp)
                 ) {
                     Row(modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
@@ -3182,6 +3155,230 @@ fun RecurringExpensesSection(
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TransferDialog(
+    bankAccounts: List<BankAccount>,
+    onDismiss: () -> Unit,
+    onTransfer: (from: String, to: String, value: Double, date: Long) -> Unit
+) {
+    var fromAccount by remember { mutableStateOf<String?>(null) }
+    var toAccount by remember { mutableStateOf<String?>(null) }
+    var valueStr by remember { mutableStateOf("") }
+    var selectedDate by remember { mutableStateOf(System.currentTimeMillis()) }
+    var dateString by remember { mutableStateOf(java.text.SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xED070909)),
+            shape = RoundedCornerShape(28.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, Color(0x2BFFFFFF), RoundedCornerShape(28.dp))
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Transferência",
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Text("Origem", color = Color(0x99FFFFFF), fontSize = 14.sp)
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(bankAccounts) { acc ->
+                        val isSelected = fromAccount == acc.name
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isSelected) Color(0x33FFFFFF) else Color(0x1AFFFFFF))
+                                .border(1.dp, if (isSelected) Color.White else Color.Transparent, RoundedCornerShape(12.dp))
+                                .clickable { fromAccount = acc.name }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Text(acc.name, color = Color.White, fontSize = 13.sp)
+                        }
+                    }
+                }
+
+                Text("Destino", color = Color(0x99FFFFFF), fontSize = 14.sp)
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(bankAccounts.filter { it.name != fromAccount }) { acc ->
+                        val isSelected = toAccount == acc.name
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isSelected) Color(0x33FFFFFF) else Color(0x1AFFFFFF))
+                                .border(1.dp, if (isSelected) Color.White else Color.Transparent, RoundedCornerShape(12.dp))
+                                .clickable { toAccount = acc.name }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Text(acc.name, color = Color.White, fontSize = 13.sp)
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = valueStr,
+                    onValueChange = { valueStr = it },
+                    label = { Text("Valor", color = Color(0x99FFFFFF)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF71D7CD),
+                        unfocusedBorderColor = Color(0x33FFFFFF),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = dateString,
+                    onValueChange = { 
+                        dateString = it 
+                        try {
+                            val sdf = java.text.SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                            val date = sdf.parse(it)
+                            if (date != null) selectedDate = date.time
+                        } catch (e: Exception) {}
+                    },
+                    label = { Text("Data (DD/MM/AAAA)", color = Color(0x99FFFFFF)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF71D7CD),
+                        unfocusedBorderColor = Color(0x33FFFFFF),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancelar", color = Color.White.copy(alpha=0.7f))
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            val v = valueStr.replace(",", ".").toDoubleOrNull()
+                            if (fromAccount != null && toAccount != null && v != null && v > 0) {
+                                onTransfer(fromAccount!!, toAccount!!, v, selectedDate)
+                                onDismiss()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF71D7CD))
+                    ) {
+                        Text("Transferir", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditBankAccountDialog(
+    account: BankAccount,
+    viewModel: TesseraViewModel,
+    onDismiss: () -> Unit
+) {
+    var name by remember { mutableStateOf(account.name) }
+    var accountType by remember { mutableStateOf(account.type) }
+    var colorHex by remember { mutableStateOf(account.colorHex) }
+    val colorPalettes = listOf("#8A05BE", "#FF7A00", "#E6C619", "#1C1C1C", "#0088FF", "#71D7CD")
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xED070909)),
+            shape = RoundedCornerShape(28.dp),
+            modifier = Modifier.fillMaxWidth().border(1.dp, Color(0x2BFFFFFF), RoundedCornerShape(28.dp))
+        ) {
+            Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text("Editar Conta", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Nome da Conta", color = Color(0x99FFFFFF)) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF71D7CD),
+                        unfocusedBorderColor = Color(0x33FFFFFF),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Text("Tipo de Conta", color = Color.White, fontSize = 14.sp)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("Corrente", "Poupança", "Investimento").forEach { t ->
+                        val isSelected = accountType == t
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) Color(0xFF71D7CD).copy(alpha = 0.15f) else Color.Transparent)
+                                .border(1.dp, if (isSelected) Color(0xFF71D7CD) else Color(0x33FFFFFF), RoundedCornerShape(8.dp))
+                                .clickable { accountType = t }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(t, color = if (isSelected) Color.White else Color(0x99FFFFFF), fontSize = 12.sp)
+                        }
+                    }
+                }
+
+                Text("Cor", color = Color.White, fontSize = 14.sp)
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(colorPalettes) { hex ->
+                        val parsedColor = try { Color(android.graphics.Color.parseColor(hex)) } catch (e: Exception) { Color(0xFF71D7CD) }
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(parsedColor)
+                                .border(
+                                    width = if (colorHex == hex) 3.dp else 0.dp,
+                                    color = if (colorHex == hex) Color.White else Color.Transparent,
+                                    shape = CircleShape
+                                )
+                                .clickable { colorHex = hex }
+                        )
+                    }
+                }
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = {
+                        viewModel.deleteBankAccount(account)
+                        onDismiss()
+                    }) {
+                        Text("Excluir", color = Color(0xFFEF4444))
+                    }
+                    Button(
+                        onClick = {
+                            if (name.isNotBlank()) {
+                                viewModel.addBankAccount(name, account.balance, accountType, colorHex, account.id)
+                                onDismiss()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF71D7CD))
+                    ) {
+                        Text("Salvar", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
         }
     }
 }

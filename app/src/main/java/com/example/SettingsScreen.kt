@@ -71,6 +71,8 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
     val appVersionName = packageInfo?.versionName ?: "1.0.2"
     
     var isBiometricEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("biometric_enabled", false)) }
+    var sumInvestmentsToBalance by remember { mutableStateOf(sharedPrefs.getBoolean("sum_investments_to_balance", false)) }
+    var sumInvestmentsToSpendable by remember { mutableStateOf(sharedPrefs.getBoolean("sum_investments_to_spendable", false)) }
     var stepsReminderTime by remember { mutableStateOf(sharedPrefs.getString("steps_reminder_time", "20:00") ?: "20:00") }
     var sleepReminderTime by remember { mutableStateOf(sharedPrefs.getString("sleep_reminder_time", "08:00") ?: "08:00") }
     val backgroundUri by viewModel.homeBackgroundUri.collectAsState()
@@ -214,6 +216,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                             text = when (activeCategory) {
                                 "personalizacao" -> "Aparência e Temas"
                                 "privacidade" -> "Segurança e Privacidade"
+                                "financas" -> "Finanças"
                                 "metro" -> "Transporte e Trânsito"
                                 "futebol" -> "Esportes e Futebol"
                                 "dados" -> "Dados e Backup"
@@ -381,6 +384,32 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .clickable { activeCategory = "financas" }
+                                        .padding(vertical = 16.dp, horizontal = 20.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFF71D7CD).copy(alpha = 0.15f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Outlined.AccountBalanceWallet, null, tint = Color(0xFF71D7CD), modifier = Modifier.size(20.dp))
+                                    }
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Finanças", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text("Configurações de saldos e investimentos", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                                    }
+                                    Icon(Icons.Default.ChevronRight, null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
+                                }
+                                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.05f)))
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
                                         .clickable { activeCategory = "metro" }
                                         .padding(vertical = 16.dp, horizontal = 20.dp),
                                     verticalAlignment = Alignment.CenterVertically
@@ -454,6 +483,94 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                     }
                                     Icon(Icons.Default.ChevronRight, null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
                                 }
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    if (activeCategory == "financas") {
+                        SectionTitle("SALDOS E INVESTIMENTOS", Color(0xFF71D7CD))
+                        Column(
+                            modifier = PremiumGlassModifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(20.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .bounceClick {
+                                        sumInvestmentsToBalance = !sumInvestmentsToBalance
+                                        sharedPrefs.edit().putBoolean("sum_investments_to_balance", sumInvestmentsToBalance).apply()
+                                    },
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                    Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(Color(0xFF71D7CD).copy(alpha=0.15f)), contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Outlined.TrendingUp, contentDescription = null, tint = Color(0xFF71D7CD), modifier = Modifier.size(20.dp))
+                                    }
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Column {
+                                        Text("Somar investimentos ao saldo", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text("Incluir valor no saldo total exibido", fontSize = 12.sp, color = Color.White.copy(alpha=0.6f))
+                                    }
+                                }
+                                Switch(
+                                    checked = sumInvestmentsToBalance,
+                                    onCheckedChange = { 
+                                        sumInvestmentsToBalance = it
+                                        sharedPrefs.edit().putBoolean("sum_investments_to_balance", it).apply()
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = Color(0xFF71D7CD),
+                                        uncheckedThumbColor = Color.White.copy(alpha=0.7f),
+                                        uncheckedTrackColor = Color(0x33FFFFFF),
+                                        uncheckedBorderColor = Color.Transparent
+                                    )
+                                )
+                            }
+                            
+                            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x0AFFFFFF)))
+                            
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .bounceClick {
+                                        sumInvestmentsToSpendable = !sumInvestmentsToSpendable
+                                        sharedPrefs.edit().putBoolean("sum_investments_to_spendable", sumInvestmentsToSpendable).apply()
+                                    },
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                    Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(Color(0xFF71D7CD).copy(alpha=0.15f)), contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Outlined.Savings, contentDescription = null, tint = Color(0xFF71D7CD), modifier = Modifier.size(20.dp))
+                                    }
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Column {
+                                        Text("Somar ao disponível p/ gastar", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text("Investimentos contam como dinheiro livre", fontSize = 12.sp, color = Color.White.copy(alpha=0.6f))
+                                    }
+                                }
+                                Switch(
+                                    checked = sumInvestmentsToSpendable,
+                                    onCheckedChange = { 
+                                        sumInvestmentsToSpendable = it
+                                        sharedPrefs.edit().putBoolean("sum_investments_to_spendable", it).apply()
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = Color(0xFF71D7CD),
+                                        uncheckedThumbColor = Color.White.copy(alpha=0.7f),
+                                        uncheckedTrackColor = Color(0x33FFFFFF),
+                                        uncheckedBorderColor = Color.Transparent
+                                    )
+                                )
                             }
                         }
                     }
