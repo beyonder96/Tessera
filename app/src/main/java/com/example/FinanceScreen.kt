@@ -82,6 +82,7 @@ fun FinanceScreen(
 
     var isPrivacyModeEnabled by remember { mutableStateOf(true) }
     var defaultIsIncomeForAdd by remember { mutableStateOf(false) }
+    var defaultIsTransferForAdd by remember { mutableStateOf(false) }
     
     var selectedFilterName by remember { mutableStateOf<String?>(null) }
     var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
@@ -98,13 +99,15 @@ fun FinanceScreen(
         viewModel.financeActionTrigger.collect { action ->
             when (action) {
                 TesseraViewModel.FinanceAction.ADD_EXPENSE -> {
-                    defaultIsIncomeForAdd = false
                     editingTransaction = null
+                    defaultIsIncomeForAdd = false
+                    defaultIsTransferForAdd = false
                     showAddDialog = true
                 }
                 TesseraViewModel.FinanceAction.ADD_INCOME -> {
-                    defaultIsIncomeForAdd = true
                     editingTransaction = null
+                    defaultIsIncomeForAdd = true
+                    defaultIsTransferForAdd = false
                     showAddDialog = true
                 }
             }
@@ -132,6 +135,7 @@ fun FinanceScreen(
             benefitCards = benefitCards,
             editingTransaction = editingTransaction,
             defaultIsIncome = defaultIsIncomeForAdd,
+            defaultIsTransfer = defaultIsTransferForAdd,
             onDismiss = { 
                 showAddDialog = false
                 editingTransaction = null
@@ -480,15 +484,20 @@ fun FinanceScreen(
                 onReceiveClick = {
                     editingTransaction = null
                     defaultIsIncomeForAdd = true
+                    defaultIsTransferForAdd = false
                     showAddDialog = true
                 },
                 onPayClick = {
                     editingTransaction = null
                     defaultIsIncomeForAdd = false
+                    defaultIsTransferForAdd = false
                     showAddDialog = true
                 },
                 onTransferClick = {
-                    showTransferDialog = true
+                    editingTransaction = null
+                    defaultIsIncomeForAdd = false
+                    defaultIsTransferForAdd = true
+                    showAddDialog = true
                 }
             )
 

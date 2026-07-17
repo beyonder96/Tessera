@@ -789,20 +789,6 @@ fun ConnectivityDock(
             horizontalArrangement = Arrangement.spacedBy(28.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Bell notification icon
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .clickable { onBellClick() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Notifications,
-                    contentDescription = "Notificações",
-                    tint = Color.White.copy(alpha = 0.7f),
-                    modifier = Modifier.size(20.dp)
-                )
-            }
         }
     }
 }

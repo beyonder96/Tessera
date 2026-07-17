@@ -3,6 +3,12 @@
 Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inteligente!
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
+## 🚀 Novidades da Versão 1.9.1
+
+- **API de Futebol 100% Brasileira:** Trocamos a plataforma de dados esportivos (Sportmonks para API-Football) para suportar cobertura completa e gratuita do Brasileirão, Copa do Brasil e times sul-americanos!
+- **Upgrade da Tessera AI (Gemini 2.5):** O motor de inteligência artificial do chat foi atualizado do `gemini-1.5-flash` para o novíssimo `gemini-2.5-flash`, compatível com a nova estrutura avançada de chaves da Google, entregando respostas mais rápidas e inteligentes!
+- **Deploy do Mercado Web:** A funcionalidade de compartilhar a lista do mercado por link/QR Code foi ajustada para buscar o domínio dinâmico do Firebase automaticamente (`.env`), eliminando o erro de site não encontrado.
+
 ## 🚀 Novidades da Versão 1.9.0
 
 - **UI Minimalista (Bottom Sheets):** As antigas janelas modais de Adicionar Transação, Transferências e Gerenciamento de Cartões foram completamente substituídas por Bottom Sheets modernos e minimalistas (que deslizam suavemente da parte inferior da tela, estilo iOS). Muito mais clean e menos intrusivo!
@@ -50,8 +56,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](.build-outputs/app-debug-1.8.9.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](.build-outputs/app-release-1.8.9.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](.build-outputs/app-debug-1.9.1.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](.build-outputs/app-release-1.9.1.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.

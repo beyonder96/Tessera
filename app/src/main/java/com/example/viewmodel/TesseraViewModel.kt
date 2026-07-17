@@ -37,7 +37,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 
 import com.example.data.FootballService
 import com.example.data.FootballMatchInfo
-import com.example.data.sportmonks.NetworkModule
+import com.example.data.apifootball.NetworkModule
 import android.util.Log
 
 class TesseraViewModel(
@@ -208,12 +208,9 @@ class TesseraViewModel(
 
 
 
-    // Football Integration (Sportmonks)
-    private val sportmonksApi = NetworkModule.provideSportmonksApi(
-        NetworkModule.provideOkHttpClient(),
-        NetworkModule.provideMoshi()
-    )
-    private val fixtureRepository = NetworkModule.provideFixtureRepository(sportmonksApi)
+    // Football Integration (API-Football)
+    private val apiFootballService = NetworkModule.provideApiFootballService()
+    private val fixtureRepository = NetworkModule.provideApiFootballRepository(apiFootballService)
 
     private val _featuredMatch = MutableStateFlow<com.example.data.DetailedFixture?>(null)
     val featuredMatch: StateFlow<com.example.data.DetailedFixture?> = _featuredMatch.asStateFlow()
@@ -1763,82 +1760,85 @@ class TesseraViewModel(
             _isLoadingFootball.value = true
             try {
                 var targetFixtureId: Long? = null
+                val today = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"))
                 
                 // Fetch latest fixtures
-                val latestResult = fixtureRepository.getLatestFixtures()
+                val latestResult = fixtureRepository.getFixturesByDate(today)
                 if (latestResult.isSuccess) {
-                    val dtoList = latestResult.getOrNull()?.data
+                    val dtoList = latestResult.getOrNull()
                     if (!dtoList.isNullOrEmpty()) {
                         val teamsToWatch = _configuredFootballTeams.value.map { it.lowercase() }
-                        val preferredFixture = dtoList.find { fixture ->
-                            fixture.participants?.any { participant ->
-                                teamsToWatch.any { team -> participant.name.lowercase().contains(team) }
-                            } == true
+                        val preferredFixture = dtoList.find { item ->
+                            val homeName = item.teams.home.name.lowercase()
+                            val awayName = item.teams.away.name.lowercase()
+                            teamsToWatch.any { team -> homeName.contains(team) || awayName.contains(team) }
                         } ?: dtoList.firstOrNull()
                         
-                        targetFixtureId = preferredFixture?.id
+                        targetFixtureId = preferredFixture?.fixture?.id
                     }
                 }
 
                 if (targetFixtureId != null) {
                     val result = fixtureRepository.getFixture(targetFixtureId)
                     if (result.isSuccess) {
-                    val dto = result.getOrNull()?.data
-                    if (dto != null) {
-                        val home = dto.participants?.getOrNull(0)
-                        val away = dto.participants?.getOrNull(1)
-                        
-                        val matchDetail = com.example.data.MatchDetail(
-                            homeTeamName = home?.name ?: "Time 1",
-                            homeTeamLogo = home?.imagePath ?: "",
-                            awayTeamName = away?.name ?: "Time 2",
-                            awayTeamLogo = away?.imagePath ?: "",
-                            homeGoals = if (dto.state?.state == "FT") (dto.scores?.getOrNull(0)?.score?.goals ?: 0) else null,
-                            awayGoals = if (dto.state?.state == "FT") (dto.scores?.getOrNull(1)?.score?.goals ?: 0) else null,
-                            statusShort = dto.state?.state ?: "NS",
-                            dateFormatted = formatFootballDate(dto.startingAt),
-                            leagueName = dto.league?.name ?: "Liga"
-                        )
-
-                        val events = dto.events?.map { e ->
-                            com.example.data.MatchEvent(
-                                id = e.id,
-                                minute = e.minute,
-                                typeName = e.type?.name ?: "Evento",
-                                typeCode = e.type?.code,
-                                playerName = e.player?.displayName ?: e.player?.name ?: "Desconhecido",
-                                isHomeTeam = e.participantId == home?.id
+                        val fixtureData = result.getOrNull()
+                        if (fixtureData != null) {
+                            val home = fixtureData.teams.home
+                            val away = fixtureData.teams.away
+                            
+                            val matchDetail = com.example.data.MatchDetail(
+                                homeTeamName = home.name,
+                                homeTeamLogo = home.logo ?: "",
+                                awayTeamName = away.name,
+                                awayTeamLogo = away.logo ?: "",
+                                homeGoals = fixtureData.goals.home,
+                                awayGoals = fixtureData.goals.away,
+                                statusShort = fixtureData.fixture.status.short,
+                                dateFormatted = formatFootballDate(fixtureData.fixture.date),
+                                leagueName = fixtureData.league.name
                             )
-                        } ?: emptyList()
 
-                        val homeLineup = dto.lineups?.filter { it.participantId == home?.id }?.map { l ->
-                            com.example.data.MatchLineup(
-                                playerId = l.playerId,
-                                playerName = l.player?.displayName ?: l.player?.name ?: "Jogador",
-                                playerImage = l.player?.imagePath,
-                                position = l.formationPosition
+                            val events = fixtureData.events?.mapIndexed { index, e ->
+                                com.example.data.MatchEvent(
+                                    id = index.toLong(),
+                                    minute = e.time.elapsed,
+                                    typeName = e.detail ?: e.type,
+                                    typeCode = e.type,
+                                    playerName = e.player?.name ?: "Desconhecido",
+                                    isHomeTeam = e.team.id == home.id
+                                )
+                            } ?: emptyList()
+
+                            val homeLineupData = fixtureData.lineups?.find { it.team.id == home.id }
+                            val homeLineup = homeLineupData?.startXI?.mapIndexed { index, l ->
+                                com.example.data.MatchLineup(
+                                    playerId = l.player.id ?: index.toLong(),
+                                    playerName = l.player.name,
+                                    playerImage = null,
+                                    position = index
+                                )
+                            } ?: emptyList()
+
+                            val awayLineupData = fixtureData.lineups?.find { it.team.id == away.id }
+                            val awayLineup = awayLineupData?.startXI?.mapIndexed { index, l ->
+                                com.example.data.MatchLineup(
+                                    playerId = l.player.id ?: index.toLong(),
+                                    playerName = l.player.name,
+                                    playerImage = null,
+                                    position = index
+                                )
+                            } ?: emptyList()
+
+                            val detailedFixture = com.example.data.DetailedFixture(
+                                matchDetail = matchDetail,
+                                venueName = fixtureData.fixture.venue?.name,
+                                events = events.sortedBy { it.minute },
+                                homeLineup = homeLineup.sortedBy { it.position ?: 99 },
+                                awayLineup = awayLineup.sortedBy { it.position ?: 99 }
                             )
-                        } ?: emptyList()
 
-                        val awayLineup = dto.lineups?.filter { it.participantId == away?.id }?.map { l ->
-                            com.example.data.MatchLineup(
-                                playerId = l.playerId,
-                                playerName = l.player?.displayName ?: l.player?.name ?: "Jogador",
-                                playerImage = l.player?.imagePath,
-                                position = l.formationPosition
-                            )
-                        } ?: emptyList()
-
-                        val detailedFixture = com.example.data.DetailedFixture(
-                            matchDetail = matchDetail,
-                            venueName = dto.venue?.name,
-                            events = events.sortedBy { it.minute },
-                            homeLineup = homeLineup.sortedBy { it.position ?: 99 },
-                            awayLineup = awayLineup.sortedBy { it.position ?: 99 }
-                        )
-
-                        _featuredMatch.value = detailedFixture
-                    }
+                            _featuredMatch.value = detailedFixture
+                        }
                     } else {
                         Log.e("TesseraViewModel", "Erro ao buscar placares: ${result.exceptionOrNull()?.message}")
                     }

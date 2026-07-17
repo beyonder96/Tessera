@@ -45,6 +45,7 @@ fun AddTransactionBottomSheet(
     benefitCards: List<BenefitCard>,
     editingTransaction: Transaction?,
     defaultIsIncome: Boolean = false,
+    defaultIsTransfer: Boolean = false,
     onDismiss: () -> Unit,
     onAdd: (String, Double, Boolean, String, String, Boolean, Boolean, String, Long, Boolean, Int) -> Unit,
     onUpdate: (Transaction, Transaction) -> Unit,
@@ -55,7 +56,7 @@ fun AddTransactionBottomSheet(
     
     // Type: 0 for Despesa, 1 for Receita, 2 for Transferência
     var transactionType by remember { 
-        mutableStateOf(if (defaultIsIncome) 1 else 0) 
+        mutableStateOf(if (defaultIsTransfer) 2 else if (defaultIsIncome) 1 else 0) 
     }
 
     LaunchedEffect(editingTransaction) {

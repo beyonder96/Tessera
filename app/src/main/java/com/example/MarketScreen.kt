@@ -1254,7 +1254,7 @@ fun ShareMarketListDialog(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
-    val shareLink = "https://tessera-market.web.app/?listId=${marketListId ?: ""}"
+    val shareLink = "https://${com.example.BuildConfig.FIREBASE_PROJECT_ID}.web.app/?listId=${marketListId ?: ""}"
 
     Dialog(
         onDismissRequest = onDismiss,
