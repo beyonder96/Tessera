@@ -1,5 +1,6 @@
 package com.example
 
+import android.util.Log
 import android.app.DatePickerDialog
 import android.content.Context
 import android.net.Uri
@@ -1122,7 +1123,7 @@ fun EditPetDialog(
                     photoString = localUri.toString()
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("PetzScreen", "Erro ao salvar foto do pet", e)
             }
         }
     }
@@ -2391,7 +2392,7 @@ fun AddPetDialog(
                     photoString = localUri.toString()
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("PetzScreen", "Erro ao salvar foto do pet", e)
             }
         }
     }

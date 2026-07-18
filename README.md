@@ -3,6 +3,14 @@
 Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inteligente!
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
+## 🚀 Novidades da Versão 1.9.4
+
+- **Reforço de Segurança e Privacidade:** Removemos credenciais sensíveis e senhas de keystore do código-fonte, movendo-as para arquivos de configuração protegidos.
+- **Protocolo HTTPS Obrigatório:** Todas as chamadas de rede externas agora utilizam HTTPS criptografado. O tráfego em texto claro (HTTP) foi completamente bloqueado no nível do sistema para garantir a integridade dos seus dados.
+- **Sincronização Inteligente do BuildConfig:** O Gradle agora detecta mudanças no seu arquivo `.env` automaticamente, eliminando a necessidade de "Clean Project" manual ao atualizar chaves de API.
+- **Limpeza de Permissões:** Removemos permissões obsoletas de armazenamento externo, tornando o app mais leve e respeitando a privacidade do Android moderno.
+- **Logs de Produção Protegidos:** Substituímos o rastreamento de pilhas de erro (`printStackTrace`) por logs estruturados e seguros.
+
 ## 🚀 Novidades da Versão 1.9.1
 
 - **API de Futebol 100% Brasileira:** Trocamos a plataforma de dados esportivos (Sportmonks para API-Football) para suportar cobertura completa e gratuita do Brasileirão, Copa do Brasil e times sul-americanos!
@@ -56,8 +64,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.9.3.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.9.3.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.9.4.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.9.4.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.

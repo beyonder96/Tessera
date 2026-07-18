@@ -1,6 +1,7 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 package com.example
 
+import android.util.Log
 import com.example.ui.components.MetricItem
 import com.example.ui.components.MetricItemWithProgress
 import com.example.ui.components.MetricItemWithNeonPulse
@@ -268,7 +269,7 @@ fun TesseraApp() {
                     com.example.notifications.AlarmScheduler.scheduleMedicationAlarm(context, med.name, med.dosage, med.time)
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("MainActivity", "Erro ao agendar alarmes de medicamentos", e)
             }
         }
     }
@@ -280,7 +281,7 @@ fun TesseraApp() {
                     FinanceGlanceWidget().updateAll(context)
                     DailyGlanceWidget().updateAll(context)
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    Log.e("MainActivity", "Erro ao atualizar widgets de transações", e)
                 }
             }
         }
@@ -289,7 +290,7 @@ fun TesseraApp() {
                 try {
                     FinanceGlanceWidget().updateAll(context)
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    Log.e("MainActivity", "Erro ao atualizar widgets de contas", e)
                 }
             }
         }
@@ -299,7 +300,7 @@ fun TesseraApp() {
                     MarketGlanceWidget().updateAll(context)
                     DailyGlanceWidget().updateAll(context)
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    Log.e("MainActivity", "Erro ao atualizar widgets de mercado", e)
                 }
             }
         }
@@ -309,7 +310,7 @@ fun TesseraApp() {
                     GoalsGlanceWidget().updateAll(context)
                     DailyGlanceWidget().updateAll(context)
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    Log.e("MainActivity", "Erro ao atualizar widgets de hábitos", e)
                 }
             }
         }
@@ -318,7 +319,7 @@ fun TesseraApp() {
                 try {
                     GoalsGlanceWidget().updateAll(context)
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    Log.e("MainActivity", "Erro ao atualizar widgets de rotinas", e)
                 }
             }
         }
@@ -328,7 +329,7 @@ fun TesseraApp() {
                     PetsGlanceWidget().updateAll(context)
                     DailyGlanceWidget().updateAll(context)
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    Log.e("MainActivity", "Erro ao atualizar widgets de pets", e)
                 }
             }
         }
@@ -337,7 +338,7 @@ fun TesseraApp() {
                 try {
                     HealthGlanceWidget().updateAll(context)
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    Log.e("MainActivity", "Erro ao atualizar widgets de medicação", e)
                 }
             }
         }
@@ -347,7 +348,7 @@ fun TesseraApp() {
                     HealthGlanceWidget().updateAll(context)
                     DailyGlanceWidget().updateAll(context)
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    Log.e("MainActivity", "Erro ao atualizar widgets de passos", e)
                 }
             }
         }
@@ -356,7 +357,7 @@ fun TesseraApp() {
                 try {
                     HealthGlanceWidget().updateAll(context)
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    Log.e("MainActivity", "Erro ao atualizar widgets de peso", e)
                 }
             }
         }
@@ -426,7 +427,7 @@ fun TesseraApp() {
                     Toast.makeText(context, "Plano de fundo atualizado!", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("MainActivity", "Erro ao processar imagem de fundo", e)
             }
         }
     }
@@ -771,6 +772,7 @@ fun getDatabaseSizeInKB(context: android.content.Context): String {
             "0 KB"
         }
     } catch (e: Exception) {
+        Log.e("MainActivity", "Erro ao calcular tamanho do banco", e)
         "Indisponível"
     }
 }
@@ -1313,7 +1315,7 @@ fun TopHeader(onOpenSettings: () -> Unit, onOpenMetro: () -> Unit) {
                     Toast.makeText(context, "Foto de perfil salva com sucesso!", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("MainActivity", "Erro ao salvar foto de perfil", e)
                 profileUri = uri
                 sharedPrefs.edit().putString("user_profile_uri", uri.toString()).apply()
             }

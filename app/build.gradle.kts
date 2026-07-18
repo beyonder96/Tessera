@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
@@ -10,12 +12,18 @@ android {
   namespace = "com.example"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
-    defaultConfig {
+  val localProperties = Properties()
+  val localPropertiesFile = rootProject.file("local.properties")
+  if (localPropertiesFile.exists()) {
+    localProperties.load(localPropertiesFile.inputStream())
+  }
+
+  defaultConfig {
     applicationId = "com.aistudio.tessera.xtrkna"
     minSdk = 26
     targetSdk = 35
-    versionCode = 46
-    versionName = "1.9.3"
+    versionCode = 47
+    versionName = "1.9.4"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     manifestPlaceholders["MAPS_API_KEY"] = "DUMMY_KEY"
@@ -28,9 +36,9 @@ android {
     if (keystoreFile.exists()) {
       create("release") {
         storeFile = keystoreFile
-        storePassword = "android123"
+        storePassword = localProperties.getProperty("RELEASE_STORE_PASSWORD") ?: "android123"
         keyAlias = "upload"
-        keyPassword = "android123"
+        keyPassword = localProperties.getProperty("RELEASE_KEY_PASSWORD") ?: "android123"
         enableV1Signing = true
         enableV2Signing = true
       }
@@ -38,16 +46,16 @@ android {
       // Graceful fallback to debug signature if release key is not found (avoids local build errors)
       create("release") {
         storeFile = file("${rootDir}/debug.keystore")
-        storePassword = "android"
+        storePassword = localProperties.getProperty("DEBUG_STORE_PASSWORD") ?: "android"
         keyAlias = "androiddebugkey"
-        keyPassword = "android"
+        keyPassword = localProperties.getProperty("DEBUG_KEY_PASSWORD") ?: "android"
       }
     }
     create("debugConfig") {
       storeFile = file("${rootDir}/debug.keystore")
-      storePassword = "android"
+      storePassword = localProperties.getProperty("DEBUG_STORE_PASSWORD") ?: "android"
       keyAlias = "androiddebugkey"
-      keyPassword = "android"
+      keyPassword = localProperties.getProperty("DEBUG_KEY_PASSWORD") ?: "android"
     }
   }
 
@@ -232,5 +240,10 @@ tasks.configureEach {
     if (name == "assembleDebug") {
         finalizedBy("copyDebugApk")
     }
+}
+
+// Ensure BuildConfig is regenerated when .env changes
+tasks.withType<com.android.build.gradle.tasks.GenerateBuildConfig> {
+    inputs.file(rootProject.file(".env"))
 }
 

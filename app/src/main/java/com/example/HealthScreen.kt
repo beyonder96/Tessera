@@ -1,5 +1,6 @@
 package com.example
 
+import android.util.Log
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.ui.text.TextStyle
@@ -171,7 +172,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("HealthScreen", "Erro ao buscar dados de saúde", e)
         }
     }
 

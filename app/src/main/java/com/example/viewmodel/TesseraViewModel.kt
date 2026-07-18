@@ -263,9 +263,9 @@ class TesseraViewModel(
                     lon = ipJson.optDouble("longitude", -46.6333)
                     city = ipJson.optString("city", "São Paulo")
                 } catch (e1: Exception) {
-                    e1.printStackTrace()
+                    Log.e("TesseraViewModel", "Erro ao buscar IP (ipapi.co)", e1)
                     try {
-                        val ipUrl2 = java.net.URL("http://ip-api.com/json/")
+                        val ipUrl2 = java.net.URL("https://ip-api.com/json/")
                         val ipConnection2 = ipUrl2.openConnection() as java.net.HttpURLConnection
                         ipConnection2.connectTimeout = 3000
                         ipConnection2.readTimeout = 3000
@@ -276,7 +276,7 @@ class TesseraViewModel(
                         lon = ipJson2.optDouble("lon", -46.6333)
                         city = ipJson2.optString("city", "São Paulo")
                     } catch (e2: Exception) {
-                        e2.printStackTrace()
+                        Log.e("TesseraViewModel", "Erro ao buscar IP (ip-api.com)", e2)
                     }
                 }
                 
@@ -303,7 +303,7 @@ class TesseraViewModel(
                 )
                 _userLocation.value = lat to lon
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("TesseraViewModel", "Erro ao buscar clima", e)
                 // Default fallback based on local time
                 val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
                 val (fallbackTemp, fallbackDesc) = when (hour) {
@@ -552,7 +552,7 @@ class TesseraViewModel(
                 _heroMetric.value = fallbackMetric
                 _aiInsights.value = fallbackInsights.take(3)
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("TesseraViewModel", "Erro ao atualizar insights AI", e)
             }
         }
     }
@@ -678,7 +678,7 @@ class TesseraViewModel(
                     _busError.value = "Falha na autenticação da SPTrans."
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("TesseraViewModel", "Erro ao buscar linhas de ônibus", e)
                 _busError.value = "Erro ao buscar linhas: ${e.message}"
             } finally {
                 _isSearchingBus.value = false
@@ -718,9 +718,9 @@ class TesseraViewModel(
                     }
                 }
             } catch (e: SecurityException) {
-                e.printStackTrace()
+                Log.e("TesseraViewModel", "Erro de permissão ao buscar localização", e)
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("TesseraViewModel", "Erro ao buscar localização real", e)
             }
         }
     }
@@ -777,7 +777,7 @@ class TesseraViewModel(
                         try {
                             paradas = com.example.data.SPTransApi.service.getParadasPorLinha(codigo)
                         } catch (e: Exception) {
-                            e.printStackTrace()
+                            Log.e("TesseraViewModel", "Erro ao buscar paradas estáticas", e)
                         }
                         
                         var closestStaticStop: com.example.data.SPTransParada? = null
@@ -816,7 +816,7 @@ class TesseraViewModel(
                                 horario = proximoVeiculo?.t ?: "Sem prev."
                             }
                         } catch (e: Exception) {
-                            e.printStackTrace()
+                            Log.e("TesseraViewModel", "Erro ao buscar previsões dinâmicas", e)
                             // If Previsao/Linha fails, fallback to Previsao/Parada if we have a static stop
                             if (closestStaticStop != null) {
                                 closestCp = closestStaticStop.cp
@@ -827,7 +827,7 @@ class TesseraViewModel(
                                     val proximoVeiculo = linhaPrevisao?.vs?.minByOrNull { it.t }
                                     horario = proximoVeiculo?.t ?: "Sem prev."
                                 } catch (e2: Exception) {
-                                    e2.printStackTrace()
+                                    Log.e("TesseraViewModel", "Erro no fallback de previsão", e2)
                                 }
                             }
                         }
@@ -843,7 +843,7 @@ class TesseraViewModel(
                             )
                         )
                     } catch (e: Exception) {
-                        e.printStackTrace()
+                        Log.e("TesseraViewModel", "Erro ao processar linha salva", e)
                         // Still add it so it doesn't disappear from the UI on network error
                         results.add(
                             com.example.data.SavedBusLine(
@@ -859,7 +859,7 @@ class TesseraViewModel(
                 }
                 _savedBusLines.value = results
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("TesseraViewModel", "Erro geral em fetchBusPredictions", e)
                 _busError.value = "Erro ao buscar previsões."
             } finally {
                 _isLoadingBus.value = false
@@ -1751,7 +1751,7 @@ class TesseraViewModel(
                 
                 _metroStatus.value = empresasStatus
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("TesseraViewModel", "Erro ao buscar status do metrô", e)
                 _metroError.value = "Erro interno"
             } finally {
                 _isLoadingMetroStatus.value = false
@@ -1873,6 +1873,7 @@ class TesseraViewModel(
                 val formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM HH:mm")
                 formatter.format(localDateTime)
             } catch (e2: Exception) {
+                Log.e("TesseraViewModel", "Erro ao formatar data do futebol", e2)
                 rawDate.take(16).replace("T", " ")
             }
         }
