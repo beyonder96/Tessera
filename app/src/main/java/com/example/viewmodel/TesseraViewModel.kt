@@ -225,7 +225,7 @@ class TesseraViewModel(
     val configuredFootballTeams: StateFlow<List<String>> = _configuredFootballTeams.asStateFlow()
 
     fun loadConfiguredFootballTeams() {
-        val teams = sharedPrefs.getStringSet("football_teams", setOf("Brasil", "Flamengo")) ?: setOf("Brasil", "Flamengo")
+        val teams = sharedPrefs.getStringSet("football_teams", setOf("Flamengo")) ?: setOf("Flamengo")
         _configuredFootballTeams.value = teams.toList()
     }
 
