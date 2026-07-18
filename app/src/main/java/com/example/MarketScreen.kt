@@ -383,7 +383,10 @@ fun PlanningView(viewModel: TesseraViewModel, pendingItems: List<MarketItem>, bo
             }
         } else {
             items(pendingItems, key = { it.id }) { item ->
-                PlanningListItem(item = item)
+                PlanningListItem(
+                    item = item,
+                    onDelete = { viewModel.deleteMarketItem(item) }
+                )
             }
         }
 
@@ -423,19 +426,22 @@ fun PlanningView(viewModel: TesseraViewModel, pendingItems: List<MarketItem>, bo
 }
 
 @Composable
-fun PlanningListItem(item: MarketItem) {
+fun PlanningListItem(item: MarketItem, onDelete: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(Color(0xFF0F1312))
-            .padding(16.dp),
+            .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(Color(0xFF71D7CD)))
         Spacer(modifier = Modifier.width(16.dp))
         Text(text = item.name, color = Color(0xFFBDC9C6), fontSize = 16.sp, modifier = Modifier.weight(1f))
+        IconButton(onClick = onDelete) {
+            Icon(Icons.Default.Delete, contentDescription = "Excluir", tint = Color.Gray)
+        }
     }
 }
 

@@ -1122,6 +1122,12 @@ class TesseraViewModel(
         }
     }
 
+    fun deleteMarketItem(item: MarketItem) {
+        viewModelScope.launch {
+            repository.deleteMarketItem(item)
+        }
+    }
+
     fun toggleMarketItemChecked(item: MarketItem) {
         viewModelScope.launch {
             repository.updateMarketItem(item.copy(isChecked = !item.isChecked))

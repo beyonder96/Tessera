@@ -136,19 +136,30 @@ fun DetailedMatchWidget(
                 ) {
                     // Home Team
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                        AsyncImage(model = m.matchDetail.homeTeamLogo, contentDescription = m.matchDetail.homeTeamName, modifier = Modifier.size(48.dp), contentScale = ContentScale.Fit)
+                        AsyncImage(
+                            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                                .data(m.matchDetail.homeTeamLogo.replace("http://", "https://"))
+                                .allowHardware(false)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = m.matchDetail.homeTeamName,
+                            modifier = Modifier.size(48.dp),
+                            contentScale = ContentScale.Fit
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(text = m.matchDetail.homeTeamName, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
 
                     // Score
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 12.dp)) {
                         Text(
                             text = "${m.matchDetail.homeGoals ?: "-"} : ${m.matchDetail.awayGoals ?: "-"}",
                             color = Color.White,
                             fontSize = 32.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
+                            fontFamily = FontFamily.Monospace,
+                            maxLines = 1,
+                            softWrap = false
                         )
                         Text(
                             text = m.matchDetail.statusShort,
@@ -161,7 +172,16 @@ fun DetailedMatchWidget(
 
                     // Away Team
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                        AsyncImage(model = m.matchDetail.awayTeamLogo, contentDescription = m.matchDetail.awayTeamName, modifier = Modifier.size(48.dp), contentScale = ContentScale.Fit)
+                        AsyncImage(
+                            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                                .data(m.matchDetail.awayTeamLogo.replace("http://", "https://"))
+                                .allowHardware(false)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = m.matchDetail.awayTeamName,
+                            modifier = Modifier.size(48.dp),
+                            contentScale = ContentScale.Fit
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(text = m.matchDetail.awayTeamName, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
