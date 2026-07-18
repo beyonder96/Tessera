@@ -24,7 +24,7 @@ data class GroqResponse(
 )
 
 interface GroqApi {
-    @POST("v1/chat/completions")
+    @POST("openai/v1/chat/completions")
     suspend fun createChatCompletion(
         @Header("Authorization") authHeader: String,
         @Body request: GroqRequest
