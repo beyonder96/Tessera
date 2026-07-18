@@ -33,6 +33,14 @@ class TesseraRepository(private val dao: TesseraDao) {
         dao.deletePlanningItemsByNames(names)
     }
 
+    suspend fun syncMarketItems(
+        itemsToInsert: List<MarketItem>,
+        itemsToUpdate: List<MarketItem>,
+        itemsToDelete: List<MarketItem>
+    ) {
+        dao.syncMarketItems(itemsToInsert, itemsToUpdate, itemsToDelete)
+    }
+
     suspend fun updatePetEvent(event: PetEvent) {
         dao.updatePetEvent(event)
     }

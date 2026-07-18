@@ -35,6 +35,17 @@ interface TesseraDao {
     @Query("DELETE FROM market_items WHERE LOWER(name) IN (:names) AND inMarket = 0")
     suspend fun deletePlanningItemsByNames(names: List<String>)
 
+    @androidx.room.Transaction
+    suspend fun syncMarketItems(
+        itemsToInsert: List<MarketItem>,
+        itemsToUpdate: List<MarketItem>,
+        itemsToDelete: List<MarketItem>
+    ) {
+        itemsToInsert.forEach { insertMarketItem(it) }
+        itemsToUpdate.forEach { updateMarketItem(it) }
+        itemsToDelete.forEach { deleteMarketItem(it) }
+    }
+
     @Query("SELECT COUNT(*) FROM pet_events")
     suspend fun getPetEventsCount(): Int
 

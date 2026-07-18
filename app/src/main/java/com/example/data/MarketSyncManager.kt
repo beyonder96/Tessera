@@ -41,6 +41,15 @@ class MarketSyncManager(
         ERROR
     }
 
+    private var lastSyncedHash: Int? = null
+
+    private fun List<MarketItem>.syncHash(): Int {
+        // Compute hash ignoring local-only fields
+        return this.sortedBy { it.name.lowercase() }.map { 
+            "${it.name}|${it.isChecked}|${it.isBought}|${it.price}|${it.quantity}|${it.unit}|${it.category}" 
+        }.hashCode()
+    }
+
     init {
         initializeFirebase()
     }
@@ -163,17 +172,23 @@ class MarketSyncManager(
                 )
             }
 
-            // Sync remote items into Room
+            // Update hash to avoid local echo upload
+            lastSyncedHash = remoteParsed.syncHash()
+
+            val inserts = mutableListOf<MarketItem>()
+            val updates = mutableListOf<MarketItem>()
+            val deletes = mutableListOf<MarketItem>()
+
+            // Prepare items for batch transaction
             remoteParsed.forEach { remoteItem ->
                 val existing = localItems.find { it.name.equals(remoteItem.name, ignoreCase = true) }
                 if (existing != null) {
-                    // Update if different
                     if (existing.isChecked != remoteItem.isChecked ||
                         existing.price != remoteItem.price ||
                         existing.quantity != remoteItem.quantity ||
                         existing.unit != remoteItem.unit ||
                         existing.isBought != remoteItem.isBought) {
-                        repository.updateMarketItem(existing.copy(
+                        updates.add(existing.copy(
                             isChecked = remoteItem.isChecked,
                             price = remoteItem.price,
                             quantity = remoteItem.quantity,
@@ -182,18 +197,20 @@ class MarketSyncManager(
                         ))
                     }
                 } else {
-                    // Insert new item
-                    repository.insertMarketItem(remoteItem)
+                    inserts.add(remoteItem)
                 }
             }
 
-            // Delete local pending items not present in remote list
             localItems.forEach { localItem ->
                 val stillExists = remoteParsed.any { it.name.equals(localItem.name, ignoreCase = true) }
                 if (!stillExists) {
-                    repository.deleteMarketItem(localItem)
+                    deletes.add(localItem)
                 }
             }
+            
+            // Execute all changes in a single Room transaction
+            repository.syncMarketItems(inserts, updates, deletes)
+            
         } catch (e: Exception) {
             Log.e("MarketSyncManager", "Error syncing remote to local: ${e.message}", e)
         } finally {
@@ -209,6 +226,12 @@ class MarketSyncManager(
     private suspend fun uploadLocalList(localItems: List<MarketItem>) {
         val ref = docRef ?: return
         try {
+            val currentHash = localItems.syncHash()
+            if (currentHash == lastSyncedHash) {
+                // Ignore upload if data is structurally identical to last known sync state
+                return
+            }
+
             val itemsList = localItems.map { item ->
                 mapOf(
                     "name" to item.name,
@@ -226,10 +249,13 @@ class MarketSyncManager(
                 "items" to itemsList
             )
 
+            lastSyncedHash = currentHash
+
             // Perform write to Firestore asynchronously
             ref.set(data)
                 .addOnFailureListener { e ->
                     Log.e("MarketSyncManager", "Failed to upload list: ${e.message}")
+                    lastSyncedHash = null
                 }
         } catch (e: Exception) {
             Log.e("MarketSyncManager", "Error preparing local list for upload: ${e.message}", e)
