@@ -123,9 +123,9 @@ fun DailyWidgetContent(context: Context, balance: Double, steps: Long, petComple
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(Color(0x661E252B))
+            .background(Color(0x99000000))
             .appWidgetBackground()
-            .cornerRadius(20.dp)
+            .cornerRadius(32.dp)
             .padding(16.dp)
             .clickable(openAppAction),
         verticalAlignment = Alignment.Top,

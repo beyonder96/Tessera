@@ -42,6 +42,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.drawscope.translate
 import com.example.data.getMetroLineColor
 import com.example.viewmodel.TesseraViewModel
 import androidx.compose.ui.platform.LocalContext
@@ -51,6 +53,22 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
+
+fun getBusLineColor(lineNumber: String): Color {
+    if (lineNumber.isEmpty()) return Color(0xFFFFA726) // default Orange
+    return when(lineNumber.first()) {
+        '1' -> Color(0xFF81C784) // Light Green
+        '2' -> Color(0xFF1E88E5) // Dark Blue
+        '3' -> Color(0xFFFFD54F) // Yellow
+        '4' -> Color(0xFFE53935) // Red
+        '5' -> Color(0xFF388E3C) // Dark Green
+        '6' -> Color(0xFF4FC3F7) // Light Blue
+        '7' -> Color(0xFF880E4F) // Burgundy
+        '8' -> Color(0xFFFF9800) // Orange
+        '9' -> Color(0xFF9E9E9E) // Gray
+        else -> Color(0xFFFFA726)
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,7 +122,13 @@ fun TransportScreen(
 
     val scrollState = androidx.compose.foundation.rememberScrollState()
     val accentColor = Color(0xFF4FC3F7) // SPTrans/Metro Cyan
-    val busAccentColor = Color(0xFFFFA726)
+    val busAccentColor = remember(savedBusLines) {
+        if (savedBusLines.isNotEmpty()) {
+            getBusLineColor(savedBusLines.first().lineNumber)
+        } else {
+            Color(0xFFFFA726)
+        }
+    }
 
     Scaffold(
         containerColor = Color.Black,
@@ -226,13 +250,30 @@ fun TransportScreen(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .height(86.dp)
                                         .clip(RoundedCornerShape(16.dp))
                                         .background(Color.White.copy(alpha = 0.03f))
                                         .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
-                                        .padding(16.dp)
                                 ) {
+                                    // Animated Train Background
+                                    AnimatedMetroTrain(
+                                        lineColor = color.copy(alpha = 0.3f),
+                                        modifier = Modifier.fillMaxSize().padding(top = 20.dp)
+                                    )
+                                    
+                                    // Color Band
+                                    Box(
+                                        modifier = Modifier
+                                            .width(6.dp)
+                                            .fillMaxHeight()
+                                            .background(color)
+                                            .align(Alignment.CenterStart)
+                                    )
+                                    
                                     Row(
-                                        modifier = Modifier.fillMaxWidth(),
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(start = 20.dp, end = 16.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
@@ -309,64 +350,124 @@ fun TransportScreen(
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         savedBusLines.forEach { bus ->
+                            val busColor = getBusLineColor(bus.lineNumber)
+                            val isOffline = bus.estimatedArrivalText.contains("Sem") || bus.estimatedArrivalText.contains("Offline")
+                            
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(20.dp))
-                                    .background(Color.White.copy(alpha = 0.03f))
-                                    .border(0.5.dp, busAccentColor.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(Color.White.copy(alpha = 0.02f))
+                                    // Minimalist border with gradient
+                                    .border(
+                                        width = 0.5.dp, 
+                                        brush = Brush.verticalGradient(
+                                            colors = listOf(busColor.copy(alpha = 0.4f), Color.Transparent)
+                                        ), 
+                                        shape = RoundedCornerShape(24.dp)
+                                    )
                                     .padding(20.dp)
                             ) {
                                 Column {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.Top
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .clip(RoundedCornerShape(6.dp))
-                                                        .background(busAccentColor.copy(alpha = 0.15f))
-                                                        .border(0.5.dp, busAccentColor.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
-                                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                                ) {
-                                                    Text(bus.lineNumber, color = busAccentColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                                }
-                                                Spacer(modifier = Modifier.width(12.dp))
-                                                Text(bus.destination, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                IconButton(
-                                                    onClick = { viewModel.removeBusLine(bus.lineCode) },
-                                                    modifier = Modifier.size(24.dp)
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Delete,
-                                                        contentDescription = "Remover Linha",
-                                                        tint = Color.White.copy(alpha = 0.4f),
-                                                        modifier = Modifier.size(16.dp)
-                                                    )
-                                                }
+                                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                            // Modern Bus Badge
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(Brush.linearGradient(listOf(busColor.copy(alpha = 0.3f), busColor.copy(alpha = 0.1f))))
+                                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                                            ) {
+                                                Text(bus.lineNumber, color = busColor, fontWeight = FontWeight.Black, fontSize = 14.sp)
                                             }
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            Text(
-                                                "Ponto mais próximo: ${bus.stopName}", 
-                                                color = Color.White.copy(alpha = 0.6f), 
-                                                fontSize = 12.sp,
-                                                maxLines = 1,
-                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                            Spacer(modifier = Modifier.width(16.dp))
+                                            Column {
+                                                Text(
+                                                    text = bus.destination, 
+                                                    color = Color.White, 
+                                                    fontWeight = FontWeight.Bold, 
+                                                    fontSize = 18.sp,
+                                                    maxLines = 1,
+                                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                                )
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(
+                                                    text = "Via ${bus.stopName}", 
+                                                    color = Color.White.copy(alpha = 0.5f), 
+                                                    fontSize = 12.sp,
+                                                    maxLines = 1,
+                                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                        
+                                        IconButton(
+                                            onClick = { viewModel.removeBusLine(bus.lineCode) },
+                                            modifier = Modifier.size(32.dp).padding(start = 8.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Delete,
+                                                contentDescription = "Remover Linha",
+                                                tint = Color.White.copy(alpha = 0.2f),
                                             )
                                         }
-                                        Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(start = 12.dp)) {
-                                            Text("CHEGA EM", color = Color.White.copy(alpha = 0.4f), fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                                            val isOffline = bus.estimatedArrivalText.contains("Sem") || bus.estimatedArrivalText.contains("Offline")
+                                    }
+                                    
+                                    Spacer(modifier = Modifier.height(24.dp))
+                                    
+                                    // Arrival section with Pulsing Text and Progress Line
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.Bottom
+                                    ) {
+                                        // Simple Progress Bar indicating time (fake visual progress)
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .padding(end = 24.dp, bottom = 4.dp)
+                                                .height(4.dp)
+                                                .clip(RoundedCornerShape(2.dp))
+                                                .background(Color.White.copy(alpha = 0.1f))
+                                        ) {
+                                            if (!isOffline) {
+                                                val infiniteTransition = rememberInfiniteTransition(label = "bus_progress")
+                                                val progress by infiniteTransition.animateFloat(
+                                                    initialValue = 0f,
+                                                    targetValue = 1f,
+                                                    animationSpec = infiniteRepeatable(
+                                                        animation = tween(2000, easing = FastOutSlowInEasing),
+                                                        repeatMode = RepeatMode.Restart
+                                                    ),
+                                                    label = "bus_progress_anim"
+                                                )
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxHeight()
+                                                        .fillMaxWidth(progress)
+                                                        .background(
+                                                            Brush.horizontalGradient(
+                                                                colors = listOf(Color.Transparent, busColor)
+                                                            )
+                                                        )
+                                                )
+                                            }
+                                        }
+                                        
+                                        Column(horizontalAlignment = Alignment.End) {
                                             Text(
-                                                text = bus.estimatedArrivalText,
-                                                color = if (isOffline) Color(0xFFFF6B6B) else accentColor,
-                                                fontWeight = FontWeight.Black,
-                                                fontSize = 18.sp
+                                                text = "CHEGA EM", 
+                                                color = Color.White.copy(alpha = 0.4f), 
+                                                fontSize = 10.sp, 
+                                                fontWeight = FontWeight.Bold, 
+                                                letterSpacing = 1.sp
                                             )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            PulsingArrivalText(text = bus.estimatedArrivalText, isOffline = isOffline, accentColor = busColor)
                                         }
                                     }
                                 }
@@ -635,4 +736,98 @@ fun TransportScreen(
             }
         }
     }
+}
+
+@Composable
+fun AnimatedMetroTrain(lineColor: Color, modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "train")
+    val translationX by infiniteTransition.animateFloat(
+        initialValue = -0.3f,
+        targetValue = 1.3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "train_move"
+    )
+
+    androidx.compose.foundation.Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        
+        val trainWidth = w * 0.45f
+        val trainHeight = h * 0.25f
+        val carWidth = trainWidth * 0.45f
+        val gap = trainWidth * 0.05f
+        
+        val startX = w * translationX
+        val yPos = h * 0.8f
+        
+        // draw track line
+        drawLine(
+            color = Color.White.copy(alpha = 0.05f),
+            start = Offset(0f, yPos),
+            end = Offset(w, yPos),
+            strokeWidth = 1.dp.toPx()
+        )
+        
+        // Train moving
+        translate(left = startX) {
+            // First car
+            drawRoundRect(
+                color = lineColor,
+                topLeft = Offset(0f, yPos - trainHeight),
+                size = androidx.compose.ui.geometry.Size(carWidth, trainHeight),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx())
+            )
+            // Second car
+            drawRoundRect(
+                color = lineColor,
+                topLeft = Offset(carWidth + gap, yPos - trainHeight),
+                size = androidx.compose.ui.geometry.Size(carWidth, trainHeight),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx())
+            )
+            // Windows
+            drawRoundRect(
+                color = Color.Black.copy(alpha = 0.3f),
+                topLeft = Offset(carWidth * 0.2f, yPos - trainHeight + 2.dp.toPx()),
+                size = androidx.compose.ui.geometry.Size(carWidth * 0.6f, trainHeight * 0.4f),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx())
+            )
+            drawRoundRect(
+                color = Color.Black.copy(alpha = 0.3f),
+                topLeft = Offset(carWidth + gap + carWidth * 0.2f, yPos - trainHeight + 2.dp.toPx()),
+                size = androidx.compose.ui.geometry.Size(carWidth * 0.6f, trainHeight * 0.4f),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx())
+            )
+        }
+    }
+}
+
+@Composable
+fun PulsingArrivalText(text: String, isOffline: Boolean, accentColor: Color) {
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.5f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseAlpha"
+    )
+
+    Text(
+        text = text,
+        color = if (isOffline) Color(0xFFFF6B6B) else accentColor.copy(alpha = alpha),
+        fontWeight = FontWeight.Black,
+        fontFamily = FontFamily.SansSerif,
+        fontSize = 18.sp,
+        style = androidx.compose.ui.text.TextStyle(
+            shadow = androidx.compose.ui.graphics.Shadow(
+                color = if (isOffline) Color(0xFFFF6B6B).copy(alpha = 0.5f) else accentColor.copy(alpha = 0.5f),
+                blurRadius = if (isOffline) 0f else 8f * alpha
+            )
+        )
+    )
 }

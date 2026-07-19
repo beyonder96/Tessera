@@ -112,9 +112,9 @@ fun HealthWidgetContent(context: Context, nextMedName: String, nextMedTime: Stri
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(Color(0x661E252B))
+            .background(Color(0x99000000))
             .appWidgetBackground()
-            .cornerRadius(20.dp)
+            .cornerRadius(32.dp)
             .padding(16.dp)
             .clickable(openAppAction),
         verticalAlignment = Alignment.Top,
