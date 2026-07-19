@@ -66,7 +66,7 @@ fun MarketWidgetContent(context: Context, items: List<MarketItem>) {
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(Color(0xFF1E252B))
+            .background(Color(0x661E252B))
             .appWidgetBackground()
             .cornerRadius(20.dp)
             .padding(16.dp)

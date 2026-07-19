@@ -3,6 +3,10 @@
 Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inteligente!
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
+## 🚀 Novidades da Versão 1.9.6
+
+- **Widgets Transparentes (Glassmorphism):** Atualizamos o design dos widgets da tela inicial (Finanças, Saúde, Pets, Mercado, Metas e Diário). Eles agora possuem um fundo translúcido moderno. Em launchers compatíveis, o fundo aplica um sofisticado efeito de vidro fosco (blur) com o papel de parede, elevando a estética da sua tela inicial.
+
 ## 🚀 Novidades da Versão 1.9.4
 
 - **Reforço de Segurança e Privacidade:** Removemos credenciais sensíveis e senhas de keystore do código-fonte, movendo-as para arquivos de configuração protegidos.
@@ -64,8 +68,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.9.5.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.9.5.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-1.9.6.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-1.9.6.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.
