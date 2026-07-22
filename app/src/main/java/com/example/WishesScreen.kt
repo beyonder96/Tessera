@@ -145,6 +145,46 @@ fun searchPexelsImagesApi(query: String): List<PexelsPhoto> {
     return getFallbackImages(query)
 }
 
+fun fetchOgImageFromUrl(urlStr: String): String? {
+    if (urlStr.isBlank()) return null
+    val fullUrl = if (!urlStr.startsWith("http://") && !urlStr.startsWith("https://")) {
+        "https://$urlStr"
+    } else urlStr
+
+    return try {
+        val url = URL(fullUrl)
+        val conn = url.openConnection() as HttpURLConnection
+        conn.requestMethod = "GET"
+        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        conn.connectTimeout = 8000
+        conn.readTimeout = 8000
+
+        if (conn.responseCode == 200) {
+            val html = conn.inputStream.bufferedReader().use { it.readText() }
+            
+            val ogPattern = Regex("""<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']""", RegexOption.IGNORE_CASE)
+            val ogPatternAlt = Regex("""<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']""", RegexOption.IGNORE_CASE)
+            val twitterPattern = Regex("""<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']""", RegexOption.IGNORE_CASE)
+            val itempropPattern = Regex("""<meta[^>]+itemprop=["']image["'][^>]+content=["']([^"']+)["']""", RegexOption.IGNORE_CASE)
+
+            val match = ogPattern.find(html) ?: ogPatternAlt.find(html) ?: twitterPattern.find(html) ?: itempropPattern.find(html)
+            
+            val imgUrl = match?.groupValues?.get(1)
+            if (!imgUrl.isNullOrBlank()) {
+                if (imgUrl.startsWith("//")) {
+                    "https:$imgUrl"
+                } else if (imgUrl.startsWith("/")) {
+                    val host = "${url.protocol}://${url.host}"
+                    "$host$imgUrl"
+                } else imgUrl
+            } else null
+        } else null
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PexelsImageSearchDialog(
@@ -1080,6 +1120,16 @@ fun PurchaseGoalPremiumCard(
                                     onClick = {
                                         onBuy(selectedOrigin)
                                         showBuySection = false
+                                        if (goal.buyUrl.isNotBlank()) {
+                                            try {
+                                                val fullUrl = if (!goal.buyUrl.startsWith("http://") && !goal.buyUrl.startsWith("https://")) {
+                                                    "https://${goal.buyUrl}"
+                                                } else goal.buyUrl
+                                                uriHandler.openUri(fullUrl)
+                                            } catch (e: Exception) {
+                                                e.printStackTrace()
+                                            }
+                                        }
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF71D7CD))
                                 ) {
@@ -1423,6 +1473,16 @@ fun PurchaseGoalListRow(
                                         onClick = {
                                             onBuy(selectedOrigin)
                                             showBuySection = false
+                                            if (goal.buyUrl.isNotBlank()) {
+                                                try {
+                                                    val fullUrl = if (!goal.buyUrl.startsWith("http://") && !goal.buyUrl.startsWith("https://")) {
+                                                        "https://${goal.buyUrl}"
+                                                    } else goal.buyUrl
+                                                    uriHandler.openUri(fullUrl)
+                                                } catch (e: Exception) {
+                                                    e.printStackTrace()
+                                                }
+                                            }
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF71D7CD))
                                     ) {
@@ -1677,7 +1737,41 @@ fun AddPurchaseGoalDialogWishes(
                     colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947), focusedBorderColor = Color(0xFF71D7CD)), singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                // URL manual removed, only Pexels search allowed
+
+                if (buyUrl.isNotBlank()) {
+                    val coroutineScope = rememberCoroutineScope()
+                    var isExtractingImage by remember { mutableStateOf(false) }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0x1571D7CD))
+                            .border(1.dp, Color(0xFF71D7CD).copy(alpha = 0.3f), RoundedCornerShape(10.dp))
+                            .clickable(enabled = !isExtractingImage) {
+                                isExtractingImage = true
+                                coroutineScope.launch(Dispatchers.IO) {
+                                    val extracted = fetchOgImageFromUrl(buyUrl)
+                                    if (!extracted.isNullOrBlank()) {
+                                        url = extracted
+                                    }
+                                    isExtractingImage = false
+                                }
+                            }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (isExtractingImage) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color(0xFF71D7CD), strokeWidth = 2.dp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Extraindo foto do produto...", color = Color(0xFF71D7CD), fontSize = 12.sp)
+                        } else {
+                            Icon(Icons.Outlined.Link, contentDescription = null, tint = Color(0xFF71D7CD), modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Extrair Foto Real do Link do Produto 🔗", color = Color(0xFF71D7CD), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
 
                 // Dropdown de Categoria
                 Box(modifier = Modifier.fillMaxWidth()) {
@@ -1886,7 +1980,41 @@ fun EditPurchaseGoalDialogWishes(
                     colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedBorderColor = Color(0xFF3D4947), focusedBorderColor = Color(0xFF71D7CD)), singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                // URL manual removed, only Pexels search allowed
+
+                if (buyUrl.isNotBlank()) {
+                    val coroutineScope = rememberCoroutineScope()
+                    var isExtractingImage by remember { mutableStateOf(false) }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0x1571D7CD))
+                            .border(1.dp, Color(0xFF71D7CD).copy(alpha = 0.3f), RoundedCornerShape(10.dp))
+                            .clickable(enabled = !isExtractingImage) {
+                                isExtractingImage = true
+                                coroutineScope.launch(Dispatchers.IO) {
+                                    val extracted = fetchOgImageFromUrl(buyUrl)
+                                    if (!extracted.isNullOrBlank()) {
+                                        url = extracted
+                                    }
+                                    isExtractingImage = false
+                                }
+                            }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (isExtractingImage) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color(0xFF71D7CD), strokeWidth = 2.dp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Extraindo foto do produto...", color = Color(0xFF71D7CD), fontSize = 12.sp)
+                        } else {
+                            Icon(Icons.Outlined.Link, contentDescription = null, tint = Color(0xFF71D7CD), modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Extrair Foto Real do Link do Produto 🔗", color = Color(0xFF71D7CD), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
 
                 // Dropdown de Categoria
                 Box(modifier = Modifier.fillMaxWidth()) {

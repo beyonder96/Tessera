@@ -1367,6 +1367,27 @@ fun ShareMarketListDialog(
                             shape = RoundedCornerShape(12.dp)
                         )
 
+                        // Botão de envio via Intent (WhatsApp/Share Sheet)
+                        Button(
+                            onClick = {
+                                val shareMessage = "Lista de Mercado no Tessera 🛒\nCódigo da Lista: $marketListId\nAcesse pelo link: $shareLink\nou abra pelo app: tessera://market?listId=$marketListId"
+                                val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(android.content.Intent.EXTRA_TEXT, shareMessage)
+                                }
+                                context.startActivity(android.content.Intent.createChooser(intent, "Compartilhar Lista de Mercado"))
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4A90E2), contentColor = Color.White),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Compartilhar via WhatsApp / App", fontWeight = FontWeight.Bold)
+                            }
+                        }
+
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.fillMaxWidth()
@@ -1395,8 +1416,11 @@ fun ShareMarketListDialog(
                         }
                     } else {
                         // Sincronização Inativa
+                        var showEnterCodeField by remember { mutableStateOf(false) }
+                        var enteredCode by remember { mutableStateOf("") }
+
                         Text(
-                            text = "Compartilhe sua lista de compras em tempo real com outra pessoa. Ela poderá ver e marcar itens no carrinho diretamente do navegador!",
+                            text = "Compartilhe sua lista de compras em tempo real com outra pessoa ou conecte-se a uma lista existente digitando o código!",
                             color = Color(0xFFBDC9C6),
                             fontSize = 14.sp,
                             textAlign = TextAlign.Center
@@ -1411,7 +1435,48 @@ fun ShareMarketListDialog(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text("Gerar Link e Sincronizar", fontWeight = FontWeight.Bold)
+                            Text("Gerar Nova Lista Compartilhada", fontWeight = FontWeight.Bold)
+                        }
+
+                        if (!showEnterCodeField) {
+                            OutlinedButton(
+                                onClick = { showEnterCodeField = true },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF71D7CD))
+                            ) {
+                                Text("Entrar em Lista Existente por Código", color = Color(0xFF71D7CD), fontWeight = FontWeight.SemiBold)
+                            }
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(
+                                    value = enteredCode,
+                                    onValueChange = { enteredCode = it.trim() },
+                                    label = { Text("Código da Lista (ex: ABCD1234)", color = Color(0xFF81928F)) },
+                                    singleLine = true,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White,
+                                        focusedBorderColor = Color(0xFF71D7CD),
+                                        unfocusedBorderColor = Color(0xFF3D4947)
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Button(
+                                    onClick = {
+                                        if (enteredCode.isNotBlank()) {
+                                            onStartShare(enteredCode)
+                                            onDismiss()
+                                        }
+                                    },
+                                    enabled = enteredCode.isNotBlank(),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF71D7CD), contentColor = Color.Black),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Text("Conectar à Lista", fontWeight = FontWeight.Bold)
+                                }
+                            }
                         }
                     }
 

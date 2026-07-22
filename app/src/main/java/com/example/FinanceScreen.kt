@@ -4,6 +4,8 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyRow
@@ -43,6 +45,7 @@ import com.example.viewmodel.TesseraViewModel
 import android.content.Context
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.vector.ImageVector
+import kotlinx.coroutines.launch
 import java.util.*
 
 fun parseHexColor(hex: String): Color {
@@ -235,6 +238,7 @@ fun FinanceScreen(
         val expenseSum = currentMonthTransactions.filter { tx ->
             !tx.isIncome &&
             tx.category != "Transferência" &&
+            creditCards.none { card -> card.name == tx.accountOrCardName } &&
             benefitCards.none { card -> card.name == tx.accountOrCardName }
         }.sumOf { it.value }
         if (expenseSum > 0.0) expenseSum else 0.0
@@ -503,17 +507,159 @@ fun FinanceScreen(
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // Despesas Fixas e Recorrentes
-            RecurringExpensesSection(
-                transactions = filteredTransactions,
-                viewModel = viewModel,
-                onTransactionClick = { tx ->
-                    editingTransaction = tx
-                    showAddDialog = true
-                }
-            )
+            // Seção de Três Painéis Deslizáveis (Dívidas | Parcelados | Fixos)
+            val coroutineScope = rememberCoroutineScope()
+            val pagerState = rememberPagerState(pageCount = { 3 })
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Header das abas
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0x14FFFFFF))
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    val titles = listOf("🔴 Dívidas", "🔵 Parcelados", "🟢 Fixos")
+                    titles.forEachIndexed { index, title ->
+                        val isSelected = pagerState.currentPage == index
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isSelected) Color(0xFF71D7CD).copy(alpha = 0.2f) else Color.Transparent)
+                                .border(1.dp, if (isSelected) Color(0xFF71D7CD) else Color.Transparent, RoundedCornerShape(12.dp))
+                                .clickable {
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(index)
+                                    }
+                                }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = title,
+                                color = if (isSelected) Color.White else Color(0x99FFFFFF),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 380.dp, max = 520.dp)
+                ) { page ->
+                    when (page) {
+                        0 -> {
+                            // Quadro 1: Dívidas (Com indicação visual de arrastar para o lado)
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(Color(0x2271D7CD))
+                                        .border(1.dp, Color(0xFF71D7CD).copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.SwipeLeft,
+                                            contentDescription = null,
+                                            tint = Color(0xFF71D7CD),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Arraste para o lado para ver Parcelados e Fixos ➔",
+                                            color = Color.White,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+                                DebtsScreen(viewModel = viewModel, isEmbedded = true)
+                            }
+                        }
+                        1 -> {
+                            // Quadro 2: Parcelados
+                            val installmentTxs = remember(filteredTransactions) {
+                                filteredTransactions.filter { tx ->
+                                    !tx.isIncome && (tx.subtitle.contains("Parcela") || tx.title.contains("/") || (!tx.isRecurrent && tx.dueDate > 0))
+                                }
+                            }
+                            val totalInstallmentValue = remember(installmentTxs) { installmentTxs.sumOf { it.value } }
+
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Card(
+                                    modifier = PremiumGlassModifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                                ) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Text("DESPESAS PARCELADAS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4A90E2), letterSpacing = 1.sp)
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text(
+                                            text = String.format(Locale("pt", "BR"), "R$ %,.2f", totalInstallmentValue),
+                                            fontSize = 24.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                        Text("${installmentTxs.size} parcelas ativas este mês", fontSize = 12.sp, color = Color(0x99FFFFFF))
+                                    }
+                                }
+
+                                 if (installmentTxs.isEmpty()) {
+                                    Box(modifier = Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
+                                        Text("Nenhuma despesa parcelada este mês.", color = Color(0x66FFFFFF), fontSize = 13.sp)
+                                    }
+                                } else {
+                                    installmentTxs.forEach { tx ->
+                                        Box(modifier = Modifier.clickable {
+                                            editingTransaction = tx
+                                            showAddDialog = true
+                                        }) {
+                                            TransactionItem(
+                                                transaction = tx,
+                                                bankAccounts = bankAccounts,
+                                                creditCards = creditCards
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                    }
+                                }
+                            }
+                        }
+                        2 -> {
+                            // Quadro 3: Fixos & Recorrentes
+                            RecurringExpensesSection(
+                                transactions = filteredTransactions,
+                                viewModel = viewModel,
+                                onTransactionClick = { tx ->
+                                    editingTransaction = tx
+                                    showAddDialog = true
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Gastos e Despesas em Geral
             RecentTransactionsSection(

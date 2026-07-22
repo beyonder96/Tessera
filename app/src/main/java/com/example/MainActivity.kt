@@ -152,14 +152,17 @@ import com.example.widget.PetsGlanceWidget
 
 import android.content.Intent
 class MainActivity : FragmentActivity() {
+    var sharedListId: String? by mutableStateOf(null)
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        handleDeepLink(intent)
     }
-
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleDeepLink(intent)
+
         val imageLoader = coil.ImageLoader.Builder(this)
             .components {
                 add(coil.decode.SvgDecoder.Factory())
@@ -171,6 +174,15 @@ class MainActivity : FragmentActivity() {
         setContent {
             MyApplicationTheme {
                 TesseraApp()
+            }
+        }
+    }
+
+    private fun handleDeepLink(intent: Intent?) {
+        intent?.data?.let { uri ->
+            val listId = uri.getQueryParameter("listId")
+            if (!listId.isNullOrBlank()) {
+                sharedListId = listId
             }
         }
     }

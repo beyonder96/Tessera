@@ -103,14 +103,19 @@ fun DetailedMatchWidget(
             } else {
                 val m = match!!
 
-                // League and Venue
+                // League, Date and Venue
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val headerText = if (m.matchDetail.dateFormatted.isNotBlank()) {
+                        "${m.matchDetail.leagueName} • ${m.matchDetail.dateFormatted}"
+                    } else {
+                        m.matchDetail.leagueName
+                    }
                     Text(
-                        text = m.matchDetail.leagueName,
+                        text = headerText.uppercase(),
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White.copy(alpha = 0.6f),
@@ -125,6 +130,7 @@ fun DetailedMatchWidget(
                 }
 
                 // Main Scoreboard
+                val context = androidx.compose.ui.platform.LocalContext.current
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -136,12 +142,17 @@ fun DetailedMatchWidget(
                 ) {
                     // Home Team
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                        AsyncImage(
-                            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                        val homeLogoReq = remember(m.matchDetail.homeTeamLogo) {
+                            coil.request.ImageRequest.Builder(context)
                                 .data(m.matchDetail.homeTeamLogo.replace("http://", "https://"))
+                                .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                                .addHeader("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
                                 .allowHardware(false)
                                 .crossfade(true)
-                                .build(),
+                                .build()
+                        }
+                        AsyncImage(
+                            model = homeLogoReq,
                             contentDescription = m.matchDetail.homeTeamName,
                             modifier = Modifier.size(48.dp),
                             contentScale = ContentScale.Fit
@@ -172,12 +183,17 @@ fun DetailedMatchWidget(
 
                     // Away Team
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                        AsyncImage(
-                            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                        val awayLogoReq = remember(m.matchDetail.awayTeamLogo) {
+                            coil.request.ImageRequest.Builder(context)
                                 .data(m.matchDetail.awayTeamLogo.replace("http://", "https://"))
+                                .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                                .addHeader("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
                                 .allowHardware(false)
                                 .crossfade(true)
-                                .build(),
+                                .build()
+                        }
+                        AsyncImage(
+                            model = awayLogoReq,
                             contentDescription = m.matchDetail.awayTeamName,
                             modifier = Modifier.size(48.dp),
                             contentScale = ContentScale.Fit

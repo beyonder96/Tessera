@@ -35,6 +35,7 @@ import com.example.data.BenefitCard
 import com.example.data.CreditCard
 import com.example.data.Transaction
 import android.content.Context
+import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -371,6 +372,110 @@ fun AddTransactionBottomSheet(
                         onCheckedChange = { isRealized = it },
                         colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = if(isIncome) Color(0xFF71D7CD) else Color(0xFFEF4444))
                     )
+                }
+
+                // Data de Vencimento
+                val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale("pt", "BR")) }
+                var showDatePicker by remember { mutableStateOf(false) }
+
+                Column {
+                    Text("DATA DE VENCIMENTO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0x66FFFFFF), letterSpacing = 1.sp)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0x0AFFFFFF))
+                            .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(12.dp))
+                            .clickable { showDatePicker = true }
+                            .padding(horizontal = 16.dp, vertical = 14.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (dueDate > 0L) dateFormat.format(Date(dueDate)) else "Hoje",
+                                color = Color.White,
+                                fontSize = 15.sp
+                            )
+                            Icon(
+                                imageVector = Icons.Outlined.CalendarMonth,
+                                contentDescription = "Selecionar Data",
+                                tint = Color(0xFF71D7CD),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+
+                if (showDatePicker) {
+                    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = if (dueDate > 0L) dueDate else System.currentTimeMillis())
+                    DatePickerDialog(
+                        onDismissRequest = { showDatePicker = false },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                datePickerState.selectedDateMillis?.let { dueDate = it }
+                                showDatePicker = false
+                            }) {
+                                Text("OK", color = Color(0xFF71D7CD))
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showDatePicker = false }) {
+                                Text("Cancelar", color = Color.Gray)
+                            }
+                        }
+                    ) {
+                        DatePicker(state = datePickerState)
+                    }
+                }
+
+                // Opção de Conta Recorrente / Fixa
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0x14FFFFFF))
+                        .clickable { isRecurrent = !isRecurrent }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text("Conta Recorrente / Fixa Mensal?", color = Color.White, fontSize = 16.sp)
+                        Text("Repete todos os meses automaticamente", color = Color(0x66FFFFFF), fontSize = 11.sp)
+                    }
+                    Switch(
+                        checked = isRecurrent,
+                        onCheckedChange = { isRecurrent = it },
+                        colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Color(0xFF71D7CD))
+                    )
+                }
+
+                if (isRecurrent) {
+                    Column {
+                        Text("FREQUÊNCIA DA RECORRÊNCIA", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0x66FFFFFF), letterSpacing = 1.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf("Mensal", "Semanal", "Anual").forEach { interval ->
+                                val isSelected = recurrenceInterval == interval
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(if (isSelected) Color(0xFF71D7CD).copy(alpha = 0.2f) else Color(0x14FFFFFF))
+                                        .border(1.dp, if (isSelected) Color(0xFF71D7CD) else Color.Transparent, RoundedCornerShape(12.dp))
+                                        .clickable { recurrenceInterval = interval }
+                                        .padding(vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(interval, color = if (isSelected) Color.White else Color(0x99FFFFFF), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                        }
+                    }
                 }
 
                 if (!isIncome) {

@@ -42,20 +42,48 @@ import java.util.*
 @Composable
 fun DebtsScreen(
     viewModel: TesseraViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit = {},
+    isEmbedded: Boolean = false
 ) {
     val context = LocalContext.current
     val debts by viewModel.allDebts.collectAsStateWithLifecycle()
     val bankAccounts by viewModel.allBankAccounts.collectAsStateWithLifecycle()
+    val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var editingDebt by remember { mutableStateOf<Debt?>(null) }
     var showPayDialog by remember { mutableStateOf<Debt?>(null) }
     
+    // Identifica parcelas e contas vencidas (não realizadas e vencimento no passado)
+    val overdueTxs = remember(allTransactions) {
+        allTransactions.filter { !it.isRealized && it.dueDate > 0L && it.dueDate < System.currentTimeMillis() }
+    }
+
+    // Combina dívidas do BD com parcelas/contas vencidas automaticamente
+    val syntheticOverdueDebts = remember(overdueTxs) {
+        overdueTxs.map { tx ->
+            Debt(
+                id = -tx.id, // ID negativo para diferenciar de dívidas nativas
+                title = tx.title,
+                description = "Vencida em ${SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(tx.dueDate))}",
+                value = tx.value,
+                dueDate = tx.dueDate,
+                isPaid = false,
+                creditorName = if (tx.accountOrCardName.isNotBlank()) tx.accountOrCardName else "Lançamento Vencido",
+                installmentsTotal = 1,
+                installmentsPaid = 0
+            )
+        }
+    }
+
+    val combinedDebts = remember(debts, syntheticOverdueDebts) {
+        debts + syntheticOverdueDebts
+    }
+    
     // Summary Calculations
-    val totalOwed = remember(debts) { debts.sumOf { it.value } }
-    val totalPaid = remember(debts) {
-        debts.sumOf { 
+    val totalOwed = remember(combinedDebts) { combinedDebts.sumOf { it.value } }
+    val totalPaid = remember(combinedDebts) {
+        combinedDebts.sumOf { 
             val installmentVal = it.value / it.installmentsTotal
             installmentVal * it.installmentsPaid
         }
@@ -63,62 +91,15 @@ fun DebtsScreen(
     val remainingToPay = totalOwed - totalPaid
     val overallProgress = if (totalOwed > 0.0) (totalPaid / totalOwed).toFloat() else 0f
 
-    val activeDebts = remember(debts) { debts.filter { !it.isPaid } }
-    val paidDebts = remember(debts) { debts.filter { it.isPaid } }
+    val activeDebts = remember(combinedDebts) { combinedDebts.filter { !it.isPaid } }
+    val paidDebts = remember(combinedDebts) { combinedDebts.filter { it.isPaid } }
 
-    Scaffold(
-        containerColor = Color.Transparent,
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Painel de Dívidas",
-                        fontFamily = FontFamily.SansSerif,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 22.sp,
-                        color = Color.White,
-                        letterSpacing = 0.5.sp
-                    )
-                },
-                navigationIcon = {
-                    IconButton(
-                        onClick = onBack,
-                        modifier = Modifier.bounceClick { onBack() }
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Voltar",
-                            tint = Color.White
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = {
-                            editingDebt = null
-                            showAddDialog = true
-                        },
-                        modifier = Modifier.bounceClick {
-                            editingDebt = null
-                            showAddDialog = true
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Add,
-                            contentDescription = "Nova Dívida",
-                            tint = SecondaryGold
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-            )
-        }
-    ) { innerPadding ->
+    val content = @Composable { paddingValues: PaddingValues ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 20.dp),
+                .padding(paddingValues)
+                .padding(horizontal = if (isEmbedded) 0.dp else 20.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
             contentPadding = PaddingValues(bottom = 60.dp, top = 8.dp)
         ) {
@@ -446,6 +427,63 @@ fun DebtsScreen(
                     }
                 }
             }
+        }
+    }
+
+    if (isEmbedded) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            content(PaddingValues(0.dp))
+        }
+    } else {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = "Painel de Dívidas",
+                            fontFamily = FontFamily.SansSerif,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 22.sp,
+                            color = Color.White,
+                            letterSpacing = 0.5.sp
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = onBack,
+                            modifier = Modifier.bounceClick { onBack() }
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Voltar",
+                                tint = Color.White
+                            )
+                        }
+                    },
+                    actions = {
+                        IconButton(
+                            onClick = {
+                                editingDebt = null
+                                showAddDialog = true
+                            },
+                            modifier = Modifier.bounceClick {
+                                editingDebt = null
+                                showAddDialog = true
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Add,
+                                contentDescription = "Nova Dívida",
+                                tint = SecondaryGold
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+                )
+            }
+        ) { innerPadding ->
+            content(innerPadding)
         }
     }
 

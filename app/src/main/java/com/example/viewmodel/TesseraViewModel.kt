@@ -929,6 +929,15 @@ class TesseraViewModel(
             val baseTime = if (dueDate > 0L) dueDate else System.currentTimeMillis()
             val valuePerInstallment = value / installmentsCount
             
+            if (accountOrCardName.isNotEmpty()) {
+                val cards = repository.allCreditCards.first()
+                val isCreditCard = cards.any { it.name == accountOrCardName }
+                if (isCreditCard) {
+                    // Para cartão de crédito, desconta integralmente o valor total da compra do saldo do cartão
+                    adjustBalances(accountOrCardName, value, isIncome, true)
+                }
+            }
+
             for (i in 1..installmentsCount) {
                 // Desloca o vencimento em i-1 meses
                 val cal = Calendar.getInstance()
@@ -954,7 +963,12 @@ class TesseraViewModel(
                 repository.insertTransaction(installmentTx)
                 
                 if (accountOrCardName.isNotEmpty()) {
-                    adjustBalances(accountOrCardName, valuePerInstallment, isIncome, installmentRealized)
+                    val cards = repository.allCreditCards.first()
+                    val isCreditCard = cards.any { it.name == accountOrCardName }
+                    if (!isCreditCard) {
+                        // Para contas bancárias/benefício, ajusta o saldo conforme a parcela realizada
+                        adjustBalances(accountOrCardName, valuePerInstallment, isIncome, installmentRealized)
+                    }
                 }
             }
         }
@@ -1766,21 +1780,55 @@ class TesseraViewModel(
             _isLoadingFootball.value = true
             try {
                 var targetFixtureId: Long? = null
-                val today = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-                
-                // Fetch latest fixtures
-                val latestResult = fixtureRepository.getFixturesByDate(today)
-                if (latestResult.isSuccess) {
-                    val dtoList = latestResult.getOrNull()
-                    if (!dtoList.isNullOrEmpty()) {
-                        val teamsToWatch = _configuredFootballTeams.value.map { it.lowercase() }
-                        val preferredFixture = dtoList.find { item ->
-                            val homeName = item.teams.home.name.lowercase()
-                            val awayName = item.teams.away.name.lowercase()
-                            teamsToWatch.any { team -> homeName.contains(team) || awayName.contains(team) }
-                        } ?: dtoList.firstOrNull()
-                        
-                        targetFixtureId = preferredFixture?.fixture?.id
+                val teamsToWatch = _configuredFootballTeams.value.map { it.lowercase() }
+                val dtf = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                val nowLocalDate = java.time.LocalDate.now()
+
+                if (teamsToWatch.isNotEmpty()) {
+                    // Busca jogos de hoje e dos próximos 7 dias do(s) time(s) configurado(s)
+                    for (dayOffset in 0..7) {
+                        val checkDate = nowLocalDate.plusDays(dayOffset.toLong()).format(dtf)
+                        val result = fixtureRepository.getFixturesByDate(checkDate)
+                        if (result.isSuccess) {
+                            val list = result.getOrNull()
+                            val match = list?.find { item ->
+                                val homeName = item.teams.home.name.lowercase()
+                                val awayName = item.teams.away.name.lowercase()
+                                teamsToWatch.any { team -> homeName.contains(team) || awayName.contains(team) }
+                            }
+                            if (match != null) {
+                                targetFixtureId = match.fixture.id
+                                break
+                            }
+                        }
+                    }
+
+                    // Se não encontrou nos próximos 7 dias, busca nos últimos 3 dias para mostrar o resultado recente
+                    if (targetFixtureId == null) {
+                        for (dayOffset in 1..3) {
+                            val checkDate = nowLocalDate.minusDays(dayOffset.toLong()).format(dtf)
+                            val result = fixtureRepository.getFixturesByDate(checkDate)
+                            if (result.isSuccess) {
+                                val list = result.getOrNull()
+                                val match = list?.find { item ->
+                                    val homeName = item.teams.home.name.lowercase()
+                                    val awayName = item.teams.away.name.lowercase()
+                                    teamsToWatch.any { team -> homeName.contains(team) || awayName.contains(team) }
+                                }
+                                if (match != null) {
+                                    targetFixtureId = match.fixture.id
+                                    break
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Se nenhum time foi configurado pelo usuário, busca partida padrão do dia
+                    val today = nowLocalDate.format(dtf)
+                    val latestResult = fixtureRepository.getFixturesByDate(today)
+                    if (latestResult.isSuccess) {
+                        val dtoList = latestResult.getOrNull()
+                        targetFixtureId = dtoList?.firstOrNull()?.fixture?.id
                     }
                 }
 
