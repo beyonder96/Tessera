@@ -47,14 +47,14 @@ val PremiumGlassModifier: Modifier
                 listOf(Color(0x59FFFFFF), Color(0x08FFFFFF))
             }
             "Frosted" -> {
-                // Low transparency, frosted white, soft border
-                listOf(Color(0x52FFFFFF), Color(0x1AFFFFFF)) to
-                listOf(Color(0x99FFFFFF), Color(0x1EFFFFFF))
+                // Fundo escuro translúcido (estilo da foto)
+                listOf(Color(0x73000000), Color(0x59000000)) to
+                listOf(Color(0x1AFFFFFF), Color(0x05FFFFFF))
             }
             else -> {
                 // Fallback (same as Frosted)
-                listOf(Color(0x52FFFFFF), Color(0x1AFFFFFF)) to
-                listOf(Color(0x99FFFFFF), Color(0x1EFFFFFF))
+                listOf(Color(0x73000000), Color(0x59000000)) to
+                listOf(Color(0x1AFFFFFF), Color(0x05FFFFFF))
             }
         }
         

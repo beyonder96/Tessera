@@ -334,32 +334,7 @@ fun DailyScreen(
                             weatherState = weatherState
                         )
 
-                        // 1.2. AI SEARCH BOX
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp)
-                                .clip(RoundedCornerShape(28.dp))
-                                .then(PremiumGlassModifier)
-                                .clickable { onNavigate("chat") }
-                                .padding(horizontal = 20.dp),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Outlined.AutoAwesome,
-                                    contentDescription = "AI",
-                                    tint = PrimaryTeal,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    text = "Pergunte à Tessera AI...",
-                                    color = Color.White.copy(alpha = 0.6f),
-                                    fontSize = 16.sp
-                                )
-                            }
-                        }
+
 
                         // 1.5. HOME SCREEN METRICS WIDGETS
                         Row(

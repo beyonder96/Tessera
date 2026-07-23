@@ -548,9 +548,6 @@ fun TesseraApp() {
                         initialPage = viewModel.selectedGoalsTab
                     )
                 }
-                composable("chat") {
-                    TesseraChatScreen()
-                }
                 composable("market") {
                     MarketScreen(onHomeClick = { 
                         navController.navigate("home") {

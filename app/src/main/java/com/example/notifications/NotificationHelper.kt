@@ -65,10 +65,11 @@ object NotificationHelper {
             .setContentTitle(title)
             .setContentText(message)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVibrate(longArrayOf(0, 500, 250, 500))
             .setSound(defaultSoundUri)
             .setContentIntent(pendingIntent)
+            .setFullScreenIntent(pendingIntent, true)
             .addAction(R.drawable.ic_launcher_foreground, "Marcar como tomado", markTakenPendingIntent)
             .setAutoCancel(true)
 

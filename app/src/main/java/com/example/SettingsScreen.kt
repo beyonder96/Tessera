@@ -1106,6 +1106,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                                         val updated = alertTimes.value.toMutableList().apply { remove(time) }
                                                         alertTimes.value = updated.sorted()
                                                         sharedPrefs.edit().putStringSet("metro_alert_times", alertTimes.value.toSet()).apply()
+                                                        com.example.notifications.AlarmScheduler.cancelDailyReminder(context, "METRO_$time")
                                                         Toast.makeText(context, "Horário removido!", Toast.LENGTH_SHORT).show()
                                                     }
                                             )
@@ -1331,6 +1332,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                                     val updated = alertTimes.value.toMutableList().apply { add(formattedTime) }
                                                     alertTimes.value = updated.sorted()
                                                     sharedPrefs.edit().putStringSet("metro_alert_times", alertTimes.value.toSet()).apply()
+                                                    com.example.notifications.AlarmScheduler.scheduleDailyReminder(context, "METRO_$formattedTime", formattedTime)
                                                     Toast.makeText(context, "Horário adicionado!", Toast.LENGTH_SHORT).show()
                                                 }
                                                 showTimeDialog.value = false

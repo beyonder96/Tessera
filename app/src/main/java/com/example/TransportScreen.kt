@@ -244,8 +244,9 @@ fun TransportScreen(
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             todasLinhas.forEach { (empresa, line) ->
                                 val color = getMetroLineColor(line.nome, line.codigo)
-                                val isNormal = line.status?.operacaoNormal == true
                                 val statusTxt = line.status?.situacao ?: "Desconhecido"
+                                val isNormal = line.status?.operacaoNormal == true && 
+                                    (statusTxt.equals("Operação Normal", ignoreCase = true) || statusTxt.equals("Normal", ignoreCase = true))
                                 
                                 Box(
                                     modifier = Modifier

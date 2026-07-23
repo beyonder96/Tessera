@@ -1,0 +1,163 @@
+package com.example.ui.components
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Subscriptions
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.viewmodel.TesseraViewModel
+import java.util.Locale
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SubscriptionsCentralModal(
+    viewModel: TesseraViewModel,
+    onDismiss: () -> Unit
+) {
+    val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
+    
+    val subscriptions = remember(allTransactions) {
+        allTransactions.filter { !it.isIncome && it.isRecurrent }
+    }
+    
+    val totalCost = remember(subscriptions) {
+        subscriptions.sumOf { it.value }
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = Color(0xFF070909)
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 24.dp, end = 16.dp, top = 40.dp, bottom = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Central de Assinaturas",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "Fechar", tint = Color.White)
+                    }
+                }
+                
+                // Summary Card
+                Box(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth().then(PremiumGlassModifier),
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                    ) {
+                        Column(modifier = Modifier.padding(24.dp)) {
+                            Text("CUSTO MENSAL TOTAL", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFFE94057), letterSpacing = 1.sp)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = String.format(Locale("pt", "BR"), "R$ %,.2f", totalCost),
+                                fontSize = 36.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("${subscriptions.size} assinaturas ativas", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 80.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    if (subscriptions.isEmpty()) {
+                        item {
+                            Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                                Text("Nenhuma assinatura recorrente encontrada.", color = Color.White.copy(alpha = 0.5f))
+                            }
+                        }
+                    } else {
+                        items(subscriptions) { tx ->
+                            val title = tx.title.lowercase()
+                            val (logoColor, logoText) = when {
+                                title.contains("spotify") -> Color(0xFF1DB954) to "Sp"
+                                title.contains("netflix") -> Color(0xFFE50914) to "Ne"
+                                title.contains("prime") || title.contains("amazon") -> Color(0xFF00A8E1) to "Pr"
+                                title.contains("youtube") -> Color(0xFFFF0000) to "Yt"
+                                title.contains("apple") -> Color(0xFF555555) to "Ap"
+                                title.contains("disney") -> Color(0xFF113CCF) to "Di"
+                                title.contains("hbo") || title.contains("max") -> Color(0xFF5A25D6) to "Ma"
+                                title.contains("gympass") || title.contains("wellhub") -> Color(0xFFE51D2A) to "Wh"
+                                else -> Color(0xFF71D7CD) to tx.title.take(2).capitalize(Locale.ROOT)
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(Color.White.copy(alpha = 0.05f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(CircleShape)
+                                        .background(logoColor),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(logoText, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                }
+                                
+                                Spacer(modifier = Modifier.width(16.dp))
+                                
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(tx.title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                    Text(tx.accountOrCardName.ifBlank { "Cobrança automática" }, color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                                }
+                                
+                                Text(
+                                    text = String.format(Locale("pt", "BR"), "R$ %,.2f", tx.value),
+                                    color = Color.White,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

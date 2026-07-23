@@ -463,19 +463,7 @@ fun FinanceScreen(
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(Color(0x15EF4444))
-                                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text("👉 Arraste para o lado para ver Parcelados e Fixos", fontSize = 11.sp, color = Color(0xFFFF8A8A), fontWeight = FontWeight.Medium)
-                                        Text("1 / 3", fontSize = 10.sp, color = Color(0x99FFFFFF), fontWeight = FontWeight.Bold)
-                                    }
+
                                 }
                             }
                         }
@@ -533,19 +521,7 @@ fun FinanceScreen(
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(Color(0x154A90E2))
-                                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text("◄ Arraste para o lado para ver Dívidas e Fixos ➔", fontSize = 11.sp, color = Color(0xFF90CAF9), fontWeight = FontWeight.Medium)
-                                        Text("2 / 3", fontSize = 10.sp, color = Color(0x99FFFFFF), fontWeight = FontWeight.Bold)
-                                    }
+
                                 }
                             }
                         }
@@ -601,25 +577,95 @@ fun FinanceScreen(
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(Color(0x1571D7CD))
-                                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text("◄ Arraste para o lado para ver Dívidas e Parcelados", fontSize = 11.sp, color = Color(0xFFB2DFDB), fontWeight = FontWeight.Medium)
-                                        Text("3 / 3", fontSize = 10.sp, color = Color(0x99FFFFFF), fontWeight = FontWeight.Bold)
-                                    }
+
                                 }
                             }
                         }
                     }
                 }
             }
+
+            // Page Indicators
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                repeat(3) { iteration ->
+                    val color = if (topCardPagerState.currentPage == iteration) Color(0xFF71D7CD) else Color.White.copy(alpha = 0.2f)
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 4.dp)
+                            .clip(CircleShape)
+                            .background(color)
+                            .size(if (topCardPagerState.currentPage == iteration) 8.dp else 6.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Cartões e Contas (Sempre Expandidos)
+            SectionHeader(
+                title = "Seus Cartões",
+                onAddClick = { showManageDialog = true }
+            )
+            CreditCardsCarousel(
+                creditCards = creditCards,
+                benefitCards = benefitCards,
+                selectedFilterName = selectedFilterName,
+                onCardClick = { cardName ->
+                    if (benefitCards.any { it.name == cardName }) {
+                        onNavigateToBenefitHub(cardName)
+                    } else {
+                        onNavigateToInvoiceHub(cardName)
+                    }
+                },
+                onCardLongClick = { cardName ->
+                    editingLongClickBenefitCard = benefitCards.find { it.name == cardName }
+                    editingLongClickCreditCard = creditCards.find { it.name == cardName }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            SectionHeader(
+                title = "Suas Contas",
+                onAddClick = { showManageDialog = true }
+            )
+            BankAccountsSection(
+                bankAccounts = bankAccounts,
+                selectedFilterName = selectedFilterName,
+                onAccountClick = { accountName ->
+                    selectedFilterName = if (selectedFilterName == accountName) null else accountName
+                },
+                onAccountLongClick = { accountName ->
+                    editingLongClickAccount = bankAccounts.find { it.name == accountName }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Botões de Ação Rápidos
+            ActionButtonsRow(
+                onReceiveClick = {
+                    editingTransaction = null
+                    defaultIsIncomeForAdd = true
+                    defaultIsTransferForAdd = false
+                    showAddDialog = true
+                },
+                onPayClick = {
+                    editingTransaction = null
+                    defaultIsIncomeForAdd = false
+                    defaultIsTransferForAdd = false
+                    showAddDialog = true
+                },
+                onTransferClick = {
+                    editingTransaction = null
+                    defaultIsIncomeForAdd = false
+                    defaultIsTransferForAdd = true
+                    showAddDialog = true
+                }
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -633,6 +679,62 @@ fun FinanceScreen(
                     showAddDialog = true
                 }
             )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            var showCompleteTransactions by remember { mutableStateOf(false) }
+            OutlinedButton(
+                onClick = { showCompleteTransactions = true },
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
+            ) {
+                Text("Transações Completas", color = Color.White, fontSize = 14.sp)
+            }
+            if (showCompleteTransactions) {
+                com.example.ui.components.CompleteTransactionsModal(
+                    transactions = filteredTransactions,
+                    onDismiss = { showCompleteTransactions = false }
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Central de Assinaturas
+            var showSubscriptionsCentral by remember { mutableStateOf(false) }
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(PremiumGlassModifier)
+                    .clickable { showSubscriptionsCentral = true },
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+            ) {
+                Row(
+                    modifier = Modifier.padding(20.dp).fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(Brush.linearGradient(listOf(Color(0xFF8A2387), Color(0xFFE94057), Color(0xFFF27121)))),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Outlined.Subscriptions, contentDescription = null, tint = Color.White)
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column {
+                        Text("Central de Assinaturas", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("Gerencie seus serviços recorrentes", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                    }
+                }
+            }
+            
+            if (showSubscriptionsCentral) {
+                com.example.ui.components.SubscriptionsCentralModal(
+                    viewModel = viewModel,
+                    onDismiss = { showSubscriptionsCentral = false }
+                )
+            }
 
             Spacer(modifier = Modifier.height(120.dp))
         }

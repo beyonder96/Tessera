@@ -33,7 +33,25 @@ class ReminderReceiver : BroadcastReceiver() {
                 val timeString = sharedPrefs.getString("sleep_reminder_time", "08:00") ?: "08:00"
                 AlarmScheduler.scheduleDailyReminder(context, "SLEEP", timeString)
             }
-            else -> return
+            "METRO" -> {
+                title = "Status do Metrô e Trem"
+                message = "Verifique o status das suas linhas monitoradas no Tessera."
+                notificationId = 9993
+                val timeString = intent.getStringExtra("EXTRA_TIME") ?: "00:00"
+                AlarmScheduler.scheduleDailyReminder(context, "METRO_$timeString", timeString)
+                intent.putExtra("REMINDER_TYPE", "METRO_$timeString") // so we don't fall into default
+            }
+            else -> {
+                if (type.startsWith("METRO_")) {
+                    title = "Status do Metrô e Trem"
+                    message = "Verifique o status das suas linhas monitoradas no Tessera."
+                    notificationId = type.hashCode()
+                    val timeString = type.removePrefix("METRO_")
+                    AlarmScheduler.scheduleDailyReminder(context, type, timeString)
+                } else {
+                    return
+                }
+            }
         }
 
         NotificationHelper.showBasicNotification(
