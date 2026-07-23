@@ -77,6 +77,8 @@ fun FinanceScreen(
     var showManageDialog by remember { mutableStateOf(false) }
     var showAdjustBalanceDialog by remember { mutableStateOf(false) }
     var showDebtsPanel by remember { mutableStateOf(false) }
+    var showInstallmentsPanel by remember { mutableStateOf(false) }
+    var showRecurrentPanel by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val sharedPrefs = remember(context) { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
@@ -94,6 +96,22 @@ fun FinanceScreen(
         DebtsScreen(
             viewModel = viewModel,
             onBack = { showDebtsPanel = false }
+        )
+        return
+    }
+
+    if (showInstallmentsPanel) {
+        InstallmentsScreen(
+            viewModel = viewModel,
+            onBack = { showInstallmentsPanel = false }
+        )
+        return
+    }
+
+    if (showRecurrentPanel) {
+        RecurrentScreen(
+            viewModel = viewModel,
+            onBack = { showRecurrentPanel = false }
         )
         return
     }
@@ -390,209 +408,79 @@ fun FinanceScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Card do Painel de Dívidas
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .then(PremiumGlassModifier)
-                    .clickable { showDebtsPanel = true },
-                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(Color(0x1AEF4444)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Payments,
-                            contentDescription = null,
-                            tint = Color(0xFFEF4444),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Painel de Dívidas",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Acompanhe tudo que deve e precisa pagar",
-                            fontSize = 11.sp,
-                            color = Color(0xFFBDC9C6)
-                        )
-                    }
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.4f),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Cartões e Contas (Sempre Expandidos)
-            SectionHeader(
-                title = "Seus Cartões",
-                onAddClick = { showManageDialog = true }
-            )
-            CreditCardsCarousel(
-                creditCards = creditCards,
-                benefitCards = benefitCards,
-                selectedFilterName = selectedFilterName,
-                onCardClick = { cardName ->
-                    if (benefitCards.any { it.name == cardName }) {
-                        onNavigateToBenefitHub(cardName)
-                    } else {
-                        onNavigateToInvoiceHub(cardName)
-                    }
-                },
-                onCardLongClick = { cardName ->
-                    editingLongClickBenefitCard = benefitCards.find { it.name == cardName }
-                    editingLongClickCreditCard = creditCards.find { it.name == cardName }
-                }
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            SectionHeader(
-                title = "Suas Contas",
-                onAddClick = { showManageDialog = true }
-            )
-            BankAccountsSection(
-                bankAccounts = bankAccounts,
-                selectedFilterName = selectedFilterName,
-                onAccountClick = { accountName ->
-                    selectedFilterName = if (selectedFilterName == accountName) null else accountName
-                },
-                onAccountLongClick = { accountName ->
-                    editingLongClickAccount = bankAccounts.find { it.name == accountName }
-                }
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Botões de Ação Rápidos
-            ActionButtonsRow(
-                onReceiveClick = {
-                    editingTransaction = null
-                    defaultIsIncomeForAdd = true
-                    defaultIsTransferForAdd = false
-                    showAddDialog = true
-                },
-                onPayClick = {
-                    editingTransaction = null
-                    defaultIsIncomeForAdd = false
-                    defaultIsTransferForAdd = false
-                    showAddDialog = true
-                },
-                onTransferClick = {
-                    editingTransaction = null
-                    defaultIsIncomeForAdd = false
-                    defaultIsTransferForAdd = true
-                    showAddDialog = true
-                }
-            )
-
-            Spacer(modifier = Modifier.height(28.dp))
-
-            // Seção de Três Painéis Deslizáveis (Dívidas | Parcelados | Fixos)
-            val coroutineScope = rememberCoroutineScope()
-            val pagerState = rememberPagerState(pageCount = { 3 })
-
+            // Carrossel Deslizável dos 3 Painéis (Dívidas | Parcelados | Fixos)
+            val topCardPagerState = rememberPagerState(pageCount = { 3 })
             Column(modifier = Modifier.fillMaxWidth()) {
-                // Header das abas
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0x14FFFFFF))
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    val titles = listOf("🔴 Dívidas", "🔵 Parcelados", "🟢 Fixos")
-                    titles.forEachIndexed { index, title ->
-                        val isSelected = pagerState.currentPage == index
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(if (isSelected) Color(0xFF71D7CD).copy(alpha = 0.2f) else Color.Transparent)
-                                .border(1.dp, if (isSelected) Color(0xFF71D7CD) else Color.Transparent, RoundedCornerShape(12.dp))
-                                .clickable {
-                                    coroutineScope.launch {
-                                        pagerState.animateScrollToPage(index)
-                                    }
-                                }
-                                .padding(vertical = 10.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = title,
-                                color = if (isSelected) Color.White else Color(0x99FFFFFF),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
                 HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 380.dp, max = 520.dp)
+                    state = topCardPagerState,
+                    modifier = Modifier.fillMaxWidth()
                 ) { page ->
                     when (page) {
                         0 -> {
-                            // Quadro 1: Dívidas (Com indicação visual de arrastar para o lado)
-                            Column(modifier = Modifier.fillMaxSize()) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(14.dp))
-                                        .background(Color(0x2271D7CD))
-                                        .border(1.dp, Color(0xFF71D7CD).copy(alpha = 0.5f), RoundedCornerShape(14.dp))
-                                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
+                            // Quadro 1: Painel de Dívidas
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .then(PremiumGlassModifier)
+                                    .clickable { showDebtsPanel = true },
+                                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0x1AEF4444)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Payments,
+                                                contentDescription = null,
+                                                tint = Color(0xFFEF4444),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(14.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Painel de Dívidas",
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = "Acompanhe tudo que deve e precisa pagar",
+                                                fontSize = 11.sp,
+                                                color = Color(0xFFBDC9C6)
+                                            )
+                                        }
                                         Icon(
-                                            imageVector = Icons.Outlined.SwipeLeft,
+                                            imageVector = Icons.Default.ChevronRight,
                                             contentDescription = null,
-                                            tint = Color(0xFF71D7CD),
+                                            tint = Color.White.copy(alpha = 0.4f),
                                             modifier = Modifier.size(20.dp)
                                         )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = "Arraste para o lado para ver Parcelados e Fixos ➔",
-                                            color = Color.White,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(Color(0x15EF4444))
+                                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("👉 Arraste para o lado para ver Parcelados e Fixos", fontSize = 11.sp, color = Color(0xFFFF8A8A), fontWeight = FontWeight.Medium)
+                                        Text("1 / 3", fontSize = 10.sp, color = Color(0x99FFFFFF), fontWeight = FontWeight.Bold)
                                     }
                                 }
-
-                                Spacer(modifier = Modifier.height(12.dp))
-                                DebtsScreen(viewModel = viewModel, isEmbedded = true)
                             }
                         }
                         1 -> {
-                            // Quadro 2: Parcelados
+                            // Quadro 2: Painel de Parcelados
                             val installmentTxs = remember(filteredTransactions) {
                                 filteredTransactions.filter { tx ->
                                     !tx.isIncome && (tx.subtitle.contains("Parcela") || tx.title.contains("/") || (!tx.isRecurrent && tx.dueDate > 0))
@@ -600,60 +488,134 @@ fun FinanceScreen(
                             }
                             val totalInstallmentValue = remember(installmentTxs) { installmentTxs.sumOf { it.value } }
 
-                            Column(
+                            Card(
                                 modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(rememberScrollState()),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    .fillMaxWidth()
+                                    .then(PremiumGlassModifier)
+                                    .clickable { showInstallmentsPanel = true },
+                                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                             ) {
-                                Card(
-                                    modifier = PremiumGlassModifier.fillMaxWidth(),
-                                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)
-                                ) {
-                                    Column(modifier = Modifier.padding(16.dp)) {
-                                        Text("DESPESAS PARCELADAS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4A90E2), letterSpacing = 1.sp)
-                                        Spacer(modifier = Modifier.height(6.dp))
-                                        Text(
-                                            text = String.format(Locale("pt", "BR"), "R$ %,.2f", totalInstallmentValue),
-                                            fontSize = 24.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.White
-                                        )
-                                        Text("${installmentTxs.size} parcelas ativas este mês", fontSize = 12.sp, color = Color(0x99FFFFFF))
-                                    }
-                                }
-
-                                 if (installmentTxs.isEmpty()) {
-                                    Box(modifier = Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
-                                        Text("Nenhuma despesa parcelada este mês.", color = Color(0x66FFFFFF), fontSize = 13.sp)
-                                    }
-                                } else {
-                                    installmentTxs.forEach { tx ->
-                                        Box(modifier = Modifier.clickable {
-                                            editingTransaction = tx
-                                            showAddDialog = true
-                                        }) {
-                                            TransactionItem(
-                                                transaction = tx,
-                                                bankAccounts = bankAccounts,
-                                                creditCards = creditCards
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0x1A4A90E2)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.CreditCard,
+                                                contentDescription = null,
+                                                tint = Color(0xFF4A90E2),
+                                                modifier = Modifier.size(20.dp)
                                             )
                                         }
-                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Spacer(modifier = Modifier.width(14.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Painel de Parcelados",
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = "${installmentTxs.size} parcelas no mês (${String.format(Locale("pt", "BR"), "R$ %,.2f", totalInstallmentValue)})",
+                                                fontSize = 11.sp,
+                                                color = Color(0xFFBDC9C6)
+                                            )
+                                        }
+                                        Icon(
+                                            imageVector = Icons.Default.ChevronRight,
+                                            contentDescription = null,
+                                            tint = Color.White.copy(alpha = 0.4f),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(Color(0x154A90E2))
+                                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("◄ Arraste para o lado para ver Dívidas e Fixos ➔", fontSize = 11.sp, color = Color(0xFF90CAF9), fontWeight = FontWeight.Medium)
+                                        Text("2 / 3", fontSize = 10.sp, color = Color(0x99FFFFFF), fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
                         }
                         2 -> {
-                            // Quadro 3: Fixos & Recorrentes
-                            RecurringExpensesSection(
-                                transactions = filteredTransactions,
-                                viewModel = viewModel,
-                                onTransactionClick = { tx ->
-                                    editingTransaction = tx
-                                    showAddDialog = true
+                            // Quadro 3: Painel de Contas Fixas
+                            val recurrentTxs = remember(filteredTransactions) {
+                                filteredTransactions.filter { tx -> !tx.isIncome && tx.isRecurrent }
+                            }
+                            val totalRecurrentValue = remember(recurrentTxs) { recurrentTxs.sumOf { it.value } }
+
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .then(PremiumGlassModifier)
+                                    .clickable { showRecurrentPanel = true },
+                                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0x1A71D7CD)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Repeat,
+                                                contentDescription = null,
+                                                tint = Color(0xFF71D7CD),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(14.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Painel de Contas Fixas",
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = "${recurrentTxs.size} contas fixas (${String.format(Locale("pt", "BR"), "R$ %,.2f", totalRecurrentValue)})",
+                                                fontSize = 11.sp,
+                                                color = Color(0xFFBDC9C6)
+                                            )
+                                        }
+                                        Icon(
+                                            imageVector = Icons.Default.ChevronRight,
+                                            contentDescription = null,
+                                            tint = Color.White.copy(alpha = 0.4f),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(Color(0x1571D7CD))
+                                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("◄ Arraste para o lado para ver Dívidas e Parcelados", fontSize = 11.sp, color = Color(0xFFB2DFDB), fontWeight = FontWeight.Medium)
+                                        Text("3 / 3", fontSize = 10.sp, color = Color(0x99FFFFFF), fontWeight = FontWeight.Bold)
+                                    }
                                 }
-                            )
+                            }
                         }
                     }
                 }
@@ -2540,5 +2502,267 @@ fun EditBankAccountDialog(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun InstallmentsScreen(
+    viewModel: TesseraViewModel,
+    onBack: () -> Unit
+) {
+    val transactions by viewModel.allTransactions.collectAsStateWithLifecycle()
+    val bankAccounts by viewModel.allBankAccounts.collectAsStateWithLifecycle()
+    val creditCards by viewModel.allCreditCards.collectAsStateWithLifecycle()
+    val benefitCards by viewModel.allBenefitCards.collectAsStateWithLifecycle()
+    var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    val installmentTxs = remember(transactions) {
+        transactions.filter { tx ->
+            !tx.isIncome && (tx.subtitle.contains("Parcela") || tx.title.contains("/") || (!tx.isRecurrent && tx.dueDate > 0))
+        }
+    }
+    val totalInstallmentValue = remember(installmentTxs) { installmentTxs.sumOf { it.value } }
+
+    Scaffold(
+        containerColor = Color(0xFF070909),
+        topBar = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 40.dp, start = 16.dp, end = 16.dp, bottom = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Voltar", tint = Color.White)
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Painel de Parcelados",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    fontFamily = FontFamily.Serif
+                )
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 20.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Card(
+                modifier = Modifier.fillMaxWidth().then(PremiumGlassModifier),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text("DESPESAS PARCELADAS DO MÊS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4A90E2), letterSpacing = 1.5.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = String.format(Locale("pt", "BR"), "R$ %,.2f", totalInstallmentValue),
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        fontFamily = FontFamily.Serif
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("${installmentTxs.size} parcelas ativas este mês", fontSize = 12.sp, color = Color(0x99FFFFFF))
+                }
+            }
+
+            Text("Todas as Parcelas", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(top = 8.dp))
+
+            if (installmentTxs.isEmpty()) {
+                Box(modifier = Modifier.fillMaxWidth().height(150.dp), contentAlignment = Alignment.Center) {
+                    Text("Nenhuma despesa parcelada registrada.", color = Color(0x66FFFFFF), fontSize = 14.sp)
+                }
+            } else {
+                installmentTxs.forEach { tx ->
+                    Box(modifier = Modifier.clickable {
+                        editingTransaction = tx
+                        showAddDialog = true
+                    }) {
+                        TransactionItem(
+                            transaction = tx,
+                            bankAccounts = bankAccounts,
+                            creditCards = creditCards
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+
+    if (showAddDialog) {
+        AddTransactionBottomSheet(
+            bankAccounts = bankAccounts,
+            creditCards = creditCards,
+            benefitCards = benefitCards,
+            editingTransaction = editingTransaction,
+            onDismiss = {
+                showAddDialog = false
+                editingTransaction = null
+            },
+            onAdd = { title, value, isIncome, category, origin, isRealized, isRecurrent, interval, dueDate, isInstallment, installmentsCount ->
+                if (isInstallment) {
+                    viewModel.addInstallmentTransaction(title, value, isIncome, category, origin, isRealized, installmentsCount, dueDate)
+                } else {
+                    viewModel.addTransaction(title, "", value, isIncome, category, origin, isRealized, isRecurrent, interval, dueDate)
+                }
+                showAddDialog = false
+                editingTransaction = null
+            },
+            onUpdate = { oldTx, newTx ->
+                viewModel.updateTransaction(oldTx, newTx)
+                showAddDialog = false
+                editingTransaction = null
+            },
+            onDelete = { tx ->
+                viewModel.deleteTransaction(tx)
+                showAddDialog = false
+                editingTransaction = null
+            },
+            onTransfer = { from, to, value, date ->
+                viewModel.addTransaction("Transferência para $to", "", value, false, "Transferência", from, true, false, "Mensal", date)
+                viewModel.addTransaction("Transferência de $from", "", value, true, "Transferência", to, true, false, "Mensal", date)
+            }
+        )
+    }
+}
+
+@Composable
+fun RecurrentScreen(
+    viewModel: TesseraViewModel,
+    onBack: () -> Unit
+) {
+    val transactions by viewModel.allTransactions.collectAsStateWithLifecycle()
+    val bankAccounts by viewModel.allBankAccounts.collectAsStateWithLifecycle()
+    val creditCards by viewModel.allCreditCards.collectAsStateWithLifecycle()
+    val benefitCards by viewModel.allBenefitCards.collectAsStateWithLifecycle()
+    var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    val recurrentTxs = remember(transactions) {
+        transactions.filter { tx -> !tx.isIncome && tx.isRecurrent }
+    }
+    val totalRecurrentValue = remember(recurrentTxs) { recurrentTxs.sumOf { it.value } }
+
+    Scaffold(
+        containerColor = Color(0xFF070909),
+        topBar = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 40.dp, start = 16.dp, end = 16.dp, bottom = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Voltar", tint = Color.White)
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Painel de Contas Fixas",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    fontFamily = FontFamily.Serif
+                )
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 20.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Card(
+                modifier = Modifier.fillMaxWidth().then(PremiumGlassModifier),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text("CUSTO FIXO MENSAL", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF71D7CD), letterSpacing = 1.5.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = String.format(Locale("pt", "BR"), "R$ %,.2f", totalRecurrentValue),
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        fontFamily = FontFamily.Serif
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("${recurrentTxs.size} contas fixas / recorrentes agendadas", fontSize = 12.sp, color = Color(0x99FFFFFF))
+                }
+            }
+
+            Text("Todas as Contas Fixas", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(top = 8.dp))
+
+            if (recurrentTxs.isEmpty()) {
+                Box(modifier = Modifier.fillMaxWidth().height(150.dp), contentAlignment = Alignment.Center) {
+                    Text("Nenhuma conta fixa cadastrada.", color = Color(0x66FFFFFF), fontSize = 14.sp)
+                }
+            } else {
+                recurrentTxs.forEach { tx ->
+                    Box(modifier = Modifier.clickable {
+                        editingTransaction = tx
+                        showAddDialog = true
+                    }) {
+                        TransactionItem(
+                            transaction = tx,
+                            bankAccounts = bankAccounts,
+                            creditCards = creditCards
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+
+    if (showAddDialog) {
+        AddTransactionBottomSheet(
+            bankAccounts = bankAccounts,
+            creditCards = creditCards,
+            benefitCards = benefitCards,
+            editingTransaction = editingTransaction,
+            onDismiss = {
+                showAddDialog = false
+                editingTransaction = null
+            },
+            onAdd = { title, value, isIncome, category, origin, isRealized, isRecurrent, interval, dueDate, isInstallment, installmentsCount ->
+                if (isInstallment) {
+                    viewModel.addInstallmentTransaction(title, value, isIncome, category, origin, isRealized, installmentsCount, dueDate)
+                } else {
+                    viewModel.addTransaction(title, "", value, isIncome, category, origin, isRealized, isRecurrent, interval, dueDate)
+                }
+                showAddDialog = false
+                editingTransaction = null
+            },
+            onUpdate = { oldTx, newTx ->
+                viewModel.updateTransaction(oldTx, newTx)
+                showAddDialog = false
+                editingTransaction = null
+            },
+            onDelete = { tx ->
+                viewModel.deleteTransaction(tx)
+                showAddDialog = false
+                editingTransaction = null
+            },
+            onTransfer = { from, to, value, date ->
+                viewModel.addTransaction("Transferência para $to", "", value, false, "Transferência", from, true, false, "Mensal", date)
+                viewModel.addTransaction("Transferência de $from", "", value, true, "Transferência", to, true, false, "Mensal", date)
+            }
+        )
     }
 }

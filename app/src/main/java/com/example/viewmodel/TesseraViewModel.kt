@@ -215,7 +215,7 @@ class TesseraViewModel(
     private val _featuredMatch = MutableStateFlow<com.example.data.DetailedFixture?>(null)
     val featuredMatch: StateFlow<com.example.data.DetailedFixture?> = _featuredMatch.asStateFlow()
 
-    private val _availableFootballTeams = MutableStateFlow<List<String>>(emptyList())
+    private val _availableFootballTeams = MutableStateFlow<List<String>>(listOf("Flamengo (Principal)", "Palmeiras", "São Paulo", "Corinthians", "Fluminense", "Vasco", "Botafogo", "Real Madrid", "Barcelona"))
     val availableFootballTeams: StateFlow<List<String>> = _availableFootballTeams.asStateFlow()
 
     private val _isLoadingFootball = MutableStateFlow(false)
@@ -225,7 +225,7 @@ class TesseraViewModel(
     val configuredFootballTeams: StateFlow<List<String>> = _configuredFootballTeams.asStateFlow()
 
     fun loadConfiguredFootballTeams() {
-        val teams = sharedPrefs.getStringSet("football_teams", setOf("Flamengo")) ?: setOf("Flamengo")
+        val teams = sharedPrefs.getStringSet("football_teams", setOf("Flamengo (Principal)")) ?: setOf("Flamengo (Principal)")
         _configuredFootballTeams.value = teams.toList()
     }
 
@@ -1784,6 +1784,33 @@ class TesseraViewModel(
                 val dtf = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")
                 val nowLocalDate = java.time.LocalDate.now()
 
+                val isMainTeamMatch = { item: com.example.data.apifootball.FixtureData, teams: List<String> ->
+                    val homeName = item.teams.home.name.lowercase()
+                    val awayName = item.teams.away.name.lowercase()
+                    val homeId = item.teams.home.id
+                    val awayId = item.teams.away.id
+                    val leagueName = item.league.name.lowercase()
+
+                    val forbidden = listOf("sub-20", "sub 20", "sub-17", "sub 17", "sub-23", "sub 23", "u20", "u17", "u23", "feminino", "women", "guarulhos", "sp", "base", "aspirantes")
+                    val isForbiddenCategory = forbidden.any { homeName.contains(it) || awayName.contains(it) || leagueName.contains(it) }
+
+                    if (isForbiddenCategory) {
+                        false
+                    } else {
+                        teams.any { teamConfig ->
+                            val clean = teamConfig.replace("(principal)", "").replace("(equipe principal)", "").trim().lowercase()
+                            if (clean.contains("flamengo")) {
+                                (homeId == 127L || awayId == 127L) ||
+                                ((homeName.contains("flamengo") || awayName.contains("flamengo")) &&
+                                 !homeName.contains("guarulhos") && !awayName.contains("guarulhos") &&
+                                 !homeName.contains("sp") && !awayName.contains("sp"))
+                            } else {
+                                homeName.contains(clean) || awayName.contains(clean)
+                            }
+                        }
+                    }
+                }
+
                 if (teamsToWatch.isNotEmpty()) {
                     // Busca jogos de hoje e dos próximos 7 dias do(s) time(s) configurado(s)
                     for (dayOffset in 0..7) {
@@ -1791,11 +1818,7 @@ class TesseraViewModel(
                         val result = fixtureRepository.getFixturesByDate(checkDate)
                         if (result.isSuccess) {
                             val list = result.getOrNull()
-                            val match = list?.find { item ->
-                                val homeName = item.teams.home.name.lowercase()
-                                val awayName = item.teams.away.name.lowercase()
-                                teamsToWatch.any { team -> homeName.contains(team) || awayName.contains(team) }
-                            }
+                            val match = list?.find { item -> isMainTeamMatch(item, teamsToWatch) }
                             if (match != null) {
                                 targetFixtureId = match.fixture.id
                                 break
@@ -1810,11 +1833,7 @@ class TesseraViewModel(
                             val result = fixtureRepository.getFixturesByDate(checkDate)
                             if (result.isSuccess) {
                                 val list = result.getOrNull()
-                                val match = list?.find { item ->
-                                    val homeName = item.teams.home.name.lowercase()
-                                    val awayName = item.teams.away.name.lowercase()
-                                    teamsToWatch.any { team -> homeName.contains(team) || awayName.contains(team) }
-                                }
+                                val match = list?.find { item -> isMainTeamMatch(item, teamsToWatch) }
                                 if (match != null) {
                                     targetFixtureId = match.fixture.id
                                     break

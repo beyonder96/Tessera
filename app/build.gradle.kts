@@ -22,8 +22,8 @@ android {
     applicationId = "com.aistudio.tessera.xtrkna"
     minSdk = 26
     targetSdk = 35
-    versionCode = 51
-    versionName = "1.9.8"
+    versionCode = 52
+    versionName = "1.9.9"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     manifestPlaceholders["MAPS_API_KEY"] = "DUMMY_KEY"
@@ -164,6 +164,9 @@ dependencies {
   
   // Lottie for animations
   implementation("com.airbnb.android:lottie-compose:6.4.0")
+
+  // MediaPipe LLM Inference for Local Gemma Models
+  implementation("com.google.mediapipe:tasks-genai:0.10.14")
 }
 
 abstract class CopyApkTask : org.gradle.api.DefaultTask() {

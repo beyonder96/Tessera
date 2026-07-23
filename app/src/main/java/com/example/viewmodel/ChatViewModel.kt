@@ -1,7 +1,11 @@
 package com.example.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import android.content.Context
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.data.gemma.GemmaDownloadState
+import com.example.data.gemma.GemmaLocalManager
 import com.example.data.groq.GroqApi
 import com.example.data.groq.GroqMessage
 import com.example.data.groq.GroqRequest
@@ -23,10 +27,32 @@ data class ChatMessage(
     val isLoading: Boolean = false
 )
 
-class ChatViewModel : ViewModel() {
+class ChatViewModel(application: Application) : AndroidViewModel(application) {
     
+    private val prefs = application.getSharedPreferences("tessera_gemma_prefs", Context.MODE_PRIVATE)
+
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
+
+    private val gemmaLocalManager = GemmaLocalManager(application)
+    val downloadState: StateFlow<GemmaDownloadState> = gemmaLocalManager.downloadState
+
+    val useLocalGemma = MutableStateFlow(prefs.getBoolean("use_local_gemma", false))
+    val gemmaModelUrl = MutableStateFlow(
+        prefs.getString(
+            "gemma_model_url",
+            "https://huggingface.co/google/gemma-2b-it-gpu-int4/resolve/main/gemma-2b-it-gpu-int4.bin"
+        ) ?: "https://huggingface.co/google/gemma-2b-it-gpu-int4/resolve/main/gemma-2b-it-gpu-int4.bin"
+    )
+    val systemPrompt = MutableStateFlow(
+        prefs.getString(
+            "gemma_system_prompt",
+            "Você é Tessera, uma assistente virtual exclusiva do aplicativo. Você DEVE responder APENAS a questões ligadas a Finanças, Pets, Apartamento (Apê), Saúde e Produtividade. Quando explicar sobre finanças, insira a tag [WIDGET:FINANCE]. Para pets, insira a tag [WIDGET:PETS]. Para apartamento, insira a tag [WIDGET:APARTMENT]. Para saúde, insira a tag [WIDGET:HEALTH]. Seja concisa, prestativa e amigável."
+        ) ?: ""
+    )
+    val temperature = MutableStateFlow(prefs.getFloat("gemma_temperature", 0.7f))
+    val topK = MutableStateFlow(prefs.getInt("gemma_top_k", 40))
+    val maxTokens = MutableStateFlow(prefs.getInt("gemma_max_tokens", 1024))
 
     private val moshi = Moshi.Builder()
         .add(KotlinJsonAdapterFactory())
@@ -45,19 +71,52 @@ class ChatViewModel : ViewModel() {
 
     private val groqApi = retrofit.create(GroqApi::class.java)
 
-    private val systemInstruction = "Você é Tessera, uma assistente virtual exclusiva do aplicativo. Você DEVE responder APENAS a questões ligadas a Finanças, Pets, Apartamento (Apê) e Produtividade. Se o usuário perguntar sobre assuntos fora desse escopo, recuse educadamente informando que você só trata dos temas do aplicativo. Quando explicar sobre finanças, insira a tag [WIDGET:FINANCE]. Para pets, insira a tag [WIDGET:PETS]. Para apartamento, construção ou reforma, insira a tag [WIDGET:APARTMENT]. Seja concisa, prestativa e amigável."
-
     private var history = mutableListOf<GroqMessage>()
 
     init {
-        // Initialize history with system message
-        history.add(GroqMessage(role = "system", content = systemInstruction))
+        history.add(GroqMessage(role = "system", content = systemPrompt.value))
+    }
+
+    fun setUseLocalGemma(value: Boolean) {
+        useLocalGemma.value = value
+        prefs.edit().putBoolean("use_local_gemma", value).apply()
+    }
+
+    fun updateModelUrl(url: String) {
+        gemmaModelUrl.value = url
+        prefs.edit().putString("gemma_model_url", url).apply()
+    }
+
+    fun updateSystemParameters(prompt: String, temp: Float, k: Int, maxT: Int) {
+        systemPrompt.value = prompt
+        temperature.value = temp
+        topK.value = k
+        maxTokens.value = maxT
+
+        prefs.edit()
+            .putString("gemma_system_prompt", prompt)
+            .putFloat("gemma_temperature", temp)
+            .putInt("gemma_top_k", k)
+            .putInt("gemma_max_tokens", maxT)
+            .apply()
+
+        clearChat()
+    }
+
+    fun downloadGemmaModel() {
+        viewModelScope.launch {
+            gemmaLocalManager.downloadGemmaModel(gemmaModelUrl.value)
+        }
+    }
+
+    fun deleteGemmaModel() {
+        gemmaLocalManager.deleteModel()
     }
 
     fun clearChat() {
         _messages.value = emptyList()
         history.clear()
-        history.add(GroqMessage(role = "system", content = systemInstruction))
+        history.add(GroqMessage(role = "system", content = systemPrompt.value))
     }
 
     fun sendMessage(userMessage: String) {
@@ -67,43 +126,55 @@ class ChatViewModel : ViewModel() {
         val loadingMsg = ChatMessage(text = "Pensando...", isUser = false, isLoading = true)
         
         _messages.value = _messages.value + newMsg + loadingMsg
-        
-        // Adiciona a mensagem do usuário ao histórico da API
         history.add(GroqMessage(role = "user", content = userMessage))
 
         viewModelScope.launch {
-            try {
-                val apiKey = com.example.BuildConfig.GROQ_API_KEY
-                
-                // Remove placeholder se não estiver configurado corretamente
-                if (apiKey.isBlank() || apiKey == "gsk_your_groq_api_key_here") {
-                    throw Exception("A chave da API do Groq não está configurada no .env (GROQ_API_KEY).")
+            if (useLocalGemma.value && gemmaLocalManager.modelFile.exists()) {
+                // Inferência On-Device com Gemma Local
+                try {
+                    val fullPrompt = "${systemPrompt.value}\n\nUsuário: $userMessage\nTessera:"
+                    val responseText = gemmaLocalManager.generateLocalResponse(
+                        prompt = fullPrompt,
+                        temperature = temperature.value,
+                        topK = topK.value,
+                        maxTokens = maxTokens.value
+                    )
+                    history.add(GroqMessage(role = "assistant", content = responseText))
+                    _messages.value = _messages.value.dropLast(1) + ChatMessage(text = responseText, isUser = false)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    _messages.value = _messages.value.dropLast(1) + ChatMessage(
+                        text = "Erro na inferência do Gemma local: ${e.message}. Verifique o modelo baixado.",
+                        isUser = false
+                    )
                 }
+            } else {
+                // Inferência Cloud (Groq Gemma 2 / Llama 3)
+                try {
+                    val apiKey = com.example.BuildConfig.GROQ_API_KEY
+                    if (apiKey.isBlank() || apiKey == "gsk_your_groq_api_key_here") {
+                        throw Exception("Configure a GROQ_API_KEY no arquivo .env ou faça o download do modelo Gemma local.")
+                    }
 
-                val request = GroqRequest(
-                    model = "llama3-8b-8192", // Modelo leve e muito rápido
-                    messages = history.toList()
-                )
+                    val request = GroqRequest(
+                        model = "gemma2-9b-it", // Modelo Gemma 2 oficial do Groq Cloud
+                        messages = history.toList()
+                    )
 
-                val response = groqApi.createChatCompletion("Bearer $apiKey", request)
-                
-                val responseText = response.choices.firstOrNull()?.message?.content ?: "Não consegui processar a resposta."
-                
-                // Adiciona a resposta do assistente ao histórico da API
-                history.add(GroqMessage(role = "assistant", content = responseText))
+                    val response = groqApi.createChatCompletion("Bearer $apiKey", request)
+                    val responseText = response.choices.firstOrNull()?.message?.content ?: "Não consegui obter a resposta do Gemma."
 
-                _messages.value = _messages.value.dropLast(1) + ChatMessage(text = responseText, isUser = false)
-            } catch (e: Exception) {
-                e.printStackTrace()
-                val errorDetails = e.message ?: e.toString()
-                
-                // Se der erro, removemos a mensagem do usuário do histórico para ele poder tentar de novo
-                history.removeLastOrNull()
-                
-                _messages.value = _messages.value.dropLast(1) + ChatMessage(
-                    text = "Ocorreu um erro ao conectar com o Groq: $errorDetails",
-                    isUser = false
-                )
+                    history.add(GroqMessage(role = "assistant", content = responseText))
+                    _messages.value = _messages.value.dropLast(1) + ChatMessage(text = responseText, isUser = false)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    val errorDetails = e.message ?: e.toString()
+                    history.removeLastOrNull()
+                    _messages.value = _messages.value.dropLast(1) + ChatMessage(
+                        text = "Ocorreu um erro ao conectar ao assistente: $errorDetails",
+                        isUser = false
+                    )
+                }
             }
         }
     }

@@ -55,9 +55,9 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-data class PexelsPhoto(val url: String, val avgColor: String)
+data class UnsplashPhoto(val url: String, val avgColor: String)
 
-fun getFallbackImages(query: String): List<PexelsPhoto> {
+fun getFallbackImages(query: String): List<UnsplashPhoto> {
     val q = query.lowercase().trim()
     val notebookImages = listOf(
         "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=400&auto=format&fit=crop",
@@ -103,21 +103,24 @@ fun getFallbackImages(query: String): List<PexelsPhoto> {
         else -> generalImages
     }
 
-    return list.map { PexelsPhoto(url = it, avgColor = "#71D7CD") }
+    return list.map { UnsplashPhoto(url = it, avgColor = "#71D7CD") }
 }
 
-fun searchPexelsImagesApi(query: String): List<PexelsPhoto> {
+fun searchUnsplashImagesApi(query: String): List<UnsplashPhoto> {
     val apiKey = com.example.BuildConfig.WISHES_API_KEY
     if (query.isBlank()) {
         return getFallbackImages("")
     }
 
     try {
-        val urlStr = "https://api.pexels.com/v1/search?query=${java.net.URLEncoder.encode(query, "UTF-8")}&per_page=60"
+        val urlStr = "https://api.unsplash.com/search/photos?query=${java.net.URLEncoder.encode(query, "UTF-8")}&per_page=30&client_id=$apiKey"
         val url = URL(urlStr)
         val conn = url.openConnection() as HttpURLConnection
         conn.requestMethod = "GET"
-        conn.setRequestProperty("Authorization", apiKey)
+        conn.setRequestProperty("Accept-Version", "v1")
+        if (apiKey.isNotBlank() && apiKey != "your_pexels_api_key_here") {
+            conn.setRequestProperty("Authorization", "Client-ID $apiKey")
+        }
         conn.connectTimeout = 10000
         conn.readTimeout = 10000
 
@@ -125,14 +128,18 @@ fun searchPexelsImagesApi(query: String): List<PexelsPhoto> {
         if (responseCode == 200) {
             val responseText = conn.inputStream.bufferedReader().use { it.readText() }
             val json = JSONObject(responseText)
-            val photosArray = json.getJSONArray("photos")
-            val results = mutableListOf<PexelsPhoto>()
-            for (i in 0 until photosArray.length()) {
-                val photoObj = photosArray.getJSONObject(i)
-                val srcObj = photoObj.getJSONObject("src")
-                val mediumUrl = srcObj.getString("medium")
-                val avgColor = photoObj.optString("avg_color", "#71D7CD")
-                results.add(PexelsPhoto(url = mediumUrl, avgColor = avgColor))
+            val resultsArray = json.optJSONArray("results") ?: json.optJSONArray("photos")
+            val results = mutableListOf<UnsplashPhoto>()
+            if (resultsArray != null) {
+                for (i in 0 until resultsArray.length()) {
+                    val photoObj = resultsArray.getJSONObject(i)
+                    val urlsObj = photoObj.optJSONObject("urls")
+                    val regularUrl = urlsObj?.optString("regular") ?: urlsObj?.optString("small") ?: photoObj.optString("url", "")
+                    val avgColor = photoObj.optString("color", "#71D7CD")
+                    if (regularUrl.isNotBlank()) {
+                        results.add(UnsplashPhoto(url = regularUrl, avgColor = avgColor))
+                    }
+                }
             }
             if (results.isNotEmpty()) {
                 return results
@@ -187,12 +194,12 @@ fun fetchOgImageFromUrl(urlStr: String): String? {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PexelsImageSearchDialog(
+fun UnsplashImageSearchDialog(
     onDismiss: () -> Unit,
     onImageSelected: (String) -> Unit
 ) {
     var query by remember { mutableStateOf("") }
-    var photos by remember { mutableStateOf<List<PexelsPhoto>>(emptyList()) }
+    var photos by remember { mutableStateOf<List<UnsplashPhoto>>(emptyList()) }
     var selectedPhotoUrl by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
@@ -207,13 +214,13 @@ fun PexelsImageSearchDialog(
         title = {
             Column {
                 Text(
-                    text = "Consultar Imagem do Pexels",
+                    text = "Consultar Imagem no Unsplash",
                     color = Color.White,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Pesquise e selecione sem sair do app",
+                    text = "Pesquise fotos de alta resolução sem sair do app",
                     color = Color(0xFF81928F),
                     fontSize = 12.sp
                 )
@@ -224,12 +231,12 @@ fun PexelsImageSearchDialog(
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    placeholder = { Text("Digite o termo de busca...", color = Color(0xFF5E6D6A)) },
+                    placeholder = { Text("Digite o termo de busca (ex: Carro, Casa)...", color = Color(0xFF5E6D6A)) },
                     trailingIcon = {
                         IconButton(onClick = {
                             isLoading = true
                             coroutineScope.launch(Dispatchers.IO) {
-                                val results = searchPexelsImagesApi(query)
+                                val results = searchUnsplashImagesApi(query)
                                 photos = results
                                 isLoading = false
                             }
@@ -1693,7 +1700,7 @@ fun AddPurchaseGoalDialogWishes(
                                 modifier = Modifier.size(32.dp)
                             )
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text("Pesquisar Imagem no Pexels", color = Color(0xFF81928F), fontSize = 12.sp)
+                            Text("Pesquisar Imagem no Unsplash", color = Color(0xFF81928F), fontSize = 12.sp)
                         }
                     } else {
                         AsyncImage(
@@ -1869,7 +1876,7 @@ fun AddPurchaseGoalDialogWishes(
     )
 
     if (showPexelsDialog) {
-        PexelsImageSearchDialog(
+        UnsplashImageSearchDialog(
             onDismiss = { showPexelsDialog = false },
             onImageSelected = { selectedUrl ->
                 url = selectedUrl
@@ -1930,7 +1937,7 @@ fun EditPurchaseGoalDialogWishes(
                                 modifier = Modifier.size(32.dp)
                             )
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text("Pesquisar Imagem no Pexels", color = Color(0xFF81928F), fontSize = 12.sp)
+                            Text("Pesquisar Imagem no Unsplash", color = Color(0xFF81928F), fontSize = 12.sp)
                         }
                     } else {
                         AsyncImage(
@@ -2129,7 +2136,7 @@ fun EditPurchaseGoalDialogWishes(
     )
 
     if (showPexelsDialog) {
-        PexelsImageSearchDialog(
+        UnsplashImageSearchDialog(
             onDismiss = { showPexelsDialog = false },
             onImageSelected = { selectedUrl ->
                 url = selectedUrl
