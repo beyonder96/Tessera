@@ -444,7 +444,8 @@ fun WishesDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val targetVal = target.replace(",", ".").toDoubleOrNull() ?: 0.0
+                    val cleanTarget = target.replace(Regex("[^0-9,]"), "").replace(",", ".")
+                    val targetVal = cleanTarget.toDoubleOrNull() ?: 0.0
                     if (title.isNotBlank() && targetVal > 0) {
                         onSave(title, targetVal, buyUrl, imgUrl)
                     }

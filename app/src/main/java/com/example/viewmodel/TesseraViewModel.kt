@@ -989,7 +989,11 @@ class TesseraViewModel(
     fun deleteTransaction(transaction: Transaction) {
         viewModelScope.launch {
             if (transaction.accountOrCardName.isNotEmpty()) {
-                rollbackBalances(transaction.accountOrCardName, transaction.value, transaction.isIncome, transaction.isRealized)
+                try {
+                    rollbackBalances(transaction.accountOrCardName, transaction.value, transaction.isIncome, transaction.isRealized)
+                } catch (e: Exception) {
+                    Log.e("TesseraViewModel", "Erro ao fazer rollback do balanço", e)
+                }
             }
             repository.deleteTransaction(transaction)
         }
@@ -1517,8 +1521,10 @@ class TesseraViewModel(
                 repository.insertMedicationLog(
                     MedicationLog(medicationId = medication.id, takenTimestamp = System.currentTimeMillis())
                 )
+                repository.updateMedication(medication.copy(isTaken = true))
             } else {
                 logs.forEach { repository.deleteMedicationLog(it) }
+                repository.updateMedication(medication.copy(isTaken = false))
             }
             refreshAIInsightsAndMetric()
         }
