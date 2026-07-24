@@ -125,7 +125,8 @@ fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                     AnimatedPurchaseGoalCard(
                         goal = goal,
                         onEdit = { goalToEdit = goal },
-                        onBuy = { viewModel.buyPurchaseGoal(goal, "External") }
+                        onBuy = { viewModel.buyPurchaseGoal(goal, "External") },
+                        onDelete = { viewModel.deletePurchaseGoal(goal) }
                     )
                 }
             }
@@ -229,7 +230,7 @@ fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
 }
 
 @Composable
-fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -> Unit) {
+fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -> Unit, onDelete: () -> Unit) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     
@@ -254,7 +255,7 @@ fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp)
+                    .height(220.dp)
             ) {
                 if (goal.imageUrl.isNotBlank()) {
                     AsyncImage(
@@ -271,7 +272,7 @@ fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xFF070909))))
+                        .background(Brush.verticalGradient(listOf(Color(0x99000000), Color.Transparent, Color(0xCC000000))))
                 )
                 
                 Row(
@@ -281,21 +282,14 @@ fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     IconButton(
-                        onClick = {
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, "Olha esse produto que quero comprar: ${goal.title}\n\n${goal.buyUrl}")
-                            }
-                            context.startActivity(Intent.createChooser(intent, "Compartilhar Desejo"))
-                        },
-                        modifier = Modifier.size(36.dp).background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                        onClick = onDelete,
+                        modifier = Modifier.size(36.dp).background(Color(0x33000000), CircleShape)
                     ) {
-                        Icon(Icons.Outlined.Share, contentDescription = "Compartilhar", tint = Color.White, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Outlined.Delete, contentDescription = "Deletar", tint = Color.White, modifier = Modifier.size(18.dp))
                     }
-                    
                     IconButton(
                         onClick = onEdit,
-                        modifier = Modifier.size(36.dp).background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                        modifier = Modifier.size(36.dp).background(Color(0x33000000), CircleShape)
                     ) {
                         Icon(Icons.Outlined.Edit, contentDescription = "Editar", tint = Color.White, modifier = Modifier.size(18.dp))
                     }
@@ -332,28 +326,24 @@ fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                OutlinedButton(
-                    onClick = { if (goal.buyUrl.isNotBlank()) uriHandler.openUri(goal.buyUrl) },
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, Color(0x33FFFFFF))
-                ) {
-                    Icon(Icons.Outlined.ShoppingCart, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Comprar", color = Color.White, fontSize = 14.sp)
+                if (goal.buyUrl.isNotBlank()) {
+                    IconButton(
+                        onClick = { uriHandler.openUri(goal.buyUrl) },
+                        modifier = Modifier.size(48.dp).border(1.dp, Color(0x33FFFFFF), CircleShape)
+                    ) {
+                        Icon(Icons.Outlined.ShoppingCart, contentDescription = "Comprar", tint = Color.White)
+                    }
                 }
-                
-                Spacer(modifier = Modifier.width(12.dp))
                 
                 Button(
                     onClick = onBuy,
-                    modifier = Modifier.weight(1f).height(48.dp),
+                    modifier = Modifier.weight(1f).padding(start = if (goal.buyUrl.isNotBlank()) 16.dp else 0.dp).height(48.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF71D7CD))
                 ) {
                     Icon(Icons.Default.Check, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Marcar Comprado", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text("Já comprei", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

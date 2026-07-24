@@ -1,6 +1,5 @@
 package com.example.ui.components
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -17,14 +16,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.example.viewmodel.TesseraViewModel
 import java.util.Locale
 
@@ -32,12 +32,13 @@ import java.util.Locale
 @Composable
 fun SubscriptionsCentralModal(
     viewModel: TesseraViewModel,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onAddManual: () -> Unit
 ) {
     val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
     
     val subscriptions = remember(allTransactions) {
-        allTransactions.filter { !it.isIncome && it.isRecurrent }
+        allTransactions.filter { !it.isIncome && (it.category == "Stream" || it.category == "Assinaturas/Streams") }
     }
     
     val totalCost = remember(subscriptions) {
@@ -67,8 +68,13 @@ fun SubscriptionsCentralModal(
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Fechar", tint = Color.White)
+                    Row {
+                        IconButton(onClick = onAddManual) {
+                            Icon(Icons.Default.Add, contentDescription = "Adicionar Assinatura", tint = Color.White)
+                        }
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Default.Close, contentDescription = "Fechar", tint = Color.White)
+                        }
                     }
                 }
                 
@@ -103,7 +109,7 @@ fun SubscriptionsCentralModal(
                     if (subscriptions.isEmpty()) {
                         item {
                             Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                                Text("Nenhuma assinatura recorrente encontrada.", color = Color.White.copy(alpha = 0.5f))
+                                Text("Nenhuma assinatura encontrada na categoria Stream.", color = Color.White.copy(alpha = 0.5f))
                             }
                         }
                     } else {
@@ -120,6 +126,14 @@ fun SubscriptionsCentralModal(
                                 title.contains("gympass") || title.contains("wellhub") -> Color(0xFFE51D2A) to "Wh"
                                 else -> Color(0xFF71D7CD) to tx.title.take(2).capitalize(Locale.ROOT)
                             }
+                            
+                            val logoUrl = when {
+                                title.contains("spotify") -> "https://storage.googleapis.com/pr-newsroom-wp/1/2018/11/Spotify_Logo_RGB_Green.png"
+                                title.contains("netflix") -> "https://images.ctfassets.net/y2ske730sjqp/1aONibCke6niZhgPxuiilC/2c401b05a07288746ddf3bd3943f176c/BrandAssets_Logos_01-Wordmark.jpg?w=940"
+                                title.contains("prime") || title.contains("amazon") -> "https://m.media-amazon.com/images/G/01/primevideo/seo/primevideo-seo-logo.png"
+                                title.contains("disney") -> "https://cnbl-cdn.bamgrid.com/assets/7ecc8bcb60ad77193058d63e321bd21cbac2fc67281dbd9927676ea4a4c83594/original"
+                                else -> null
+                            }
 
                             Row(
                                 modifier = Modifier
@@ -134,10 +148,19 @@ fun SubscriptionsCentralModal(
                                     modifier = Modifier
                                         .size(48.dp)
                                         .clip(CircleShape)
-                                        .background(logoColor),
+                                        .background(if (logoUrl != null) Color.White else logoColor),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(logoText, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                    if (logoUrl != null) {
+                                        AsyncImage(
+                                            model = logoUrl,
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Inside,
+                                            modifier = Modifier.padding(4.dp).fillMaxSize()
+                                        )
+                                    } else {
+                                        Text(logoText, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                    }
                                 }
                                 
                                 Spacer(modifier = Modifier.width(16.dp))

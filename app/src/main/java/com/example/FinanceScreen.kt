@@ -471,7 +471,7 @@ fun FinanceScreen(
                             // Quadro 2: Painel de Parcelados
                             val installmentTxs = remember(filteredTransactions) {
                                 filteredTransactions.filter { tx ->
-                                    !tx.isIncome && (tx.subtitle.contains("Parcela") || tx.title.contains("/") || (!tx.isRecurrent && tx.dueDate > 0))
+                                    !tx.isIncome && (tx.subtitle.contains("Parcela", ignoreCase = true) || tx.title.contains("/"))
                                 }
                             }
                             val totalInstallmentValue = remember(installmentTxs) { installmentTxs.sumOf { it.value } }
@@ -732,7 +732,11 @@ fun FinanceScreen(
             if (showSubscriptionsCentral) {
                 com.example.ui.components.SubscriptionsCentralModal(
                     viewModel = viewModel,
-                    onDismiss = { showSubscriptionsCentral = false }
+                    onDismiss = { showSubscriptionsCentral = false },
+                    onAddManual = { 
+                        showSubscriptionsCentral = false
+                        showAddDialog = true 
+                    }
                 )
             }
 

@@ -96,8 +96,29 @@ fun AddTransactionBottomSheet(
     val sharedPrefs = remember(context) { context.getSharedPreferences("tessera_prefs", Context.MODE_PRIVATE) }
     var customCategories by remember {
         val catsSet = sharedPrefs.getStringSet("custom_categories", emptySet()) ?: emptySet()
-        mutableStateOf<List<String>>(catsSet.toList().sorted())
+        val parsed = catsSet.map {
+            val parts = it.split("|")
+            if (parts.size == 2) {
+                val icon = when (parts[1]) {
+                    "Home" -> Icons.Outlined.Home
+                    "Pets" -> Icons.Outlined.Pets
+                    "DirectionsCar" -> Icons.Outlined.DirectionsCar
+                    "ShoppingBag" -> Icons.Outlined.ShoppingBag
+                    "Flight" -> Icons.Outlined.Flight
+                    "School" -> Icons.Outlined.School
+                    "FitnessCenter" -> Icons.Outlined.FitnessCenter
+                    "LocalDining" -> Icons.Outlined.LocalDining
+                    else -> Icons.Outlined.Label
+                }
+                parts[0] to icon
+            } else {
+                it to Icons.Outlined.Label
+            }
+        }.sortedBy { it.first }
+        mutableStateOf(parsed)
     }
+    
+    var showNewCategoryDialog by remember { mutableStateOf(false) }
     
     val defaultCategories = listOf(
         "Alimentação" to Icons.Outlined.Restaurant,
@@ -109,7 +130,7 @@ fun AddTransactionBottomSheet(
     )
 
     val allCategories: List<Pair<String, ImageVector>> = remember(customCategories) {
-        defaultCategories + customCategories.map { it to Icons.Outlined.Label }
+        defaultCategories + customCategories
     }
 
     ModalBottomSheet(
@@ -352,6 +373,22 @@ fun AddTransactionBottomSheet(
                                 }
                             }
                         }
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0x14FFFFFF))
+                                    .border(1.dp, Color.Transparent, RoundedCornerShape(12.dp))
+                                    .clickable { showNewCategoryDialog = true }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Icon(Icons.Outlined.Add, contentDescription = null, tint = Color(0x99FFFFFF), modifier = Modifier.size(16.dp))
+                                    Text("Nova", color = Color(0x99FFFFFF), fontSize = 13.sp)
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -585,4 +622,98 @@ fun AddTransactionBottomSheet(
             }
         }
     }
+
+    if (showNewCategoryDialog) {
+        NewCategoryDialog(
+            onDismiss = { showNewCategoryDialog = false },
+            onSave = { newName, newIcon ->
+                val newString = "$newName|$newIcon"
+                val oldSet = sharedPrefs.getStringSet("custom_categories", emptySet()) ?: emptySet()
+                val newSet = oldSet.toMutableSet().apply { add(newString) }
+                sharedPrefs.edit().putStringSet("custom_categories", newSet).apply()
+                
+                val iconVec = when (newIcon) {
+                    "Home" -> Icons.Outlined.Home
+                    "Pets" -> Icons.Outlined.Pets
+                    "DirectionsCar" -> Icons.Outlined.DirectionsCar
+                    "ShoppingBag" -> Icons.Outlined.ShoppingBag
+                    "Flight" -> Icons.Outlined.Flight
+                    "School" -> Icons.Outlined.School
+                    "FitnessCenter" -> Icons.Outlined.FitnessCenter
+                    "LocalDining" -> Icons.Outlined.LocalDining
+                    else -> Icons.Outlined.Label
+                }
+                customCategories = (customCategories + (newName to iconVec)).sortedBy { it.first }
+                category = newName
+                showNewCategoryDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+fun NewCategoryDialog(
+    onDismiss: () -> Unit,
+    onSave: (String, String) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var selectedIcon by remember { mutableStateOf("Label") }
+    
+    val icons = listOf(
+        "Label" to Icons.Outlined.Label,
+        "Home" to Icons.Outlined.Home,
+        "Pets" to Icons.Outlined.Pets,
+        "DirectionsCar" to Icons.Outlined.DirectionsCar,
+        "ShoppingBag" to Icons.Outlined.ShoppingBag,
+        "Flight" to Icons.Outlined.Flight,
+        "School" to Icons.Outlined.School,
+        "FitnessCenter" to Icons.Outlined.FitnessCenter,
+        "LocalDining" to Icons.Outlined.LocalDining
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1E1E1E),
+        title = { Text("Nova Categoria", color = Color.White) },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Nome", color = Color(0x99FFFFFF)) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                        focusedBorderColor = Color(0xFF71D7CD)
+                    )
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(icons) { (iconName, iconVector) ->
+                        val isSel = selectedIcon == iconName
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSel) Color(0xFF71D7CD).copy(alpha = 0.2f) else Color.Transparent)
+                                .border(1.dp, if (isSel) Color(0xFF71D7CD) else Color.Transparent, RoundedCornerShape(8.dp))
+                                .clickable { selectedIcon = iconName },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(iconVector, contentDescription = null, tint = if (isSel) Color(0xFF71D7CD) else Color(0x99FFFFFF))
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { if (name.isNotBlank()) onSave(name, selectedIcon) }) {
+                Text("Salvar", color = Color(0xFF71D7CD))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar", color = Color.White)
+            }
+        }
+    )
 }
