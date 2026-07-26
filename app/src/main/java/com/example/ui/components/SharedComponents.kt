@@ -69,11 +69,10 @@ val PremiumGlassModifier: Modifier
         
         // Se o HazeState existir, aplica o desfoque real no fundo
         if (hazeState != null) {
-            modifier = modifier.hazeChild(
-                state = hazeState,
-                shape = RoundedCornerShape(28.dp),
-                style = HazeStyle.Unspecified
-            )
+            val surfaceColor = MaterialTheme.colorScheme.surface
+            modifier = modifier.hazeChild(state = hazeState) {
+                backgroundColor = surfaceColor
+            }
         }
         
         // Aplica as cores escuras e a borda de vidro por cima do desfoque
