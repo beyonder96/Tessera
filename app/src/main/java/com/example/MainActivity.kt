@@ -260,6 +260,44 @@ fun TesseraApp() {
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { /* Permissão concedida ou negada */ }
     )
+    
+    val healthProfile by viewModel.healthProfile.collectAsState(initial = null)
+    val healthConnectManager = remember { com.example.health.HealthConnectManager(context) }
+
+    LaunchedEffect(healthProfile?.isHealthConnectEnabled) {
+        if (healthProfile?.isHealthConnectEnabled == true && healthConnectManager.hasAllPermissions()) {
+            try {
+                val end = java.time.Instant.now()
+                val start = end.minus(30, java.time.temporal.ChronoUnit.DAYS)
+                val hcWeights = healthConnectManager.readWeightRecords(start, end)
+                val hcSleeps = healthConnectManager.readSleepRecords(start, end)
+                val hcSteps = healthConnectManager.readStepsRecords(start, end)
+                
+                val localWeights = hcWeights.map { com.example.data.WeightRecord(weightKg = it.weight.inKilograms, timestamp = it.time.toEpochMilli(), source = "Health Connect") }
+                val localSleeps = hcSleeps.map { 
+                    val duration = java.time.temporal.ChronoUnit.MINUTES.between(it.startTime, it.endTime).toDouble() / 60.0
+                    com.example.data.SleepRecord(startTime = it.startTime.toEpochMilli(), endTime = it.endTime.toEpochMilli(), durationHours = duration, source = "Health Connect") 
+                }
+                val localSteps = hcSteps.map {
+                    com.example.data.StepsRecord(count = it.count, startTime = it.startTime.toEpochMilli(), endTime = it.endTime.toEpochMilli(), source = "Health Connect")
+                }
+                viewModel.syncHealthConnectData(localWeights, localSleeps, localSteps)
+
+                val heightStart = end.minus(365 * 5, java.time.temporal.ChronoUnit.DAYS)
+                val hcHeights = healthConnectManager.readHeightRecords(heightStart, end)
+                val latestHeight = hcHeights.maxByOrNull { it.time }?.height?.inMeters?.times(100)
+                if (latestHeight != null && latestHeight != healthProfile?.heightCm) {
+                    viewModel.updateHealthProfile(
+                        heightCm = latestHeight,
+                        targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
+                        isHealthConnectEnabled = true
+                    )
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.initializeDataIfNeeded()

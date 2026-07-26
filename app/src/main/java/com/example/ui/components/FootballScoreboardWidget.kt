@@ -142,15 +142,7 @@ fun DetailedMatchWidget(
                 ) {
                     // Home Team
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                        val homeLogoReq = remember(m.matchDetail.homeTeamLogo) {
-                            coil.request.ImageRequest.Builder(context)
-                                .data(m.matchDetail.homeTeamLogo.replace("http://", "https://"))
-                                .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-                                .addHeader("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
-                                .allowHardware(false)
-                                .crossfade(true)
-                                .build()
-                        }
+                        val homeLogoReq = rememberTeamLogoRequest(m.matchDetail.homeTeamLogo)
                         AsyncImage(
                             model = homeLogoReq,
                             contentDescription = m.matchDetail.homeTeamName,
@@ -183,15 +175,7 @@ fun DetailedMatchWidget(
 
                     // Away Team
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                        val awayLogoReq = remember(m.matchDetail.awayTeamLogo) {
-                            coil.request.ImageRequest.Builder(context)
-                                .data(m.matchDetail.awayTeamLogo.replace("http://", "https://"))
-                                .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-                                .addHeader("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
-                                .allowHardware(false)
-                                .crossfade(true)
-                                .build()
-                        }
+                        val awayLogoReq = rememberTeamLogoRequest(m.matchDetail.awayTeamLogo)
                         AsyncImage(
                             model = awayLogoReq,
                             contentDescription = m.matchDetail.awayTeamName,
@@ -330,7 +314,7 @@ fun MatchEventsTab(match: DetailedFixture) {
                     )
                     
                     AsyncImage(
-                        model = if (event.isHomeTeam) match.matchDetail.homeTeamLogo else match.matchDetail.awayTeamLogo,
+                        model = rememberTeamLogoRequest(if (event.isHomeTeam) match.matchDetail.homeTeamLogo else match.matchDetail.awayTeamLogo),
                         contentDescription = null,
                         modifier = Modifier.size(16.dp)
                     )
@@ -351,7 +335,7 @@ fun MatchLineupsTab(match: DetailedFixture) {
             // Home Team Lineup
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    AsyncImage(model = match.matchDetail.homeTeamLogo, contentDescription = null, modifier = Modifier.size(16.dp))
+                    AsyncImage(model = rememberTeamLogoRequest(match.matchDetail.homeTeamLogo), contentDescription = null, modifier = Modifier.size(16.dp))
                     Text(text = match.matchDetail.homeTeamName, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 match.homeLineup.forEach { player ->
@@ -380,7 +364,7 @@ fun MatchLineupsTab(match: DetailedFixture) {
             // Away Team Lineup
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    AsyncImage(model = match.matchDetail.awayTeamLogo, contentDescription = null, modifier = Modifier.size(16.dp))
+                    AsyncImage(model = rememberTeamLogoRequest(match.matchDetail.awayTeamLogo), contentDescription = null, modifier = Modifier.size(16.dp))
                     Text(text = match.matchDetail.awayTeamName, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 match.awayLineup.forEach { player ->
@@ -406,5 +390,19 @@ fun MatchLineupsTab(match: DetailedFixture) {
                 }
             }
         }
+    }
+}
+
+@Composable
+fun rememberTeamLogoRequest(logoUrl: String): coil.request.ImageRequest {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    return remember(logoUrl) {
+        coil.request.ImageRequest.Builder(context)
+            .data(logoUrl.replace("http://", "https://"))
+            .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+            .addHeader("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
+            .allowHardware(false)
+            .crossfade(true)
+            .build()
     }
 }

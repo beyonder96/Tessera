@@ -211,43 +211,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
         }
     }
 
-    // Auto-sync in the background if Health Connect is already enabled (including height synchronization)
-    LaunchedEffect(healthProfile?.isHealthConnectEnabled) {
-        if (healthProfile?.isHealthConnectEnabled == true) {
-            try {
-                val end = Instant.now()
-                val start = end.minus(30, ChronoUnit.DAYS)
-                val hcWeights = healthConnectManager.readWeightRecords(start, end)
-                val hcSleeps = healthConnectManager.readSleepRecords(start, end)
-                val hcSteps = healthConnectManager.readStepsRecords(start, end)
-                
-                val localWeights = hcWeights.map { WeightRecord(weightKg = it.weight.inKilograms, timestamp = it.time.toEpochMilli(), source = "Health Connect") }
-                val localSleeps = hcSleeps.map { 
-                    val duration = ChronoUnit.MINUTES.between(it.startTime, it.endTime).toDouble() / 60.0
-                    SleepRecord(startTime = it.startTime.toEpochMilli(), endTime = it.endTime.toEpochMilli(), durationHours = duration, source = "Health Connect") 
-                }
-                val localSteps = hcSteps.map {
-                    StepsRecord(count = it.count, startTime = it.startTime.toEpochMilli(), endTime = it.endTime.toEpochMilli(), source = "Health Connect")
-                }
-                viewModel.syncHealthConnectData(localWeights, localSleeps, localSteps)
-
-                // Sync height record in background as well (5 years window)
-                val heightStart = end.minus(365 * 5, ChronoUnit.DAYS)
-                val hcHeights = healthConnectManager.readHeightRecords(heightStart, end)
-                val latestHeight = hcHeights.maxByOrNull { it.time }?.height?.inMeters?.times(100)
-                if (latestHeight != null && latestHeight != healthProfile?.heightCm) {
-                    viewModel.updateHealthProfile(
-                        heightCm = latestHeight,
-                        targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
-                        isHealthConnectEnabled = true
-                    )
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
-
+    // A sincronização automática do Health Connect agora é feita globalmente em MainActivity.kt
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
         onResult = { /* Permissão concedida ou negada */ }

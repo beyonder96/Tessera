@@ -9,12 +9,29 @@ import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.health.connect.client.units.Mass
+import androidx.health.connect.client.permission.HealthPermission
 import java.time.Instant
 import java.time.ZoneOffset
 
 class HealthConnectManager(private val context: Context) {
 
     private val healthConnectClient by lazy { HealthConnectClient.getOrCreate(context) }
+    
+    val permissions = setOf(
+        HealthPermission.getReadPermission(WeightRecord::class),
+        HealthPermission.getWritePermission(WeightRecord::class),
+        HealthPermission.getReadPermission(HeightRecord::class),
+        HealthPermission.getWritePermission(HeightRecord::class),
+        HealthPermission.getReadPermission(SleepSessionRecord::class),
+        HealthPermission.getWritePermission(SleepSessionRecord::class),
+        HealthPermission.getReadPermission(StepsRecord::class),
+        HealthPermission.getWritePermission(StepsRecord::class)
+    )
+
+    suspend fun hasAllPermissions(): Boolean {
+        val granted = healthConnectClient.permissionController.getGrantedPermissions()
+        return granted.containsAll(permissions)
+    }
 
     fun checkAvailability(): Int {
         return HealthConnectClient.getSdkStatus(context)

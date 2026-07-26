@@ -52,27 +52,49 @@ suspend fun fetchOgImageFromUrl(urlStr: String): String? {
 
     return withContext(Dispatchers.IO) {
         try {
-            val url = URL(fullUrl)
-            val conn = url.openConnection() as HttpURLConnection
-            conn.requestMethod = "GET"
-            conn.setRequestProperty("User-Agent", "Mozilla/5.0")
-            conn.connectTimeout = 8000
-            conn.readTimeout = 8000
+            // Utilizamos Jsoup com um User-Agent de navegador real para evitar bloqueios
+            val doc = org.jsoup.Jsoup.connect(fullUrl)
+                .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .header("Accept-Language", "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7")
+                .timeout(8000)
+                .followRedirects(true)
+                .get()
 
-            if (conn.responseCode == 200) {
-                val html = conn.inputStream.bufferedReader().use { it.readText() }
-                val ogPattern = Regex("""<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']""", RegexOption.IGNORE_CASE)
-                val ogPatternAlt = Regex("""<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']""", RegexOption.IGNORE_CASE)
-                val match = ogPattern.find(html) ?: ogPatternAlt.find(html)
-                
-                val imgUrl = match?.groupValues?.get(1)
-                if (!imgUrl.isNullOrBlank()) {
-                    if (imgUrl.startsWith("//")) {
-                        "https:$imgUrl"
-                    } else if (imgUrl.startsWith("/")) {
-                        "${url.protocol}://${url.host}$imgUrl"
-                    } else imgUrl
-                } else null
+            // Tenta pegar primeiro o og:image
+            var imgUrl = doc.select("meta[property=og:image]").attr("content")
+            
+            // Fallback 1: twitter:image
+            if (imgUrl.isBlank()) {
+                imgUrl = doc.select("meta[name=twitter:image]").attr("content")
+            }
+            // Fallback 2: link rel="image_src"
+            if (imgUrl.isBlank()) {
+                imgUrl = doc.select("link[rel=image_src]").attr("href")
+            }
+            // Fallback 3: Amazon main images (landingImage / imgBlkFront)
+            if (imgUrl.isBlank()) {
+                imgUrl = doc.select("img#landingImage").attr("src")
+            }
+            if (imgUrl.isBlank()) {
+                imgUrl = doc.select("img#imgBlkFront").attr("src")
+            }
+            // Fallback 4: Mercado Livre principal (ui-pdp-image)
+            if (imgUrl.isBlank()) {
+                imgUrl = doc.select("img.ui-pdp-image.ui-pdp-gallery__figure__image").attr("src")
+            }
+            // Fallback 5: A primeira imagem normal da página
+            if (imgUrl.isBlank()) {
+                val firstImg = doc.select("img").firstOrNull { it.hasAttr("src") && !it.attr("src").contains("data:image") && !it.attr("src").contains("logo") }
+                imgUrl = firstImg?.attr("src") ?: ""
+            }
+
+            if (imgUrl.isNotBlank()) {
+                val url = URL(fullUrl)
+                if (imgUrl.startsWith("//")) {
+                    "https:$imgUrl"
+                } else if (imgUrl.startsWith("/")) {
+                    "${url.protocol}://${url.host}$imgUrl"
+                } else imgUrl
             } else null
         } catch (e: Exception) {
             null

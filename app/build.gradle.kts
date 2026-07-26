@@ -22,8 +22,8 @@ android {
     applicationId = "com.aistudio.tessera.xtrkna"
     minSdk = 26
     targetSdk = 35
-    versionCode = 56
-    versionName = "2.0.3"
+    versionCode = 57
+    versionName = "2.0.4"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     manifestPlaceholders["MAPS_API_KEY"] = "DUMMY_KEY"
@@ -170,6 +170,9 @@ dependencies {
 
   // Glassmorphism blur (Haze)
   implementation("dev.chrisbanes.haze:haze:1.1.1")
+  
+  // HTML Parser (Jsoup)
+  implementation("org.jsoup:jsoup:1.17.2")
 }
 
 abstract class CopyApkTask : org.gradle.api.DefaultTask() {
