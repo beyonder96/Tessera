@@ -22,8 +22,8 @@ android {
     applicationId = "com.aistudio.tessera.xtrkna"
     minSdk = 26
     targetSdk = 35
-    versionCode = 55
-    versionName = "2.0.2"
+    versionCode = 56
+    versionName = "2.0.3"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     manifestPlaceholders["MAPS_API_KEY"] = "DUMMY_KEY"
@@ -167,6 +167,9 @@ dependencies {
 
   // MediaPipe LLM Inference for Local Gemma Models
   implementation("com.google.mediapipe:tasks-genai:0.10.14")
+
+  // Glassmorphism blur (Haze)
+  implementation("dev.chrisbanes.haze:haze:1.1.1")
 }
 
 abstract class CopyApkTask : org.gradle.api.DefaultTask() {

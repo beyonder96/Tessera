@@ -28,38 +28,56 @@ import com.example.ui.theme.*
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.composed
 
+// Importações da biblioteca de desfoque (Glassmorphism real)
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.hazeChild
+
 val LocalGlassmorphismLevel = staticCompositionLocalOf { "Frosted" }
+
+// Criamos um provedor local para o estado do desfoque
+val LocalHazeState = staticCompositionLocalOf<HazeState?> { null }
 
 // Shared GlassModifier for premium cards (Liquid Glass)
 val PremiumGlassModifier: Modifier
     get() = Modifier.composed {
         val level = LocalGlassmorphismLevel.current
+        val hazeState = LocalHazeState.current
         
         val (bgColors, borderColors) = when (level) {
             "Clear" -> {
-                // Super transparent, high glossy border
                 listOf(Color(0x12FFFFFF), Color(0x02FFFFFF)) to
                 listOf(Color(0x8CFFFFFF), Color(0x0AFFFFFF))
             }
             "Blur" -> {
-                // Medium transparency, balanced border
                 listOf(Color(0x2BFFFFFF), Color(0x08FFFFFF)) to
                 listOf(Color(0x59FFFFFF), Color(0x08FFFFFF))
             }
             "Frosted" -> {
-                // Fundo escuro translúcido (estilo da foto)
-                listOf(Color(0x73000000), Color(0x59000000)) to
-                listOf(Color(0x1AFFFFFF), Color(0x05FFFFFF))
+                // Fundo com 30% a 20% de preto (deixa o desfoque escurecido como na foto)
+                listOf(Color(0x4D000000), Color(0x33000000)) to
+                // Borda suave de vidro refletido
+                listOf(Color(0x26FFFFFF), Color(0x05FFFFFF))
             }
             else -> {
-                // Fallback (same as Frosted)
-                listOf(Color(0x73000000), Color(0x59000000)) to
-                listOf(Color(0x1AFFFFFF), Color(0x05FFFFFF))
+                listOf(Color(0x4D000000), Color(0x33000000)) to
+                listOf(Color(0x26FFFFFF), Color(0x05FFFFFF))
             }
         }
         
-        this
-            .clip(RoundedCornerShape(28.dp))
+        var modifier = this.clip(RoundedCornerShape(28.dp))
+        
+        // Se o HazeState existir, aplica o desfoque real no fundo
+        if (hazeState != null) {
+            modifier = modifier.hazeChild(
+                state = hazeState,
+                shape = RoundedCornerShape(28.dp),
+                style = HazeStyle.Unspecified
+            )
+        }
+        
+        // Aplica as cores escuras e a borda de vidro por cima do desfoque
+        modifier
             .background(Brush.verticalGradient(colors = bgColors))
             .border(
                 width = 1.dp,

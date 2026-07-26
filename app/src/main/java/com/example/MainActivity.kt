@@ -128,7 +128,10 @@ import kotlinx.coroutines.flow.first
 import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.components.OuraCircularProgress
 import com.example.ui.components.LocalGlassmorphismLevel
+import com.example.ui.components.LocalHazeState
 import androidx.compose.runtime.CompositionLocalProvider
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.haze
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -445,8 +448,12 @@ fun TesseraApp() {
     }
 
     var homeScrollOffset by remember { mutableStateOf(0) }
+    val hazeState = remember { HazeState() }
 
-    CompositionLocalProvider(LocalGlassmorphismLevel provides currentGlassLevel) {
+    CompositionLocalProvider(
+        LocalGlassmorphismLevel provides currentGlassLevel,
+        LocalHazeState provides hazeState
+    ) {
         Scaffold(
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0, 0, 0, 0)
@@ -468,7 +475,7 @@ fun TesseraApp() {
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     alignment = Alignment.TopCenter,
-                    modifier = Modifier.fillMaxSize().blur(homeScrollBlur)
+                    modifier = Modifier.fillMaxSize().blur(homeScrollBlur).haze(hazeState)
                 )
                 Box(
                     modifier = Modifier
