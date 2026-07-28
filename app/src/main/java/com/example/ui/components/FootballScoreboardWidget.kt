@@ -401,8 +401,10 @@ fun rememberTeamLogoRequest(logoUrl: String): coil.request.ImageRequest {
             .data(logoUrl.replace("http://", "https://"))
             .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
             .addHeader("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
+            .decoderFactory(coil.decode.SvgDecoder.Factory())
             .allowHardware(false)
             .crossfade(true)
             .build()
     }
 }
+

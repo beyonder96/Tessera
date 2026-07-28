@@ -436,12 +436,8 @@ fun TesseraApp() {
 
     val navigateAction: (String) -> Unit = { route ->
         val targetRoute = when (route) {
-            "chronos" -> {
+            "rotinas" -> {
                 viewModel.selectedGoalsTab = 1
-                "goals"
-            }
-            "focus" -> {
-                viewModel.selectedGoalsTab = 2
                 "goals"
             }
             else -> route
@@ -752,7 +748,7 @@ fun TesseraApp() {
                                     }
                                     Box(modifier = Modifier.weight(1f)) {
                                         PremiumGridTile(
-                                            title = "Foco\n& Rotinas",
+                                            title = "Rotinas",
                                             icon = Icons.Outlined.Flag,
                                             iconColor = Color(0xFFF9A826),
                                             alpha = itemsAlpha,
@@ -1883,7 +1879,7 @@ fun MainContent(
     val defaultModules = listOf(
         ModuleConfig("finance", "Finanças e Fluxo", true, 0),
         ModuleConfig("health", "Saúde e Energia", true, 1),
-        ModuleConfig("goals", "Foco e Rotinas", true, 2),
+        ModuleConfig("goals", "Rotinas", true, 2),
         ModuleConfig("pets", "Meus Petz", true, 3),
         ModuleConfig("market", "Mercado e Desejos", true, 4)
     )
