@@ -397,13 +397,25 @@ fun MatchLineupsTab(match: DetailedFixture) {
 fun rememberTeamLogoRequest(logoUrl: String): coil.request.ImageRequest {
     val context = androidx.compose.ui.platform.LocalContext.current
     return remember(logoUrl) {
+        val url = logoUrl.replace("http://", "https://").trim()
+        android.util.Log.d("FootballLogo", "Loading logo URL: '$url'")
         coil.request.ImageRequest.Builder(context)
-            .data(logoUrl.replace("http://", "https://"))
-            .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-            .addHeader("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
-            .decoderFactory(coil.decode.SvgDecoder.Factory())
+            .data(url.ifEmpty { null })
+            .addHeader("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+            .addHeader("Accept", "image/png,image/webp,image/*,*/*;q=0.8")
+            .addHeader("Referer", "https://www.api-football.com/")
+            .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+            .diskCachePolicy(coil.request.CachePolicy.ENABLED)
             .allowHardware(false)
             .crossfade(true)
+            .listener(
+                onError = { _, result ->
+                    android.util.Log.e("FootballLogo", "FAILED to load logo: '$url' - Error: ${result.throwable.message}", result.throwable)
+                },
+                onSuccess = { _, _ ->
+                    android.util.Log.d("FootballLogo", "SUCCESS loading logo: '$url'")
+                }
+            )
             .build()
     }
 }
