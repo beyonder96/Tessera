@@ -1190,6 +1190,26 @@ class TesseraViewModel(
         }
     }
 
+    fun checkoutCartWithDebit(accountName: String, amount: Double) {
+        viewModelScope.launch {
+            // Debit the amount from the selected account/benefit card
+            adjustBalances(accountName, amount, isIncome = false, isRealized = true)
+            
+            // Then perform normal checkout
+            val shoppingItems = repository.shoppingMarketItems.first()
+            val inCart = shoppingItems.filter { it.isChecked }
+            val inCartNames = inCart.map { it.name.lowercase().trim() }.distinct()
+            
+            inCart.forEach { item ->
+                repository.deleteMarketItem(item)
+            }
+            
+            if (inCartNames.isNotEmpty()) {
+                repository.deletePlanningItemsByNames(inCartNames)
+            }
+        }
+    }
+
     fun togglePetEventCompleted(event: PetEvent) {
         viewModelScope.launch {
             repository.insertPetEvent(event.copy(isCompleted = !event.isCompleted))

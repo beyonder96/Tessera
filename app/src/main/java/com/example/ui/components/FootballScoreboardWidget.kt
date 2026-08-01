@@ -31,6 +31,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
+import coil.compose.SubcomposeAsyncImageContent
 import com.example.data.DetailedFixture
 import com.example.viewmodel.TesseraViewModel
 
@@ -142,12 +144,10 @@ fun DetailedMatchWidget(
                 ) {
                     // Home Team
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                        val homeLogoReq = rememberTeamLogoRequest(m.matchDetail.homeTeamLogo)
-                        AsyncImage(
-                            model = homeLogoReq,
-                            contentDescription = m.matchDetail.homeTeamName,
-                            modifier = Modifier.size(48.dp),
-                            contentScale = ContentScale.Fit
+                        TeamLogo(
+                            logoUrl = m.matchDetail.homeTeamLogo,
+                            teamName = m.matchDetail.homeTeamName,
+                            size = 48
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(text = m.matchDetail.homeTeamName, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -175,12 +175,10 @@ fun DetailedMatchWidget(
 
                     // Away Team
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                        val awayLogoReq = rememberTeamLogoRequest(m.matchDetail.awayTeamLogo)
-                        AsyncImage(
-                            model = awayLogoReq,
-                            contentDescription = m.matchDetail.awayTeamName,
-                            modifier = Modifier.size(48.dp),
-                            contentScale = ContentScale.Fit
+                        TeamLogo(
+                            logoUrl = m.matchDetail.awayTeamLogo,
+                            teamName = m.matchDetail.awayTeamName,
+                            size = 48
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(text = m.matchDetail.awayTeamName, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -313,10 +311,10 @@ fun MatchEventsTab(match: DetailedFixture) {
                         modifier = Modifier.weight(1f)
                     )
                     
-                    AsyncImage(
-                        model = rememberTeamLogoRequest(if (event.isHomeTeam) match.matchDetail.homeTeamLogo else match.matchDetail.awayTeamLogo),
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
+                    TeamLogo(
+                        logoUrl = if (event.isHomeTeam) match.matchDetail.homeTeamLogo else match.matchDetail.awayTeamLogo,
+                        teamName = if (event.isHomeTeam) match.matchDetail.homeTeamName else match.matchDetail.awayTeamName,
+                        size = 16
                     )
                 }
             }
@@ -335,7 +333,7 @@ fun MatchLineupsTab(match: DetailedFixture) {
             // Home Team Lineup
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    AsyncImage(model = rememberTeamLogoRequest(match.matchDetail.homeTeamLogo), contentDescription = null, modifier = Modifier.size(16.dp))
+                    TeamLogo(logoUrl = match.matchDetail.homeTeamLogo, teamName = match.matchDetail.homeTeamName, size = 16)
                     Text(text = match.matchDetail.homeTeamName, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 match.homeLineup.forEach { player ->
@@ -364,7 +362,7 @@ fun MatchLineupsTab(match: DetailedFixture) {
             // Away Team Lineup
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    AsyncImage(model = rememberTeamLogoRequest(match.matchDetail.awayTeamLogo), contentDescription = null, modifier = Modifier.size(16.dp))
+                    TeamLogo(logoUrl = match.matchDetail.awayTeamLogo, teamName = match.matchDetail.awayTeamName, size = 16)
                     Text(text = match.matchDetail.awayTeamName, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 match.awayLineup.forEach { player ->
@@ -394,29 +392,46 @@ fun MatchLineupsTab(match: DetailedFixture) {
 }
 
 @Composable
-fun rememberTeamLogoRequest(logoUrl: String): coil.request.ImageRequest {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    return remember(logoUrl) {
-        val url = logoUrl.replace("http://", "https://").trim()
-        android.util.Log.d("FootballLogo", "Loading logo URL: '$url'")
-        coil.request.ImageRequest.Builder(context)
-            .data(url.ifEmpty { null })
-            .addHeader("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
-            .addHeader("Accept", "image/png,image/webp,image/*,*/*;q=0.8")
-            .addHeader("Referer", "https://www.api-football.com/")
-            .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
-            .diskCachePolicy(coil.request.CachePolicy.ENABLED)
-            .allowHardware(false)
-            .crossfade(true)
-            .listener(
-                onError = { _, result ->
-                    android.util.Log.e("FootballLogo", "FAILED to load logo: '$url' - Error: ${result.throwable.message}", result.throwable)
-                },
-                onSuccess = { _, _ ->
-                    android.util.Log.d("FootballLogo", "SUCCESS loading logo: '$url'")
-                }
-            )
-            .build()
+fun TeamLogo(logoUrl: String, teamName: String, size: Int = 48) {
+    val url = remember(logoUrl) { logoUrl.replace("http://", "https://").trim() }
+    val sizeDp = size.dp
+    val initial = remember(teamName) { teamName.firstOrNull()?.uppercase() ?: "?" }
+
+    if (url.isNotEmpty()) {
+        SubcomposeAsyncImage(
+            model = url,
+            contentDescription = teamName,
+            modifier = Modifier.size(sizeDp),
+            contentScale = ContentScale.Fit,
+            loading = {
+                TeamLogoFallback(initial = initial, size = size, color = Color(0xFF3A4A47))
+            },
+            error = {
+                android.util.Log.e("FootballLogo", "Failed to load: $url")
+                TeamLogoFallback(initial = initial, size = size, color = Color(0xFF2A3634))
+            }
+        )
+    } else {
+        TeamLogoFallback(initial = initial, size = size, color = Color(0xFF2A3634))
+    }
+}
+
+@Composable
+fun TeamLogoFallback(initial: String, size: Int, color: Color) {
+    Box(
+        modifier = Modifier
+            .size(size.dp)
+            .clip(CircleShape)
+            .background(color)
+            .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = initial,
+            color = Color.White.copy(alpha = 0.8f),
+            fontSize = (size / 2.5f).sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 

@@ -9,6 +9,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -48,6 +49,8 @@ import java.util.Locale
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import kotlinx.coroutines.launch
+import com.example.data.BankAccount
+import com.example.data.BenefitCard
 
 fun parseDoubleSafely(input: String): Double {
     if (input.isBlank()) return 0.0
@@ -86,6 +89,7 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
     val coroutineScope = rememberCoroutineScope()
     var showAddDialog by remember { mutableStateOf(false) }
     var showShareDialog by remember { mutableStateOf(false) }
+    var showCheckoutDebitDialog by remember { mutableStateOf(false) }
     val marketListId by viewModel.marketListId.collectAsStateWithLifecycle()
     val syncStatus by viewModel.syncManager.syncStatus.collectAsStateWithLifecycle()
     val isFirebaseConfigured by viewModel.syncManager.isConfigured.collectAsStateWithLifecycle()
@@ -131,13 +135,34 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                         ShoppingBottomBar(
                             cartTotal = cartTotal,
                             formattedTotal = formattedTotal,
-                            onCheckout = { viewModel.checkoutCart() },
+                            onCheckout = { showCheckoutDebitDialog = true },
                             onAddClick = { showAddDialog = true }
                         )
                     }
                 }
             }
         ) { innerPadding ->
+
+    // Checkout Debit Dialog
+    if (showCheckoutDebitDialog) {
+        val bankAccounts by viewModel.allBankAccounts.collectAsStateWithLifecycle()
+        val benefitCards by viewModel.allBenefitCards.collectAsStateWithLifecycle()
+        CheckoutDebitDialog(
+            totalAmount = cartTotal,
+            formattedTotal = formattedTotal,
+            bankAccounts = bankAccounts,
+            benefitCards = benefitCards,
+            onDismiss = { showCheckoutDebitDialog = false },
+            onSkip = {
+                showCheckoutDebitDialog = false
+                viewModel.checkoutCart()
+            },
+            onDebit = { accountName, amount ->
+                showCheckoutDebitDialog = false
+                viewModel.checkoutCartWithDebit(accountName, amount)
+            }
+        )
+    }
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1486,5 +1511,296 @@ fun ShareMarketListDialog(
                 }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CheckoutDebitDialog(
+    totalAmount: Double,
+    formattedTotal: String,
+    bankAccounts: List<BankAccount>,
+    benefitCards: List<BenefitCard>,
+    onDismiss: () -> Unit,
+    onSkip: () -> Unit,
+    onDebit: (accountName: String, amount: Double) -> Unit
+) {
+    var selectedAccountName by remember { mutableStateOf<String?>(null) }
+    var selectedAccountType by remember { mutableStateOf("") } // "bank" ou "benefit"
+    var debitAmountText by remember { mutableStateOf(String.format(Locale("pt", "BR"), "%.2f", totalAmount)) }
+    var isPartial by remember { mutableStateOf(false) }
+
+    val selectedBalance = remember(selectedAccountName, bankAccounts, benefitCards) {
+        when (selectedAccountType) {
+            "bank" -> bankAccounts.find { it.name == selectedAccountName }?.balance
+            "benefit" -> benefitCards.find { it.name == selectedAccountName }?.balance
+            else -> null
+        }
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .clip(RoundedCornerShape(28.dp))
+                .background(Color(0xFF111514))
+                .border(1.dp, Color(0xFF71D7CD).copy(alpha = 0.2f), RoundedCornerShape(28.dp))
+                .padding(24.dp)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Finalizar Compra",
+                            color = Color.White,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Deseja debitar o valor?",
+                            color = Color(0xFF81928F),
+                            fontSize = 13.sp
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF71D7CD).copy(alpha = 0.12f))
+                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = formattedTotal,
+                            color = Color(0xFF71D7CD),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                }
+
+                Divider(color = Color(0xFF2A3634), thickness = 1.dp)
+
+                // Accounts list
+                if (bankAccounts.isNotEmpty()) {
+                    Text(
+                        text = "CONTAS BANCÁRIAS",
+                        color = Color(0xFF81928F),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.5.sp
+                    )
+                    bankAccounts.forEach { account ->
+                        AccountOptionRow(
+                            name = account.name,
+                            balance = account.balance,
+                            colorHex = account.colorHex,
+                            isSelected = selectedAccountName == account.name && selectedAccountType == "bank",
+                            onClick = {
+                                selectedAccountName = account.name
+                                selectedAccountType = "bank"
+                            }
+                        )
+                    }
+                }
+
+                if (benefitCards.isNotEmpty()) {
+                    Text(
+                        text = "CARTÕES DE BENEFÍCIO",
+                        color = Color(0xFF81928F),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.5.sp
+                    )
+                    benefitCards.forEach { card ->
+                        AccountOptionRow(
+                            name = card.name,
+                            balance = card.balance,
+                            colorHex = card.colorHex,
+                            isSelected = selectedAccountName == card.name && selectedAccountType == "benefit",
+                            onClick = {
+                                selectedAccountName = card.name
+                                selectedAccountType = "benefit"
+                            }
+                        )
+                    }
+                }
+
+                // Partial debit option
+                AnimatedVisibility(visible = selectedAccountName != null) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Divider(color = Color(0xFF2A3634), thickness = 1.dp)
+
+                        // Toggle total vs partial
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(Color(0xFF1A2220))
+                                .padding(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            listOf("Total" to false, "Parcial" to true).forEach { (label, partial) ->
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(if (isPartial == partial) Color(0xFF71D7CD).copy(alpha = 0.15f) else Color.Transparent)
+                                        .clickable {
+                                            isPartial = partial
+                                            if (!partial) {
+                                                debitAmountText = String.format(Locale("pt", "BR"), "%.2f", totalAmount)
+                                            }
+                                        }
+                                        .padding(vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = label,
+                                        color = if (isPartial == partial) Color(0xFF71D7CD) else Color(0xFF81928F),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp
+                                    )
+                                }
+                            }
+                        }
+
+                        // Amount field for partial
+                        AnimatedVisibility(visible = isPartial) {
+                            OutlinedTextField(
+                                value = debitAmountText,
+                                onValueChange = { debitAmountText = it },
+                                label = { Text("Valor a debitar") },
+                                prefix = { Text("R$ ", color = Color(0xFF71D7CD)) },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFF71D7CD),
+                                    unfocusedBorderColor = Color(0xFF2A3634),
+                                    cursorColor = Color(0xFF71D7CD),
+                                    focusedLabelColor = Color(0xFF71D7CD),
+                                    unfocusedLabelColor = Color(0xFF81928F),
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        // Balance warning
+                        if (selectedBalance != null) {
+                            val debitValue = parseDoubleSafely(debitAmountText)
+                            if (debitValue > (selectedBalance ?: 0.0)) {
+                                Text(
+                                    text = "⚠️ Saldo insuficiente (${String.format(Locale("pt", "BR"), "R$ %,.2f", selectedBalance)})",
+                                    color = Color(0xFFFF5252),
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.padding(start = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Action buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Skip button
+                    OutlinedButton(
+                        onClick = onSkip,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF81928F)),
+                        border = BorderStroke(1.dp, Color(0xFF2A3634)),
+                        shape = RoundedCornerShape(16.dp),
+                        contentPadding = PaddingValues(vertical = 14.dp)
+                    ) {
+                        Text("Pular", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+
+                    // Debit button
+                    Button(
+                        onClick = {
+                            val accountName = selectedAccountName ?: return@Button
+                            val debitValue = parseDoubleSafely(debitAmountText)
+                            if (debitValue > 0) {
+                                onDebit(accountName, debitValue)
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        enabled = selectedAccountName != null && parseDoubleSafely(debitAmountText) > 0,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF71D7CD),
+                            contentColor = Color.Black,
+                            disabledContainerColor = Color(0xFF2A3634),
+                            disabledContentColor = Color(0xFF5E6D6A)
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        contentPadding = PaddingValues(vertical = 14.dp)
+                    ) {
+                        Text("Debitar", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AccountOptionRow(
+    name: String,
+    balance: Double,
+    colorHex: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val color = try { Color(android.graphics.Color.parseColor(colorHex)) } catch (e: Exception) { Color(0xFF71D7CD) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(if (isSelected) Color(0xFF71D7CD).copy(alpha = 0.08f) else Color(0xFF1A2220))
+            .border(
+                width = if (isSelected) 1.5.dp else 0.dp,
+                color = if (isSelected) Color(0xFF71D7CD).copy(alpha = 0.5f) else Color.Transparent,
+                shape = RoundedCornerShape(14.dp)
+            )
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .background(color)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = name,
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+        Text(
+            text = String.format(Locale("pt", "BR"), "R$ %,.2f", balance),
+            color = Color(0xFF81928F),
+            fontSize = 13.sp
+        )
     }
 }
