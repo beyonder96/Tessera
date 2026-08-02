@@ -138,20 +138,19 @@ class TesseraViewModel(
 
 
 
-    private val _homeBackgroundUri = MutableStateFlow(
-        sharedPrefs.getString("home_background_uri", "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop")
-            ?: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"
+    private val _appTheme = MutableStateFlow(
+        sharedPrefs.getString("app_theme", "dark") ?: "dark"
     )
-    val homeBackgroundUri: StateFlow<String> = _homeBackgroundUri.asStateFlow()
+    val appTheme: StateFlow<String> = _appTheme.asStateFlow()
 
     private val _glassmorphismLevel = MutableStateFlow(
         sharedPrefs.getString("glassmorphism_level", "Frosted") ?: "Frosted"
     )
     val glassmorphismLevel: StateFlow<String> = _glassmorphismLevel.asStateFlow()
 
-    fun updateHomeBackgroundUri(uri: String) {
-        sharedPrefs.edit().putString("home_background_uri", uri).apply()
-        _homeBackgroundUri.value = uri
+    fun updateAppTheme(theme: String) {
+        sharedPrefs.edit().putString("app_theme", theme).apply()
+        _appTheme.value = theme
     }
 
     fun updateGlassmorphismLevel(level: String) {

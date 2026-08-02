@@ -75,7 +75,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
     var sumInvestmentsToSpendable by remember { mutableStateOf(sharedPrefs.getBoolean("sum_investments_to_spendable", false)) }
     var stepsReminderTime by remember { mutableStateOf(sharedPrefs.getString("steps_reminder_time", "20:00") ?: "20:00") }
     var sleepReminderTime by remember { mutableStateOf(sharedPrefs.getString("sleep_reminder_time", "08:00") ?: "08:00") }
-    val backgroundUri by viewModel.homeBackgroundUri.collectAsState()
+    val currentAppTheme by viewModel.appTheme.collectAsState()
     val currentGlassLevel by viewModel.glassmorphismLevel.collectAsState()
 
     val coroutineScope = rememberCoroutineScope()
@@ -115,24 +115,6 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
     val petEvents by viewModel.allPetEvents.collectAsState(initial = emptyList())
     val configuredFootballTeams by viewModel.configuredFootballTeams.collectAsState()
     val availableFootballTeams by viewModel.availableFootballTeams.collectAsState()
-
-    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) {
-            try {
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    val bgFile = java.io.File(context.filesDir, "custom_home_background.jpg")
-                    bgFile.outputStream().use { outputStream ->
-                        inputStream.copyTo(outputStream)
-                    }
-                    val localUri = Uri.fromFile(bgFile)
-                    viewModel.updateHomeBackgroundUri(localUri.toString())
-                    Toast.makeText(context, "Fundo atualizado com sucesso", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
 
     val exportDatabaseLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
         if (uri != null) {
@@ -565,10 +547,6 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                     },
                                     colors = SwitchDefaults.colors(
                                         checkedThumbColor = Color.White,
-                                        checkedTrackColor = Color(0xFF71D7CD),
-                                        uncheckedThumbColor = Color.White.copy(alpha=0.7f),
-                                        uncheckedTrackColor = Color(0x33FFFFFF),
-                                        uncheckedBorderColor = Color.Transparent
                                     )
                                 )
                             }
@@ -578,88 +556,107 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
 
                 item {
                     if (activeCategory == "personalizacao") {
-                        SectionTitle("PERSONALIZAÇÃO", SecondaryGold)
-                    Column(
-                        modifier = PremiumGlassModifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Text("Plano de Fundo da Home", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
-                        
-                        // Current background preview card
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(130.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            AsyncImage(
-                                model = backgroundUri,
-                                contentDescription = "Preview do plano de fundo",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                            // Gradient overlay for visual aesthetics and text contrast
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        androidx.compose.ui.graphics.Brush.verticalGradient(
-                                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))
-                                        )
-                                    )
-                            )
-                            Text(
-                                text = "Fundo Atual da Home",
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    .padding(12.dp)
-                            )
-                        }
-
+                        SectionTitle("TEMA DO APLICATIVO", SecondaryGold)
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Button(
-                                onClick = {
-                                    galleryLauncher.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = SecondaryGold, contentColor = Color.Black),
-                                shape = RoundedCornerShape(14.dp),
-                                modifier = Modifier.weight(1.5f).height(48.dp).bounceClick {
-                                    galleryLauncher.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                                }
+                            val isDark = currentAppTheme == "dark"
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(130.dp)
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(Color(0xFF000000))
+                                    .border(
+                                        width = if (isDark) 2.dp else 1.dp,
+                                        color = if (isDark) SecondaryGold else Color(0xFF27272A),
+                                        shape = RoundedCornerShape(24.dp)
+                                    )
+                                    .clickable { viewModel.updateAppTheme("dark") }
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.BottomStart
                             ) {
-                                Icon(Icons.Outlined.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Sua Galeria", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                Column {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(10.dp)
+                                                .clip(CircleShape)
+                                                .background(if (isDark) SecondaryGold else Color(0xFF52525B))
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "OLED",
+                                            color = SecondaryGold,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            letterSpacing = 1.sp
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = "Preto Profundo",
+                                        color = Color.White,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "Dark Mode Sólido",
+                                        color = Color.White.copy(alpha = 0.6f),
+                                        fontSize = 11.sp
+                                    )
+                                }
                             }
 
-                            OutlinedButton(
-                                onClick = {
-                                    val defaultUrl = "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"
-                                    viewModel.updateHomeBackgroundUri(defaultUrl)
-                                    Toast.makeText(context, "Fundo padrão restaurado!", Toast.LENGTH_SHORT).show()
-                                },
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33FFFFFF)),
-                                shape = RoundedCornerShape(14.dp),
-                                modifier = Modifier.weight(1f).height(48.dp).bounceClick {
-                                    val defaultUrl = "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop"
-                                    viewModel.updateHomeBackgroundUri(defaultUrl)
-                                    Toast.makeText(context, "Fundo padrão restaurado!", Toast.LENGTH_SHORT).show()
-                                }
+                            val isLight = currentAppTheme == "light"
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(130.dp)
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(Color(0xFFFFFFFF))
+                                    .border(
+                                        width = if (isLight) 2.dp else 1.dp,
+                                        color = if (isLight) PrimaryTeal else Color(0xFFE2E8F0),
+                                        shape = RoundedCornerShape(24.dp)
+                                    )
+                                    .clickable { viewModel.updateAppTheme("light") }
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.BottomStart
                             ) {
-                                Text("Restaurar", color = Color.White, fontSize = 13.sp)
+                                Column {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(10.dp)
+                                                .clip(CircleShape)
+                                                .background(if (isLight) PrimaryTeal else Color(0xFFCBD5E1))
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "LIGHT",
+                                            color = Color(0xFF0D9488),
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            letterSpacing = 1.sp
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = "Branco Total",
+                                        color = Color(0xFF0F172A),
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "Light Mode Limpo",
+                                        color = Color(0xFF64748B),
+                                        fontSize = 11.sp
+                                    )
+                                }
                             }
                         }
-                    }
                     }
                 }
 

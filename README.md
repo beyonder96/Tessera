@@ -4,6 +4,12 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.9
+
+- **Novo Placar de Futebol e Widget de Clima (Estilo Termostato):** Interface em estilo arena luxury com gradiente térmico em camadas, agulha procedural e mostrador com tipografia em gradiente.
+- **Novos Temas Globais (Preto Profundo & Branco Total):** Implementado suporte completo aos temas Preto Profundo (OLED #000000) e Branco Total (Pure White #FFFFFF), garantindo contraste e legibilidade ideais. Removido o suporte a imagens de fundo globalmente para maior velocidade e fluidez.
+- **Mercado Inteligente 2.0:** Interface de mercado completamente renovada com filtros por categoria (Hortifrúti, Açougue, Laticínios, Bebidas etc.), pílulas de sugestão rápida de itens essenciais e checkout dinâmico.
+
 ## 🚀 Novidades da Versão 2.0.0
 
 - **Novo Design da Lista de Desejos:** Interface premium com fundo preto, glassmorphism e extração automática de fotos pelo link de compra (Web Scraping de OpenGraph Tags)! Adicionado barra de pesquisa e botão de compartilhamento.
@@ -77,8 +83,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.8.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.8.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.9.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.9.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.

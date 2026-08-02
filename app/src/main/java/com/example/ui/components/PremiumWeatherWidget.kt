@@ -5,12 +5,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Air
-import androidx.compose.material.icons.outlined.Cloud
-import androidx.compose.material.icons.outlined.WbSunny
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,329 +15,237 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.example.viewmodel.TesseraViewModel
+import kotlin.math.cos
+import kotlin.math.sin
 
 @Composable
 fun PremiumWeatherWidget(weatherState: TesseraViewModel.WeatherInfo?) {
-    val temp = weatherState?.temp?.toInt() ?: 18
-    val desc = weatherState?.description ?: "Clear Sky"
+    val temp = weatherState?.temp?.toInt() ?: 38
+    val rawDesc = weatherState?.description ?: "Summer"
+    val city = weatherState?.city
 
-    val isDay = desc.contains("Clear") || desc.contains("Sun") || desc.contains("Cloud")
-    val gradientColors = if (isDay) {
-        listOf(Color(0xFF4FC3F7).copy(alpha = 0.2f), Color(0xFF29B6F6).copy(alpha = 0.05f))
-    } else {
-        listOf(Color(0xFF7E57C2).copy(alpha = 0.2f), Color(0xFF5E35B1).copy(alpha = 0.05f))
+    // Determine display header text
+    val headerText = remember(rawDesc) {
+        if (rawDesc.contains("Sun", ignoreCase = true) || rawDesc.contains("Clear", ignoreCase = true) || rawDesc.contains("Summer", ignoreCase = true)) {
+            "SUMMER"
+        } else {
+            rawDesc.uppercase()
+        }
     }
 
-    val infiniteTransition = rememberInfiniteTransition(label = "WeatherAnim")
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 0.8f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = EaseInOutSine),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulseAlpha"
+    // Card background gradient matching glass-card reference
+    val cardGradient = Brush.verticalGradient(
+        colorStops = arrayOf(
+            0.0f to Color(0xFF101012),
+            0.50f to Color(0xFF0F0F11),
+            0.75f to Color(0xFF1A0A06),
+            1.0f to Color(0xFF5E1603)
+        )
     )
+
+    // Gradient for the temperature numbers perfectly matching bottom heat glow
+    val tempBrush = Brush.verticalGradient(
+        colorStops = arrayOf(
+            0.35f to Color(0xFFE4E4E7),
+            0.75f to Color(0xFFDE4C4C),
+            1.0f to Color(0xFFF97316)
+        )
+    )
+
+    // Animated pointer needle angle (mapping temp 0..50°C to -105°..+105°)
+    val targetAngle = remember(temp) {
+        val clampedTemp = temp.coerceIn(0, 50)
+        -105f + (clampedTemp / 50f) * 210f
+    }
+    val animatedAngle by animateFloatAsState(
+        targetValue = targetAngle,
+        animationSpec = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
+        label = "needleAngle"
+    )
+
+    val shape = RoundedCornerShape(44.dp)
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .background(Brush.linearGradient(gradientColors))
-            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp))
-            .padding(24.dp)
+            .height(350.dp)
+            .clip(shape)
+            .background(cardGradient)
+            .border(1.dp, Color.White.copy(alpha = 0.08f), shape),
+        contentAlignment = Alignment.TopCenter
     ) {
-        // Decorative Canvas Background
+        // Warm bottom radial & rim glow overlay
         Canvas(modifier = Modifier.fillMaxSize()) {
+            // Warm inner glow
             drawCircle(
-                color = Color.White.copy(alpha = 0.05f * pulseAlpha),
-                radius = size.height * 1.5f,
-                center = Offset(size.width, 0f)
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        Color(0xFFFF5500).copy(alpha = 0.45f),
+                        Color(0xFF992200).copy(alpha = 0.20f),
+                        Color.Transparent
+                    ),
+                    center = Offset(size.width / 2f, size.height * 1.05f),
+                    radius = size.width * 0.75f
+                )
+            )
+
+            // Bright amber rim highlight at bottom edge
+            drawLine(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        Color(0xFFFFAA00).copy(alpha = 0.85f),
+                        Color.Transparent
+                    )
+                ),
+                start = Offset(size.width * 0.2f, size.height - 1.5f),
+                end = Offset(size.width * 0.8f, size.height - 1.5f),
+                strokeWidth = 3f
             )
         }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        // Header Text & Location
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column {
+            Spacer(modifier = Modifier.height(28.dp))
+            Text(
+                text = headerText,
+                color = Color(0xFFA1A1AA),
+                fontSize = 15.sp,
+                fontFamily = FontFamily.SansSerif,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 5.sp
+            )
+
+            if (!city.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "CLIMA ATUAL",
-                    color = Color.White.copy(alpha = 0.5f),
+                    text = city.uppercase(),
+                    color = Color.White.copy(alpha = 0.35f),
                     fontSize = 10.sp,
                     fontFamily = FontFamily.SansSerif,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.Normal,
                     letterSpacing = 2.sp
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "$temp°",
-                        color = Color.White,
-                        fontSize = 48.sp,
-                        fontFamily = FontFamily.Serif,
-                        fontWeight = FontWeight.Light
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column {
+            }
+        }
+
+        // Central Dial Arc & Needle Gauge
+        Canvas(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            val centerX = size.width / 2f
+            val centerY = size.height * 0.52f
+            val radius = 105.dp.toPx()
+            val numTicks = 45
+            val startAngle = -105f
+            val endAngle = 105f
+
+            // Draw procedural tick marks
+            for (i in 0 until numTicks) {
+                val angleDeg = startAngle + (i * (endAngle - startAngle) / (numTicks - 1))
+                val angleRad = Math.toRadians((angleDeg - 90).toDouble())
+
+                val innerR = radius - 9.dp.toPx()
+                val outerR = radius
+
+                val startX = centerX + innerR * cos(angleRad).toFloat()
+                val startY = centerY + innerR * sin(angleRad).toFloat()
+                val endX = centerX + outerR * cos(angleRad).toFloat()
+                val endY = centerY + outerR * sin(angleRad).toFloat()
+
+                drawLine(
+                    color = Color(0xFF52525B),
+                    start = Offset(startX, startY),
+                    end = Offset(endX, endY),
+                    strokeWidth = 1.2.dp.toPx(),
+                    cap = StrokeCap.Round
+                )
+            }
+
+            // Draw Needle Pointer
+            val needleRad = Math.toRadians((animatedAngle - 90).toDouble())
+            val needleLength = 112.dp.toPx()
+            val needleStartR = 30.dp.toPx()
+
+            val nStartX = centerX + needleStartR * cos(needleRad).toFloat()
+            val nStartY = centerY + needleStartR * sin(needleRad).toFloat()
+            val nEndX = centerX + needleLength * cos(needleRad).toFloat()
+            val nEndY = centerY + needleLength * sin(needleRad).toFloat()
+
+            drawLine(
+                brush = Brush.linearGradient(
+                    colors = listOf(Color.Transparent, Color(0xFFE4E4E7)),
+                    start = Offset(nStartX, nStartY),
+                    end = Offset(nEndX, nEndY)
+                ),
+                start = Offset(nStartX, nStartY),
+                end = Offset(nEndX, nEndY),
+                strokeWidth = 1.8.dp.toPx(),
+                cap = StrokeCap.Round
+            )
+        }
+
+        // Temperature Display Container (Bottom positioned)
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 28.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            val tempStr = temp.toString()
+            val firstDigit = if (tempStr.length > 1) tempStr.substring(0, tempStr.length - 1) else ""
+            val secondDigit = if (tempStr.length > 1) tempStr.substring(tempStr.length - 1) else tempStr
+
+            Box(contentAlignment = Alignment.TopEnd) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(end = 18.dp)
+                ) {
+                    if (firstDigit.isNotEmpty()) {
                         Text(
-                            text = desc.uppercase(),
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Text(
-                            text = weatherState?.city ?: "São Paulo, SP",
-                            color = Color.White.copy(alpha = 0.5f),
-                            fontSize = 12.sp
+                            text = firstDigit,
+                            fontSize = 135.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            fontFamily = FontFamily.SansSerif,
+                            style = TextStyle(
+                                brush = tempBrush,
+                                letterSpacing = (-0.05).em
+                            )
                         )
                     }
+                    Text(
+                        text = secondDigit,
+                        fontSize = 135.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = FontFamily.SansSerif,
+                        modifier = Modifier.offset(x = if (firstDigit.isNotEmpty()) (-22).dp else 0.dp),
+                        style = TextStyle(
+                            brush = tempBrush,
+                            letterSpacing = (-0.05).em
+                        )
+                    )
                 }
+
+                // Geometric Degree Symbol
+                Box(
+                    modifier = Modifier
+                        .offset(x = (4).dp, y = (18).dp)
+                        .size(18.dp)
+                        .border(2.5.dp, Color(0xFF9CA3AF), CircleShape)
+                )
             }
-
-            Box(
-                modifier = Modifier
-                    .size(64.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                val isRainy = desc.contains("Rain", ignoreCase = true) || desc.contains("Drizzle", ignoreCase = true) || desc.contains("Shower", ignoreCase = true)
-                val isCloudy = desc.contains("Cloud", ignoreCase = true) || desc.contains("Overcast", ignoreCase = true)
-                val isNight = desc.contains("Night", ignoreCase = true) || (!desc.contains("Sun", ignoreCase = true) && !desc.contains("Clear", ignoreCase = true) && !isCloudy && !isRainy)
-
-                when {
-                    isRainy -> AnimatedRain(Modifier.size(64.dp))
-                    isCloudy -> AnimatedClouds(Modifier.size(64.dp))
-                    isNight -> AnimatedMoon(Modifier.size(64.dp))
-                    else -> AnimatedSun(Modifier.size(64.dp))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun AnimatedSun(modifier: Modifier = Modifier) {
-    val infiniteTransition = rememberInfiniteTransition(label = "sun")
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.3f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "sun_pulse"
-    )
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.5f,
-        targetValue = 0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "sun_alpha"
-    )
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(8000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "sun_rotation"
-    )
-
-    Canvas(modifier = modifier.graphicsLayer { rotationZ = rotation }) {
-        // Heat waves
-        drawCircle(
-            color = Color(0xFFFFD54F).copy(alpha = alpha),
-            radius = (size.minDimension / 2.2f) * scale
-        )
-        // Core sun
-        drawCircle(
-            color = Color(0xFFFFCA28),
-            radius = size.minDimension / 2.5f
-        )
-        // Sun rays
-        for (i in 0 until 8) {
-            val angle = i * 45f
-            val rad = Math.toRadians(angle.toDouble())
-            val innerRadius = size.minDimension / 2.2f
-            val outerRadius = size.minDimension / 1.7f
-            drawLine(
-                color = Color(0xFFFFCA28),
-                start = Offset(
-                    (center.x + innerRadius * Math.cos(rad)).toFloat(),
-                    (center.y + innerRadius * Math.sin(rad)).toFloat()
-                ),
-                end = Offset(
-                    (center.x + outerRadius * Math.cos(rad)).toFloat(),
-                    (center.y + outerRadius * Math.sin(rad)).toFloat()
-                ),
-                strokeWidth = size.minDimension / 15f,
-                cap = androidx.compose.ui.graphics.StrokeCap.Round
-            )
-        }
-    }
-}
-
-@Composable
-fun AnimatedMoon(modifier: Modifier = Modifier) {
-    val infiniteTransition = rememberInfiniteTransition(label = "moon")
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = 0.6f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = EaseInOutSine),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "moon_glow"
-    )
-
-    Canvas(modifier = modifier) {
-        // Glow
-        drawCircle(
-            color = Color(0xFFE0E0E0).copy(alpha = glowAlpha),
-            radius = size.minDimension / 2 * 0.9f
-        )
-        // Moon body
-        drawCircle(
-            color = Color(0xFFF5F5F5),
-            radius = size.minDimension / 2 * 0.7f
-        )
-        // Craters
-        drawCircle(
-            color = Color(0x1A000000), 
-            radius = size.minDimension / 8f,
-            center = Offset(size.width * 0.6f, size.height * 0.4f)
-        )
-        drawCircle(
-            color = Color(0x11000000),
-            radius = size.minDimension / 10f,
-            center = Offset(size.width * 0.4f, size.height * 0.65f)
-        )
-        drawCircle(
-            color = Color(0x15000000),
-            radius = size.minDimension / 12f,
-            center = Offset(size.width * 0.65f, size.height * 0.65f)
-        )
-    }
-}
-
-@Composable
-fun AnimatedRain(modifier: Modifier = Modifier) {
-    val infiniteTransition = rememberInfiniteTransition(label = "rain")
-    val dropY by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(800, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "rain_drop"
-    )
-
-    Canvas(modifier = modifier) {
-        val cloudColor = Color(0xFF90A4AE)
-        
-        // Draw cloud
-        drawRoundRect(
-            color = cloudColor,
-            topLeft = Offset(size.width * 0.15f, size.height * 0.2f),
-            size = androidx.compose.ui.geometry.Size(size.width * 0.7f, size.height * 0.35f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.width * 0.175f)
-        )
-        drawCircle(
-            color = cloudColor,
-            radius = size.width * 0.2f,
-            center = Offset(size.width * 0.4f, size.height * 0.25f)
-        )
-        drawCircle(
-            color = cloudColor,
-            radius = size.width * 0.15f,
-            center = Offset(size.width * 0.65f, size.height * 0.3f)
-        )
-        
-        // Draw rain drops
-        val dropHeight = size.height * 0.15f
-        val dropWidth = size.width * 0.04f
-        val startY = size.height * 0.4f
-        val distance = size.height * 0.5f
-        
-        // Drop 1
-        val y1 = startY + ((dropY + 0.0f) % 1f) * distance
-        drawRoundRect(
-            color = Color(0xFF4FC3F7),
-            topLeft = Offset(size.width * 0.3f, y1),
-            size = androidx.compose.ui.geometry.Size(dropWidth, dropHeight),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(dropWidth)
-        )
-        // Drop 2
-        val y2 = startY + ((dropY + 0.5f) % 1f) * distance
-        drawRoundRect(
-            color = Color(0xFF4FC3F7),
-            topLeft = Offset(size.width * 0.5f, y2),
-            size = androidx.compose.ui.geometry.Size(dropWidth, dropHeight),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(dropWidth)
-        )
-        // Drop 3
-        val y3 = startY + ((dropY + 0.2f) % 1f) * distance
-        drawRoundRect(
-            color = Color(0xFF4FC3F7),
-            topLeft = Offset(size.width * 0.7f, y3),
-            size = androidx.compose.ui.geometry.Size(dropWidth, dropHeight),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(dropWidth)
-        )
-    }
-}
-
-@Composable
-fun AnimatedClouds(modifier: Modifier = Modifier) {
-    val infiniteTransition = rememberInfiniteTransition(label = "clouds")
-    val offsetX by infiniteTransition.animateFloat(
-        initialValue = -0.05f,
-        targetValue = 0.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(3000, easing = EaseInOutSine),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "cloud_drift"
-    )
-
-    Canvas(modifier = modifier) {
-        val cloudColor = Color(0xFFF5F5F5)
-        val cloudColorDark = Color(0xFFB0BEC5)
-
-        // Back cloud
-        translate(left = -offsetX * size.width) {
-            drawRoundRect(
-                color = cloudColorDark,
-                topLeft = Offset(size.width * 0.25f, size.height * 0.15f),
-                size = androidx.compose.ui.geometry.Size(size.width * 0.6f, size.height * 0.3f),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.width * 0.15f)
-            )
-            drawCircle(color = cloudColorDark, radius = size.width * 0.2f, center = Offset(size.width * 0.45f, size.height * 0.2f))
-            drawCircle(color = cloudColorDark, radius = size.width * 0.15f, center = Offset(size.width * 0.7f, size.height * 0.25f))
-        }
-
-        // Front cloud
-        translate(left = offsetX * size.width) {
-            drawRoundRect(
-                color = cloudColor,
-                topLeft = Offset(size.width * 0.1f, size.height * 0.4f),
-                size = androidx.compose.ui.geometry.Size(size.width * 0.7f, size.height * 0.35f),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.width * 0.175f)
-            )
-            drawCircle(color = cloudColor, radius = size.width * 0.25f, center = Offset(size.width * 0.35f, size.height * 0.45f))
-            drawCircle(color = cloudColor, radius = size.width * 0.2f, center = Offset(size.width * 0.65f, size.height * 0.5f))
         }
     }
 }

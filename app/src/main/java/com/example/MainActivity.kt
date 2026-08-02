@@ -458,28 +458,8 @@ fun TesseraApp() {
     var isFabExpanded by remember { mutableStateOf(false) }
     var fabHoveredItem by remember { mutableStateOf<String?>(null) }
 
-    val backgroundUri by viewModel.homeBackgroundUri.collectAsState()
+    val appTheme by viewModel.appTheme.collectAsState()
     val currentGlassLevel by viewModel.glassmorphismLevel.collectAsState()
-
-    val backgroundPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        if (uri != null) {
-            try {
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    val bgFile = java.io.File(context.filesDir, "custom_home_background.jpg")
-                    bgFile.outputStream().use { outputStream ->
-                        inputStream.copyTo(outputStream)
-                    }
-                    val localUri = Uri.fromFile(bgFile)
-                    viewModel.updateHomeBackgroundUri(localUri.toString())
-                    Toast.makeText(context, "Plano de fundo atualizado!", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Erro ao processar imagem de fundo", e)
-            }
-        }
-    }
 
     var homeScrollOffset by remember { mutableStateOf(0) }
     val hazeState = remember { HazeState() }
@@ -488,37 +468,18 @@ fun TesseraApp() {
         LocalGlassmorphismLevel provides currentGlassLevel,
         LocalHazeState provides hazeState
     ) {
-        Scaffold(
-            containerColor = Color.Transparent,
-            contentWindowInsets = WindowInsets(0, 0, 0, 0)
-        ) { innerPadding ->
-            Box(modifier = Modifier.fillMaxSize()) {
-                val baseBlur = when (currentGlassLevel) {
-                    "Clear" -> 12.dp
-                    "Blur" -> 24.dp
-                    "Frosted" -> 36.dp
-                    else -> 36.dp
-                }
-                val homeScrollBlur = if (currentRoute == "home") {
-                    baseBlur + (homeScrollOffset * 0.04f).coerceIn(0f, 16f).dp
-                } else {
-                    baseBlur
-                }
-                AsyncImage(
-                    model = backgroundUri,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    alignment = Alignment.TopCenter,
-                    modifier = Modifier.fillMaxSize().blur(homeScrollBlur).haze(hazeState)
-                )
+        MyApplicationTheme(appTheme = appTheme) {
+            Scaffold(
+                containerColor = MaterialTheme.colorScheme.background,
+                contentWindowInsets = WindowInsets(0, 0, 0, 0)
+            ) { innerPadding ->
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color(0x99070909))
-                )
-
-                val contentBlur by animateDpAsState(if (isFabExpanded) 32.dp else 0.dp, tween(300))
-                Box(modifier = Modifier.fillMaxSize().blur(contentBlur)) {
+                        .background(MaterialTheme.colorScheme.background)
+                ) {
+                    val contentBlur by animateDpAsState(if (isFabExpanded) 32.dp else 0.dp, tween(300))
+                    Box(modifier = Modifier.fillMaxSize().blur(contentBlur)) {
                     NavHost(navController = navController, startDestination = "home", modifier = Modifier.fillMaxSize()) {
                     composable("home") {
                         DailyScreen(
@@ -667,11 +628,7 @@ fun TesseraApp() {
                     onHoveredItemChange = { fabHoveredItem = it },
                     currentRoute = currentRoute,
                     onNavigate = navigateAction,
-                    onCameraClick = {
-                        backgroundPickerLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
-                    }
+                    onCameraClick = { }
                 )
             }
             } // Fecha o Box do blur
@@ -807,6 +764,7 @@ fun TesseraApp() {
                 }
             }
         }
+    }
     }
     }
 }

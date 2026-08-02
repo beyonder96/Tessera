@@ -38,36 +38,30 @@ val LocalGlassmorphismLevel = staticCompositionLocalOf { "Frosted" }
 // Criamos um provedor local para o estado do desfoque
 val LocalHazeState = staticCompositionLocalOf<HazeState?> { null }
 
-// Shared GlassModifier for premium cards (Liquid Glass)
+// Shared GlassModifier for premium cards (Liquid Glass - Theme Aware)
 val PremiumGlassModifier: Modifier
     get() = Modifier.composed {
         val level = LocalGlassmorphismLevel.current
         val hazeState = LocalHazeState.current
+        val appTheme = LocalAppTheme.current
+        val isDark = appTheme == "dark"
         
-        val (bgColors, borderColors) = when (level) {
-            "Clear" -> {
-                listOf(Color(0x12FFFFFF), Color(0x02FFFFFF)) to
-                listOf(Color(0x8CFFFFFF), Color(0x0AFFFFFF))
+        val (bgColors, borderColors) = if (isDark) {
+            when (level) {
+                "Clear" -> listOf(Color(0x12FFFFFF), Color(0x02FFFFFF)) to listOf(Color(0x8CFFFFFF), Color(0x0AFFFFFF))
+                "Blur" -> listOf(Color(0x2BFFFFFF), Color(0x08FFFFFF)) to listOf(Color(0x59FFFFFF), Color(0x08FFFFFF))
+                else -> listOf(Color(0x4D000000), Color(0x33000000)) to listOf(Color(0x26FFFFFF), Color(0x05FFFFFF))
             }
-            "Blur" -> {
-                listOf(Color(0x2BFFFFFF), Color(0x08FFFFFF)) to
-                listOf(Color(0x59FFFFFF), Color(0x08FFFFFF))
-            }
-            "Frosted" -> {
-                // Fundo com 30% a 20% de preto (deixa o desfoque escurecido como na foto)
-                listOf(Color(0x4D000000), Color(0x33000000)) to
-                // Borda suave de vidro refletido
-                listOf(Color(0x26FFFFFF), Color(0x05FFFFFF))
-            }
-            else -> {
-                listOf(Color(0x4D000000), Color(0x33000000)) to
-                listOf(Color(0x26FFFFFF), Color(0x05FFFFFF))
+        } else {
+            when (level) {
+                "Clear" -> listOf(Color(0xF0FFFFFF), Color(0xE6F8F9FA)) to listOf(Color(0x330F172A), Color(0x100F172A))
+                "Blur" -> listOf(Color(0xF8FFFFFF), Color(0xF2F8F9FA)) to listOf(Color(0x290F172A), Color(0x0A0F172A))
+                else -> listOf(Color(0xFFFFFFFF), Color(0xFFF8F9FA)) to listOf(Color(0x1F0F172A), Color(0x0D0F172A))
             }
         }
         
         var modifier = this.clip(RoundedCornerShape(28.dp))
         
-        // Se o HazeState existir, aplica o desfoque real no fundo
         if (hazeState != null) {
             val surfaceColor = MaterialTheme.colorScheme.surface
             modifier = modifier.hazeChild(state = hazeState) {
@@ -75,7 +69,6 @@ val PremiumGlassModifier: Modifier
             }
         }
         
-        // Aplica as cores escuras e a borda de vidro por cima do desfoque
         modifier
             .background(Brush.verticalGradient(colors = bgColors))
             .border(
@@ -96,12 +89,11 @@ fun OuraCircularProgress(
     Box(
         modifier = modifier
             .clip(CircleShape)
-            .background(Color(0x0AFFFFFF))
-            .border(1.dp, Color(0x1AFFFFFF), CircleShape),
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+            .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), CircleShape),
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize().padding(2.dp)) {
-            // Background track
             drawArc(
                 color = progressColor.copy(alpha = 0.2f),
                 startAngle = -90f,
@@ -109,7 +101,6 @@ fun OuraCircularProgress(
                 useCenter = false,
                 style = Stroke(width = strokeWidth.dp.toPx(), cap = StrokeCap.Round)
             )
-            // Progress arc
             drawArc(
                 color = progressColor,
                 startAngle = -90f,
