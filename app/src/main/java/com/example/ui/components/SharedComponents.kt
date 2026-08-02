@@ -29,20 +29,12 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.composed
 
 // Importações da biblioteca de desfoque (Glassmorphism real)
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.hazeChild
-
 val LocalGlassmorphismLevel = staticCompositionLocalOf { "Frosted" }
-
-// Criamos um provedor local para o estado do desfoque
-val LocalHazeState = staticCompositionLocalOf<HazeState?> { null }
 
 // Shared GlassModifier for premium cards (Liquid Glass - Theme Aware)
 val PremiumGlassModifier: Modifier
     get() = Modifier.composed {
         val level = LocalGlassmorphismLevel.current
-        val hazeState = LocalHazeState.current
         val appTheme = LocalAppTheme.current
         val isDark = appTheme == "dark"
         
@@ -60,14 +52,7 @@ val PremiumGlassModifier: Modifier
             }
         }
         
-        var modifier = this.clip(RoundedCornerShape(28.dp))
-        
-        if (hazeState != null) {
-            val surfaceColor = MaterialTheme.colorScheme.surface
-            modifier = modifier.hazeChild(state = hazeState) {
-                backgroundColor = surfaceColor
-            }
-        }
+        val modifier = this.clip(RoundedCornerShape(28.dp))
         
         modifier
             .background(Brush.verticalGradient(colors = bgColors))
