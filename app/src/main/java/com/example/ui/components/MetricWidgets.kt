@@ -1,4 +1,5 @@
 package com.example.ui.components
+import androidx.compose.material3.MaterialTheme
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -58,7 +59,7 @@ fun OuraMetricItem(
                         Icon(
                             imageVector = Icons.Default.Spa,
                             contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.8f),
+                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -76,14 +77,14 @@ fun OuraMetricItem(
                                 lineTo(0f, h * 0.3f)
                                 close()
                             }
-                            drawPath(path, color = Color.White.copy(alpha = 0.8f))
+                            drawPath(path, color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f))
                         }
                     }
                     "activity" -> {
                         Icon(
                             imageVector = Icons.Default.Whatshot,
                             contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.8f),
+                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -91,7 +92,7 @@ fun OuraMetricItem(
                         Icon(
                             imageVector = Icons.Default.Favorite,
                             contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.8f),
+                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                             modifier = Modifier.size(14.dp)
                         )
                     }
@@ -105,7 +106,7 @@ fun OuraMetricItem(
                     fontSize = 22.sp,
                     fontFamily = FontFamily.SansSerif,
                     fontWeight = FontWeight.Normal,
-                    color = Color.White
+                    color = androidx.compose.ui.graphics.Color.White
                 )
             }
         }
@@ -118,7 +119,7 @@ fun OuraMetricItem(
             fontSize = 11.sp,
             fontFamily = FontFamily.SansSerif,
             fontWeight = FontWeight.Light,
-            color = Color.White.copy(alpha = 0.7f)
+            color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.7f)
         )
     }
 }
@@ -153,20 +154,20 @@ fun MetricItem(icon: ImageVector, value: String, label: String, onClick: () -> U
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 4.dp)) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
+                Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onBackground)
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = value,
                     fontSize = displayFontSize,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color.White,
+                    color = androidx.compose.ui.graphics.Color.White,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
         }
         Spacer(modifier = Modifier.height(12.dp))
-        Text(label, fontSize = 9.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.5f))
+        Text(label, fontSize = 9.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f))
     }
 }
 
@@ -235,27 +236,27 @@ fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, prog
                             lineTo(w * 0.1f, h * 0.45f)
                             close()
                         }
-                        drawPath(path, color = Color.White.copy(alpha = 0.8f))
-                        drawCircle(color = Color.White.copy(alpha = 0.8f), radius = 1.dp.toPx(), center = Offset(w * 0.1f, h * 0.45f))
-                        drawCircle(color = Color.White.copy(alpha = 0.8f), radius = 1.dp.toPx(), center = Offset(w * 0.5f, h * 0.25f))
-                        drawCircle(color = Color.White.copy(alpha = 0.8f), radius = 1.dp.toPx(), center = Offset(w * 0.9f, h * 0.45f))
+                        drawPath(path, color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f))
+                        drawCircle(color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f), radius = 1.dp.toPx(), center = Offset(w * 0.1f, h * 0.45f))
+                        drawCircle(color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f), radius = 1.dp.toPx(), center = Offset(w * 0.5f, h * 0.25f))
+                        drawCircle(color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f), radius = 1.dp.toPx(), center = Offset(w * 0.9f, h * 0.45f))
                     }
                 } else {
-                    Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
+                    Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onBackground)
                 }
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = value,
                     fontSize = displayFontSize,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color.White,
+                    color = androidx.compose.ui.graphics.Color.White,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
         }
         Spacer(modifier = Modifier.height(12.dp))
-        Text(label, fontSize = 9.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.5f))
+        Text(label, fontSize = 9.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f))
     }
 }
 
@@ -311,13 +312,13 @@ fun MetricItemWithNeonPulse(
                     text = value,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    color = androidx.compose.ui.graphics.Color.White,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
         }
         Spacer(modifier = Modifier.height(12.dp))
-        Text(label, fontSize = 9.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.5f))
+        Text(label, fontSize = 9.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f))
     }
 }

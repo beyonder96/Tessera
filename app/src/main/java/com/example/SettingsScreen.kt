@@ -1,4 +1,5 @@
 package com.example
+import androidx.compose.material3.MaterialTheme
 
 import android.net.Uri
 import android.widget.Toast
@@ -179,8 +180,8 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
     if (showResetFinancesDialog) {
         AlertDialog(
             onDismissRequest = { showResetFinancesDialog = false },
-            title = { Text("Zerar Finanças", color = Color.White) },
-            text = { Text("Isso apagará todas as transações, cartões de crédito e contas bancárias. Tem certeza?", color = Color.White.copy(alpha=0.7f)) },
+            title = { Text("Zerar Finanças", color = MaterialTheme.colorScheme.onBackground) },
+            text = { Text("Isso apagará todas as transações, cartões de crédito e contas bancárias. Tem certeza?", color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.7f)) },
             containerColor = Color(0xFF1E1E1E),
             confirmButton = {
                 TextButton(onClick = {
@@ -193,7 +194,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
             },
             dismissButton = {
                 TextButton(onClick = { showResetFinancesDialog = false }) {
-                    Text("Cancelar", color = Color.White.copy(alpha=0.7f))
+                    Text("Cancelar", color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.7f))
                 }
             }
         )
@@ -288,7 +289,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                     Icon(
                                         Icons.Outlined.Person,
                                         contentDescription = null,
-                                        tint = Color.White.copy(alpha = 0.7f),
+                                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                                         modifier = Modifier.size(32.dp)
                                     )
                                 }
@@ -297,7 +298,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                             Column {
                                 Text(
                                     text = "Olá, $userName!",
-                                    color = Color.White,
+                                    color = MaterialTheme.colorScheme.onBackground,
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = FontFamily.SansSerif
@@ -507,9 +508,9 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                     }
                                     Spacer(modifier = Modifier.width(16.dp))
                                     Column {
-                                        Text("Somar investimentos ao saldo", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                                        Text("Somar investimentos ao saldo", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onBackground)
                                         Spacer(modifier = Modifier.height(2.dp))
-                                        Text("Incluir valor no saldo total exibido", fontSize = 12.sp, color = Color.White.copy(alpha=0.6f))
+                                        Text("Incluir valor no saldo total exibido", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.6f))
                                     }
                                 }
                                 Switch(
@@ -546,9 +547,9 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                     }
                                     Spacer(modifier = Modifier.width(16.dp))
                                     Column {
-                                        Text("Somar ao disponível p/ gastar", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                                        Text("Somar ao disponível p/ gastar", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onBackground)
                                         Spacer(modifier = Modifier.height(2.dp))
-                                        Text("Investimentos contam como dinheiro livre", fontSize = 12.sp, color = Color.White.copy(alpha=0.6f))
+                                        Text("Investimentos contam como dinheiro livre", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.6f))
                                     }
                                 }
                                 Switch(
@@ -647,13 +648,13 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                         Column {
                                             Text(
                                                 text = "Preto Profundo",
-                                                color = Color.White,
+                                                color = MaterialTheme.colorScheme.onBackground,
                                                 fontSize = 15.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
                                             Text(
                                                 text = "Economia de bateria",
-                                                color = Color.White.copy(alpha = 0.6f),
+                                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                                                 fontSize = 11.sp
                                             )
                                         }
@@ -925,9 +926,9 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                 }
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column {
-                                    Text("Desbloqueio Biométrico", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                                    Text("Desbloqueio Biométrico", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onBackground)
                                     Spacer(modifier = Modifier.height(2.dp))
-                                    Text("Exigir digital ou face ID ao abrir o app", fontSize = 12.sp, color = Color.White.copy(alpha=0.6f))
+                                    Text("Exigir digital ou face ID ao abrir o app", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.6f))
                                 }
                             }
                             Switch(
@@ -997,12 +998,12 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                 }
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column {
-                                    Text("Google Health Connect", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                                    Text("Google Health Connect", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onBackground)
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
                                         if (healthProfile?.isHealthConnectEnabled == true) "Sincronização ativa" else "Sincronizar passos, peso e sono",
                                         fontSize = 12.sp,
-                                        color = Color.White.copy(alpha=0.6f)
+                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.6f)
                                     )
                                 }
                             }
@@ -1081,9 +1082,9 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                 }
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column {
-                                    Text("Lembrete de Passos", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                                    Text("Lembrete de Passos", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onBackground)
                                     Spacer(modifier = Modifier.height(2.dp))
-                                    Text("Notificar diariamente às $stepsReminderTime", fontSize = 12.sp, color = Color.White.copy(alpha=0.6f))
+                                    Text("Notificar diariamente às $stepsReminderTime", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.6f))
                                 }
                             }
                         }
@@ -1115,9 +1116,9 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                 }
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column {
-                                    Text("Lembrete de Sono", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                                    Text("Lembrete de Sono", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onBackground)
                                     Spacer(modifier = Modifier.height(2.dp))
-                                    Text("Notificar diariamente às $sleepReminderTime", fontSize = 12.sp, color = Color.White.copy(alpha=0.6f))
+                                    Text("Notificar diariamente às $sleepReminderTime", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.6f))
                                 }
                             }
                         }
@@ -1164,12 +1165,12 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                 text = "Horários de Alerta",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color.White
+                                color = MaterialTheme.colorScheme.onBackground
                             )
                             Text(
                                 text = "O pop-up de status do metrô e trem será exibido na tela inicial nos horários configurados.",
                                 fontSize = 12.sp,
-                                color = Color.White.copy(alpha = 0.6f)
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                             )
                             
                             if (alertTimes.value.isEmpty()) {
@@ -1183,7 +1184,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                     Text(
                                         text = "Nenhum horário programado.",
                                         fontSize = 13.sp,
-                                        color = Color.White.copy(alpha = 0.4f),
+                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                                         fontStyle = FontStyle.Italic
                                     )
                                 }
@@ -1202,11 +1203,11 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
-                                            Text(text = time, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                            Text(text = time, color = MaterialTheme.colorScheme.onBackground, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                                             Icon(
                                                 imageVector = Icons.Default.Close,
                                                 contentDescription = "Remover",
-                                                tint = Color.White.copy(alpha = 0.6f),
+                                                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                                                 modifier = Modifier
                                                     .size(14.dp)
                                                     .clickable {
@@ -1245,12 +1246,12 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                 text = "Linhas a Monitorar",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color.White
+                                color = MaterialTheme.colorScheme.onBackground
                             )
                             Text(
                                 text = "Selecione as linhas que deseja acompanhar.",
                                 fontSize = 12.sp,
-                                color = Color.White.copy(alpha = 0.6f)
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                             )
 
                             if (isLoadingConfig) {
@@ -1293,7 +1294,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                                 text = empresa.nome.uppercase(),
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color.White.copy(alpha = 0.5f),
+                                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                                                 letterSpacing = 1.sp,
                                                 modifier = Modifier.padding(top = 8.dp)
                                             )
@@ -1324,7 +1325,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                                     Spacer(modifier = Modifier.width(12.dp))
                                                     Text(
                                                         text = linha.nome,
-                                                        color = Color.White,
+                                                        color = MaterialTheme.colorScheme.onBackground,
                                                         fontSize = 14.sp,
                                                         fontWeight = FontWeight.Normal,
                                                         modifier = Modifier.weight(1f)
@@ -1371,7 +1372,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                 ) {
                                     Text(
                                         text = "Adicionar Horário",
-                                        color = Color.White,
+                                        color = MaterialTheme.colorScheme.onBackground,
                                         fontSize = 18.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -1383,22 +1384,22 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                     ) {
                                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                             IconButton(onClick = { tempHour = if (tempHour < 23) tempHour + 1 else 0 }) {
-                                                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Mais", tint = Color.White)
+                                                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Mais", tint = MaterialTheme.colorScheme.onBackground)
                                             }
                                             Text(
                                                 text = String.format("%02d", tempHour),
-                                                color = Color.White,
+                                                color = MaterialTheme.colorScheme.onBackground,
                                                 fontSize = 32.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
                                             IconButton(onClick = { tempHour = if (tempHour > 0) tempHour - 1 else 23 }) {
-                                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Menos", tint = Color.White)
+                                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Menos", tint = MaterialTheme.colorScheme.onBackground)
                                             }
                                         }
 
                                         Text(
                                             text = ":",
-                                            color = Color.White,
+                                            color = MaterialTheme.colorScheme.onBackground,
                                             fontSize = 32.sp,
                                             fontWeight = FontWeight.Bold,
                                             modifier = Modifier.padding(horizontal = 16.dp)
@@ -1406,16 +1407,16 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
 
                                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                             IconButton(onClick = { tempMinute = if (tempMinute < 59) tempMinute + 1 else 0 }) {
-                                                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Mais", tint = Color.White)
+                                                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Mais", tint = MaterialTheme.colorScheme.onBackground)
                                             }
                                             Text(
                                                 text = String.format("%02d", tempMinute),
-                                                color = Color.White,
+                                                color = MaterialTheme.colorScheme.onBackground,
                                                 fontSize = 32.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
                                             IconButton(onClick = { tempMinute = if (tempMinute > 0) tempMinute - 1 else 59 }) {
-                                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Menos", tint = Color.White)
+                                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Menos", tint = MaterialTheme.colorScheme.onBackground)
                                             }
                                         }
                                     }
@@ -1430,7 +1431,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                             border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
                                             modifier = Modifier.weight(1f)
                                         ) {
-                                            Text("Cancelar", color = Color.White)
+                                            Text("Cancelar", color = MaterialTheme.colorScheme.onBackground)
                                         }
                                         Button(
                                             onClick = {
@@ -1475,12 +1476,12 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                 text = "Times e Seleções Monitorados",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color.White
+                                color = MaterialTheme.colorScheme.onBackground
                             )
                             Text(
                                 text = "O painel de esportes exibirá o último e o próximo placar para os times abaixo.",
                                 fontSize = 12.sp,
-                                color = Color.White.copy(alpha = 0.6f)
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                             )
                             
                             if (configuredFootballTeams.isEmpty()) {
@@ -1494,7 +1495,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                     Text(
                                         text = "Nenhum time configurado.",
                                         fontSize = 13.sp,
-                                        color = Color.White.copy(alpha = 0.4f),
+                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                                         fontStyle = FontStyle.Italic
                                     )
                                 }
@@ -1513,11 +1514,11 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
-                                            Text(text = team, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                            Text(text = team, color = MaterialTheme.colorScheme.onBackground, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                                             Icon(
                                                 imageVector = Icons.Default.Close,
                                                 contentDescription = "Remover",
-                                                tint = Color.White.copy(alpha = 0.6f),
+                                                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                                                 modifier = Modifier
                                                     .size(14.dp)
                                                     .clickable {
@@ -1565,7 +1566,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                 ) {
                                     Text(
                                         text = "Adicionar Time",
-                                        color = Color.White,
+                                        color = MaterialTheme.colorScheme.onBackground,
                                         fontSize = 18.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -1573,7 +1574,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                     OutlinedTextField(
                                         value = tempTeamName,
                                         onValueChange = { tempTeamName = it },
-                                        label = { Text("Nome do time ou seleção", color = Color.White.copy(alpha = 0.6f)) },
+                                        label = { Text("Nome do time ou seleção", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)) },
                                         modifier = Modifier.fillMaxWidth(),
                                         colors = OutlinedTextFieldDefaults.colors(
                                             focusedBorderColor = Color(0xFF69F0AE),
@@ -1595,7 +1596,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                             filteredTeams.forEach { teamName ->
                                                 Text(
                                                     text = teamName,
-                                                    color = Color.White,
+                                                    color = MaterialTheme.colorScheme.onBackground,
                                                     modifier = Modifier
                                                         .fillMaxWidth()
                                                         .clickable { tempTeamName = teamName }
@@ -1618,7 +1619,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                             border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
                                             modifier = Modifier.weight(1f)
                                         ) {
-                                            Text("Cancelar", color = Color.White)
+                                            Text("Cancelar", color = MaterialTheme.colorScheme.onBackground)
                                         }
                                         Button(
                                             onClick = {
@@ -1727,9 +1728,9 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                     if (activeCategory == null) {
                         Spacer(modifier = Modifier.height(40.dp))
                     Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("TESSERA", fontFamily = FontFamily.SansSerif, fontSize = 14.sp, color = Color.White.copy(alpha=0.3f), letterSpacing = 3.sp, fontWeight = FontWeight.Bold)
+                        Text("TESSERA", fontFamily = FontFamily.SansSerif, fontSize = 14.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.3f), letterSpacing = 3.sp, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("v$appVersionName", fontSize = 11.sp, color = Color.White.copy(alpha=0.2f))
+                        Text("v$appVersionName", fontSize = 11.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.2f))
                     }
                     }
                 }

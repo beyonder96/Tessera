@@ -1,5 +1,6 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 package com.example
+import androidx.compose.material3.MaterialTheme
 
 import android.util.Log
 import com.example.ui.components.MetricItem
@@ -663,7 +664,7 @@ fun TesseraApp() {
                             val titleAlpha by animateFloatAsState(if (isFabExpanded) 1f else 0f, tween(300))
                             Text(
                                 text = "O que você deseja ver?",
-                                color = Color.White.copy(alpha = titleAlpha),
+                                color = androidx.compose.ui.graphics.Color.White.copy(alpha = titleAlpha),
                                 fontSize = 24.sp,
                                 fontFamily = FontFamily.Serif,
                                 fontWeight = FontWeight.Normal,
@@ -672,7 +673,7 @@ fun TesseraApp() {
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 text = "Selecione um painel para navegar",
-                                color = Color.White.copy(alpha = titleAlpha * 0.5f),
+                                color = androidx.compose.ui.graphics.Color.White.copy(alpha = titleAlpha * 0.5f),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Normal,
                                 textAlign = TextAlign.Center
@@ -1068,14 +1069,14 @@ fun DailyScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScr
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "Status Metroferroviário",
-                                color = Color.White,
+                                color = androidx.compose.ui.graphics.Color.White,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.SansSerif
                             )
                             Text(
                                 text = "Situação das linhas em tempo real",
-                                color = Color.White.copy(alpha = 0.5f),
+                                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f),
                                 fontSize = 12.sp
                             )
                         }
@@ -1083,7 +1084,7 @@ fun DailyScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScr
                             onClick = { showMetroPopup = false },
                             modifier = Modifier.size(32.dp)
                         ) {
-                            Icon(Icons.Default.Close, contentDescription = "Fechar", tint = Color.White.copy(alpha = 0.6f))
+                            Icon(Icons.Default.Close, contentDescription = "Fechar", tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
                         }
                     }
 
@@ -1099,7 +1100,7 @@ fun DailyScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScr
                         ) {
                             CircularProgressIndicator(color = Color(0xFF4FC3F7))
                             Spacer(modifier = Modifier.height(16.dp))
-                            Text("Buscando informações da ARTESP...", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp)
+                            Text("Buscando informações da ARTESP...", color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.7f), fontSize = 13.sp)
                         }
                     } else if (metroError != null) {
                         Column(
@@ -1134,13 +1135,13 @@ fun DailyScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScr
                         ) {
                             Text(
                                 text = "Nenhuma linha selecionada para monitoramento.",
-                                color = Color.White.copy(alpha = 0.6f),
+                                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.6f),
                                 fontSize = 14.sp,
                                 textAlign = TextAlign.Center
                             )
                             Text(
                                 text = "Configure as linhas desejadas nas Configurações do app.",
-                                color = Color.White.copy(alpha = 0.4f),
+                                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.4f),
                                 fontSize = 12.sp,
                                 textAlign = TextAlign.Center
                             )
@@ -1167,7 +1168,7 @@ fun DailyScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScr
                             ) {
                                 Text(
                                     text = "Nenhuma linha selecionada está ativa na API.",
-                                    color = Color.White.copy(alpha = 0.6f),
+                                    color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.6f),
                                     fontSize = 14.sp,
                                     textAlign = TextAlign.Center
                                 )
@@ -1205,13 +1206,13 @@ fun DailyScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScr
                                         Column(modifier = Modifier.weight(1.3f)) {
                                             Text(
                                                 text = linha.nome,
-                                                color = Color.White,
+                                                color = androidx.compose.ui.graphics.Color.White,
                                                 fontSize = 15.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
                                             Text(
                                                 text = empresaNome,
-                                                color = Color.White.copy(alpha = 0.4f),
+                                                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.4f),
                                                 fontSize = 11.sp
                                             )
                                         }
@@ -1241,7 +1242,7 @@ fun DailyScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScr
                                                 Spacer(modifier = Modifier.height(4.dp))
                                                 Text(
                                                     text = "há $atualizadoHa",
-                                                    color = Color.White.copy(alpha = 0.3f),
+                                                    color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.3f),
                                                     fontSize = 9.sp
                                                 )
                                             }
@@ -1264,7 +1265,7 @@ fun DailyScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScr
                             border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
                             modifier = Modifier.weight(1f).height(48.dp)
                         ) {
-                            Text("Fechar", color = Color.White, fontSize = 14.sp)
+                            Text("Fechar", color = androidx.compose.ui.graphics.Color.White, fontSize = 14.sp)
                         }
                         
                         if (!isLoadingMetroStatus && monitoredLines.isNotEmpty()) {
@@ -1325,6 +1326,33 @@ fun TopHeader(onOpenSettings: () -> Unit, onOpenMetro: () -> Unit) {
         }
     }
 
+    // Thermal/Lava Lamp animation colors
+    val infiniteTransition = rememberInfiniteTransition(label = "lavaLamp")
+    val color1 by infiniteTransition.animateColor(
+        initialValue = Color(0xFFFF5722), // Deep Orange
+        targetValue = Color(0xFFFFC107), // Amber
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "color1"
+    )
+    val color2 by infiniteTransition.animateColor(
+        initialValue = Color(0xFFFF0000), // Red
+        targetValue = Color(0xFFFF9800), // Orange
+        animationSpec = infiniteRepeatable(
+            animation = tween(2500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "color2"
+    )
+
+    val lavaBrush = Brush.linearGradient(
+        colors = listOf(color1, color2),
+        start = Offset(0f, 0f),
+        end = Offset(500f, 500f)
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1332,38 +1360,42 @@ fun TopHeader(onOpenSettings: () -> Unit, onOpenMetro: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Menu button on left (Gear style settings)
-        IconButton(
-            onClick = { onOpenSettings() },
-            modifier = Modifier.size(36.dp)
+        // Left side: Settings icon + TESSERA text
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = "Configurações",
-                tint = Color.White,
-                modifier = Modifier.size(22.dp)
+            IconButton(
+                onClick = { onOpenSettings() },
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Configurações",
+                    tint = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            Text(
+                text = "TESSERA",
+                fontSize = 16.sp, // Made smaller
+                fontFamily = FontFamily.SansSerif,
+                fontWeight = FontWeight.Bold,
+                style = androidx.compose.ui.text.TextStyle(brush = lavaBrush), // Applied lava lamp
+                letterSpacing = 4.sp,
+                textAlign = TextAlign.Center
             )
         }
 
-        // Central title "TESSERA"
-        Text(
-            text = "TESSERA",
-            fontSize = 18.sp,
-            fontFamily = FontFamily.SansSerif,
-            fontWeight = FontWeight.Normal,
-            color = Color.White,
-            letterSpacing = 4.sp,
-            textAlign = TextAlign.Center
-        )
-
-        // Right buttons (Photo upload and Target/Biometrics)
+        // Right buttons (Photo upload and Metro)
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(
                 onClick = {
-                    launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    launcher.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
                 },
                 modifier = Modifier.size(36.dp)
             ) {
@@ -1381,7 +1413,7 @@ fun TopHeader(onOpenSettings: () -> Unit, onOpenMetro: () -> Unit) {
                     Icon(
                         imageVector = Icons.Default.PhotoCamera,
                         contentDescription = "Upload Foto de Perfil",
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -1394,7 +1426,7 @@ fun TopHeader(onOpenSettings: () -> Unit, onOpenMetro: () -> Unit) {
                 Icon(
                     imageVector = Icons.Outlined.DirectionsTransit,
                     contentDescription = "Status do Metrô",
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -1605,7 +1637,7 @@ fun HeroMetric(metric: com.example.viewmodel.TesseraViewModel.DynamicHeroMetric?
 
                     // Draw thin elegant background track
                     drawArc(
-                        color = Color.White.copy(alpha = 0.15f),
+                        color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.15f),
                         startAngle = startAngle,
                         sweepAngle = sweepAngle,
                         useCenter = false,
@@ -1643,7 +1675,7 @@ fun HeroMetric(metric: com.example.viewmodel.TesseraViewModel.DynamicHeroMetric?
                         val angleRad = Math.toRadians(angle.toDouble())
                         val x = size.width / 2 + radius * Math.cos(angleRad).toFloat()
                         val y = size.height - (size.width * 0.85f) / 1.7f + radius + radius * Math.sin(angleRad).toFloat()
-                        drawCircle(color = Color.White.copy(alpha = 0.4f), radius = 2.5.dp.toPx(), center = Offset(x, y))
+                        drawCircle(color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.4f), radius = 2.5.dp.toPx(), center = Offset(x, y))
                     }
                 }
 
@@ -1655,7 +1687,7 @@ fun HeroMetric(metric: com.example.viewmodel.TesseraViewModel.DynamicHeroMetric?
                         fontSize = 11.sp,
                         fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.Medium,
-                        color = Color.White.copy(alpha = 0.5f),
+                        color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f),
                         modifier = Modifier
                             .align(Alignment.BottomStart)
                             .padding(start = 24.dp, bottom = 44.dp)
@@ -1666,7 +1698,7 @@ fun HeroMetric(metric: com.example.viewmodel.TesseraViewModel.DynamicHeroMetric?
                         fontSize = 11.sp,
                         fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.Medium,
-                        color = Color.White.copy(alpha = 0.5f),
+                        color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f),
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(end = 24.dp, bottom = 44.dp)
@@ -1702,7 +1734,7 @@ fun HeroMetric(metric: com.example.viewmodel.TesseraViewModel.DynamicHeroMetric?
                         fontFamily = FontFamily.SansSerif,
                         fontSize = 10.sp,
                         letterSpacing = 2.sp,
-                        color = Color.White.copy(alpha = 0.5f),
+                        color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f),
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
@@ -1711,7 +1743,7 @@ fun HeroMetric(metric: com.example.viewmodel.TesseraViewModel.DynamicHeroMetric?
                         fontFamily = FontFamily.SansSerif,
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = androidx.compose.ui.graphics.Color.White
                     )
                 }
             }
@@ -1795,7 +1827,7 @@ fun InsightCardComponent(card: com.example.viewmodel.TesseraViewModel.InsightCar
                         text = card.description,
                         fontFamily = FontFamily.SansSerif,
                         fontSize = 14.sp,
-                        color = Color.White.copy(alpha = 0.85f),
+                        color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f),
                         lineHeight = 20.sp
                     )
                 }
@@ -1810,7 +1842,7 @@ fun InsightCardComponent(card: com.example.viewmodel.TesseraViewModel.InsightCar
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Fechar",
-                    tint = Color.White.copy(alpha = 0.4f),
+                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                     modifier = Modifier.size(16.dp)
                 )
             }
@@ -1996,23 +2028,23 @@ fun MainContent(
             onClick = { showEditSheet = true },
             modifier = Modifier.align(Alignment.CenterHorizontally)
         ) {
-            Icon(Icons.Outlined.Edit, contentDescription = null, tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(16.dp))
+            Icon(Icons.Outlined.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f), modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Editar Widgets", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+            Text("Editar Widgets", color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
         }
     }
 
     if (showEditSheet) {
         ModalBottomSheet(
             onDismissRequest = { showEditSheet = false },
-            containerColor = Color(0xFF1E252B),
+            containerColor = MaterialTheme.colorScheme.background,
             scrimColor = Color.Black.copy(alpha = 0.7f)
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(24.dp).verticalScroll(rememberScrollState())) {
                 Text(
                     text = "Editar Widgets da Home",
                     fontSize = 20.sp,
-                    color = Color.White,
+                    color = androidx.compose.ui.graphics.Color.White,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(16.dp))
@@ -2076,7 +2108,7 @@ fun ModuleToggleWithOrder(
                 }
             }
             Spacer(modifier = Modifier.width(12.dp))
-            Text(name, fontSize = 16.sp, color = Color.White)
+            Text(name, fontSize = 16.sp, color = androidx.compose.ui.graphics.Color.White)
         }
         Switch(
             checked = isVisible,
@@ -2256,7 +2288,7 @@ fun HealthWidget(
                         Icon(
                             Icons.Outlined.Add,
                             contentDescription = "Adicionar Vibe",
-                            tint = Color.White,
+                            tint = MaterialTheme.colorScheme.onBackground,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -2354,7 +2386,7 @@ fun HealthMiniCard(
                 text = value,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = androidx.compose.ui.graphics.Color.White
             )
         }
     }
@@ -2471,7 +2503,7 @@ fun GoalsWidget(
                     text = "$totalCompleted de $totalGoals concluídas hoje",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color.White
+                    color = androidx.compose.ui.graphics.Color.White
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 LinearProgressIndicator(
@@ -2508,7 +2540,7 @@ fun GoalsWidget(
                     text = "$completedMetas de $totalMetas concluídos",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color.White
+                    color = androidx.compose.ui.graphics.Color.White
                 )
             }
 
@@ -2583,7 +2615,7 @@ fun GoalsWidget(
                                         text = routine.name,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color.White
+                                        color = androidx.compose.ui.graphics.Color.White
                                     )
                                     Text(
                                         text = "Toque para iniciar fluxo",
@@ -2627,7 +2659,7 @@ fun GoalsWidget(
                             text = "$completedRituais de $totalRituais concluídos",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color.White
+                            color = androidx.compose.ui.graphics.Color.White
                         )
                     }
                     
@@ -2907,7 +2939,7 @@ fun MarketCard(items: List<com.example.data.MarketItem>, onNavigate: (String) ->
                     text = "Tudo Comprado! Despensa Cheia",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color.White
+                    color = androidx.compose.ui.graphics.Color.White
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -2929,7 +2961,7 @@ fun MarketCard(items: List<com.example.data.MarketItem>, onNavigate: (String) ->
                         text = if (pendingItems > 0) "$pendingItems itens pendentes de compra" else "Todos os itens marcados!",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color.White
+                        color = androidx.compose.ui.graphics.Color.White
                     )
                     Text(
                         text = "${(completionProgress * 100).toInt()}%",
@@ -3223,7 +3255,7 @@ fun PetMedicalEvent(
             Column {
                 Text(
                     text = title,
-                    color = Color.White,
+                    color = androidx.compose.ui.graphics.Color.White,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -3242,7 +3274,7 @@ fun PetMedicalEvent(
         ) {
             Text(
                 text = date,
-                color = Color.White,
+                color = androidx.compose.ui.graphics.Color.White,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -3388,7 +3420,7 @@ fun HomeFinanceWidget(
                     text = if (hideValues) "R$ ***" else "R$ ${String.format(java.util.Locale("pt", "BR"), "%,.2f", totalIncome)}",
                     fontFamily = FontFamily.Serif,
                     fontSize = 18.sp,
-                    color = Color.White
+                    color = androidx.compose.ui.graphics.Color.White
                 )
             }
             
@@ -3405,7 +3437,7 @@ fun HomeFinanceWidget(
                     text = if (hideValues) "R$ ***" else "R$ ${String.format(java.util.Locale("pt", "BR"), "%,.2f", totalExpense)}",
                     fontFamily = FontFamily.Serif,
                     fontSize = 18.sp,
-                    color = Color.White
+                    color = androidx.compose.ui.graphics.Color.White
                 )
             }
         }
@@ -3546,7 +3578,7 @@ fun AISummaryWidget(
                     text = "Olá Kenned! Aqui está o panorama do seu ecossistema hoje:",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color.White
+                    color = androidx.compose.ui.graphics.Color.White
                 )
                 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -3579,7 +3611,7 @@ fun AISummaryWidget(
                         Text(
                             text = buildAnnotatedString {
                                 append("Pets: ")
-                                pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color.White))
+                                pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White))
                                 append("$completedPetRoutines de $totalPetRoutines")
                                 pop()
                                 append(" tarefas concluídas para Marie & Churchill.")
@@ -3594,7 +3626,7 @@ fun AISummaryWidget(
                         Text(
                             text = buildAnnotatedString {
                                 append("Mercado: ")
-                                pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color.White))
+                                pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White))
                                 append("$pendingMarketCount")
                                 pop()
                                 append(" itens pendentes na sua lista de compras.")
@@ -3939,7 +3971,7 @@ fun PopupOverlayItem(name: String, icon: ImageVector, offsetX: Dp, offsetY: Dp, 
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(icon, contentDescription = name, tint = PrimaryTeal, modifier = Modifier.size(24.dp))
-            Text(name, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+            Text(name, color = androidx.compose.ui.graphics.Color.White, fontSize = 10.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
@@ -4017,14 +4049,14 @@ fun PremiumGlassCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    color = Color.White,
+                    color = androidx.compose.ui.graphics.Color.White,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = subtitle,
-                    color = Color.White.copy(alpha = 0.6f),
+                    color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.6f),
                     fontSize = 12.sp,
                     lineHeight = 16.sp
                 )
@@ -4033,7 +4065,7 @@ fun PremiumGlassCard(
             Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = Color.White.copy(alpha = 0.3f),
+                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f),
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -4082,7 +4114,7 @@ fun PremiumGridTile(
             }
             Text(
                 text = title,
-                color = Color.White,
+                color = androidx.compose.ui.graphics.Color.White,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
                 lineHeight = 22.sp
@@ -4260,7 +4292,7 @@ fun LockScreen(onUnlocked: () -> Unit) {
                 Text(
                     text = "Tessera Protegido",
                     fontFamily = FontFamily.Serif,
-                    color = Color.White,
+                    color = androidx.compose.ui.graphics.Color.White,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Light,
                     textAlign = TextAlign.Center
@@ -4270,7 +4302,7 @@ fun LockScreen(onUnlocked: () -> Unit) {
                 
                 Text(
                     text = "Sua privacidade está resguardada. Use biometria para acessar seu painel.",
-                    color = Color.White.copy(alpha = 0.5f),
+                    color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f),
                     fontSize = 13.sp,
                     textAlign = TextAlign.Center,
                     lineHeight = 18.sp
@@ -4390,7 +4422,7 @@ fun DailyBriefWidget(onClick: () -> Unit) {
                 fontFamily = FontFamily.Serif,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Light,
-                color = Color.White,
+                color = androidx.compose.ui.graphics.Color.White,
                 lineHeight = 22.sp
             )
             

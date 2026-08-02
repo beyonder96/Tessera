@@ -1,4 +1,5 @@
 package com.example
+import androidx.compose.material3.MaterialTheme
 
 import android.content.Context
 import android.media.AudioFormat
@@ -210,7 +211,7 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
                 Icon(
                     imageVector = Icons.Default.TrendingUp,
                     contentDescription = "Estatísticas",
-                    tint = Color.White.copy(alpha = 0.6f)
+                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                 )
             }
             Text(
@@ -218,7 +219,7 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 20.sp,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.weight(1f),
                 textAlign = TextAlign.Center
             )
@@ -226,7 +227,7 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
                 Icon(
                     imageVector = Icons.Default.Tune,
                     contentDescription = "Configurações",
-                    tint = Color.White.copy(alpha = 0.6f)
+                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                 )
             }
         }
@@ -239,7 +240,7 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
             Text(
                 text = "✨ Now for you",
                 fontSize = 13.sp,
-                color = Color.White.copy(alpha = 0.5f),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.align(Alignment.Start)
             )
@@ -297,7 +298,7 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
                 fontFamily = FontFamily.SansSerif,
                 fontWeight = FontWeight.Light,
                 fontSize = 44.sp,
-                color = Color.White
+                color = MaterialTheme.colorScheme.onBackground
             )
             
             Spacer(modifier = Modifier.height(16.dp))
@@ -315,7 +316,7 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
             Text(
                 text = "${selectedMode.title.substringBefore(" ")} >",
                 fontSize = 13.sp,
-                color = Color.White.copy(alpha = 0.4f),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                 fontWeight = FontWeight.Medium
             )
         }
@@ -363,13 +364,13 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
                     Column {
                         Text(
                             text = selectedSoundscape,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onBackground,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
                             text = "Soundscape",
-                            color = Color.White.copy(alpha = 0.4f),
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                             fontSize = 11.sp
                         )
                     }
@@ -396,13 +397,13 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
                 ) {
                     Text(
                         text = if (selectedMode == FocusMode.BREATHING) "Deep Breath" else focusModeType,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onBackground,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
                         text = if (selectedMode == FocusMode.BREATHING) "Breathing exercise" else "Focus mode",
-                        color = Color.White.copy(alpha = 0.4f),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                         fontSize = 11.sp
                     )
                 }
@@ -443,7 +444,7 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
         AlertDialog(
             onDismissRequest = { showSoundscapeDialog = false },
             containerColor = Color(0xFF141918),
-            title = { Text("Select Soundscape", color = Color.White) },
+            title = { Text("Select Soundscape", color = MaterialTheme.colorScheme.onBackground) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("Ocean", "Rain", "Silence").forEach { sound ->
@@ -460,7 +461,7 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(sound, color = Color.White, fontSize = 15.sp)
+                            Text(sound, color = MaterialTheme.colorScheme.onBackground, fontSize = 15.sp)
                             if (selectedSoundscape == sound) {
                                 Icon(Icons.Default.Check, contentDescription = null, tint = PrimaryTeal)
                             }
@@ -620,7 +621,7 @@ fun ActiveFocusDialog(
                 ) {
                     Text(
                         text = soundscape,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onBackground,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -634,7 +635,7 @@ fun ActiveFocusDialog(
                         Icon(
                             imageVector = Icons.Default.Tune,
                             contentDescription = "Configuração do Foco",
-                            tint = Color.White,
+                            tint = MaterialTheme.colorScheme.onBackground,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -687,7 +688,7 @@ fun ActiveFocusDialog(
                         }
                         Text(
                             text = phaseText,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onBackground,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Medium,
                             letterSpacing = 1.sp
@@ -709,12 +710,12 @@ fun ActiveFocusDialog(
                         fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.Normal,
                         fontSize = 44.sp,
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
                         text = "${mode.title.substringBefore(" ")} >",
                         fontSize = 13.sp,
-                        color = Color.White.copy(alpha = 0.6f),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -735,7 +736,7 @@ fun ActiveFocusDialog(
                     Icon(
                         imageVector = Icons.Default.Square,
                         contentDescription = "Stop",
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -751,7 +752,7 @@ fun ActiveFocusDialog(
                         fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.Normal,
                         fontSize = 68.sp,
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -766,7 +767,7 @@ fun ActiveFocusDialog(
                         Text(
                             text = mode.title.substringBefore(" "),
                             fontSize = 14.sp,
-                            color = Color.White.copy(alpha = 0.6f),
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                             fontWeight = FontWeight.Medium
                         )
                     }

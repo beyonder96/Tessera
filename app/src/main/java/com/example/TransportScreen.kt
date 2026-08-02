@@ -1,4 +1,5 @@
 package com.example
+import androidx.compose.material3.MaterialTheme
 
 import androidx.compose.ui.text.style.TextAlign
 
@@ -176,7 +177,7 @@ fun TransportScreen(
                 // Header Title inside scroll
                 Text(
                     text = "TRANSPORTE SP",
-                    color = Color.White,
+                    color = androidx.compose.ui.graphics.Color.White,
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Black,
                     fontFamily = FontFamily.SansSerif,
@@ -234,7 +235,7 @@ fun TransportScreen(
                         ) {
                             Text(
                                 text = "Nenhuma linha selecionada.\nConfigure as linhas de metrô e trem a monitorar nas Configurações.",
-                                color = Color.White.copy(alpha = 0.6f),
+                                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.6f),
                                 fontSize = 13.sp,
                                 textAlign = TextAlign.Center,
                                 lineHeight = 18.sp
@@ -289,14 +290,14 @@ fun TransportScreen(
                                             ) {
                                                 Text(
                                                     text = line.codigo,
-                                                    color = Color.White,
+                                                    color = androidx.compose.ui.graphics.Color.White,
                                                     fontWeight = FontWeight.Bold,
                                                     fontSize = 14.sp
                                                 )
                                             }
                                             Spacer(modifier = Modifier.width(16.dp))
                                             Column {
-                                                Text(line.nome, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                                                Text(line.nome, color = androidx.compose.ui.graphics.Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                                                 Spacer(modifier = Modifier.height(2.dp))
                                                 Text(statusTxt, color = if (isNormal) Color(0xFF81C784) else Color(0xFFFF6B6B), fontSize = 12.sp, fontWeight = FontWeight.Medium)
                                             }
@@ -347,7 +348,7 @@ fun TransportScreen(
                 } else if (busError != null && savedBusLines.isEmpty()) {
                     Text(text = busError ?: "Erro desconhecido", color = Color(0xFFE57373), modifier = Modifier.padding(16.dp))
                 } else if (savedBusLines.isEmpty()) {
-                    Text("Nenhuma linha salva no momento.", color = Color.White.copy(alpha = 0.5f))
+                    Text("Nenhuma linha salva no momento.", color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f))
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         savedBusLines.forEach { bus ->
@@ -389,7 +390,7 @@ fun TransportScreen(
                                             Column {
                                                 Text(
                                                     text = bus.destination, 
-                                                    color = Color.White, 
+                                                    color = androidx.compose.ui.graphics.Color.White, 
                                                     fontWeight = FontWeight.Bold, 
                                                     fontSize = 18.sp,
                                                     maxLines = 1,
@@ -398,7 +399,7 @@ fun TransportScreen(
                                                 Spacer(modifier = Modifier.height(2.dp))
                                                 Text(
                                                     text = "Via ${bus.stopName}", 
-                                                    color = Color.White.copy(alpha = 0.5f), 
+                                                    color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f), 
                                                     fontSize = 12.sp,
                                                     maxLines = 1,
                                                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
@@ -413,7 +414,7 @@ fun TransportScreen(
                                             Icon(
                                                 imageVector = Icons.Default.Delete,
                                                 contentDescription = "Remover Linha",
-                                                tint = Color.White.copy(alpha = 0.2f),
+                                                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f),
                                             )
                                         }
                                     }
@@ -462,7 +463,7 @@ fun TransportScreen(
                                         Column(horizontalAlignment = Alignment.End) {
                                             Text(
                                                 text = "CHEGA EM", 
-                                                color = Color.White.copy(alpha = 0.4f), 
+                                                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.4f), 
                                                 fontSize = 10.sp, 
                                                 fontWeight = FontWeight.Bold, 
                                                 letterSpacing = 1.sp
@@ -512,7 +513,7 @@ fun TransportScreen(
                                 .clip(CircleShape)
                                 .background(Color.Black.copy(alpha = 0.3f))
                         ) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Voltar", tint = Color.White)
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Voltar", tint = MaterialTheme.colorScheme.onBackground)
                         }
 
                         IconButton(
@@ -524,7 +525,7 @@ fun TransportScreen(
                                 .clip(CircleShape)
                                 .background(Color.Black.copy(alpha = 0.3f))
                         ) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Atualizar", tint = Color.White)
+                            Icon(Icons.Default.Refresh, contentDescription = "Atualizar", tint = MaterialTheme.colorScheme.onBackground)
                         }
                     }
                 }
@@ -609,7 +610,7 @@ fun TransportScreen(
                 ) {
                     Text(
                         text = "Buscar Linha de Ônibus",
-                        color = Color.White,
+                        color = androidx.compose.ui.graphics.Color.White,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -696,7 +697,7 @@ fun TransportScreen(
                                                 Spacer(modifier = Modifier.width(8.dp))
                                                 Text(
                                                     text = dest,
-                                                    color = Color.White,
+                                                    color = androidx.compose.ui.graphics.Color.White,
                                                     fontWeight = FontWeight.SemiBold,
                                                     fontSize = 14.sp,
                                                     maxLines = 1,
@@ -731,7 +732,7 @@ fun TransportScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.1f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Fechar", color = Color.White)
+                        Text("Fechar", color = androidx.compose.ui.graphics.Color.White)
                     }
                 }
             }
@@ -766,7 +767,7 @@ fun AnimatedMetroTrain(lineColor: Color, modifier: Modifier = Modifier) {
         
         // draw track line
         drawLine(
-            color = Color.White.copy(alpha = 0.05f),
+            color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.05f),
             start = Offset(0f, yPos),
             end = Offset(w, yPos),
             strokeWidth = 1.dp.toPx()

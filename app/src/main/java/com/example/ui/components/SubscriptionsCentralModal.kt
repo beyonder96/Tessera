@@ -1,4 +1,5 @@
 package com.example.ui.components
+import androidx.compose.material3.MaterialTheme
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -66,14 +67,14 @@ fun SubscriptionsCentralModal(
                         text = "Central de Assinaturas",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     Row {
                         IconButton(onClick = onAddManual) {
-                            Icon(Icons.Default.Add, contentDescription = "Adicionar Assinatura", tint = Color.White)
+                            Icon(Icons.Default.Add, contentDescription = "Adicionar Assinatura", tint = MaterialTheme.colorScheme.onBackground)
                         }
                         IconButton(onClick = onDismiss) {
-                            Icon(Icons.Default.Close, contentDescription = "Fechar", tint = Color.White)
+                            Icon(Icons.Default.Close, contentDescription = "Fechar", tint = MaterialTheme.colorScheme.onBackground)
                         }
                     }
                 }
@@ -91,10 +92,10 @@ fun SubscriptionsCentralModal(
                                 text = String.format(Locale("pt", "BR"), "R$ %,.2f", totalCost),
                                 fontSize = 36.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = MaterialTheme.colorScheme.onBackground
                             )
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text("${subscriptions.size} assinaturas ativas", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                            Text("${subscriptions.size} assinaturas ativas", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
                         }
                     }
                 }
@@ -109,7 +110,7 @@ fun SubscriptionsCentralModal(
                     if (subscriptions.isEmpty()) {
                         item {
                             Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                                Text("Nenhuma assinatura encontrada na categoria Stream.", color = Color.White.copy(alpha = 0.5f))
+                                Text("Nenhuma assinatura encontrada na categoria Stream.", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
                             }
                         }
                     } else {
@@ -159,20 +160,20 @@ fun SubscriptionsCentralModal(
                                             modifier = Modifier.padding(4.dp).fillMaxSize()
                                         )
                                     } else {
-                                        Text(logoText, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                        Text(logoText, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                                     }
                                 }
                                 
                                 Spacer(modifier = Modifier.width(16.dp))
                                 
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(tx.title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                                    Text(tx.accountOrCardName.ifBlank { "Cobrança automática" }, color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                                    Text(tx.title, color = MaterialTheme.colorScheme.onBackground, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                    Text(tx.accountOrCardName.ifBlank { "Cobrança automática" }, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f), fontSize = 12.sp)
                                 }
                                 
                                 Text(
                                     text = String.format(Locale("pt", "BR"), "R$ %,.2f", tx.value),
-                                    color = Color.White,
+                                    color = MaterialTheme.colorScheme.onBackground,
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold
                                 )

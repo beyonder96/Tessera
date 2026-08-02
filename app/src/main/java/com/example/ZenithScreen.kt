@@ -1,4 +1,5 @@
 package com.example
+import androidx.compose.material3.MaterialTheme
 
 import android.Manifest
 import android.content.ContentUris
@@ -101,7 +102,7 @@ fun ZenithScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
-            containerColor = Color(0xFF070909),
+            containerColor = MaterialTheme.colorScheme.background,
             contentWindowInsets = WindowInsets.systemBars,
             topBar = {}
         ) { innerPadding ->
@@ -207,7 +208,7 @@ fun ZenithScreen(
                             text = titleText.uppercase(),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Black,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onBackground,
                             letterSpacing = 2.sp
                         )
                     }
@@ -437,7 +438,7 @@ fun LembretesTab(viewModel: TesseraViewModel, listState: LazyListState) {
                         }
                         Text(
                             text = "Conectar ao Google Calendar",
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onBackground,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center

@@ -1,4 +1,5 @@
 package com.example.ui.components
+import androidx.compose.material3.MaterialTheme
 
 import android.annotation.SuppressLint
 import android.webkit.WebChromeClient
@@ -89,14 +90,14 @@ fun XTimelineWidget(
                 // Ícone do X (antigo Twitter) desenhado nativamente via Canvas para manter o peso leve
                 Canvas(modifier = Modifier.size(12.dp)) {
                     drawLine(
-                        color = Color.White.copy(alpha = 0.7f),
+                        color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.7f),
                         start = Offset(0f, 0f),
                         end = Offset(size.width, size.height),
                         strokeWidth = 1.5.dp.toPx(),
                         cap = StrokeCap.Round
                     )
                     drawLine(
-                        color = Color.White.copy(alpha = 0.7f),
+                        color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.7f),
                         start = Offset(size.width, 0f),
                         end = Offset(0f, size.height),
                         strokeWidth = 1.5.dp.toPx(),
@@ -106,7 +107,7 @@ fun XTimelineWidget(
                 
                 Text(
                     text = "LINHA DO TEMPO",
-                    color = Color.White.copy(alpha = 0.5f),
+                    color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.5.sp

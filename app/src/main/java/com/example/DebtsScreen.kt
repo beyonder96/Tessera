@@ -1,4 +1,5 @@
 package com.example
+import androidx.compose.material3.MaterialTheme
 
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
@@ -124,16 +125,16 @@ fun DebtsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column {
-                                Text("Total Devido", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                                Text("Total Devido", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
                                 Text(
                                     text = String.format(Locale("pt", "BR"), "R$ %,.2f", totalOwed),
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.White
+                                    color = MaterialTheme.colorScheme.onBackground
                                 )
                             }
                             Column(horizontalAlignment = Alignment.End) {
-                                Text("Restante", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                                Text("Restante", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
                                 Text(
                                     text = String.format(Locale("pt", "BR"), "R$ %,.2f", remainingToPay),
                                     fontSize = 18.sp,
@@ -150,7 +151,7 @@ fun DebtsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Progresso de Quitação", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                            Text("Progresso de Quitação", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
                             Text(
                                 text = String.format(Locale.getDefault(), "%.1f%%", overallProgress * 100),
                                 fontSize = 13.sp,
@@ -179,7 +180,7 @@ fun DebtsScreen(
                         text = "ATIVAS (${activeDebts.size})",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White.copy(alpha = 0.5f),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                         letterSpacing = 1.sp
                     )
                 }
@@ -204,13 +205,13 @@ fun DebtsScreen(
                                         text = debt.title,
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.White
+                                        color = MaterialTheme.colorScheme.onBackground
                                     )
                                     if (debt.creditorName.isNotBlank()) {
                                         Text(
                                             text = "Credor: ${debt.creditorName}",
                                             fontSize = 12.sp,
-                                            color = Color.White.copy(alpha = 0.6f)
+                                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                                         )
                                     }
                                 }
@@ -219,7 +220,7 @@ fun DebtsScreen(
                                     text = String.format(Locale("pt", "BR"), "R$ %,.2f", debt.value),
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.White
+                                    color = MaterialTheme.colorScheme.onBackground
                                 )
                             }
 
@@ -234,14 +235,14 @@ fun DebtsScreen(
                                     Icon(
                                         imageVector = Icons.Default.CalendarMonth,
                                         contentDescription = null,
-                                        tint = Color.White.copy(alpha = 0.4f),
+                                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = "Vencimento: $dueDateStr",
                                         fontSize = 12.sp,
-                                        color = Color.White.copy(alpha = 0.6f)
+                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                                     )
                                 }
 
@@ -305,7 +306,7 @@ fun DebtsScreen(
                                     Icon(
                                         imageVector = Icons.Outlined.Edit,
                                         contentDescription = "Editar",
-                                        tint = Color.White.copy(alpha = 0.7f),
+                                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
@@ -345,7 +346,7 @@ fun DebtsScreen(
                         text = "QUITADAS (${paidDebts.size})",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White.copy(alpha = 0.3f),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f),
                         letterSpacing = 1.sp
                     )
                 }
@@ -370,7 +371,7 @@ fun DebtsScreen(
                                     text = debt.title,
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color.White.copy(alpha = 0.5f),
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                                     textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
                                 )
                                 Text(
@@ -388,7 +389,7 @@ fun DebtsScreen(
                                     text = String.format(Locale("pt", "BR"), "R$ %,.2f", debt.value),
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.White.copy(alpha = 0.5f)
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                                 )
                                 Icon(
                                     imageVector = Icons.Outlined.CheckCircle,
@@ -420,7 +421,7 @@ fun DebtsScreen(
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
                                 text = "Sem dívidas registradas. Muito bem!",
-                                color = Color.White.copy(alpha = 0.6f),
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                                 fontSize = 14.sp
                             )
                         }
@@ -445,7 +446,7 @@ fun DebtsScreen(
                             fontFamily = FontFamily.SansSerif,
                             fontWeight = FontWeight.Bold,
                             fontSize = 22.sp,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onBackground,
                             letterSpacing = 0.5.sp
                         )
                     },
@@ -457,7 +458,7 @@ fun DebtsScreen(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Voltar",
-                                tint = Color.White
+                                tint = MaterialTheme.colorScheme.onBackground
                             )
                         }
                     },
@@ -512,7 +513,7 @@ fun DebtsScreen(
                     item {
                         Text(
                             text = if (editingDebt == null) "Adicionar Dívida" else "Editar Dívida",
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onBackground,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -616,7 +617,7 @@ fun DebtsScreen(
                                 border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("Cancelar", color = Color.White)
+                                Text("Cancelar", color = MaterialTheme.colorScheme.onBackground)
                             }
 
                             Button(
@@ -687,14 +688,14 @@ fun DebtsScreen(
                 ) {
                     Text(
                         text = "Pagar Parcela de Dívida",
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onBackground,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
 
                     Text(
                         text = "Selecione a conta de origem para o pagamento da parcela (${String.format(Locale("pt", "BR"), "R$ %,.2f", targetDebt.value / targetDebt.installmentsTotal)}) de \"${targetDebt.title}\":",
-                        color = Color.White.copy(alpha = 0.7f),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                         fontSize = 13.sp,
                         lineHeight = 18.sp
                     )
@@ -727,7 +728,7 @@ fun DebtsScreen(
                                 ) {
                                     Text(
                                         text = account.name,
-                                        color = Color.White,
+                                        color = MaterialTheme.colorScheme.onBackground,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Medium
                                     )
@@ -751,7 +752,7 @@ fun DebtsScreen(
                             shape = RoundedCornerShape(12.dp),
                             border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
                         ) {
-                            Text("Cancelar", color = Color.White)
+                            Text("Cancelar", color = MaterialTheme.colorScheme.onBackground)
                         }
                     }
                 }

@@ -1,4 +1,5 @@
 package com.example
+import androidx.compose.material3.MaterialTheme
 
 import android.content.Intent
 import android.net.Uri
@@ -189,12 +190,12 @@ fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                     .padding(horizontal = 16.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Search, contentDescription = "Buscar", tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Search, contentDescription = "Buscar", tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f), modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 TextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Pesquisar desejos...", color = Color.White.copy(alpha = 0.4f), fontSize = 14.sp) },
+                    placeholder = { Text("Pesquisar desejos...", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f), fontSize = 14.sp) },
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
@@ -207,10 +208,10 @@ fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                 )
                 if (searchQuery.isNotEmpty()) {
                     IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "Limpar", tint = Color.White.copy(alpha = 0.7f))
+                        Icon(Icons.Default.Close, contentDescription = "Limpar", tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f))
                     }
                 } else {
-                    Icon(Icons.Outlined.Mic, contentDescription = "Voz", tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
+                    Icon(Icons.Outlined.Mic, contentDescription = "Voz", tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
                 }
             }
         }
@@ -367,7 +368,7 @@ fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -
                         Icon(
                             Icons.Outlined.Edit,
                             contentDescription = "Editar",
-                            tint = Color.White.copy(alpha = 0.8f),
+                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                             modifier = Modifier
                                 .size(18.dp)
                                 .clickable { onEdit() }
@@ -381,7 +382,7 @@ fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -
                         Icon(
                             Icons.Outlined.DeleteOutline,
                             contentDescription = "Deletar",
-                            tint = Color.White.copy(alpha = 0.8f),
+                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                             modifier = Modifier
                                 .size(18.dp)
                                 .clickable { onDelete() }
@@ -409,7 +410,7 @@ fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -
                 
                 Text(
                     text = goal.title,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onBackground,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
@@ -424,21 +425,21 @@ fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
                         text = "R$",
-                        color = Color.White.copy(alpha = 0.6f),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 3.dp, end = 4.dp)
                     )
                     Text(
                         text = parts[0],
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onBackground,
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold
                     )
                     if (parts.size > 1) {
                         Text(
                             text = ",${parts[1]}",
-                            color = Color.White.copy(alpha = 0.6f),
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(bottom = 3.dp)
@@ -470,7 +471,7 @@ fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -
                     Icon(
                         Icons.Outlined.ShoppingCart,
                         contentDescription = "Comprar",
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -499,7 +500,7 @@ fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Já comprei",
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onBackground,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -539,12 +540,12 @@ fun WishesDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF131817),
+        containerColor = MaterialTheme.colorScheme.background,
         shape = RoundedCornerShape(24.dp),
         title = {
             Text(
                 text = if (goal == null) "Novo Desejo" else "Editar Desejo",
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.Bold
             )
         },
@@ -566,7 +567,7 @@ fun WishesDialog(
                 OutlinedTextField(
                     value = buyUrl,
                     onValueChange = { buyUrl = it },
-                    label = { Text("Link da Compra", color = Color.White.copy(alpha = 0.6f)) },
+                    label = { Text("Link da Compra", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color.White, unfocusedTextColor = Color.White,
@@ -578,7 +579,7 @@ fun WishesDialog(
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("Nome do Produto", color = Color.White.copy(alpha = 0.6f)) },
+                    label = { Text("Nome do Produto", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color.White, unfocusedTextColor = Color.White,
@@ -590,7 +591,7 @@ fun WishesDialog(
                 OutlinedTextField(
                     value = target,
                     onValueChange = { target = it },
-                    label = { Text("Valor Estimado (R$)", color = Color.White.copy(alpha = 0.6f)) },
+                    label = { Text("Valor Estimado (R$)", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(

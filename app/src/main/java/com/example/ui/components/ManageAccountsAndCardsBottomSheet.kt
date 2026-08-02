@@ -1,4 +1,5 @@
 package com.example.ui.components
+import androidx.compose.material3.MaterialTheme
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -147,10 +148,10 @@ fun ManageAccountsAndCardsBottomSheet(
                     fontFamily = FontFamily.Serif,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 20.sp,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 IconButton(onClick = { if (showForm) { showForm = false; resetForm() } else onDismiss() }, modifier = Modifier.size(24.dp)) {
-                    Icon(if (showForm) Icons.Default.Close else Icons.Default.Close, contentDescription = null, tint = Color.White.copy(alpha = 0.5f))
+                    Icon(if (showForm) Icons.Default.Close else Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
                 }
             }
 
@@ -206,7 +207,7 @@ fun ManageAccountsAndCardsBottomSheet(
                                         Box(modifier = Modifier.size(12.dp).background(parseManageHexColor(account.colorHex), CircleShape))
                                         Spacer(modifier = Modifier.width(10.dp))
                                         Column {
-                                            Text(account.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            Text(account.name, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                             Text(account.type, color = Color(0x80BDC9C6), fontSize = 11.sp)
                                         }
                                     }
@@ -251,12 +252,12 @@ fun ManageAccountsAndCardsBottomSheet(
                                         Box(modifier = Modifier.size(12.dp).background(parseManageHexColor(card.colorHex), CircleShape))
                                         Spacer(modifier = Modifier.width(10.dp))
                                         Column {
-                                            Text(card.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            Text(card.name, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                             Text("Final: ${card.numberLastFour}", color = Color(0x80BDC9C6), fontSize = 11.sp)
                                         }
                                     }
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(String.format(Locale("pt", "BR"), "R$ %,.2f", card.limit), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                        Text(String.format(Locale("pt", "BR"), "R$ %,.2f", card.limit), color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                         Spacer(modifier = Modifier.width(12.dp))
                                         IconButton(
                                             onClick = {
@@ -298,7 +299,7 @@ fun ManageAccountsAndCardsBottomSheet(
                                         Box(modifier = Modifier.size(12.dp).background(parseManageHexColor(card.colorHex), CircleShape))
                                         Spacer(modifier = Modifier.width(10.dp))
                                         Column {
-                                            Text(card.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            Text(card.name, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                             Text("Final: ${card.numberLastFour}", color = Color(0x80BDC9C6), fontSize = 11.sp)
                                         }
                                     }

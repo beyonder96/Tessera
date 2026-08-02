@@ -79,24 +79,6 @@ fun parseDoubleSafely(input: String): Double {
     }
 }
 
-data class MarketCategory(
-    val name: String,
-    val icon: ImageVector,
-    val color: Color
-)
-
-val marketCategories = listOf(
-    MarketCategory("Todos", Icons.Outlined.GridView, Color(0xFF85D6C5)),
-    MarketCategory("Hortifrúti", Icons.Outlined.LocalGroceryStore, Color(0xFF4ADE80)),
-    MarketCategory("Açougue", Icons.Outlined.Restaurant, Color(0xFFF87171)),
-    MarketCategory("Laticínios", Icons.Outlined.Coffee, Color(0xFFFBBF24)),
-    MarketCategory("Bebidas", Icons.Outlined.LocalBar, Color(0xFF60A5FA)),
-    MarketCategory("Padaria", Icons.Outlined.BakeryDining, Color(0xFFF59E0B)),
-    MarketCategory("Limpeza", Icons.Outlined.CleaningServices, Color(0xFFA78BFA)),
-    MarketCategory("Outros", Icons.Outlined.MoreHoriz, Color(0xFF9CA3AF))
-)
-
-val stapleSuggestions = listOf("Leite 1L", "Café 500g", "Pão Francês", "Ovos 12u", "Arroz 5kg", "Feijão 1kg", "Banana 1kg")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,8 +91,6 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
     val coroutineScope = rememberCoroutineScope()
     var showAddDialog by remember { mutableStateOf(false) }
     var showCheckoutDebitDialog by remember { mutableStateOf(false) }
-    var selectedCategoryFilter by remember { mutableStateOf("Todos") }
-    var quickAddText by remember { mutableStateOf("") }
 
     val selectedTab = pagerState.currentPage
     val cartTotal = shoppingItems.filter { it.isChecked }.sumOf { it.price * it.quantity }
@@ -150,110 +130,22 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                 .padding(innerPadding)
                 .imePadding()
         ) {
-            // Minimal Category Filter Chips
-            CategoryFilterBar(
-                selectedCategory = selectedCategoryFilter,
-                onSelectCategory = { selectedCategoryFilter = it }
-            )
-
-            // Quick Add Input Bar (Direct & Minimalist)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 6.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
-                    .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
-                    .padding(horizontal = 14.dp, vertical = 2.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = null,
-                    tint = PrimaryTeal,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                TextField(
-                    value = quickAddText,
-                    onValueChange = { quickAddText = it },
-                    placeholder = {
-                        Text(
-                            text = if (selectedTab == 0) "+ Adicionar item ao planejamento..." else "+ Adicionar item direto ao carrinho...",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                            fontSize = 13.sp
-                        )
-                    },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = {
-                        if (quickAddText.isNotBlank()) {
-                            viewModel.addMarketItem(
-                                name = quickAddText.trim(),
-                                category = if (selectedCategoryFilter != "Todos") selectedCategoryFilter else "Outros",
-                                quantity = 1.0,
-                                unit = "un",
-                                price = 0.0,
-                                inMarket = (selectedTab == 1)
-                            )
-                            quickAddText = ""
-                        }
-                    }),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
-                    ),
-                    modifier = Modifier.weight(1f)
-                )
-                if (quickAddText.isNotBlank()) {
-                    IconButton(
-                        onClick = {
-                            viewModel.addMarketItem(
-                                name = quickAddText.trim(),
-                                category = if (selectedCategoryFilter != "Todos") selectedCategoryFilter else "Outros",
-                                quantity = 1.0,
-                                unit = "un",
-                                price = 0.0,
-                                inMarket = (selectedTab == 1)
-                            )
-                            quickAddText = ""
-                        },
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(Icons.Default.ArrowForward, contentDescription = "Adicionar", tint = PrimaryTeal, modifier = Modifier.size(18.dp))
-                    }
-                }
-            }
-
             // Tab Page Contents
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize()
             ) { page ->
-                val categoryFilteredPending = remember(pendingItems, selectedCategoryFilter) {
-                    if (selectedCategoryFilter == "Todos") pendingItems
-                    else pendingItems.filter { it.category.contains(selectedCategoryFilter, ignoreCase = true) }
-                }
-
-                val categoryFilteredShopping = remember(shoppingItems, selectedCategoryFilter) {
-                    if (selectedCategoryFilter == "Todos") shoppingItems
-                    else shoppingItems.filter { it.category.contains(selectedCategoryFilter, ignoreCase = true) }
-                }
-
                 if (page == 0) {
                     PlanningView(
                         viewModel = viewModel,
-                        pendingItems = categoryFilteredPending,
+                        pendingItems = pendingItems,
                         boughtItems = boughtItems,
                         listState = planningListState,
                         onAddClick = { showAddDialog = true }
                     )
                 } else {
                     ShoppingView(
-                        shoppingItems = categoryFilteredShopping,
+                        shoppingItems = shoppingItems,
                         listState = shoppingListState,
                         onItemToggle = { viewModel.toggleMarketItemChecked(it) },
                         onItemUpdate = { item, price, qty, unit ->
@@ -414,101 +306,7 @@ fun MarketHeader(
     }
 }
 
-@Composable
-fun CategoryFilterBar(
-    selectedCategory: String,
-    onSelectCategory: (String) -> Unit
-) {
-    LazyRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        contentPadding = PaddingValues(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(marketCategories) { category ->
-            val isSelected = selectedCategory == category.name
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(
-                        if (isSelected) category.color.copy(alpha = 0.2f)
-                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = if (isSelected) category.color else Color.Transparent,
-                        shape = RoundedCornerShape(20.dp)
-                    )
-                    .clickable { onSelectCategory(category.name) }
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = category.icon,
-                    contentDescription = null,
-                    tint = if (isSelected) category.color else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = category.name,
-                    fontSize = 12.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                    color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-            }
-        }
-    }
-}
 
-@Composable
-fun StaplesRecommendationBar(onAddStaple: (String) -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 4.dp)
-    ) {
-        Text(
-            text = "ADICIONAR RÁPIDO",
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-            letterSpacing = 1.5.sp
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            items(stapleSuggestions) { staple ->
-                Box(
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f))
-                        .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f), CircleShape)
-                        .clickable { onAddStaple(staple) }
-                        .padding(horizontal = 12.dp, vertical = 5.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = null,
-                            tint = PrimaryTeal,
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = staple,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
 
 @Composable
 fun PlanningView(
@@ -965,6 +763,7 @@ fun MarketBottomDock(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddMarketItemDialog(
     onDismiss: () -> Unit,
@@ -980,17 +779,16 @@ fun AddMarketItemDialog(
         focusRequester.requestFocus()
     }
 
-    Dialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        containerColor = MaterialTheme.colorScheme.surface,
+        scrimColor = Color.Black.copy(alpha = 0.5f)
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .clip(RoundedCornerShape(28.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), RoundedCornerShape(28.dp))
-                .padding(24.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 16.dp)
+                .padding(bottom = 32.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(
@@ -1015,17 +813,17 @@ fun AddMarketItemDialog(
                     Text("Categoria", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                     Spacer(modifier = Modifier.height(6.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        items(marketCategories.filter { it.name != "Todos" }) { cat ->
-                            val isSelected = category == cat.name
+                        items(listOf("Alimentação", "Limpeza", "Higiene", "Outros")) { cat ->
+                            val isSelected = category == cat
                             Box(
                                 modifier = Modifier
                                     .clip(CircleShape)
                                     .background(if (isSelected) PrimaryTeal else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
-                                    .clickable { category = cat.name }
+                                    .clickable { category = cat }
                                     .padding(horizontal = 12.dp, vertical = 6.dp)
                             ) {
                                 Text(
-                                    text = cat.name,
+                                    text = cat,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (isSelected) Color.Black else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
@@ -1087,6 +885,7 @@ fun AddMarketItemDialog(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CheckoutDebitDialog(
     totalAmount: Double,
@@ -1105,14 +904,16 @@ fun CheckoutDebitDialog(
         )
     }
 
-    Dialog(onDismissRequest = onDismiss) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface,
+        scrimColor = Color.Black.copy(alpha = 0.5f)
+    ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .clip(RoundedCornerShape(28.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), RoundedCornerShape(28.dp))
-                .padding(24.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 16.dp)
+                .padding(bottom = 32.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(

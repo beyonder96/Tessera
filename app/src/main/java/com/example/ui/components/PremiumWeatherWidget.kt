@@ -1,4 +1,5 @@
 package com.example.ui.components
+import androidx.compose.material3.MaterialTheme
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -146,7 +147,7 @@ fun PremiumWeatherWidget(weatherState: TesseraViewModel.WeatherInfo?) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = city.uppercase(),
-                        color = Color.White.copy(alpha = 0.4f),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                         fontSize = 9.sp,
                         fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.Normal,

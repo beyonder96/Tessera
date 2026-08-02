@@ -1,4 +1,5 @@
 package com.example.ui.components
+import androidx.compose.material3.MaterialTheme
 
 import android.content.Context
 import android.content.Intent
@@ -116,16 +117,16 @@ fun CompleteTransactionsModal(
                         text = "Extrato Completo",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Fechar", tint = Color.White)
+                        Icon(Icons.Default.Close, contentDescription = "Fechar", tint = MaterialTheme.colorScheme.onBackground)
                     }
                 }
 
                 if (monthsList.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Nenhuma transação encontrada.", color = Color.White.copy(alpha = 0.5f))
+                        Text("Nenhuma transação encontrada.", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
                     }
                 } else {
                     HorizontalPager(
@@ -170,9 +171,9 @@ fun CompleteTransactionsModal(
                                     shape = RoundedCornerShape(12.dp),
                                     border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
                                 ) {
-                                    Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
+                                    Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onBackground)
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Exportar PDF", color = Color.White, fontSize = 12.sp)
+                                    Text("Exportar PDF", color = MaterialTheme.colorScheme.onBackground, fontSize = 12.sp)
                                 }
 
                                 OutlinedButton(
@@ -185,9 +186,9 @@ fun CompleteTransactionsModal(
                                     shape = RoundedCornerShape(12.dp),
                                     border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
                                 ) {
-                                    Icon(Icons.Default.TableView, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
+                                    Icon(Icons.Default.TableView, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onBackground)
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Exportar CSV", color = Color.White, fontSize = 12.sp)
+                                    Text("Exportar CSV", color = MaterialTheme.colorScheme.onBackground, fontSize = 12.sp)
                                 }
                             }
 
@@ -202,7 +203,7 @@ fun CompleteTransactionsModal(
                                             text = dayFormat.format(Date(dayKey)),
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color.White.copy(alpha = 0.5f),
+                                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                                             modifier = Modifier.padding(bottom = 4.dp, top = 8.dp)
                                         )
                                     }
@@ -220,7 +221,7 @@ fun CompleteTransactionsModal(
                                             Column(modifier = Modifier.weight(1f)) {
                                                 Text(
                                                     text = tx.title,
-                                                    color = Color.White,
+                                                    color = MaterialTheme.colorScheme.onBackground,
                                                     fontSize = 14.sp,
                                                     fontWeight = FontWeight.Medium
                                                 )
@@ -228,7 +229,7 @@ fun CompleteTransactionsModal(
                                                     val subtitle = if (tx.subtitle.isNotBlank()) tx.subtitle else tx.accountOrCardName
                                                     Text(
                                                         text = subtitle,
-                                                        color = Color.White.copy(alpha = 0.6f),
+                                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                                                         fontSize = 11.sp
                                                     )
                                                 }

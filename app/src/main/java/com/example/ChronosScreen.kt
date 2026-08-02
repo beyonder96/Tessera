@@ -1,4 +1,5 @@
 package com.example
+import androidx.compose.material3.MaterialTheme
 
 import android.media.AudioFormat
 import android.media.AudioManager
@@ -172,7 +173,7 @@ fun RoutinesListView(
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 22.sp,
-                color = Color.White
+                color = MaterialTheme.colorScheme.onBackground
             )
             IconButton(onClick = { showAddRoutineDialog = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Gerenciar", tint = Color(0xFF71D7CD))
@@ -211,7 +212,7 @@ fun RoutinesListView(
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = "Nenhuma rotina criada",
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onBackground,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -282,7 +283,7 @@ fun RoutinesListView(
                                         text = routine.name,
                                         fontSize = 18.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color.White
+                                        color = MaterialTheme.colorScheme.onBackground
                                     )
                                     Text(
                                         text = "${steps.size} passos • ${totalDuration / 60} min e ${totalDuration % 60}s",
@@ -410,7 +411,7 @@ fun ManageRoutineDialog(
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F0F0F)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
             shape = RoundedCornerShape(24.dp),
             modifier = Modifier
                 .fillMaxWidth(0.95f)
@@ -428,7 +429,7 @@ fun ManageRoutineDialog(
                     fontFamily = FontFamily.Serif,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 20.sp,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 
                 OutlinedTextField(
@@ -489,7 +490,7 @@ fun ManageRoutineDialog(
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
-                                    Text(step.title, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                    Text(step.title, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                                     Text("${step.durationSeconds}s", color = Color(0xFF81928F), fontSize = 11.sp)
                                     
                                     // Show checklist questions if present
@@ -523,7 +524,7 @@ fun ManageRoutineDialog(
                                         },
                                         modifier = Modifier.size(24.dp)
                                     ) {
-                                        Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Subir", tint = Color.White, modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Subir", tint = MaterialTheme.colorScheme.onBackground, modifier = Modifier.size(16.dp))
                                     }
                                 }
                                 if (index < steps.size - 1) {
@@ -537,7 +538,7 @@ fun ManageRoutineDialog(
                                         },
                                         modifier = Modifier.size(24.dp)
                                     ) {
-                                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Descer", tint = Color.White, modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Descer", tint = MaterialTheme.colorScheme.onBackground, modifier = Modifier.size(16.dp))
                                     }
                                 }
                                 IconButton(
@@ -725,7 +726,7 @@ fun ManageRoutineDialog(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("Cancelar", color = Color.White.copy(alpha = 0.6f))
+                        Text("Cancelar", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
                     }
                     Spacer(modifier = Modifier.weight(1f))
                     Button(
@@ -839,7 +840,7 @@ fun RoutinePlayerView(
                     fontFamily = FontFamily.Serif,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 22.sp,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
                     text = "Responda às perguntas associadas aos passos.",
@@ -932,7 +933,7 @@ fun RoutinePlayerView(
                 Spacer(modifier = Modifier.height(12.dp))
                 
                 TextButton(onClick = onStopRoutine) {
-                    Text("Sair sem concluir", color = Color.White.copy(alpha = 0.6f))
+                    Text("Sair sem concluir", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
                 }
             }
         }
@@ -1021,7 +1022,7 @@ fun RoutinePlayerView(
                             fontFamily = FontFamily.Serif,
                             fontWeight = FontWeight.Bold,
                             fontSize = 22.sp,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onBackground,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(horizontal = 24.dp)
                         )
@@ -1030,7 +1031,7 @@ fun RoutinePlayerView(
                             text = String.format("%02d:%02d", secondsLeft / 60, secondsLeft % 60),
                             fontSize = 42.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onBackground,
                             letterSpacing = 2.sp
                         )
                     }
@@ -1136,7 +1137,7 @@ fun RoutinePlayerView(
                             .size(48.dp)
                             .background(Color(0x0CFFFFFF), CircleShape)
                     ) {
-                        Icon(Icons.Outlined.Close, contentDescription = "Cancelar", tint = Color.White)
+                        Icon(Icons.Outlined.Close, contentDescription = "Cancelar", tint = MaterialTheme.colorScheme.onBackground)
                     }
 
                     // Play / Pause (Animated)
@@ -1182,7 +1183,7 @@ fun RoutinePlayerView(
                             .size(48.dp)
                             .background(Color(0x0CFFFFFF), CircleShape)
                     ) {
-                        Icon(Icons.Default.SkipNext, contentDescription = "Pular", tint = Color.White)
+                        Icon(Icons.Default.SkipNext, contentDescription = "Pular", tint = MaterialTheme.colorScheme.onBackground)
                     }
                 }
             }

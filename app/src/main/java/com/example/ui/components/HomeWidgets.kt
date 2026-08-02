@@ -1,4 +1,5 @@
 package com.example.ui.components
+import androidx.compose.material3.MaterialTheme
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -61,7 +62,7 @@ fun PremiumSquareWidget(
             Column {
                 Text(
                     text = value,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onBackground,
                     fontSize = 20.sp,
                     fontFamily = FontFamily.Serif,
                     fontWeight = FontWeight.Bold
@@ -69,7 +70,7 @@ fun PremiumSquareWidget(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = title.uppercase(),
-                    color = Color.White.copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                     fontSize = 9.sp,
                     fontFamily = FontFamily.SansSerif,
                     letterSpacing = 1.sp,

@@ -1,4 +1,5 @@
 package com.example
+import androidx.compose.material3.MaterialTheme
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -125,7 +126,7 @@ fun OnboardingScreen(
                     fontFamily = FontFamily.Serif,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onBackground,
                     letterSpacing = 4.sp
                 )
                 
@@ -134,7 +135,7 @@ fun OnboardingScreen(
                         text = "PULAR",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White.copy(alpha = 0.5f),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                         letterSpacing = 1.5.sp,
                         modifier = Modifier
                             .clickable {
@@ -283,7 +284,7 @@ fun OnboardingWelcomePage() {
             fontFamily = FontFamily.Serif,
             fontSize = 32.sp,
             fontWeight = FontWeight.Light,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center,
             lineHeight = 40.sp
         )
@@ -291,7 +292,7 @@ fun OnboardingWelcomePage() {
         Text(
             text = "O Tessera unifica sua saúde, rituais diários, finanças pessoais e lazer em uma única interface premium líquida e sem distrações.",
             fontSize = 15.sp,
-            color = Color.White.copy(alpha = 0.6f),
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 16.dp),
             lineHeight = 22.sp
@@ -379,7 +380,7 @@ fun OnboardingHealthPage() {
             Icon(
                 imageVector = Icons.Outlined.MonitorHeart,
                 contentDescription = null,
-                tint = Color.White,
+                tint = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.size(36.dp)
             )
         }
@@ -389,14 +390,14 @@ fun OnboardingHealthPage() {
             fontFamily = FontFamily.Serif,
             fontSize = 28.sp,
             fontWeight = FontWeight.Light,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "Sincronização premium inspirada no Oura Ring. Acompanhe passos, qualidade do sono e composição corporal em harmonia com o Google Health Connect.",
             fontSize = 15.sp,
-            color = Color.White.copy(alpha = 0.6f),
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 16.dp),
             lineHeight = 22.sp
@@ -425,18 +426,18 @@ fun OnboardingFinancePage() {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("PATRIMÔNIO LÍQUIDO", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.5f), letterSpacing = 1.sp)
+                    Text("PATRIMÔNIO LÍQUIDO", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f), letterSpacing = 1.sp)
                     Icon(Icons.Outlined.AccountBalanceWallet, null, tint = SecondaryGold, modifier = Modifier.size(20.dp))
                 }
-                Text("R$ 208.151,60", fontFamily = FontFamily.Serif, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text("R$ 208.151,60", fontFamily = FontFamily.Serif, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Column {
-                        Text("Balanço Mensal", fontSize = 10.sp, color = Color.White.copy(alpha = 0.5f))
+                        Text("Balanço Mensal", fontSize = 10.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
                         Text("+R$ 18.049,80", fontSize = 12.sp, color = PrimaryTeal, fontWeight = FontWeight.Bold)
                     }
                     Column {
-                        Text("Cartões Ativos", fontSize = 10.sp, color = Color.White.copy(alpha = 0.5f))
-                        Text("Inter Black • Nubank", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Medium)
+                        Text("Cartões Ativos", fontSize = 10.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
+                        Text("Inter Black • Nubank", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Medium)
                     }
                 }
             }
@@ -447,14 +448,14 @@ fun OnboardingFinancePage() {
             fontFamily = FontFamily.Serif,
             fontSize = 28.sp,
             fontWeight = FontWeight.Light,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "Controle patrimonial elegante. Acompanhe suas contas bancárias, faturas de cartão de crédito e transações sem poluição visual ou complexidade excessiva.",
             fontSize = 15.sp,
-            color = Color.White.copy(alpha = 0.6f),
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 16.dp),
             lineHeight = 22.sp
@@ -477,7 +478,7 @@ fun OnboardingFocusPage() {
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("ROTINA MATINAL", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.5f), letterSpacing = 1.sp)
+            Text("ROTINA MATINAL", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f), letterSpacing = 1.sp)
             
             Row(
                 modifier = Modifier
@@ -491,7 +492,7 @@ fun OnboardingFocusPage() {
                     Icon(Icons.Outlined.WaterDrop, null, tint = PrimaryTeal, modifier = Modifier.size(16.dp))
                 }
                 Spacer(modifier = Modifier.width(12.dp))
-                Text("Beber Água (500ml)", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text("Beber Água (500ml)", color = MaterialTheme.colorScheme.onBackground, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
 
             Row(
@@ -506,7 +507,7 @@ fun OnboardingFocusPage() {
                     Icon(Icons.Outlined.Spa, null, tint = SecondaryGold, modifier = Modifier.size(16.dp))
                 }
                 Spacer(modifier = Modifier.width(12.dp))
-                Text("Meditação Transcendental", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text("Meditação Transcendental", color = MaterialTheme.colorScheme.onBackground, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
         }
         Spacer(modifier = Modifier.height(48.dp))
@@ -515,14 +516,14 @@ fun OnboardingFocusPage() {
             fontFamily = FontFamily.Serif,
             fontSize = 28.sp,
             fontWeight = FontWeight.Light,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "Desenvolva consistência. Construa rotinas matinais/noturnas passo a passo com temporizador e monitore seus hábitos diários de forma gratificante.",
             fontSize = 15.sp,
-            color = Color.White.copy(alpha = 0.6f),
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 16.dp),
             lineHeight = 22.sp
@@ -565,14 +566,14 @@ fun OnboardingFinalPage(
             fontFamily = FontFamily.Serif,
             fontSize = 28.sp,
             fontWeight = FontWeight.Light,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = "Você está prestes a iniciar sua nova experiência integrada. Escolha se prefere começar com dados de demonstração já preenchidos para testar tudo:",
             fontSize = 14.sp,
-            color = Color.White.copy(alpha = 0.6f),
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 16.dp),
             lineHeight = 20.sp
@@ -604,13 +605,13 @@ fun OnboardingFinalPage(
             Column {
                 Text(
                     text = "Carregar Dados de Demonstração",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onBackground,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = "Popula o app com pets, contas, rotinas e transações fictícias para testar.",
-                    color = Color.White.copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                     fontSize = 11.sp
                 )
             }

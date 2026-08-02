@@ -40,9 +40,9 @@ val PremiumGlassModifier: Modifier
         
         val (bgColors, borderColors) = if (isDark) {
             when (level) {
-                "Clear" -> listOf(Color(0x12FFFFFF), Color(0x02FFFFFF)) to listOf(Color(0x8CFFFFFF), Color(0x0AFFFFFF))
-                "Blur" -> listOf(Color(0x2BFFFFFF), Color(0x08FFFFFF)) to listOf(Color(0x59FFFFFF), Color(0x08FFFFFF))
-                else -> listOf(Color(0x4D000000), Color(0x33000000)) to listOf(Color(0x26FFFFFF), Color(0x05FFFFFF))
+                "Clear" -> listOf(Color(0xFF141416).copy(alpha = 0.8f), Color(0xFF050506).copy(alpha = 0.9f)) to listOf(Color(0xFF333333), Color(0xFFFF5E00).copy(alpha = 0.3f))
+                "Blur" -> listOf(Color(0xFF141416), Color(0xFF050506)) to listOf(Color(0xFF333333), Color(0xFFFF5E00).copy(alpha = 0.5f))
+                else -> listOf(Color(0xFF1A1A1C), Color(0xFF0A0A0C)) to listOf(Color(0xFF333333), Color(0xFFFF5E00).copy(alpha = 0.4f))
             }
         } else {
             when (level) {
@@ -52,14 +52,14 @@ val PremiumGlassModifier: Modifier
             }
         }
         
-        val modifier = this.clip(RoundedCornerShape(28.dp))
+        val modifier = this.clip(RoundedCornerShape(56.dp))
         
         modifier
             .background(Brush.verticalGradient(colors = bgColors))
             .border(
                 width = 1.dp,
                 brush = Brush.verticalGradient(colors = borderColors),
-                shape = RoundedCornerShape(28.dp)
+                shape = RoundedCornerShape(56.dp)
             )
     }
 

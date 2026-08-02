@@ -1,4 +1,5 @@
 package com.example
+import androidx.compose.material3.MaterialTheme
 
 import android.util.Log
 import androidx.compose.animation.core.animateFloatAsState
@@ -295,10 +296,15 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
         var inputHeight by remember { mutableStateOf(healthProfile?.heightCm?.toString() ?: "") }
         var inputTarget by remember { mutableStateOf(healthProfile?.targetWeightKg?.toString() ?: "") }
         
-        Dialog(onDismissRequest = { showWeightDialog = false }) {
-            Box(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color(0xFF070909)).border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(24.dp)).padding(24.dp)) {
+        @OptIn(ExperimentalMaterial3Api::class)
+        ModalBottomSheet(
+            onDismissRequest = { showWeightDialog = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            scrimColor = Color.Black.copy(alpha = 0.5f)
+        ) {
+            Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp).padding(bottom = 32.dp)) {
                 Column {
-                    Text("REGISTRAR DADOS", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Text("REGISTRAR DADOS", color = androidx.compose.ui.graphics.Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     Text("PESO (KG)", color = Color(0xFF879391), fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -394,10 +400,15 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
             "A hora de acordar deve ser após a hora de dormir."
         }
 
-        Dialog(onDismissRequest = { showSleepDialog = false }) {
-            Box(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color(0xFF070909)).border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(24.dp)).padding(24.dp)) {
+        @OptIn(ExperimentalMaterial3Api::class)
+        ModalBottomSheet(
+            onDismissRequest = { showSleepDialog = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            scrimColor = Color.Black.copy(alpha = 0.5f)
+        ) {
+            Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp).padding(bottom = 32.dp)) {
                 Column {
-                    Text("REGISTRAR SONO", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Text("REGISTRAR SONO", color = androidx.compose.ui.graphics.Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                     Spacer(modifier = Modifier.height(20.dp))
                     
                     Text("DORMIU EM", color = Color(0xFF879391), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
@@ -432,7 +443,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Outlined.CalendarToday, null, tint = PrimaryTeal, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(sleepDateStr, color = Color.White, fontSize = 13.sp)
+                                Text(sleepDateStr, color = androidx.compose.ui.graphics.Color.White, fontSize = 13.sp)
                             }
                         }
 
@@ -461,7 +472,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Outlined.AccessTime, null, tint = PrimaryTeal, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(sleepTimeStr, color = Color.White, fontSize = 13.sp)
+                                Text(sleepTimeStr, color = androidx.compose.ui.graphics.Color.White, fontSize = 13.sp)
                             }
                         }
                     }
@@ -500,7 +511,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Outlined.CalendarToday, null, tint = PrimaryTeal, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(wakeDateStr, color = Color.White, fontSize = 13.sp)
+                                Text(wakeDateStr, color = androidx.compose.ui.graphics.Color.White, fontSize = 13.sp)
                             }
                         }
 
@@ -529,7 +540,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Outlined.AccessTime, null, tint = PrimaryTeal, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(wakeTimeStr, color = Color.White, fontSize = 13.sp)
+                                Text(wakeTimeStr, color = androidx.compose.ui.graphics.Color.White, fontSize = 13.sp)
                             }
                         }
                     }
@@ -599,10 +610,15 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
             String.format(Locale.getDefault(), "%02d/%02d/%04d", cal.get(Calendar.DAY_OF_MONTH), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.YEAR))
         }
 
-        Dialog(onDismissRequest = { showStepsDialog = false }) {
-            Box(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color(0xFF070909)).border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(24.dp)).padding(24.dp)) {
+        @OptIn(ExperimentalMaterial3Api::class)
+        ModalBottomSheet(
+            onDismissRequest = { showStepsDialog = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            scrimColor = Color.Black.copy(alpha = 0.5f)
+        ) {
+            Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp).padding(bottom = 32.dp)) {
                 Column {
-                    Text("REGISTRAR PASSOS", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Text("REGISTRAR PASSOS", color = androidx.compose.ui.graphics.Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                     Spacer(modifier = Modifier.height(20.dp))
                     
                     Text("DATA", color = Color(0xFF879391), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
@@ -633,7 +649,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Outlined.CalendarToday, null, tint = PrimaryTeal, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text(stepDateStr, color = Color.White, fontSize = 14.sp)
+                            Text(stepDateStr, color = androidx.compose.ui.graphics.Color.White, fontSize = 14.sp)
                         }
                     }
 
@@ -700,10 +716,15 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
             true
         )
 
-        Dialog(onDismissRequest = { showMedicationDialog = false }) {
-            Box(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color(0xFF070909)).border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(24.dp)).padding(24.dp)) {
+        @OptIn(ExperimentalMaterial3Api::class)
+        ModalBottomSheet(
+            onDismissRequest = { showMedicationDialog = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            scrimColor = Color.Black.copy(alpha = 0.5f)
+        ) {
+            Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp).padding(bottom = 32.dp)) {
                 Column {
-                    Text("NOVO MEDICAMENTO", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Text("NOVO MEDICAMENTO", color = androidx.compose.ui.graphics.Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     Text("NOME", color = Color(0xFF879391), fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -900,14 +921,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color(0xFF0F1618), // Soft dark teal/slate top
-                                Color(0xFF070909)  // Rich black base matching HomeScreen
-                            )
-                        )
-                    )
+                    .background(MaterialTheme.colorScheme.background)
             ) {
                 // Ambient glows
                 Box(
@@ -1222,9 +1236,7 @@ fun BmiCard(profile: HealthProfile?, latestWeight: WeightRecord?) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
             .then(PremiumGlassModifier)
-            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(24.dp))
             .padding(24.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -1340,9 +1352,7 @@ fun StepsCard(stepsCount: Long, onRegisterClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
             .then(PremiumGlassModifier)
-            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(24.dp))
             .padding(24.dp)
     ) {
         Row(
@@ -1439,7 +1449,7 @@ fun StepsCard(stepsCount: Long, onRegisterClick: () -> Unit) {
                         )
                         // Cursor core white
                         drawCircle(
-                            color = Color.White,
+                            color = androidx.compose.ui.graphics.Color.White,
                             radius = 3.dp.toPx(),
                             center = Offset(endX, endY)
                         )
@@ -1594,7 +1604,7 @@ fun WeightChartCard(records: List<WeightRecord>, targetWeight: Double?, onRegist
                 // Desenha a linha de peso
                 drawPath(path = path, brush = Brush.horizontalGradient(listOf(TertiaryPurple, PrimaryTeal)), style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round), alpha = animationProgress.value)
                 points.forEach { point ->
-                    drawCircle(color = Color.White, radius = 4.dp.toPx(), center = point, alpha = animationProgress.value)
+                    drawCircle(color = androidx.compose.ui.graphics.Color.White, radius = 4.dp.toPx(), center = point, alpha = animationProgress.value)
                     drawCircle(color = PrimaryTeal, radius = 2.dp.toPx(), center = point, alpha = animationProgress.value)
                 }
             }
@@ -1679,9 +1689,7 @@ fun SleepCard(latestSleep: SleepRecord?, onRegisterClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
             .then(PremiumGlassModifier)
-            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(24.dp))
             .padding(24.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -1736,8 +1744,8 @@ fun SleepCard(latestSleep: SleepRecord?, onRegisterClick: () -> Unit) {
                     }
                     drawPath(path = path, color = TertiaryPurple)
                     
-                    drawCircle(color = Color.White.copy(alpha = 0.8f), radius = 2.dp.toPx(), center = Offset(center.x - radius * 0.5f, center.y - radius * 0.4f))
-                    drawCircle(color = Color.White.copy(alpha = 0.6f), radius = 1.5.dp.toPx(), center = Offset(center.x + radius * 0.3f, center.y + radius * 0.5f))
+                    drawCircle(color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f), radius = 2.dp.toPx(), center = Offset(center.x - radius * 0.5f, center.y - radius * 0.4f))
+                    drawCircle(color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.6f), radius = 1.5.dp.toPx(), center = Offset(center.x + radius * 0.3f, center.y + radius * 0.5f))
                 }
             }
         }
@@ -2300,7 +2308,7 @@ fun MedicationFullScreenAlert(
                     Text(
                         text = "Hora de cuidar de você",
                         fontSize = 14.sp,
-                        color = Color.White.copy(alpha = 0.6f)
+                        color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.6f)
                     )
                 }
 
@@ -2343,7 +2351,7 @@ fun MedicationFullScreenAlert(
                         fontFamily = FontFamily.Serif,
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        color = androidx.compose.ui.graphics.Color.White,
                         textAlign = TextAlign.Center
                     )
                     
@@ -2353,7 +2361,7 @@ fun MedicationFullScreenAlert(
                             text = med.dosage,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color.White.copy(alpha = 0.8f)
+                            color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f)
                         )
                     }
 
@@ -2414,7 +2422,7 @@ fun MedicationFullScreenAlert(
                     ) {
                         Text(
                             text = "LEMBRAR MAIS TARDE",
-                            color = Color.White.copy(alpha = 0.5f),
+                            color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f),
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
                             letterSpacing = 1.sp

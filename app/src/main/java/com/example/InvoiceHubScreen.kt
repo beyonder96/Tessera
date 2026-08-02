@@ -1,4 +1,5 @@
 package com.example
+import androidx.compose.material3.MaterialTheme
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -47,7 +48,7 @@ fun InvoiceHubScreen(
 
     if (card == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Cartão não encontrado", color = Color.White)
+            Text("Cartão não encontrado", color = MaterialTheme.colorScheme.onBackground)
         }
         return
     }
@@ -104,8 +105,8 @@ fun InvoiceHubScreen(
     if (showPayInvoiceDialog) {
         AlertDialog(
             onDismissRequest = { showPayInvoiceDialog = false },
-            title = { Text("Pagar Fatura", color = Color.White) },
-            text = { Text("Deseja zerar a fatura atual de ${currencyFormat.format(card.usedLimit)}?", color = Color.White.copy(alpha=0.7f)) },
+            title = { Text("Pagar Fatura", color = MaterialTheme.colorScheme.onBackground) },
+            text = { Text("Deseja zerar a fatura atual de ${currencyFormat.format(card.usedLimit)}?", color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.7f)) },
             containerColor = Color(0xFF1E1E1E),
             confirmButton = {
                 TextButton(onClick = {
@@ -117,7 +118,7 @@ fun InvoiceHubScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showPayInvoiceDialog = false }) {
-                    Text("Cancelar", color = Color.White.copy(alpha=0.7f))
+                    Text("Cancelar", color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.7f))
                 }
             }
         )
@@ -135,12 +136,12 @@ fun InvoiceHubScreen(
                             fontFamily = FontFamily.SansSerif, 
                             fontWeight = FontWeight.Bold, 
                             fontSize = 20.sp, 
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onBackground
                         ) 
                     },
                     navigationIcon = { 
                         IconButton(onClick = onBack, modifier = Modifier.bounceClick { onBack() }) { 
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar", tint = Color.White.copy(alpha = 0.8f)) 
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar", tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)) 
                         } 
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -179,7 +180,7 @@ fun InvoiceHubScreen(
                         "Transações do Cartão",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.padding(top = 8.dp)
                     )
                 }
@@ -190,7 +191,7 @@ fun InvoiceHubScreen(
                             modifier = Modifier.fillMaxWidth().height(100.dp).then(PremiumGlassModifier),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("Nenhuma transação neste cartão.", color = Color.White.copy(alpha=0.5f), fontSize = 14.sp)
+                            Text("Nenhuma transação neste cartão.", color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.5f), fontSize = 14.sp)
                         }
                     }
                 } else {
@@ -231,8 +232,8 @@ fun InvoiceSummaryCard(card: CreditCard, currencyFormat: NumberFormat) {
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
-                    Text(card.name, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    Text("Terminado em ${card.numberLastFour}", fontSize = 12.sp, color = Color.White.copy(alpha=0.6f))
+                    Text(card.name, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                    Text("Terminado em ${card.numberLastFour}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.6f))
                 }
             }
         }
@@ -244,12 +245,12 @@ fun InvoiceSummaryCard(card: CreditCard, currencyFormat: NumberFormat) {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
-                Text("Fatura Atual", fontSize = 13.sp, color = Color.White.copy(alpha=0.6f))
+                Text("Fatura Atual", fontSize = 13.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.6f))
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(currencyFormat.format(card.usedLimit), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text(currencyFormat.format(card.usedLimit), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("Limite Disponível", fontSize = 13.sp, color = Color.White.copy(alpha=0.6f))
+                Text("Limite Disponível", fontSize = 13.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.6f))
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(currencyFormat.format(availableLimit), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = cardColor)
             }
@@ -264,8 +265,8 @@ fun InvoiceSummaryCard(card: CreditCard, currencyFormat: NumberFormat) {
                 trackColor = Color(0x33FFFFFF)
             )
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Usado: ${(usagePercentage * 100).toInt()}%", fontSize = 11.sp, color = Color.White.copy(alpha=0.5f))
-                Text("Total: ${currencyFormat.format(card.limit)}", fontSize = 11.sp, color = Color.White.copy(alpha=0.5f))
+                Text("Usado: ${(usagePercentage * 100).toInt()}%", fontSize = 11.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.5f))
+                Text("Total: ${currencyFormat.format(card.limit)}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.5f))
             }
         }
     }
@@ -294,7 +295,7 @@ fun CardTransactionItem(transaction: Transaction, currencyFormat: NumberFormat) 
                 Icon(
                     Icons.Outlined.Payment,
                     contentDescription = null,
-                    tint = Color.White.copy(alpha=0.8f),
+                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha=0.8f),
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -304,7 +305,7 @@ fun CardTransactionItem(transaction: Transaction, currencyFormat: NumberFormat) 
                     text = transaction.title,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
@@ -312,7 +313,7 @@ fun CardTransactionItem(transaction: Transaction, currencyFormat: NumberFormat) 
                 Text(
                     text = transaction.category,
                     fontSize = 12.sp,
-                    color = Color.White.copy(alpha=0.5f)
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.5f)
                 )
             }
         }

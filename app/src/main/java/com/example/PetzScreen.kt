@@ -1,4 +1,5 @@
 package com.example
+import androidx.compose.material3.MaterialTheme
 
 import android.util.Log
 import android.app.DatePickerDialog
@@ -363,7 +364,7 @@ fun PetzScreen(
                                 ) {
                                     Text(
                                         text = sexText,
-                                        color = Color.White,
+                                        color = androidx.compose.ui.graphics.Color.White,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
                                         letterSpacing = 1.sp
@@ -382,7 +383,7 @@ fun PetzScreen(
                                 ) {
                                     Text(
                                         text = castratedText,
-                                        color = Color.White,
+                                        color = androidx.compose.ui.graphics.Color.White,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
                                         letterSpacing = 1.sp
@@ -626,7 +627,7 @@ fun PetzScreen(
                                             .clip(CircleShape)
                                             .background(Color.Black.copy(alpha = 0.3f))
                                     ) {
-                                        Icon(Icons.Outlined.Edit, contentDescription = "Edit", tint = Color.White)
+                                        Icon(Icons.Outlined.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.onBackground)
                                     }
 
                                     IconButton(
@@ -635,7 +636,7 @@ fun PetzScreen(
                                             .clip(CircleShape)
                                             .background(Color.Black.copy(alpha = 0.3f))
                                     ) {
-                                        Icon(Icons.Default.Add, contentDescription = "Add Pet", tint = Color.White)
+                                        Icon(Icons.Default.Add, contentDescription = "Add Pet", tint = MaterialTheme.colorScheme.onBackground)
                                     }
                                 }
                             }
@@ -887,7 +888,7 @@ fun OuraStatCard(
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
                 text = value,
-                color = Color.White,
+                color = androidx.compose.ui.graphics.Color.White,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Light,
                 fontFamily = FontFamily.Serif
@@ -999,7 +1000,7 @@ fun EditRoutineDialog(
                 text = "Editar Rotina",
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Light,
-                color = Color.White
+                color = androidx.compose.ui.graphics.Color.White
             )
         },
         text = {
@@ -1074,7 +1075,7 @@ fun EditRoutineDialog(
                 }
             }
         },
-        containerColor = Color(0xFF0A0A0A),
+        containerColor = MaterialTheme.colorScheme.background,
         shape = RoundedCornerShape(16.dp)
     )
 
@@ -1141,7 +1142,7 @@ fun EditPetDialog(
                 text = "Editar ${pet.name}",
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Light,
-                color = Color.White
+                color = androidx.compose.ui.graphics.Color.White
             )
         },
         text = {
@@ -1428,7 +1429,7 @@ fun EditPetDialog(
                 }
             }
         },
-        containerColor = Color(0xFF0A0A0A),
+        containerColor = MaterialTheme.colorScheme.background,
         shape = RoundedCornerShape(16.dp)
     )
 }
@@ -1451,7 +1452,7 @@ fun AddRoutineDialog(
                 text = "Nova Rotina",
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Light,
-                color = Color.White
+                color = androidx.compose.ui.graphics.Color.White
             )
         },
         text = {
@@ -1517,7 +1518,7 @@ fun AddRoutineDialog(
                 Text("CANCELAR", color = Color.Gray, letterSpacing = 1.sp)
             }
         },
-        containerColor = Color(0xFF0A0A0A),
+        containerColor = MaterialTheme.colorScheme.background,
         shape = RoundedCornerShape(16.dp)
     )
 
@@ -1594,7 +1595,7 @@ fun ClockTimePickerDialog(
                 )
             }
         },
-        containerColor = Color(0xFF0C0C0C),
+        containerColor = MaterialTheme.colorScheme.background,
         shape = RoundedCornerShape(24.dp)
     )
 }
@@ -1620,7 +1621,7 @@ fun EditHealthCardDialog(
                 text = title,
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Light,
-                color = Color.White
+                color = androidx.compose.ui.graphics.Color.White
             )
         },
         text = {
@@ -1670,7 +1671,7 @@ fun EditHealthCardDialog(
                 Text("CANCELAR", color = Color.Gray, letterSpacing = 1.sp)
             }
         },
-        containerColor = Color(0xFF0A0A0A),
+        containerColor = MaterialTheme.colorScheme.background,
         shape = RoundedCornerShape(16.dp)
     )
 }
@@ -1821,7 +1822,7 @@ fun PetWeightEvolutionChart(
                     center = point
                 )
                 drawCircle(
-                    color = Color.White,
+                    color = androidx.compose.ui.graphics.Color.White,
                     radius = 4f,
                     center = point
                 )
@@ -1982,7 +1983,7 @@ fun PetHealthDashboard(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = "$healthScore",
-                        color = Color.White,
+                        color = androidx.compose.ui.graphics.Color.White,
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Light,
                         fontFamily = FontFamily.Serif
@@ -2280,7 +2281,7 @@ fun DeletePetConfirmationDialog(
                 text = "Excluir Perfil de $petName",
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Light,
-                color = Color.White
+                color = androidx.compose.ui.graphics.Color.White
             )
         },
         text = {
@@ -2354,7 +2355,7 @@ fun DeletePetConfirmationDialog(
                 Text("CANCELAR", color = Color.Gray)
             }
         },
-        containerColor = Color(0xFF0A0A0A),
+        containerColor = MaterialTheme.colorScheme.background,
         shape = RoundedCornerShape(16.dp)
     )
 }
@@ -2411,7 +2412,7 @@ fun AddPetDialog(
                 text = "Adicionar Novo Pet",
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Light,
-                color = Color.White
+                color = androidx.compose.ui.graphics.Color.White
             )
         },
         text = {
@@ -2717,7 +2718,7 @@ fun AddPetDialog(
                 Text("CANCELAR", color = Color.Gray, letterSpacing = 1.sp)
             }
         },
-        containerColor = Color(0xFF0A0A0A),
+        containerColor = MaterialTheme.colorScheme.background,
         shape = RoundedCornerShape(16.dp)
     )
 }
@@ -2844,7 +2845,7 @@ fun CreationOverlay(
             
             Text(
                 text = "${(progress * 100).toInt()}%",
-                color = Color.White,
+                color = androidx.compose.ui.graphics.Color.White,
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Light,
                 fontFamily = FontFamily.Serif

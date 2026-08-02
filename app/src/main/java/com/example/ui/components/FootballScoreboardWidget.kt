@@ -1,4 +1,5 @@
 package com.example.ui.components
+import androidx.compose.material3.MaterialTheme
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -189,7 +190,7 @@ fun DetailedMatchWidget(
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Refresh",
-                            tint = Color.White.copy(alpha = 0.6f),
+                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -205,7 +206,7 @@ fun DetailedMatchWidget(
                 ) {
                     Text(
                         text = if (isLoading) "Carregando placar ao vivo..." else "Nenhuma partida em andamento no momento.",
-                        color = Color.White.copy(alpha = 0.5f),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                         fontSize = 13.sp
                     )
                 }
@@ -392,10 +393,10 @@ fun MatchSummaryTab(match: DetailedFixture) {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(imageVector = Icons.Outlined.Schedule, contentDescription = null, tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
-                Text(text = "Data e Hora", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                Icon(imageVector = Icons.Outlined.Schedule, contentDescription = null, tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                Text(text = "Data e Hora", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
             }
-            Text(text = match.matchDetail.dateFormatted, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Text(text = match.matchDetail.dateFormatted, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
         }
         
         if (!match.venueName.isNullOrEmpty()) {
@@ -409,10 +410,10 @@ fun MatchSummaryTab(match: DetailedFixture) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(imageVector = Icons.Outlined.Stadium, contentDescription = null, tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
-                    Text(text = "Estádio", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                    Icon(imageVector = Icons.Outlined.Stadium, contentDescription = null, tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                    Text(text = "Estádio", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
                 }
-                Text(text = match.venueName, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(text = match.venueName, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }
@@ -423,7 +424,7 @@ fun MatchEventsTab(match: DetailedFixture) {
     val events = match.events
     if (events.isEmpty()) {
         Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-            Text("Nenhum evento registrado até o momento.", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+            Text("Nenhum evento registrado até o momento.", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f), fontSize = 12.sp)
         }
     } else {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -439,9 +440,9 @@ fun MatchEventsTab(match: DetailedFixture) {
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(text = "${event.minute}'", fontWeight = FontWeight.Bold, color = Color(0xFFF97316), fontSize = 12.sp)
-                        Text(text = event.playerName, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        Text(text = event.playerName, color = MaterialTheme.colorScheme.onBackground, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                     }
-                    Text(text = event.typeName.uppercase(), color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp)
+                    Text(text = event.typeName.uppercase(), color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f), fontSize = 11.sp)
                 }
             }
         }
@@ -451,7 +452,7 @@ fun MatchEventsTab(match: DetailedFixture) {
 @Composable
 fun MatchLineupsTab(match: DetailedFixture) {
     Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-        Text("Escalações disponíveis próximo ao início do jogo.", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+        Text("Escalações disponíveis próximo ao início do jogo.", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f), fontSize = 12.sp)
     }
 }
 
@@ -475,7 +476,7 @@ fun TeamLogo(logoUrl: String, teamName: String, size: Int = 48) {
         } else {
             Text(
                 text = if (teamName.isNotBlank()) teamName.take(2).uppercase() else "FC",
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onBackground,
                 fontSize = (size * 0.35f).sp,
                 fontWeight = FontWeight.Bold
             )

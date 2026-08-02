@@ -1,4 +1,5 @@
 package com.example
+import androidx.compose.material3.MaterialTheme
 
 import com.example.ui.components.MetricItem
 import com.example.ui.components.MetricItemWithProgress
@@ -599,7 +600,7 @@ fun SleepCyclesCard(
                     text = "SLEEP CYCLES",
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White.copy(alpha = 0.4f),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                     letterSpacing = 1.2.sp
                 )
             }
@@ -632,13 +633,13 @@ fun SleepCyclesCard(
                         fontSize = 18.sp,
                         fontFamily = FontFamily.Serif,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
                         text = "EFFICIENCY",
                         fontSize = 7.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White.copy(alpha = 0.3f),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f),
                         letterSpacing = 0.5.sp
                     )
                 }
@@ -652,19 +653,19 @@ fun SleepCyclesCard(
                 Text(
                     text = startTime,
                     fontSize = 10.sp,
-                    color = Color.White.copy(alpha = 0.4f)
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
                 )
                 Text(
                     text = "dormir",
                     fontSize = 8.sp,
-                    color = Color.White.copy(alpha = 0.2f),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f),
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.sp
                 )
                 Text(
                     text = endTime,
                     fontSize = 10.sp,
-                    color = Color.White.copy(alpha = 0.4f)
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
                 )
             }
         }
@@ -708,7 +709,7 @@ fun InnerStateCard(
                     text = "INNER STATE",
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White.copy(alpha = 0.4f),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                     letterSpacing = 1.2.sp
                 )
             }
@@ -718,7 +719,7 @@ fun InnerStateCard(
                 text = "Como você se sente?",
                 fontFamily = FontFamily.Serif,
                 fontSize = 14.sp,
-                color = Color.White.copy(alpha = 0.9f),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f),
                 textAlign = TextAlign.Center
             )
 
@@ -815,12 +816,12 @@ fun QuietTheMindSection(onSessionClick: (Pair<String, String>) -> Unit) {
                 fontFamily = FontFamily.Serif,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Normal,
-                color = Color.White
+                color = MaterialTheme.colorScheme.onBackground
             )
             Icon(
                 imageVector = Icons.Outlined.ChevronRight,
                 contentDescription = "Ver mais",
-                tint = Color.White.copy(alpha = 0.4f),
+                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                 modifier = Modifier.size(16.dp)
             )
         }
@@ -874,12 +875,12 @@ fun QuietTheMindSection(onSessionClick: (Pair<String, String>) -> Unit) {
                                 fontSize = 14.sp,
                                 fontFamily = FontFamily.Serif,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = MaterialTheme.colorScheme.onBackground
                             )
                             Text(
                                 text = "Sessão de relaxamento",
                                 fontSize = 10.sp,
-                                color = Color.White.copy(alpha = 0.5f)
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                             )
                         }
                     }
@@ -986,7 +987,7 @@ fun QuietTheMindPlayerDialog(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Fechar",
-                            tint = Color.White.copy(alpha = 0.6f)
+                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                         )
                     }
                 }
@@ -998,12 +999,12 @@ fun QuietTheMindPlayerDialog(
                         fontSize = 24.sp,
                         fontFamily = FontFamily.Serif,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
                         text = "Sessão de relaxamento ativa",
                         fontSize = 12.sp,
-                        color = Color.White.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                     )
                 }
                 
@@ -1033,7 +1034,7 @@ fun QuietTheMindPlayerDialog(
                             text = breathingText,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                     }
                 }
@@ -1047,7 +1048,7 @@ fun QuietTheMindPlayerDialog(
                     fontSize = 32.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 
                 // Control buttons
@@ -1067,7 +1068,7 @@ fun QuietTheMindPlayerDialog(
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "Adicionar 1 min",
-                            tint = Color.White
+                            tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
                     
@@ -1099,7 +1100,7 @@ fun QuietTheMindPlayerDialog(
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Reiniciar",
-                            tint = Color.White
+                            tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
                 }
@@ -1107,7 +1108,7 @@ fun QuietTheMindPlayerDialog(
                 Text(
                     text = "Acompanhe o ritmo para acalmar a mente.",
                     fontSize = 11.sp,
-                    color = Color.White.copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                     textAlign = TextAlign.Center
                 )
             }

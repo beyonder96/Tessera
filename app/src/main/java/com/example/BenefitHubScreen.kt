@@ -1,4 +1,5 @@
 package com.example
+import androidx.compose.material3.MaterialTheme
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -46,7 +47,7 @@ fun BenefitHubScreen(
 
     if (card == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Cartão de benefício não encontrado", color = Color.White)
+            Text("Cartão de benefício não encontrado", color = MaterialTheme.colorScheme.onBackground)
         }
         return
     }
@@ -68,12 +69,12 @@ fun BenefitHubScreen(
                             fontFamily = FontFamily.SansSerif, 
                             fontWeight = FontWeight.Bold, 
                             fontSize = 20.sp, 
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onBackground
                         ) 
                     },
                     navigationIcon = { 
                         IconButton(onClick = onBack, modifier = Modifier.bounceClick { onBack() }) { 
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar", tint = Color.White.copy(alpha = 0.8f)) 
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar", tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)) 
                         } 
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -97,7 +98,7 @@ fun BenefitHubScreen(
                         "Extrato do Benefício",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.padding(top = 8.dp)
                     )
                 }
@@ -108,7 +109,7 @@ fun BenefitHubScreen(
                             modifier = Modifier.fillMaxWidth().height(100.dp).then(PremiumGlassModifier),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("Nenhuma transação neste benefício.", color = Color.White.copy(alpha=0.5f), fontSize = 14.sp)
+                            Text("Nenhuma transação neste benefício.", color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.5f), fontSize = 14.sp)
                         }
                     }
                 } else {
@@ -146,8 +147,8 @@ fun BenefitSummaryCard(card: BenefitCard, currencyFormat: NumberFormat) {
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
-                    Text(card.name, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    Text("Terminado em ${card.numberLastFour}", fontSize = 12.sp, color = Color.White.copy(alpha=0.6f))
+                    Text(card.name, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                    Text("Terminado em ${card.numberLastFour}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.6f))
                 }
             }
         }
@@ -159,12 +160,12 @@ fun BenefitSummaryCard(card: BenefitCard, currencyFormat: NumberFormat) {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
-                Text("Saldo Disponível", fontSize = 13.sp, color = Color.White.copy(alpha=0.6f))
+                Text("Saldo Disponível", fontSize = 13.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.6f))
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(currencyFormat.format(card.balance), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text(currencyFormat.format(card.balance), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("Titular", fontSize = 13.sp, color = Color.White.copy(alpha=0.6f))
+                Text("Titular", fontSize = 13.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.6f))
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(card.holderName, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = cardColor)
             }
@@ -195,7 +196,7 @@ fun BenefitTransactionItem(transaction: Transaction, currencyFormat: NumberForma
                 Icon(
                     Icons.Outlined.Payment,
                     contentDescription = null,
-                    tint = Color.White.copy(alpha=0.8f),
+                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha=0.8f),
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -205,7 +206,7 @@ fun BenefitTransactionItem(transaction: Transaction, currencyFormat: NumberForma
                     text = transaction.title,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
@@ -213,7 +214,7 @@ fun BenefitTransactionItem(transaction: Transaction, currencyFormat: NumberForma
                 Text(
                     text = transaction.category,
                     fontSize = 12.sp,
-                    color = Color.White.copy(alpha=0.5f)
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.5f)
                 )
             }
         }

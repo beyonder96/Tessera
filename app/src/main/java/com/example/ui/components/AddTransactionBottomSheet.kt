@@ -1,4 +1,5 @@
 package com.example.ui.components
+import androidx.compose.material3.MaterialTheme
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -157,10 +158,10 @@ fun AddTransactionBottomSheet(
                     fontFamily = FontFamily.Serif,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 22.sp,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = null, tint = Color.White.copy(alpha = 0.5f))
+                    Icon(Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
                 }
             }
 
@@ -246,7 +247,7 @@ fun AddTransactionBottomSheet(
                             fontSize = 38.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Serif,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onBackground,
                             textAlign = TextAlign.Start
                         ),
                         cursorBrush = SolidColor(tint),
@@ -403,7 +404,7 @@ fun AddTransactionBottomSheet(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(if (isIncome) "Recebido" else "Pago", color = Color.White, fontSize = 16.sp)
+                    Text(if (isIncome) "Recebido" else "Pago", color = MaterialTheme.colorScheme.onBackground, fontSize = 16.sp)
                     Switch(
                         checked = isRealized,
                         onCheckedChange = { isRealized = it },
@@ -434,7 +435,7 @@ fun AddTransactionBottomSheet(
                         ) {
                             Text(
                                 text = if (dueDate > 0L) dateFormat.format(Date(dueDate)) else "Hoje",
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onBackground,
                                 fontSize = 15.sp
                             )
                             Icon(
@@ -481,7 +482,7 @@ fun AddTransactionBottomSheet(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column {
-                        Text("Conta Recorrente / Fixa Mensal?", color = Color.White, fontSize = 16.sp)
+                        Text("Conta Recorrente / Fixa Mensal?", color = MaterialTheme.colorScheme.onBackground, fontSize = 16.sp)
                         Text("Repete todos os meses automaticamente", color = Color(0x66FFFFFF), fontSize = 11.sp)
                     }
                     Switch(
@@ -526,7 +527,7 @@ fun AddTransactionBottomSheet(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Parcelar Lançamento?", color = Color.White, fontSize = 16.sp)
+                        Text("Parcelar Lançamento?", color = MaterialTheme.colorScheme.onBackground, fontSize = 16.sp)
                         Switch(
                             checked = isInstallment,
                             onCheckedChange = { isInstallment = it },
@@ -674,7 +675,7 @@ fun NewCategoryDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Color(0xFF1E1E1E),
-        title = { Text("Nova Categoria", color = Color.White) },
+        title = { Text("Nova Categoria", color = MaterialTheme.colorScheme.onBackground) },
         text = {
             Column {
                 OutlinedTextField(
@@ -712,7 +713,7 @@ fun NewCategoryDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancelar", color = Color.White)
+                Text("Cancelar", color = MaterialTheme.colorScheme.onBackground)
             }
         }
     )

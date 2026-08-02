@@ -1,4 +1,5 @@
 package com.example
+import androidx.compose.material3.MaterialTheme
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -271,7 +272,7 @@ fun FinanceScreen(
     val accentColor = Color(0xFF71D7CD)
 
     Scaffold(
-        containerColor = Color(0xFF070909),
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
@@ -340,7 +341,7 @@ fun FinanceScreen(
                                     text = if (isPrivacyModeEnabled) "•••" else "${(ratio * 100).toInt()}%",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.White
+                                    color = MaterialTheme.colorScheme.onBackground
                                 )
                             }
                             // Progress bar
@@ -447,7 +448,7 @@ fun FinanceScreen(
                                                 text = "Painel de Dívidas",
                                                 fontSize = 15.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color.White
+                                                color = MaterialTheme.colorScheme.onBackground
                                             )
                                             Spacer(modifier = Modifier.height(2.dp))
                                             Text(
@@ -459,7 +460,7 @@ fun FinanceScreen(
                                         Icon(
                                             imageVector = Icons.Default.ChevronRight,
                                             contentDescription = null,
-                                            tint = Color.White.copy(alpha = 0.4f),
+                                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
@@ -505,7 +506,7 @@ fun FinanceScreen(
                                                 text = "Painel de Parcelados",
                                                 fontSize = 15.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color.White
+                                                color = MaterialTheme.colorScheme.onBackground
                                             )
                                             Spacer(modifier = Modifier.height(2.dp))
                                             Text(
@@ -517,7 +518,7 @@ fun FinanceScreen(
                                         Icon(
                                             imageVector = Icons.Default.ChevronRight,
                                             contentDescription = null,
-                                            tint = Color.White.copy(alpha = 0.4f),
+                                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
@@ -561,7 +562,7 @@ fun FinanceScreen(
                                                 text = "Painel de Contas Fixas",
                                                 fontSize = 15.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color.White
+                                                color = MaterialTheme.colorScheme.onBackground
                                             )
                                             Spacer(modifier = Modifier.height(2.dp))
                                             Text(
@@ -573,7 +574,7 @@ fun FinanceScreen(
                                         Icon(
                                             imageVector = Icons.Default.ChevronRight,
                                             contentDescription = null,
-                                            tint = Color.White.copy(alpha = 0.4f),
+                                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
@@ -688,7 +689,7 @@ fun FinanceScreen(
                 shape = RoundedCornerShape(12.dp),
                 border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
             ) {
-                Text("Transações Completas", color = Color.White, fontSize = 14.sp)
+                Text("Transações Completas", color = MaterialTheme.colorScheme.onBackground, fontSize = 14.sp)
             }
             if (showCompleteTransactions) {
                 com.example.ui.components.CompleteTransactionsModal(
@@ -719,12 +720,12 @@ fun FinanceScreen(
                             .background(Brush.linearGradient(listOf(Color(0xFF8A2387), Color(0xFFE94057), Color(0xFFF27121)))),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Outlined.Subscriptions, contentDescription = null, tint = Color.White)
+                        Icon(Icons.Outlined.Subscriptions, contentDescription = null, tint = MaterialTheme.colorScheme.onBackground)
                     }
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
-                        Text("Central de Assinaturas", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        Text("Gerencie seus serviços recorrentes", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                        Text("Central de Assinaturas", color = MaterialTheme.colorScheme.onBackground, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("Gerencie seus serviços recorrentes", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f), fontSize = 12.sp)
                     }
                 }
             }
@@ -768,7 +769,7 @@ fun FinanceScreen(
                             text = "FINANÇAS",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Black,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onBackground,
                             letterSpacing = 2.sp
                         )
                     }
@@ -784,9 +785,9 @@ fun FinanceScreen(
                                     .padding(horizontal = 8.dp, vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Limpar Filtro", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.SemiBold)
+                                Text("Limpar Filtro", fontSize = 11.sp, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.SemiBold)
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Icon(Icons.Default.Close, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
+                                Icon(Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.onBackground, modifier = Modifier.size(12.dp))
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                         }
@@ -921,7 +922,7 @@ fun RaloXCard(
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Bold,
                 fontSize = 32.sp,
-                color = Color.White
+                color = MaterialTheme.colorScheme.onBackground
             )
             
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1130,9 +1131,9 @@ fun BalanceHeaderSection(
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Limpar Filtro", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.SemiBold)
+                    Text("Limpar Filtro", fontSize = 11.sp, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.width(4.dp))
-                    Icon(Icons.Default.Close, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
+                    Icon(Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.onBackground, modifier = Modifier.size(12.dp))
                 }
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1193,7 +1194,7 @@ fun BalanceHeaderSection(
                         Text(
                             text = if (isPrivacyModeEnabled) "R$ *****" else String.format(Locale("pt", "BR"), "R$ %,.2f", checkingBalance), 
                             fontSize = 11.sp, 
-                            color = Color.White, 
+                            color = MaterialTheme.colorScheme.onBackground, 
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -1257,7 +1258,7 @@ fun SectionHeader(
             fontFamily = FontFamily.Serif,
             fontWeight = FontWeight.SemiBold,
             fontSize = 18.sp,
-            color = Color.White
+            color = MaterialTheme.colorScheme.onBackground
         )
         IconButton(onClick = onAddClick, modifier = Modifier.size(24.dp)) {
             Icon(
@@ -1341,12 +1342,12 @@ fun CreditCardsCarousel(
                                 text = card.name.uppercase(),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onBackground,
                                 letterSpacing = 1.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            Icon(Icons.Outlined.Restaurant, contentDescription = null, tint = Color.White)
+                            Icon(Icons.Outlined.Restaurant, contentDescription = null, tint = MaterialTheme.colorScheme.onBackground)
                         }
                         
                         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -1428,7 +1429,7 @@ fun CreditCardsCarousel(
                                 text = card.name.uppercase(),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onBackground,
                                 letterSpacing = 1.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -1476,7 +1477,7 @@ fun CreditCardsCarousel(
                                 Text(
                                     text = String.format(Locale("pt", "BR"), "Disp: R$ %,.2f", card.limit - card.usedLimit),
                                     fontSize = 11.sp,
-                                    color = Color.White,
+                                    color = MaterialTheme.colorScheme.onBackground,
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 1
                                 )
@@ -1563,7 +1564,7 @@ fun BankAccountsSection(
                                 text = account.name,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp,
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onBackground,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -1638,7 +1639,7 @@ fun FinancialScoreRing(score: Int, income: Double, expense: Double) {
                         fontFamily = FontFamily.Serif,
                         fontWeight = FontWeight.Bold,
                         fontSize = 48.sp,
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
                         text = "SCORE",
@@ -1721,7 +1722,7 @@ fun SmoothEvolutionChart(transactions: List<Transaction>) {
                     fontFamily = FontFamily.Serif,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 20.sp,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 
                 Box {
@@ -1740,11 +1741,13 @@ fun SmoothEvolutionChart(transactions: List<Transaction>) {
                     DropdownMenu(
                         expanded = expandedPeriod,
                         onDismissRequest = { expandedPeriod = false },
-                        modifier = Modifier.background(Color(0xFF131817))
+                        modifier = Modifier
+                            .background(Color(0xFF000000))
+                            .border(1.dp, Brush.linearGradient(listOf(Color(0xFFFF9800).copy(alpha=0.5f), Color(0xFFFF5722).copy(alpha=0.5f))), RoundedCornerShape(8.dp))
                     ) {
                         periods.forEach { period ->
                             DropdownMenuItem(
-                                text = { Text(period, color = Color.White) },
+                                text = { Text(period, color = MaterialTheme.colorScheme.onBackground) },
                                 onClick = {
                                     selectedPeriod = period
                                     expandedPeriod = false
@@ -1853,7 +1856,7 @@ fun CategoryBreakdown(transactions: List<Transaction>) {
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 20.sp,
-                color = Color.White
+                color = MaterialTheme.colorScheme.onBackground
             )
             Spacer(modifier = Modifier.height(16.dp))
             
@@ -1881,7 +1884,7 @@ fun CategoryBreakdown(transactions: List<Transaction>) {
                     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(category, fontSize = 14.sp, color = Color(0xFFDFE3E2))
-                            Text(String.format(Locale("pt", "BR"), "R$ %,.2f", amount), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                            Text(String.format(Locale("pt", "BR"), "R$ %,.2f", amount), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         Box(modifier = Modifier.fillMaxWidth().height(6.dp).background(Color(0x1AFFFFFF), CircleShape)) {
@@ -1911,7 +1914,7 @@ fun RecentTransactionsSection(
             fontFamily = FontFamily.Serif,
             fontWeight = FontWeight.SemiBold,
             fontSize = 20.sp,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(bottom = 16.dp)
         )
         
@@ -2024,7 +2027,7 @@ fun TransactionItem(transaction: Transaction, bankAccounts: List<BankAccount>, c
                 text = transaction.title,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 16.sp,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -2164,7 +2167,7 @@ fun OverdueAlertBanner(overdueCount: Int, onClick: () -> Unit = {}) {
             Text(
                 text = if (overdueCount == 1) "Você tem 1 lançamento pendente vencido." else "Você tem $overdueCount lançamentos pendentes vencidos.",
                 fontSize = 13.sp,
-                color = Color.White.copy(alpha = 0.9f),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f),
                 fontWeight = FontWeight.Medium
             )
         }
@@ -2207,10 +2210,10 @@ fun AdjustBalancesDialog(
                         fontFamily = FontFamily.Serif,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 18.sp,
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = null, tint = Color.White.copy(alpha = 0.5f))
+                        Icon(Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
                     }
                 }
 
@@ -2247,7 +2250,7 @@ fun AdjustBalancesDialog(
                                 Box(modifier = Modifier.size(10.dp).background(accountColor, CircleShape))
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
-                                    Text(account.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    Text(account.name, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                     Text(account.type, color = Color(0x66FFFFFF), fontSize = 10.sp)
                                 }
                             }
@@ -2346,7 +2349,7 @@ fun RecurringExpensesSection(
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 18.sp,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(bottom = 12.dp)
             )
             
@@ -2534,7 +2537,7 @@ fun EditBankAccountDialog(
             modifier = Modifier.fillMaxWidth().border(1.dp, Color(0x2BFFFFFF), RoundedCornerShape(28.dp))
         ) {
             Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("Editar Conta", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("Editar Conta", color = MaterialTheme.colorScheme.onBackground, fontSize = 20.sp, fontWeight = FontWeight.Bold)
 
                 OutlinedTextField(
                     value = name,
@@ -2549,7 +2552,7 @@ fun EditBankAccountDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Text("Tipo de Conta", color = Color.White, fontSize = 14.sp)
+                Text("Tipo de Conta", color = MaterialTheme.colorScheme.onBackground, fontSize = 14.sp)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("Corrente", "Poupança", "Investimento").forEach { t ->
                         val isSelected = accountType == t
@@ -2568,7 +2571,7 @@ fun EditBankAccountDialog(
                     }
                 }
 
-                Text("Cor", color = Color.White, fontSize = 14.sp)
+                Text("Cor", color = MaterialTheme.colorScheme.onBackground, fontSize = 14.sp)
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(colorPalettes) { hex ->
                         val parsedColor = try { Color(android.graphics.Color.parseColor(hex)) } catch (e: Exception) { Color(0xFF71D7CD) }
@@ -2631,7 +2634,7 @@ fun InstallmentsScreen(
     val totalInstallmentValue = remember(installmentTxs) { installmentTxs.sumOf { it.value } }
 
     Scaffold(
-        containerColor = Color(0xFF070909),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             Row(
                 modifier = Modifier
@@ -2640,14 +2643,14 @@ fun InstallmentsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onBack) {
-                    Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Voltar", tint = Color.White)
+                    Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Voltar", tint = MaterialTheme.colorScheme.onBackground)
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Painel de Parcelados",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onBackground,
                     fontFamily = FontFamily.Serif
                 )
             }
@@ -2672,7 +2675,7 @@ fun InstallmentsScreen(
                         text = String.format(Locale("pt", "BR"), "R$ %,.2f", totalInstallmentValue),
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onBackground,
                         fontFamily = FontFamily.Serif
                     )
                     Spacer(modifier = Modifier.height(4.dp))
@@ -2680,7 +2683,7 @@ fun InstallmentsScreen(
                 }
             }
 
-            Text("Todas as Parcelas", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(top = 8.dp))
+            Text("Todas as Parcelas", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.padding(top = 8.dp))
 
             if (installmentTxs.isEmpty()) {
                 Box(modifier = Modifier.fillMaxWidth().height(150.dp), contentAlignment = Alignment.Center) {
@@ -2761,7 +2764,7 @@ fun RecurrentScreen(
     val totalRecurrentValue = remember(recurrentTxs) { recurrentTxs.sumOf { it.value } }
 
     Scaffold(
-        containerColor = Color(0xFF070909),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             Row(
                 modifier = Modifier
@@ -2770,14 +2773,14 @@ fun RecurrentScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onBack) {
-                    Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Voltar", tint = Color.White)
+                    Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Voltar", tint = MaterialTheme.colorScheme.onBackground)
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Painel de Contas Fixas",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onBackground,
                     fontFamily = FontFamily.Serif
                 )
             }
@@ -2802,7 +2805,7 @@ fun RecurrentScreen(
                         text = String.format(Locale("pt", "BR"), "R$ %,.2f", totalRecurrentValue),
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onBackground,
                         fontFamily = FontFamily.Serif
                     )
                     Spacer(modifier = Modifier.height(4.dp))
@@ -2810,7 +2813,7 @@ fun RecurrentScreen(
                 }
             }
 
-            Text("Todas as Contas Fixas", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(top = 8.dp))
+            Text("Todas as Contas Fixas", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.padding(top = 8.dp))
 
             if (recurrentTxs.isEmpty()) {
                 Box(modifier = Modifier.fillMaxWidth().height(150.dp), contentAlignment = Alignment.Center) {
