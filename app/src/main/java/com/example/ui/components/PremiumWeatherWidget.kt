@@ -41,24 +41,99 @@ fun PremiumWeatherWidget(weatherState: TesseraViewModel.WeatherInfo?) {
         }
     }
 
+    val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+    val isNight = hour < 6 || hour >= 18
+    val isCold = temp < 18
+    val isHot = temp > 28
+
     // Card background gradient matching glass-card reference
-    val cardGradient = Brush.verticalGradient(
-        colorStops = arrayOf(
-            0.0f to Color(0xFF101012),
-            0.50f to Color(0xFF0F0F11),
-            0.75f to Color(0xFF1A0A06),
-            1.0f to Color(0xFF5E1603)
-        )
-    )
+    val cardGradient = remember(isNight, isCold, isHot) {
+        val stops = when {
+            isNight && isCold -> arrayOf(
+                0.0f to Color(0xFF0A0C10),
+                0.50f to Color(0xFF080B12),
+                0.75f to Color(0xFF04101A),
+                1.0f to Color(0xFF07243B)
+            )
+            isNight && isHot -> arrayOf(
+                0.0f to Color(0xFF100A0A),
+                0.50f to Color(0xFF120808),
+                0.75f to Color(0xFF1A0404),
+                1.0f to Color(0xFF3B0707)
+            )
+            isNight -> arrayOf(
+                0.0f to Color(0xFF101012),
+                0.50f to Color(0xFF0F0F11),
+                0.75f to Color(0xFF0C0C14),
+                1.0f to Color(0xFF151528)
+            )
+            isCold -> arrayOf(
+                0.0f to Color(0xFF0D141C),
+                0.50f to Color(0xFF111922),
+                0.75f to Color(0xFF18283B),
+                1.0f to Color(0xFF26507A)
+            )
+            isHot -> arrayOf(
+                0.0f to Color(0xFF15100B),
+                0.50f to Color(0xFF18110B),
+                0.75f to Color(0xFF2B1606),
+                1.0f to Color(0xFF632803)
+            )
+            else -> arrayOf(
+                0.0f to Color(0xFF121212),
+                0.50f to Color(0xFF151515),
+                0.75f to Color(0xFF222222),
+                1.0f to Color(0xFF383838)
+            )
+        }
+        Brush.verticalGradient(colorStops = stops)
+    }
 
     // Gradient for the temperature numbers
-    val tempBrush = Brush.verticalGradient(
-        colorStops = arrayOf(
-            0.35f to Color(0xFFE4E4E7),
-            0.75f to Color(0xFFDE4C4C),
-            1.0f to Color(0xFFF97316)
-        )
-    )
+    val tempBrush = remember(isCold, isHot) {
+        val stops = when {
+            isCold -> arrayOf(
+                0.35f to Color(0xFFE4E4E7),
+                0.75f to Color(0xFF7DD3FC),
+                1.0f to Color(0xFF0284C7)
+            )
+            isHot -> arrayOf(
+                0.35f to Color(0xFFE4E4E7),
+                0.75f to Color(0xFFDE4C4C),
+                1.0f to Color(0xFFF97316)
+            )
+            else -> arrayOf(
+                0.35f to Color(0xFFE4E4E7),
+                0.75f to Color(0xFFA1A1AA),
+                1.0f to Color(0xFF52525B)
+            )
+        }
+        Brush.verticalGradient(colorStops = stops)
+    }
+
+    val glowRadialInner = remember(isCold, isHot) {
+        when {
+            isCold -> Color(0xFF00AAFF)
+            isHot -> Color(0xFFFF5500)
+            else -> Color(0xFF888888)
+        }
+    }
+    
+    val glowRadialOuter = remember(isCold, isHot) {
+        when {
+            isCold -> Color(0xFF004499)
+            isHot -> Color(0xFF992200)
+            else -> Color(0xFF444444)
+        }
+    }
+
+    val glowLine = remember(isCold, isHot) {
+        when {
+            isCold -> Color(0xFF00DDFF)
+            isHot -> Color(0xFFFFAA00)
+            else -> Color(0xFFAAAAAA)
+        }
+    }
 
     // Animated pointer needle angle (mapping temp 0..50°C to -105°..+105°)
     val targetAngle = remember(temp) {
@@ -86,8 +161,8 @@ fun PremiumWeatherWidget(weatherState: TesseraViewModel.WeatherInfo?) {
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Color(0xFFFF5500).copy(alpha = 0.35f),
-                        Color(0xFF992200).copy(alpha = 0.15f),
+                        glowRadialInner.copy(alpha = 0.35f),
+                        glowRadialOuter.copy(alpha = 0.15f),
                         Color.Transparent
                     ),
                     center = Offset(size.width * 0.8f, size.height * 0.9f),
@@ -99,7 +174,7 @@ fun PremiumWeatherWidget(weatherState: TesseraViewModel.WeatherInfo?) {
                 brush = Brush.horizontalGradient(
                     colors = listOf(
                         Color.Transparent,
-                        Color(0xFFFFAA00).copy(alpha = 0.75f),
+                        glowLine.copy(alpha = 0.75f),
                         Color.Transparent
                     )
                 ),

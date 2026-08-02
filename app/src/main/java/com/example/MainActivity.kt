@@ -164,6 +164,7 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        CrashReporter.setup(this)
         handleDeepLink(intent)
 
         val imageLoader = coil.ImageLoader.Builder(this)

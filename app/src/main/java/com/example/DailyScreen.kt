@@ -98,6 +98,42 @@ fun DailyScreen(
 
 
     var activeMindSession by remember { mutableStateOf<Pair<String, String>?>(null) }
+    
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    var crashLog by remember { mutableStateOf<String?>(com.example.CrashReporter.getCrashLog(context)) }
+    if (crashLog != null) {
+        AlertDialog(
+            onDismissRequest = { 
+                com.example.CrashReporter.clearCrashLog(context)
+                crashLog = null 
+            },
+            title = { Text("Relatório de Erro Anteriores") },
+            text = {
+                Column {
+                    Text("O aplicativo encontrou um erro na sessão anterior. Por favor, copie este log e envie para análise.")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = crashLog ?: "",
+                        fontSize = 10.sp,
+                        color = Color.Red,
+                        modifier = Modifier.height(200.dp).verticalScroll(rememberScrollState())
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(crashLog ?: ""))
+                    android.widget.Toast.makeText(context, "Log copiado para a área de transferência", android.widget.Toast.LENGTH_SHORT).show()
+                }) { Text("Copiar Log") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    com.example.CrashReporter.clearCrashLog(context)
+                    crashLog = null
+                }) { Text("Dispensar") }
+            }
+        )
+    }
 
 
 

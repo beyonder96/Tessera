@@ -63,7 +63,11 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
     var activeCategory by remember { mutableStateOf<String?>(null) }
     val packageInfo = remember {
         try {
-            context.packageManager.getPackageInfo(context.packageName, 0)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                context.packageManager.getPackageInfo(context.packageName, android.content.pm.PackageManager.PackageInfoFlags.of(0))
+            } else {
+                context.packageManager.getPackageInfo(context.packageName, 0)
+            }
         } catch (e: Exception) {
             null
         }
@@ -98,16 +102,24 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
         HealthPermission.getReadPermission(HeightRecord::class)
     )
 
-    val requestPermissionActivityContract = PermissionController.createRequestPermissionResultContract()
+    val requestPermissionActivityContract = remember { 
+        try {
+            PermissionController.createRequestPermissionResultContract()
+        } catch (e: Exception) {
+            null
+        }
+    }
 
-    val requestPermissions = rememberLauncherForActivityResult(requestPermissionActivityContract) { granted ->
-        if (granted.containsAll(requiredReadPermissions) || granted.isNotEmpty()) {
-            viewModel.updateHealthProfile(
-                heightCm = healthProfile?.heightCm ?: 0.0,
-                targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
-                isHealthConnectEnabled = true
-            )
-            Toast.makeText(context, "Sincronização com Health Connect ativada!", Toast.LENGTH_SHORT).show()
+    val requestPermissions = requestPermissionActivityContract?.let { contract ->
+        rememberLauncherForActivityResult(contract) { granted ->
+            if (granted.containsAll(requiredReadPermissions) || granted.isNotEmpty()) {
+                viewModel.updateHealthProfile(
+                    heightCm = healthProfile?.heightCm ?: 0.0,
+                    targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
+                    isHealthConnectEnabled = true
+                )
+                Toast.makeText(context, "Sincronização com Health Connect ativada!", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -957,14 +969,14 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                                         )
                                                         Toast.makeText(context, "Sincronização ativada!", Toast.LENGTH_SHORT).show()
                                                     } else {
-                                                        requestPermissions.launch(permissions)
+                                                        requestPermissions?.launch(permissions)
                                                     }
                                                 } else {
                                                     Toast.makeText(context, "Saúde Connect indisponível no sistema", Toast.LENGTH_LONG).show()
                                                 }
                                             } catch (e: Exception) {
                                                 e.printStackTrace()
-                                                requestPermissions.launch(permissions)
+                                                requestPermissions?.launch(permissions)
                                             }
                                         }
                                     } else {
@@ -1013,14 +1025,14 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                                         )
                                                         Toast.makeText(context, "Sincronização ativada!", Toast.LENGTH_SHORT).show()
                                                     } else {
-                                                        requestPermissions.launch(permissions)
+                                                        requestPermissions?.launch(permissions)
                                                     }
                                                 } else {
                                                     Toast.makeText(context, "Saúde Connect indisponível no sistema", Toast.LENGTH_LONG).show()
                                                 }
                                             } catch (e: Exception) {
                                                 e.printStackTrace()
-                                                requestPermissions.launch(permissions)
+                                                requestPermissions?.launch(permissions)
                                             }
                                         }
                                     } else {

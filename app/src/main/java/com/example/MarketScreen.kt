@@ -918,20 +918,34 @@ fun MarketBottomDock(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column {
-                    Text(
-                        text = "TOTAL NO CARRINHO",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                        letterSpacing = 1.5.sp
-                    )
-                    Text(
-                        text = formattedTotal,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = SecondaryGold
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column {
+                        Text(
+                            text = "TOTAL NO CARRINHO",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            letterSpacing = 1.5.sp
+                        )
+                        Text(
+                            text = formattedTotal,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = SecondaryGold
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.width(16.dp))
+                    
+                    IconButton(
+                        onClick = onAddClick,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(PrimaryTeal)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Adicionar Item", tint = Color.Black, modifier = Modifier.size(18.dp))
+                    }
                 }
 
                 Button(
@@ -944,7 +958,7 @@ fun MarketBottomDock(
                 ) {
                     Icon(Icons.Default.ShoppingBag, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("FINALIZAR COMPRAS", fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Text("FINALIZAR", fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                 }
             }
         }

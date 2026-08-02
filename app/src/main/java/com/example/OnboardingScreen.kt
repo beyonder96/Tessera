@@ -77,7 +77,7 @@ fun OnboardingScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF070909))
+            .background(Color(0xFF000000))
     ) {
         // Deep background glows
         Canvas(modifier = Modifier.fillMaxSize()) {
