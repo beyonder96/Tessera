@@ -1837,8 +1837,8 @@ class TesseraViewModel(
                 }
 
                 if (teamsToWatch.isNotEmpty()) {
-                    // Busca jogos de hoje e dos próximos 7 dias do(s) time(s) configurado(s)
-                    for (dayOffset in 0..7) {
+                    // Busca próximo jogo do(s) time(s) configurado(s) até 60 dias no futuro
+                    for (dayOffset in 0..60) {
                         val checkDate = nowLocalDate.plusDays(dayOffset.toLong()).format(dtf)
                         val result = fixtureRepository.getFixturesByDate(checkDate)
                         if (result.isSuccess) {
@@ -1851,9 +1851,9 @@ class TesseraViewModel(
                         }
                     }
 
-                    // Se não encontrou nos próximos 7 dias, busca nos últimos 3 dias para mostrar o resultado recente
+                    // Se não encontrou no futuro, busca nos últimos 14 dias para mostrar o resultado mais recente
                     if (targetFixtureId == null) {
-                        for (dayOffset in 1..3) {
+                        for (dayOffset in 1..14) {
                             val checkDate = nowLocalDate.minusDays(dayOffset.toLong()).format(dtf)
                             val result = fixtureRepository.getFixturesByDate(checkDate)
                             if (result.isSuccess) {

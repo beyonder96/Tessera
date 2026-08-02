@@ -93,16 +93,31 @@ class MedicationReceiver : BroadcastReceiver() {
                 }
                 
                 if (shouldShow) {
-                    val serviceIntent = Intent(context, GlobalMedicationService::class.java).apply {
-                        putExtra("medicationId", matchingMed.id)
-                        putExtra("medicationName", medName)
-                        putExtra("medicationDosage", medDosage)
-                        putExtra("medicationTime", matchingMed.time)
-                    }
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                        context.startForegroundService(serviceIntent)
-                    } else {
-                        context.startService(serviceIntent)
+                    // 1. Sempre exibe a Notificação de Alta Prioridade / Full-Screen Intent nativa do Android
+                    NotificationHelper.showNotification(
+                        context = context,
+                        title = "Hora do Remédio: $medName",
+                        message = messageText,
+                        notificationId = matchingMed.id
+                    )
+
+                    // 2. Se a permissão SYSTEM_ALERT_WINDOW estiver concedida, exibe a janela flutuante adicional
+                    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M || android.provider.Settings.canDrawOverlays(context)) {
+                        val serviceIntent = Intent(context, GlobalMedicationService::class.java).apply {
+                            putExtra("medicationId", matchingMed.id)
+                            putExtra("medicationName", medName)
+                            putExtra("medicationDosage", medDosage)
+                            putExtra("medicationTime", matchingMed.time)
+                        }
+                        try {
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                context.startForegroundService(serviceIntent)
+                            } else {
+                                context.startService(serviceIntent)
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
                     }
                 }
                 
@@ -123,14 +138,27 @@ class MedicationReceiver : BroadcastReceiver() {
                     }
                 }
             } else {
-                val serviceIntent = Intent(context, GlobalMedicationService::class.java).apply {
-                    putExtra("medicationName", medName)
-                    putExtra("medicationDosage", medDosage)
-                }
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                    context.startForegroundService(serviceIntent)
-                } else {
-                    context.startService(serviceIntent)
+                NotificationHelper.showNotification(
+                    context = context,
+                    title = "Hora do Remédio: $medName",
+                    message = messageText,
+                    notificationId = medName.hashCode()
+                )
+                
+                if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M || android.provider.Settings.canDrawOverlays(context)) {
+                    val serviceIntent = Intent(context, GlobalMedicationService::class.java).apply {
+                        putExtra("medicationName", medName)
+                        putExtra("medicationDosage", medDosage)
+                    }
+                    try {
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                            context.startForegroundService(serviceIntent)
+                        } else {
+                            context.startService(serviceIntent)
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
             }
         }

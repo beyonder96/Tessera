@@ -12,22 +12,30 @@ import com.example.R
 import com.example.MainActivity
 
 object NotificationHelper {
-    const val CHANNEL_ID = "medication_channel_v3"
-    private const val CHANNEL_NAME = "Medication Reminders"
+    const val CHANNEL_ID = "medication_alarm_channel_v4"
+    private const val CHANNEL_NAME = "Lembrete Crítico de Medicamento"
 
     fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            
+            val audioAttributes = android.media.AudioAttributes.Builder()
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setUsage(android.media.AudioAttributes.USAGE_ALARM)
+                .build()
+
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 CHANNEL_NAME,
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Reminders for taking your medication"
+                description = "Notificações em tela cheia para lembretes de medicamentos"
                 enableVibration(true)
-                vibrationPattern = longArrayOf(0, 500, 250, 500)
+                vibrationPattern = longArrayOf(0, 800, 400, 800)
                 setShowBadge(true)
-                setSound(defaultSoundUri, null)
+                setLockscreenVisibility(android.app.Notification.VISIBILITY_PUBLIC)
+                setSound(soundUri, audioAttributes)
             }
             val notificationManager: NotificationManager =
                 context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -36,11 +44,17 @@ object NotificationHelper {
     }
 
     fun showNotification(context: Context, title: String, message: String, notificationId: Int) {
+        createNotificationChannel(context)
+
         val intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            action = "ACTION_MEDICATION_ALARM"
+            putExtra("MED_NAME", title.removePrefix("Hora do Remédio: "))
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
-        val pendingIntent: PendingIntent = PendingIntent.getActivity(
-            context, 0, intent,
+        val fullScreenPendingIntent: PendingIntent = PendingIntent.getActivity(
+            context,
+            notificationId,
+            intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -58,18 +72,20 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        val alarmSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground) // Replace with your app's icon
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(title)
             .setContentText(message)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setVibrate(longArrayOf(0, 500, 250, 500))
-            .setSound(defaultSoundUri)
-            .setContentIntent(pendingIntent)
-            .setFullScreenIntent(pendingIntent, true)
+            .setVibrate(longArrayOf(0, 800, 400, 800))
+            .setSound(alarmSoundUri)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentIntent(fullScreenPendingIntent)
+            .setFullScreenIntent(fullScreenPendingIntent, true)
             .addAction(R.drawable.ic_launcher_foreground, "Marcar como tomado", markTakenPendingIntent)
             .setAutoCancel(true)
 
@@ -78,6 +94,7 @@ object NotificationHelper {
     }
 
     fun showBasicNotification(context: Context, title: String, message: String, notificationId: Int) {
+        createNotificationChannel(context)
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }

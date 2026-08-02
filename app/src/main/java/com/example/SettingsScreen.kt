@@ -207,7 +207,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                             fontFamily = FontFamily.SansSerif, 
                             fontWeight = FontWeight.Bold, 
                             fontSize = 22.sp, 
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onBackground,
                             letterSpacing = 0.5.sp
                         ) 
                     },
@@ -226,7 +226,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack, 
                                 "Voltar", 
-                                tint = Color.White.copy(alpha = 0.8f)
+                                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.85f)
                             ) 
                         } 
                     },
@@ -329,13 +329,13 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                     }
                                     Spacer(modifier = Modifier.width(16.dp))
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("Aparência e Temas", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                        Text("Aparência e Temas", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
                                         Spacer(modifier = Modifier.height(2.dp))
-                                        Text("Plano de fundo e estilo glassmorphism", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                                        Text("Plano de fundo e estilo glassmorphism", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
-                                    Icon(Icons.Default.ChevronRight, null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), modifier = Modifier.size(20.dp))
                                 }
-                                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.05f)))
+                                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)))
                                 
                                 Row(
                                     modifier = Modifier
@@ -355,13 +355,13 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                     }
                                     Spacer(modifier = Modifier.width(16.dp))
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("Segurança e Privacidade", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                        Text("Segurança e Privacidade", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
                                         Spacer(modifier = Modifier.height(2.dp))
-                                        Text("Biometria, lembretes e Health Connect", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                                        Text("Biometria, lembretes e Health Connect", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
-                                    Icon(Icons.Default.ChevronRight, null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), modifier = Modifier.size(20.dp))
                                 }
-                                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.05f)))
+                                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)))
 
                                 Row(
                                     modifier = Modifier
@@ -381,13 +381,13 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                     }
                                     Spacer(modifier = Modifier.width(16.dp))
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("Finanças", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                        Text("Finanças", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
                                         Spacer(modifier = Modifier.height(2.dp))
-                                        Text("Configurações de saldos e investimentos", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                                        Text("Configurações de saldos e investimentos", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
-                                    Icon(Icons.Default.ChevronRight, null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), modifier = Modifier.size(20.dp))
                                 }
-                                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.05f)))
+                                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)))
 
                                 Row(
                                     modifier = Modifier
@@ -407,13 +407,13 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                     }
                                     Spacer(modifier = Modifier.width(16.dp))
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("Transporte e Trânsito", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                        Text("Transporte e Trânsito", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
                                         Spacer(modifier = Modifier.height(2.dp))
-                                        Text("Horários e linhas do metrô e trem", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                                        Text("Horários e linhas do metrô e trem", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
-                                    Icon(Icons.Default.ChevronRight, null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), modifier = Modifier.size(20.dp))
                                 }
-                                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.05f)))
+                                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)))
 
                                 Row(
                                     modifier = Modifier
@@ -433,13 +433,13 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                     }
                                     Spacer(modifier = Modifier.width(16.dp))
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("Esportes e Futebol", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                        Text("Esportes e Futebol", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
                                         Spacer(modifier = Modifier.height(2.dp))
-                                        Text("Times e seleções monitorados", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                                        Text("Times e seleções monitorados", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
-                                    Icon(Icons.Default.ChevronRight, null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), modifier = Modifier.size(20.dp))
                                 }
-                                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.05f)))
+                                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)))
 
                                 Row(
                                     modifier = Modifier
@@ -459,11 +459,11 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                     }
                                     Spacer(modifier = Modifier.width(16.dp))
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("Dados e Backup", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                        Text("Dados e Backup", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
                                         Spacer(modifier = Modifier.height(2.dp))
-                                        Text("Importar, exportar e zerar dados", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                                        Text("Importar, exportar e zerar dados", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
-                                    Icon(Icons.Default.ChevronRight, null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), modifier = Modifier.size(20.dp))
                                 }
                             }
                         }
@@ -556,237 +556,335 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
 
                 item {
                     if (activeCategory == "personalizacao") {
-                        SectionTitle("TEMA DO APLICATIVO", SecondaryGold)
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            val isDark = currentAppTheme == "dark"
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(130.dp)
-                                    .clip(RoundedCornerShape(24.dp))
-                                    .background(Color(0xFF000000))
-                                    .border(
-                                        width = if (isDark) 2.dp else 1.dp,
-                                        color = if (isDark) SecondaryGold else Color(0xFF27272A),
-                                        shape = RoundedCornerShape(24.dp)
-                                    )
-                                    .clickable { viewModel.updateAppTheme("dark") }
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.BottomStart
+                        val isDark = currentAppTheme == "dark"
+                        val textColor = MaterialTheme.colorScheme.onBackground
+                        val subtextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        val accentColor = if (isDark) SecondaryGold else PrimaryTeal
+
+                        Column(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+                            SectionTitle("TEMA DO APLICATIVO", accentColor)
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
-                                Column {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                // OLED Card
+                                val isOled = currentAppTheme == "dark"
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(160.dp)
+                                        .clip(RoundedCornerShape(24.dp))
+                                        .background(Color(0xFF09090B))
+                                        .border(
+                                            width = if (isOled) 2.dp else 1.dp,
+                                            color = if (isOled) SecondaryGold else Color(0xFF27272A),
+                                            shape = RoundedCornerShape(24.dp)
+                                        )
+                                        .clickable { viewModel.updateAppTheme("dark") }
+                                        .padding(16.dp)
+                                ) {
+                                    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(12.dp))
+                                                    .background(SecondaryGold.copy(alpha = 0.2f))
+                                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                            ) {
+                                                Text(
+                                                    text = "OLED",
+                                                    color = SecondaryGold,
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    letterSpacing = 1.sp
+                                                )
+                                            }
+                                            if (isOled) {
+                                                Icon(
+                                                    Icons.Outlined.CheckCircle,
+                                                    contentDescription = null,
+                                                    tint = SecondaryGold,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+                                        
+                                        // Mini UI Mockup
                                         Box(
                                             modifier = Modifier
-                                                .size(10.dp)
-                                                .clip(CircleShape)
-                                                .background(if (isDark) SecondaryGold else Color(0xFF52525B))
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text(
-                                            text = "OLED",
-                                            color = SecondaryGold,
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            letterSpacing = 1.sp
-                                        )
+                                                .fillMaxWidth()
+                                                .height(44.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(Color(0xFF18181B))
+                                                .border(1.dp, Color(0xFF27272A), RoundedCornerShape(12.dp))
+                                                .padding(8.dp),
+                                            contentAlignment = Alignment.CenterStart
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Box(modifier = Modifier.size(16.dp).clip(CircleShape).background(SecondaryGold))
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Box(modifier = Modifier.width(50.dp).height(6.dp).clip(RoundedCornerShape(3.dp)).background(Color.White.copy(alpha = 0.8f)))
+                                            }
+                                        }
+                                        
+                                        Column {
+                                            Text(
+                                                text = "Preto Profundo",
+                                                color = Color.White,
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                text = "Economia de bateria",
+                                                color = Color.White.copy(alpha = 0.6f),
+                                                fontSize = 11.sp
+                                            )
+                                        }
                                     }
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Text(
-                                        text = "Preto Profundo",
-                                        color = Color.White,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "Dark Mode Sólido",
-                                        color = Color.White.copy(alpha = 0.6f),
-                                        fontSize = 11.sp
-                                    )
                                 }
-                            }
 
-                            val isLight = currentAppTheme == "light"
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(130.dp)
-                                    .clip(RoundedCornerShape(24.dp))
-                                    .background(Color(0xFFFFFFFF))
-                                    .border(
-                                        width = if (isLight) 2.dp else 1.dp,
-                                        color = if (isLight) PrimaryTeal else Color(0xFFE2E8F0),
-                                        shape = RoundedCornerShape(24.dp)
-                                    )
-                                    .clickable { viewModel.updateAppTheme("light") }
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.BottomStart
-                            ) {
-                                Column {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                // LIGHT Card
+                                val isLight = currentAppTheme == "light"
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(160.dp)
+                                        .clip(RoundedCornerShape(24.dp))
+                                        .background(Color(0xFFFFFFFF))
+                                        .border(
+                                            width = if (isLight) 2.dp else 1.dp,
+                                            color = if (isLight) Color(0xFF0D9488) else Color(0xFFE2E8F0),
+                                            shape = RoundedCornerShape(24.dp)
+                                        )
+                                        .clickable { viewModel.updateAppTheme("light") }
+                                        .padding(16.dp)
+                                ) {
+                                    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(12.dp))
+                                                    .background(Color(0xFF0D9488).copy(alpha = 0.15f))
+                                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                            ) {
+                                                Text(
+                                                    text = "LIGHT",
+                                                    color = Color(0xFF0D9488),
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    letterSpacing = 1.sp
+                                                )
+                                            }
+                                            if (isLight) {
+                                                Icon(
+                                                    Icons.Outlined.CheckCircle,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFF0D9488),
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+                                        
+                                        // Mini UI Mockup Light
                                         Box(
                                             modifier = Modifier
-                                                .size(10.dp)
+                                                .fillMaxWidth()
+                                                .height(44.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(Color(0xFFF1F5F9))
+                                                .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp))
+                                                .padding(8.dp),
+                                            contentAlignment = Alignment.CenterStart
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Box(modifier = Modifier.size(16.dp).clip(CircleShape).background(Color(0xFF0D9488)))
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Box(modifier = Modifier.width(50.dp).height(6.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFF0F172A)))
+                                            }
+                                        }
+                                        
+                                        Column {
+                                            Text(
+                                                text = "Branco Total",
+                                                color = Color(0xFF0F172A),
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                text = "Alta legibilidade",
+                                                color = Color(0xFF64748B),
+                                                fontSize = 11.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Glassmorphism Section
+                            SectionTitle("ESTILO DO GLASSMORPHISM", accentColor)
+                            
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                val glassStyles = listOf(
+                                    Triple("Frosted", "Conceito iOS / macOS", "Equilíbrio perfeito entre opacidade e desfoque aveludado."),
+                                    Triple("Clear", "Visão Cristalina", "Superfície translúcida de alto brilho com bordas nítidas."),
+                                    Triple("Blur", "Suavidade One UI", "Fundo ambiente com desfoque profundo e visual suave.")
+                                )
+                                
+                                glassStyles.forEach { (style, subtitle, desc) ->
+                                    val isSelected = currentGlassLevel == style
+                                    val cardBg = if (isDark) {
+                                        if (isSelected) Color(0x33FFFFFF) else Color(0x12FFFFFF)
+                                    } else {
+                                        if (isSelected) Color(0xE6FFFFFF) else Color(0xB3F8F9FA)
+                                    }
+                                    val cardBorder = if (isSelected) {
+                                        accentColor
+                                    } else if (isDark) {
+                                        Color.White.copy(alpha = 0.15f)
+                                    } else {
+                                        Color(0xFFCBD5E1)
+                                    }
+                                    
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(20.dp))
+                                            .background(cardBg)
+                                            .border(
+                                                width = if (isSelected) 2.dp else 1.dp,
+                                                color = cardBorder,
+                                                shape = RoundedCornerShape(20.dp)
+                                            )
+                                            .clickable { viewModel.updateGlassmorphismLevel(style) }
+                                            .padding(16.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(44.dp)
+                                                    .clip(CircleShape)
+                                                    .background(if (isSelected) accentColor.copy(alpha = 0.2f) else subtextColor.copy(alpha = 0.1f)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (isSelected) Icons.Outlined.CheckCircle else Icons.Outlined.AutoAwesome,
+                                                    contentDescription = null,
+                                                    tint = if (isSelected) accentColor else subtextColor,
+                                                    modifier = Modifier.size(22.dp)
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(16.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(
+                                                        text = style,
+                                                        fontSize = 16.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = textColor
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .clip(RoundedCornerShape(8.dp))
+                                                            .background(accentColor.copy(alpha = 0.15f))
+                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = subtitle,
+                                                            fontSize = 10.sp,
+                                                            fontWeight = FontWeight.Medium,
+                                                            color = accentColor
+                                                        )
+                                                    }
+                                                }
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(
+                                                    text = desc,
+                                                    fontSize = 12.sp,
+                                                    color = subtextColor
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Live Preview Component
+                            SectionTitle("PRÉ-VISUALIZAÇÃO EM TEMPO REAL", accentColor)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .then(PremiumGlassModifier)
+                                    .padding(20.dp)
+                            ) {
+                                Column {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            Text(
+                                                text = "Cartão Demonstrativo",
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = textColor
+                                            )
+                                            Text(
+                                                text = "Veja como os elementos respondem ao seu tema",
+                                                fontSize = 12.sp,
+                                                color = subtextColor
+                                            )
+                                        }
+                                        Box(
+                                            modifier = Modifier
+                                                .size(36.dp)
                                                 .clip(CircleShape)
-                                                .background(if (isLight) PrimaryTeal else Color(0xFFCBD5E1))
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text(
-                                            text = "LIGHT",
-                                            color = Color(0xFF0D9488),
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            letterSpacing = 1.sp
+                                                .background(accentColor.copy(alpha = 0.2f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                Icons.Outlined.Palette,
+                                                contentDescription = null,
+                                                tint = accentColor,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(6.dp)
+                                            .clip(RoundedCornerShape(3.dp))
+                                            .background(subtextColor.copy(alpha = 0.15f))
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth(0.75f)
+                                                .fillMaxHeight()
+                                                .clip(RoundedCornerShape(3.dp))
+                                                .background(accentColor)
                                         )
                                     }
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Text(
-                                        text = "Branco Total",
-                                        color = Color(0xFF0F172A),
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "Light Mode Limpo",
-                                        color = Color(0xFF64748B),
-                                        fontSize = 11.sp
-                                    )
                                 }
                             }
                         }
-                    }
-                }
-
-                item {
-                    if (activeCategory == "personalizacao") {
-                        SectionTitle("ESTILO DO GLASSMORPHISM", SecondaryGold)
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // Frosted Concept - Card superior largo
-                        val isFrosted = currentGlassLevel == "Frosted"
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(120.dp)
-                                .clip(RoundedCornerShape(28.dp))
-                                .background(
-                                    Brush.verticalGradient(
-                                        colors = if (isFrosted) listOf(Color(0x52FFFFFF), Color(0x1AFFFFFF)) else listOf(Color(0x1CFFFFFF), Color(0x06FFFFFF))
-                                    )
-                                )
-                                .border(
-                                    width = if (isFrosted) 2.dp else 1.dp,
-                                    brush = SolidColor(if (isFrosted) SecondaryGold else Color.White.copy(alpha = 0.2f)),
-                                    shape = RoundedCornerShape(28.dp)
-                                )
-                                .clickable { viewModel.updateGlassmorphismLevel("Frosted") },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = "Frosted",
-                                    color = Color.White,
-                                    fontSize = 28.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    letterSpacing = 1.sp
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Concept",
-                                    color = Color.White.copy(alpha = 0.6f),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Normal
-                                )
-                            }
-                        }
-
-                        // Clear e Blur - Cards inferiores lado a lado
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            // Clear: iOS
-                            val isClear = currentGlassLevel == "Clear"
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(110.dp)
-                                    .clip(RoundedCornerShape(28.dp))
-                                    .background(
-                                        Brush.verticalGradient(
-                                            colors = if (isClear) listOf(Color(0x24FFFFFF), Color(0x08FFFFFF)) else listOf(Color(0x0EFFFFFF), Color(0x02FFFFFF))
-                                        )
-                                    )
-                                    .border(
-                                        width = if (isClear) 2.dp else 1.dp,
-                                        brush = SolidColor(if (isClear) SecondaryGold else Color.White.copy(alpha = 0.15f)),
-                                        shape = RoundedCornerShape(28.dp)
-                                    )
-                                    .clickable { viewModel.updateGlassmorphismLevel("Clear") },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = "Clear",
-                                        color = Color.White,
-                                        fontSize = 24.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        letterSpacing = 0.5.sp
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "iOS",
-                                        color = Color.White.copy(alpha = 0.6f),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Normal
-                                    )
-                                }
-                            }
-
-                            // Blur: One UI
-                            val isBlur = currentGlassLevel == "Blur"
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(110.dp)
-                                    .clip(RoundedCornerShape(28.dp))
-                                    .background(
-                                        Brush.verticalGradient(
-                                            colors = if (isBlur) listOf(Color(0x3DFFFFFF), Color(0x12FFFFFF)) else listOf(Color(0x1DFFFFFF), Color(0x04FFFFFF))
-                                        )
-                                    )
-                                    .border(
-                                        width = if (isBlur) 2.dp else 1.dp,
-                                        brush = SolidColor(if (isBlur) SecondaryGold else Color.White.copy(alpha = 0.15f)),
-                                        shape = RoundedCornerShape(28.dp)
-                                    )
-                                    .clickable { viewModel.updateGlassmorphismLevel("Blur") },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = "Blur",
-                                        color = Color.White,
-                                        fontSize = 24.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        letterSpacing = 0.5.sp
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "One UI",
-                                        color = Color.White.copy(alpha = 0.6f),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Normal
-                                    )
-                                }
-                            }
-                        }
-                    }
                     }
                 }
 
@@ -1646,7 +1744,7 @@ fun StatRow(label: String, value: String, valueColor: Color) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(label, fontSize = 13.sp, color = Color.White.copy(alpha=0.6f))
+        Text(label, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = valueColor)
     }
 }

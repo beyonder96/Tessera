@@ -110,6 +110,7 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
     var showAddDialog by remember { mutableStateOf(false) }
     var showCheckoutDebitDialog by remember { mutableStateOf(false) }
     var selectedCategoryFilter by remember { mutableStateOf("Todos") }
+    var quickAddText by remember { mutableStateOf("") }
 
     val selectedTab = pagerState.currentPage
     val cartTotal = shoppingItems.filter { it.isChecked }.sumOf { it.price * it.quantity }
@@ -149,25 +150,82 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                 .padding(innerPadding)
                 .imePadding()
         ) {
-            // Category Filter Chips
+            // Minimal Category Filter Chips
             CategoryFilterBar(
                 selectedCategory = selectedCategoryFilter,
                 onSelectCategory = { selectedCategoryFilter = it }
             )
 
-            // Staple Recommendations Bar (Planning tab only)
-            if (selectedTab == 0) {
-                StaplesRecommendationBar(
-                    onAddStaple = { staple ->
-                        viewModel.addMarketItem(
-                            name = staple,
-                            category = "Outros",
-                            quantity = 1.0,
-                            unit = "un",
-                            price = 0.0
-                        )
-                    }
+            // Quick Add Input Bar (Direct & Minimalist)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+                    .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
+                    .padding(horizontal = 14.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = null,
+                    tint = PrimaryTeal,
+                    modifier = Modifier.size(20.dp)
                 )
+                Spacer(modifier = Modifier.width(8.dp))
+                TextField(
+                    value = quickAddText,
+                    onValueChange = { quickAddText = it },
+                    placeholder = {
+                        Text(
+                            text = if (selectedTab == 0) "+ Adicionar item ao planejamento..." else "+ Adicionar item direto ao carrinho...",
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                            fontSize = 13.sp
+                        )
+                    },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {
+                        if (quickAddText.isNotBlank()) {
+                            viewModel.addMarketItem(
+                                name = quickAddText.trim(),
+                                category = if (selectedCategoryFilter != "Todos") selectedCategoryFilter else "Outros",
+                                quantity = 1.0,
+                                unit = "un",
+                                price = 0.0,
+                                inMarket = (selectedTab == 1)
+                            )
+                            quickAddText = ""
+                        }
+                    }),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    modifier = Modifier.weight(1f)
+                )
+                if (quickAddText.isNotBlank()) {
+                    IconButton(
+                        onClick = {
+                            viewModel.addMarketItem(
+                                name = quickAddText.trim(),
+                                category = if (selectedCategoryFilter != "Todos") selectedCategoryFilter else "Outros",
+                                quantity = 1.0,
+                                unit = "un",
+                                price = 0.0,
+                                inMarket = (selectedTab == 1)
+                            )
+                            quickAddText = ""
+                        },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(Icons.Default.ArrowForward, contentDescription = "Adicionar", tint = PrimaryTeal, modifier = Modifier.size(18.dp))
+                    }
+                }
             }
 
             // Tab Page Contents
@@ -207,12 +265,19 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
             }
         }
 
-        // Add Item Dialog
+        // Add Item Dialog (Garante que se adiciona com inMarket correspondente à aba ativa)
         if (showAddDialog) {
             AddMarketItemDialog(
                 onDismiss = { showAddDialog = false },
                 onConfirm = { name, category, quantity, unit, price ->
-                    viewModel.addMarketItem(name = name, category = category, price = price, quantity = quantity, unit = unit)
+                    viewModel.addMarketItem(
+                        name = name,
+                        category = category,
+                        price = price,
+                        quantity = quantity,
+                        unit = unit,
+                        inMarket = (selectedTab == 1)
+                    )
                     showAddDialog = false
                 }
             )

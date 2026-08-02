@@ -22,6 +22,7 @@ private val DeepBlackColorScheme = darkColorScheme(
     onTertiary = BackgroundDeepBlack,
     onBackground = OnBackgroundDeepBlack,
     onSurface = OnSurfaceDeepBlack,
+    onSurfaceVariant = Color(0xFF9CA3AF),
     surfaceVariant = SurfaceVariantDeepBlack,
     outline = BorderDeepBlack
 )
@@ -37,6 +38,7 @@ private val PureWhiteColorScheme = lightColorScheme(
     onTertiary = BackgroundPureWhite,
     onBackground = OnBackgroundPureWhite,
     onSurface = OnSurfacePureWhite,
+    onSurfaceVariant = Color(0xFF475569),
     surfaceVariant = SurfaceVariantPureWhite,
     outline = BorderPureWhite
 )

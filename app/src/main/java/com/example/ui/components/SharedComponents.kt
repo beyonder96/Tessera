@@ -54,9 +54,9 @@ val PremiumGlassModifier: Modifier
             }
         } else {
             when (level) {
-                "Clear" -> listOf(Color(0xF0FFFFFF), Color(0xE6F8F9FA)) to listOf(Color(0x330F172A), Color(0x100F172A))
-                "Blur" -> listOf(Color(0xF8FFFFFF), Color(0xF2F8F9FA)) to listOf(Color(0x290F172A), Color(0x0A0F172A))
-                else -> listOf(Color(0xFFFFFFFF), Color(0xFFF8F9FA)) to listOf(Color(0x1F0F172A), Color(0x0D0F172A))
+                "Clear" -> listOf(Color(0xB3FFFFFF), Color(0x80F8F9FA)) to listOf(Color(0x400F172A), Color(0x1A0F172A))
+                "Blur" -> listOf(Color(0xDCFFFFFF), Color(0xAAF8F9FA)) to listOf(Color(0x330F172A), Color(0x140F172A))
+                else -> listOf(Color(0xC8FFFFFF), Color(0x90F8F9FA)) to listOf(Color(0x2B0F172A), Color(0x100F172A))
             }
         }
         

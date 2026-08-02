@@ -28,9 +28,9 @@ import kotlin.math.sin
 
 @Composable
 fun PremiumWeatherWidget(weatherState: TesseraViewModel.WeatherInfo?) {
-    val temp = weatherState?.temp?.toInt() ?: 38
-    val rawDesc = weatherState?.description ?: "Summer"
-    val city = weatherState?.city
+    val temp = weatherState?.temp?.toInt() ?: 23
+    val rawDesc = weatherState?.description ?: "Parcialmente Nublado"
+    val city = weatherState?.city ?: "São Paulo"
 
     // Determine display header text
     val headerText = remember(rawDesc) {
@@ -51,7 +51,7 @@ fun PremiumWeatherWidget(weatherState: TesseraViewModel.WeatherInfo?) {
         )
     )
 
-    // Gradient for the temperature numbers perfectly matching bottom heat glow
+    // Gradient for the temperature numbers
     val tempBrush = Brush.verticalGradient(
         colorStops = arrayOf(
             0.35f to Color(0xFFE4E4E7),
@@ -71,38 +71,35 @@ fun PremiumWeatherWidget(weatherState: TesseraViewModel.WeatherInfo?) {
         label = "needleAngle"
     )
 
-    val shape = RoundedCornerShape(44.dp)
+    val shape = RoundedCornerShape(32.dp)
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(350.dp)
+            .height(170.dp)
             .clip(shape)
             .background(cardGradient)
-            .border(1.dp, Color.White.copy(alpha = 0.08f), shape),
-        contentAlignment = Alignment.TopCenter
+            .border(1.dp, Color.White.copy(alpha = 0.08f), shape)
     ) {
         // Warm bottom radial & rim glow overlay
         Canvas(modifier = Modifier.fillMaxSize()) {
-            // Warm inner glow
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Color(0xFFFF5500).copy(alpha = 0.45f),
-                        Color(0xFF992200).copy(alpha = 0.20f),
+                        Color(0xFFFF5500).copy(alpha = 0.35f),
+                        Color(0xFF992200).copy(alpha = 0.15f),
                         Color.Transparent
                     ),
-                    center = Offset(size.width / 2f, size.height * 1.05f),
-                    radius = size.width * 0.75f
+                    center = Offset(size.width * 0.8f, size.height * 0.9f),
+                    radius = size.width * 0.5f
                 )
             )
 
-            // Bright amber rim highlight at bottom edge
             drawLine(
                 brush = Brush.horizontalGradient(
                     colors = listOf(
                         Color.Transparent,
-                        Color(0xFFFFAA00).copy(alpha = 0.85f),
+                        Color(0xFFFFAA00).copy(alpha = 0.75f),
                         Color.Transparent
                     )
                 ),
@@ -112,139 +109,126 @@ fun PremiumWeatherWidget(weatherState: TesseraViewModel.WeatherInfo?) {
             )
         }
 
-        // Header Text & Location
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Spacer(modifier = Modifier.height(28.dp))
-            Text(
-                text = headerText,
-                color = Color(0xFFA1A1AA),
-                fontSize = 15.sp,
-                fontFamily = FontFamily.SansSerif,
-                fontWeight = FontWeight.Medium,
-                letterSpacing = 5.sp
-            )
-
-            if (!city.isNullOrEmpty()) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = city.uppercase(),
-                    color = Color.White.copy(alpha = 0.35f),
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.SansSerif,
-                    fontWeight = FontWeight.Normal,
-                    letterSpacing = 2.sp
-                )
-            }
-        }
-
-        // Central Dial Arc & Needle Gauge
-        Canvas(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            val centerX = size.width / 2f
-            val centerY = size.height * 0.52f
-            val radius = 105.dp.toPx()
-            val numTicks = 45
-            val startAngle = -105f
-            val endAngle = 105f
-
-            // Draw procedural tick marks
-            for (i in 0 until numTicks) {
-                val angleDeg = startAngle + (i * (endAngle - startAngle) / (numTicks - 1))
-                val angleRad = Math.toRadians((angleDeg - 90).toDouble())
-
-                val innerR = radius - 9.dp.toPx()
-                val outerR = radius
-
-                val startX = centerX + innerR * cos(angleRad).toFloat()
-                val startY = centerY + innerR * sin(angleRad).toFloat()
-                val endX = centerX + outerR * cos(angleRad).toFloat()
-                val endY = centerY + outerR * sin(angleRad).toFloat()
-
-                drawLine(
-                    color = Color(0xFF52525B),
-                    start = Offset(startX, startY),
-                    end = Offset(endX, endY),
-                    strokeWidth = 1.2.dp.toPx(),
-                    cap = StrokeCap.Round
-                )
-            }
-
-            // Draw Needle Pointer
-            val needleRad = Math.toRadians((animatedAngle - 90).toDouble())
-            val needleLength = 112.dp.toPx()
-            val needleStartR = 30.dp.toPx()
-
-            val nStartX = centerX + needleStartR * cos(needleRad).toFloat()
-            val nStartY = centerY + needleStartR * sin(needleRad).toFloat()
-            val nEndX = centerX + needleLength * cos(needleRad).toFloat()
-            val nEndY = centerY + needleLength * sin(needleRad).toFloat()
-
-            drawLine(
-                brush = Brush.linearGradient(
-                    colors = listOf(Color.Transparent, Color(0xFFE4E4E7)),
-                    start = Offset(nStartX, nStartY),
-                    end = Offset(nEndX, nEndY)
-                ),
-                start = Offset(nStartX, nStartY),
-                end = Offset(nEndX, nEndY),
-                strokeWidth = 1.8.dp.toPx(),
-                cap = StrokeCap.Round
-            )
-        }
-
-        // Temperature Display Container (Bottom positioned)
-        Box(
+        Row(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 28.dp),
-            contentAlignment = Alignment.Center
+                .fillMaxSize()
+                .padding(horizontal = 24.dp, vertical = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            val tempStr = temp.toString()
-            val firstDigit = if (tempStr.length > 1) tempStr.substring(0, tempStr.length - 1) else ""
-            val secondDigit = if (tempStr.length > 1) tempStr.substring(tempStr.length - 1) else tempStr
+            // Left Text Area (Condition, City, Temp)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = headerText,
+                    color = Color(0xFFA1A1AA),
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.SansSerif,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 2.5.sp
+                )
 
-            Box(contentAlignment = Alignment.TopEnd) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.padding(end = 18.dp)
-                ) {
-                    if (firstDigit.isNotEmpty()) {
-                        Text(
-                            text = firstDigit,
-                            fontSize = 135.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            fontFamily = FontFamily.SansSerif,
-                            style = TextStyle(
-                                brush = tempBrush,
-                                letterSpacing = (-0.05).em
-                            )
-                        )
-                    }
+                if (city.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = secondDigit,
-                        fontSize = 135.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        text = city.uppercase(),
+                        color = Color.White.copy(alpha = 0.4f),
+                        fontSize = 9.sp,
                         fontFamily = FontFamily.SansSerif,
-                        modifier = Modifier.offset(x = if (firstDigit.isNotEmpty()) (-22).dp else 0.dp),
-                        style = TextStyle(
-                            brush = tempBrush,
-                            letterSpacing = (-0.05).em
-                        )
+                        fontWeight = FontWeight.Normal,
+                        letterSpacing = 1.5.sp
                     )
                 }
 
-                // Geometric Degree Symbol
-                Box(
-                    modifier = Modifier
-                        .offset(x = (4).dp, y = (18).dp)
-                        .size(18.dp)
-                        .border(2.5.dp, Color(0xFF9CA3AF), CircleShape)
-                )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Box(contentAlignment = Alignment.TopEnd) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(end = 14.dp)
+                    ) {
+                        Text(
+                            text = temp.toString(),
+                            fontSize = 64.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.SansSerif,
+                            style = TextStyle(
+                                brush = tempBrush,
+                                letterSpacing = (-0.04).em
+                            )
+                        )
+                    }
+
+                    // Geometric Degree Symbol
+                    Box(
+                        modifier = Modifier
+                            .offset(x = (2).dp, y = (10).dp)
+                            .size(12.dp)
+                            .border(2.dp, Color(0xFF9CA3AF), CircleShape)
+                    )
+                }
+            }
+
+            // Right Dial Gauge Display
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .padding(end = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val centerX = size.width / 2f
+                    val centerY = size.height / 2f
+                    val radius = 45.dp.toPx()
+                    val numTicks = 31
+                    val startAngle = -110f
+                    val endAngle = 110f
+
+                    for (i in 0 until numTicks) {
+                        val angleDeg = startAngle + (i * (endAngle - startAngle) / (numTicks - 1))
+                        val angleRad = Math.toRadians((angleDeg - 90).toDouble())
+
+                        val innerR = radius - 6.dp.toPx()
+                        val outerR = radius
+
+                        val startX = centerX + innerR * cos(angleRad).toFloat()
+                        val startY = centerY + innerR * sin(angleRad).toFloat()
+                        val endX = centerX + outerR * cos(angleRad).toFloat()
+                        val endY = centerY + outerR * sin(angleRad).toFloat()
+
+                        drawLine(
+                            color = Color(0xFF52525B),
+                            start = Offset(startX, startY),
+                            end = Offset(endX, endY),
+                            strokeWidth = 1.2.dp.toPx(),
+                            cap = StrokeCap.Round
+                        )
+                    }
+
+                    // Needle Pointer
+                    val needleRad = Math.toRadians((animatedAngle - 90).toDouble())
+                    val needleLength = 48.dp.toPx()
+                    val needleStartR = 12.dp.toPx()
+
+                    val nStartX = centerX + needleStartR * cos(needleRad).toFloat()
+                    val nStartY = centerY + needleStartR * sin(needleRad).toFloat()
+                    val nEndX = centerX + needleLength * cos(needleRad).toFloat()
+                    val nEndY = centerY + needleLength * sin(needleRad).toFloat()
+
+                    drawLine(
+                        brush = Brush.linearGradient(
+                            colors = listOf(Color.Transparent, Color(0xFFE4E4E7)),
+                            start = Offset(nStartX, nStartY),
+                            end = Offset(nEndX, nEndY)
+                        ),
+                        start = Offset(nStartX, nStartY),
+                        end = Offset(nEndX, nEndY),
+                        strokeWidth = 1.8.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
+                }
             }
         }
     }

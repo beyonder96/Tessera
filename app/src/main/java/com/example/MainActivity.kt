@@ -477,6 +477,7 @@ fun TesseraApp() {
                     modifier = Modifier
                         .fillMaxSize()
                         .background(MaterialTheme.colorScheme.background)
+                        .haze(state = hazeState)
                 ) {
                     val contentBlur by animateDpAsState(if (isFabExpanded) 32.dp else 0.dp, tween(300))
                     Box(modifier = Modifier.fillMaxSize().blur(contentBlur)) {
@@ -3619,10 +3620,38 @@ fun CircularNavButton(
     icon: ImageVector,
     contentDescription: String,
     isActive: Boolean,
-    activeColor: Color = Color.White,
-    activeIconColor: Color = Color.Black,
+    activeColor: Color = MaterialTheme.colorScheme.primary,
+    activeIconColor: Color = MaterialTheme.colorScheme.onPrimary,
     onClick: () -> Unit
 ) {
+    val isDark = LocalAppTheme.current == "dark"
+    val defaultActiveBg = if (isDark) Color.White else PrimaryTeal
+    val defaultActiveIcon = if (isDark) Color.Black else Color.White
+    
+    val bgColors = if (isActive) {
+        listOf(activeColor, activeColor)
+    } else if (isDark) {
+        listOf(Color(0x2BFFFFFF), Color(0x06FFFFFF))
+    } else {
+        listOf(Color(0xF0F1F5F9), Color(0xE2E2E8F0))
+    }
+
+    val borderColors = if (isActive) {
+        listOf(activeColor.copy(alpha = 0.8f), activeColor.copy(alpha = 0.4f))
+    } else if (isDark) {
+        listOf(Color(0x59FFFFFF), Color(0x08FFFFFF))
+    } else {
+        listOf(Color(0xFFCBD5E1), Color(0xFF94A3B8))
+    }
+
+    val iconTint = if (isActive) {
+        activeIconColor
+    } else if (isDark) {
+        Color.White
+    } else {
+        Color(0xFF0F172A)
+    }
+
     Box(
         modifier = Modifier.size(56.dp)
     ) {
@@ -3633,7 +3662,7 @@ fun CircularNavButton(
                 .padding(2.dp)
                 .blur(8.dp)
                 .background(
-                    if (isActive) activeColor.copy(alpha = 0.3f) else Color(0x55000000),
+                    if (isActive) (if (isDark) defaultActiveBg else activeColor).copy(alpha = 0.3f) else if (isDark) Color(0x55000000) else Color(0x1F000000),
                     CircleShape
                 )
         )
@@ -3643,27 +3672,10 @@ fun CircularNavButton(
             modifier = Modifier
                 .fillMaxSize()
                 .clip(CircleShape)
-                .background(
-                    if (isActive) {
-                        SolidColor(activeColor)
-                    } else {
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color(0x2BFFFFFF), // Glossy top glare (Liquid Glass)
-                                Color(0x06FFFFFF)  // Translucent base
-                            )
-                        )
-                    }
-                )
+                .background(Brush.verticalGradient(colors = bgColors))
                 .border(
                     width = 1.dp,
-                    brush = Brush.verticalGradient(
-                        colors = if (isActive) {
-                            listOf(Color.White.copy(alpha = 0.6f), Color.White.copy(alpha = 0.2f))
-                        } else {
-                            listOf(Color(0x59FFFFFF), Color(0x08FFFFFF))
-                        }
-                    ),
+                    brush = Brush.verticalGradient(colors = borderColors),
                     shape = CircleShape
                 )
                 .bounceClick { onClick() },
@@ -3672,7 +3684,7 @@ fun CircularNavButton(
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,
-                tint = if (isActive) activeIconColor else Color.White,
+                tint = iconTint,
                 modifier = Modifier.size(22.dp)
             )
         }

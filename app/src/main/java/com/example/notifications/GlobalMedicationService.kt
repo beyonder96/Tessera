@@ -65,6 +65,11 @@ class GlobalMedicationService : Service() {
     }
 
     private fun showOverlay(id: Int, name: String, dosage: String, time: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !android.provider.Settings.canDrawOverlays(this)) {
+            stopSelf()
+            return
+        }
+
         val context = this
         val layout = android.widget.LinearLayout(context).apply {
             orientation = android.widget.LinearLayout.VERTICAL
@@ -128,7 +133,13 @@ class GlobalMedicationService : Service() {
         params.gravity = Gravity.CENTER
 
         overlayView = layout
-        windowManager.addView(overlayView, params)
+        try {
+            windowManager.addView(overlayView, params)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            overlayView = null
+            stopSelf()
+        }
     }
 
     private fun markAsTaken(medicationId: Int) {

@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -117,18 +118,31 @@ fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF070909))) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = 130.dp, bottom = 120.dp, start = 24.dp, end = 24.dp),
+            contentPadding = PaddingValues(top = 130.dp, bottom = 120.dp, start = 20.dp, end = 20.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             item {
-                Text(
-                    text = "DESEJOS ATIVOS",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.5.sp,
-                    color = Color(0xFF71D7CD)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "DESEJOS ATIVOS",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.5.sp,
+                        color = com.example.ui.theme.SecondaryGold
+                    )
+                    Text(
+                        text = "${activeGoals.size} ITENS",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.5.sp,
+                        color = Color(0xFF71717A)
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
             }
             
             if (activeGoals.isEmpty()) {
@@ -154,7 +168,7 @@ fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
             }
         }
         
-        // Sticky Header / Search Bar
+        // Sticky Header / Search Bar (Pílula de vidro com profundidade)
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -164,23 +178,23 @@ fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                         listOf(Color(0xFF070909).copy(alpha = 0.95f), Color.Transparent)
                     )
                 )
-                .padding(top = 48.dp, bottom = 16.dp, start = 24.dp, end = 24.dp)
+                .padding(top = 48.dp, bottom = 16.dp, start = 20.dp, end = 20.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(32.dp))
-                    .then(PremiumGlassModifier)
-                    .border(1.dp, Color(0x2BFFFFFF), RoundedCornerShape(32.dp))
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                    .background(Color(0x800B0E14))
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(32.dp))
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Search, contentDescription = "Buscar", tint = Color.White.copy(alpha = 0.5f))
+                Icon(Icons.Default.Search, contentDescription = "Buscar", tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 TextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Pesquisar desejos...", color = Color.White.copy(alpha = 0.5f)) },
+                    placeholder = { Text("Pesquisar desejos...", color = Color.White.copy(alpha = 0.4f), fontSize = 14.sp) },
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
@@ -193,8 +207,10 @@ fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                 )
                 if (searchQuery.isNotEmpty()) {
                     IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "Limpar", tint = Color.White)
+                        Icon(Icons.Default.Close, contentDescription = "Limpar", tint = Color.White.copy(alpha = 0.7f))
                     }
+                } else {
+                    Icon(Icons.Outlined.Mic, contentDescription = "Voz", tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
                 }
             }
         }
@@ -205,7 +221,7 @@ fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(bottom = 90.dp, end = 24.dp),
-            containerColor = Color(0xFF71D7CD),
+            containerColor = com.example.ui.theme.SecondaryGold,
             contentColor = Color.Black
         ) {
             Icon(Icons.Default.Add, contentDescription = "Adicionar Desejo")
@@ -222,11 +238,11 @@ fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                     target = target,
                     current = 0.0,
                     imageUrl = imgUrl,
-                    colorHex = "#71D7CD",
+                    colorHex = "#D4B36A",
                     priorityOrder = 1,
                     priorityClassification = "Alta",
                     buyUrl = buyUrl,
-                    category = "Geral"
+                    category = "Eletrônicos"
                 )
                 showAddGoalDialog = false
             }
@@ -253,31 +269,59 @@ fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
 
 @Composable
 fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -> Unit, onDelete: () -> Unit) {
-    val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     
-    var isPressed by remember { mutableStateOf(false) }
-    
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.96f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
-        label = "ScaleAnimation"
+    // Gradient Obsidian Glow (Thermal UI background)
+    val cardGradient = Brush.verticalGradient(
+        colorStops = arrayOf(
+            0.0f to Color(0xFF101012),
+            0.55f to Color(0xFF0F0F11),
+            0.80f to Color(0xFF1A0A06),
+            1.0f to Color(0xFF5E1603)
+        )
     )
     
-    Card(
+    val shape = RoundedCornerShape(32.dp)
+    
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .scale(scale)
-            .clip(RoundedCornerShape(24.dp))
-            .then(PremiumGlassModifier)
-            .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(24.dp)),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+            .clip(shape)
+            .background(cardGradient)
+            .border(1.dp, Color.White.copy(alpha = 0.08f), shape)
     ) {
+        // Bottom warm inner glow & rim edge
+        Canvas(modifier = Modifier.matchParentSize()) {
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        Color(0xFFFF5500).copy(alpha = 0.35f),
+                        Color(0xFF882200).copy(alpha = 0.15f),
+                        Color.Transparent
+                    ),
+                    center = Offset(size.width / 2f, size.height * 1.05f),
+                    radius = size.width * 0.75f
+                )
+            )
+            drawLine(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        Color(0xFFFFAA00).copy(alpha = 0.75f),
+                        Color.Transparent
+                    )
+                ),
+                start = Offset(size.width * 0.2f, size.height - 1.5f),
+                end = Offset(size.width * 0.8f, size.height - 1.5f),
+                strokeWidth = 3f
+            )
+        }
+
         Column {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(220.dp)
+                    .height(200.dp)
             ) {
                 if (goal.imageUrl.isNotBlank()) {
                     AsyncImage(
@@ -287,85 +331,179 @@ fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    Box(modifier = Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF2C3E50), Color(0xFF000000)))))
+                    Box(modifier = Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF18181B), Color(0xFF09090B)))))
                 }
                 
-                // Gradient overlay
+                // Gradient overlay fusing image into dark card background
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Brush.verticalGradient(listOf(Color(0x99000000), Color.Transparent, Color(0xCC000000))))
+                        .background(
+                            Brush.verticalGradient(
+                                colorStops = arrayOf(
+                                    0.0f to Color.Transparent,
+                                    0.5f to Color(0x33000000),
+                                    0.85f to Color(0xCC0F0F11),
+                                    1.0f to Color(0xFF0F0F11)
+                                )
+                            )
+                        )
                 )
                 
-                Row(
+                // Floating Action Pill (Top Right)
+                Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    IconButton(
-                        onClick = onDelete,
-                        modifier = Modifier.size(36.dp).background(Color(0x33000000), CircleShape)
-                    ) {
-                        Icon(Icons.Outlined.Delete, contentDescription = "Deletar", tint = Color.White, modifier = Modifier.size(18.dp))
-                    }
-                    IconButton(
-                        onClick = onEdit,
-                        modifier = Modifier.size(36.dp).background(Color(0x33000000), CircleShape)
-                    ) {
-                        Icon(Icons.Outlined.Edit, contentDescription = "Editar", tint = Color.White, modifier = Modifier.size(18.dp))
-                    }
-                }
-                
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
                         .padding(16.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color.Black.copy(alpha = 0.45f))
+                        .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(20.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
-                    Text(
-                        text = goal.title,
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = String.format(Locale("pt", "BR"), "R$ %,.2f", goal.targetValue),
-                        color = Color(0xFF71D7CD),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            Icons.Outlined.Edit,
+                            contentDescription = "Editar",
+                            tint = Color.White.copy(alpha = 0.8f),
+                            modifier = Modifier
+                                .size(18.dp)
+                                .clickable { onEdit() }
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(1.dp)
+                                .height(14.dp)
+                                .background(Color.White.copy(alpha = 0.2f))
+                        )
+                        Icon(
+                            Icons.Outlined.DeleteOutline,
+                            contentDescription = "Deletar",
+                            tint = Color.White.copy(alpha = 0.8f),
+                            modifier = Modifier
+                                .size(18.dp)
+                                .clickable { onDelete() }
+                        )
+                    }
                 }
             }
             
+            // Product Information
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 12.dp)
+            ) {
+                val categoryText = goal.category.ifBlank { "ELETRÔNICOS" }
+                Text(
+                    text = categoryText.uppercase(),
+                    color = com.example.ui.theme.SecondaryGold,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.5.sp
+                )
+                
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                Text(
+                    text = goal.title,
+                    color = Color.White,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Formatted Price Tag
+                val formattedVal = String.format(Locale("pt", "BR"), "%,.2f", goal.targetValue)
+                val parts = formattedVal.split(",")
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = "R$",
+                        color = Color.White.copy(alpha = 0.6f),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 3.dp, end = 4.dp)
+                    )
+                    Text(
+                        text = parts[0],
+                        color = Color.White,
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (parts.size > 1) {
+                        Text(
+                            text = ",${parts[1]}",
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 3.dp)
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Bottom Action Buttons
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White.copy(alpha = 0.05f))
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                    .padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (goal.buyUrl.isNotBlank()) {
-                    IconButton(
-                        onClick = { uriHandler.openUri(goal.buyUrl) },
-                        modifier = Modifier.size(48.dp).border(1.dp, Color(0x33FFFFFF), CircleShape)
-                    ) {
-                        Icon(Icons.Outlined.ShoppingCart, contentDescription = "Comprar", tint = Color.White)
-                    }
+                // Cart Glass Button (Left)
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(Color.Black.copy(alpha = 0.35f))
+                        .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
+                        .clickable { if (goal.buyUrl.isNotBlank()) uriHandler.openUri(goal.buyUrl) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Outlined.ShoppingCart,
+                        contentDescription = "Comprar",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
                 
-                Button(
-                    onClick = onBuy,
-                    modifier = Modifier.weight(1f).padding(start = if (goal.buyUrl.isNotBlank()) 16.dp else 0.dp).height(48.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF71D7CD))
+                // Translucent "Já comprei" Main CTA Button (Right)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(Color.Black.copy(alpha = 0.35f))
+                        .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
+                        .clickable { onBuy() },
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Check, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Já comprei", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = null,
+                            tint = com.example.ui.theme.SecondaryGold,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Já comprei",
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
         }

@@ -131,14 +131,17 @@ fun DetailedMatchWidget(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val leagueText = match?.matchDetail?.leagueName?.ifEmpty { "CHAMPIONS LEAGUE" } ?: "CHAMPIONS LEAGUE"
+                val leagueText = match?.matchDetail?.leagueName?.takeIf { it.isNotBlank() } ?: "PRÓXIMA PARTIDA"
                 Text(
                     text = leagueText.uppercase(),
                     color = Color(0xFFA1A1AA),
                     fontSize = 13.sp,
                     fontFamily = FontFamily.SansSerif,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 3.sp
+                    letterSpacing = 2.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
 
                 Row(
@@ -149,7 +152,9 @@ fun DetailedMatchWidget(
                         CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color(0xFFF97316), strokeWidth = 2.dp)
                     }
 
-                    // Live Pill Indicator
+                    val isMatchLive = match?.matchDetail?.statusShort in listOf("LIVE", "1H", "2H", "HT", "IN_PLAY")
+
+                    // Live / Scheduled Pill Indicator
                     Box(
                         modifier = Modifier
                             .clip(CircleShape)
@@ -162,17 +167,17 @@ fun DetailedMatchWidget(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
-                                text = "LIVE",
+                                text = if (isMatchLive) "LIVE" else "PRÓXIMO JOGO",
                                 color = Color(0xFFD4D4D8),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                letterSpacing = 2.sp
+                                letterSpacing = 1.5.sp
                             )
                             Box(
                                 modifier = Modifier
                                     .size(8.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFFEF4444).copy(alpha = pulseAlpha))
+                                    .background(if (isMatchLive) Color(0xFFEF4444).copy(alpha = pulseAlpha) else Color(0xFF10B981))
                             )
                         }
                     }

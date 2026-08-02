@@ -461,7 +461,7 @@ fun HeaderGreetingSection(
             fontFamily = FontFamily.Serif,
             fontSize = 32.sp,
             fontWeight = FontWeight.Light,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center
         )
     }
@@ -526,7 +526,7 @@ fun DailyBriefingCard(
                 fontFamily = FontFamily.Serif,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Light,
-                color = Color.White.copy(alpha = 0.9f),
+                color = MaterialTheme.colorScheme.onSurface,
                 lineHeight = 26.sp
             )
         }
