@@ -1348,7 +1348,7 @@ fun TopHeader(onOpenSettings: () -> Unit, onOpenMetro: () -> Unit) {
         // Central title "TESSERA"
         Text(
             text = "TESSERA",
-            fontSize = 24.sp,
+            fontSize = 18.sp,
             fontFamily = FontFamily.SansSerif,
             fontWeight = FontWeight.Normal,
             color = Color.White,

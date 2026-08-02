@@ -268,15 +268,7 @@ fun DailyScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF0A0714), // Deep luxury space purple top
-                        Color(0xFF06060B), // Deep blue-black center
-                        Color(0xFF020204)  // Pitch black bottom
-                    )
-                )
-            )
+            .background(Color(0xFF000000))
     ) {
         // Dynamic Breathing Background Glows
         val infiniteTransition = rememberInfiniteTransition(label = "BackgroundGlow")
@@ -495,7 +487,7 @@ fun HeaderGreetingSection(
         Text(
             text = "$greeting, $userName",
             fontFamily = FontFamily.Serif,
-            fontSize = 32.sp,
+            fontSize = 24.sp,
             fontWeight = FontWeight.Light,
             color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center

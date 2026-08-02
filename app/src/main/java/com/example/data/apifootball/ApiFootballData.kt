@@ -4,12 +4,12 @@ import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import retrofit2.http.GET
-import retrofit2.http.Path
 import retrofit2.http.Query
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.sync.Mutex
@@ -17,99 +17,9 @@ import kotlinx.coroutines.sync.withLock
 import android.util.Log
 
 @JsonClass(generateAdapter = true)
-data class SportmonksResponse<T>(
-    @Json(name = "data") val data: T
+data class ApiFootballResponse<T>(
+    @Json(name = "response") val response: T
 )
-
-@JsonClass(generateAdapter = true)
-data class SMFixture(
-    @Json(name = "id") val id: Long,
-    @Json(name = "name") val name: String?,
-    @Json(name = "starting_at") val startingAt: String,
-    @Json(name = "participants") val participants: List<SMParticipant>?,
-    @Json(name = "state") val state: SMState?,
-    @Json(name = "league") val league: SMLeague?,
-    @Json(name = "scores") val scores: List<SMScore>?
-)
-
-@JsonClass(generateAdapter = true)
-data class SMParticipant(
-    @Json(name = "id") val id: Long,
-    @Json(name = "name") val name: String,
-    @Json(name = "image_path") val imagePath: String?,
-    @Json(name = "meta") val meta: SMMeta?
-)
-
-@JsonClass(generateAdapter = true)
-data class SMMeta(
-    @Json(name = "location") val location: String? // "home" or "away"
-)
-
-@JsonClass(generateAdapter = true)
-data class SMState(
-    @Json(name = "state") val state: String?,
-    @Json(name = "name") val name: String?
-)
-
-@JsonClass(generateAdapter = true)
-data class SMLeague(
-    @Json(name = "name") val name: String?
-)
-
-@JsonClass(generateAdapter = true)
-data class SMScore(
-    @Json(name = "score") val score: SMScoreDetail?,
-    @Json(name = "description") val description: String?, // "CURRENT"
-    @Json(name = "score_type") val scoreType: SMScoreType?
-)
-
-@JsonClass(generateAdapter = true)
-data class SMScoreDetail(
-    @Json(name = "goals") val goals: Int?
-)
-
-@JsonClass(generateAdapter = true)
-data class SMScoreType(
-    @Json(name = "name") val name: String? // "home" or "away"
-)
-
-fun SMFixture.toFixtureData(): FixtureData {
-    val homeParticipant = participants?.find { it.meta?.location == "home" }
-    val awayParticipant = participants?.find { it.meta?.location == "away" }
-
-    val homeScoreObj = scores?.find { it.description == "CURRENT" && it.scoreType?.name == "home" }
-    val awayScoreObj = scores?.find { it.description == "CURRENT" && it.scoreType?.name == "away" }
-
-    return FixtureData(
-        fixture = FixtureInfo(
-            id = this.id,
-            date = this.startingAt,
-            status = StatusInfo(short = this.state?.state ?: "NS"),
-            venue = null
-        ),
-        league = LeagueInfo(
-            name = this.league?.name ?: "Desconhecida"
-        ),
-        teams = TeamsInfo(
-            home = TeamInfo(
-                id = homeParticipant?.id ?: 0,
-                name = homeParticipant?.name ?: "Time da Casa",
-                logo = homeParticipant?.imagePath
-            ),
-            away = TeamInfo(
-                id = awayParticipant?.id ?: 0,
-                name = awayParticipant?.name ?: "Time Visitante",
-                logo = awayParticipant?.imagePath
-            )
-        ),
-        goals = GoalsInfo(
-            home = homeScoreObj?.score?.goals,
-            away = awayScoreObj?.score?.goals
-        ),
-        events = emptyList(),
-        lineups = emptyList()
-    )
-}
 
 @JsonClass(generateAdapter = true)
 data class FixtureData(
@@ -117,8 +27,8 @@ data class FixtureData(
     @Json(name = "league") val league: LeagueInfo,
     @Json(name = "teams") val teams: TeamsInfo,
     @Json(name = "goals") val goals: GoalsInfo,
-    @Json(name = "events") val events: List<EventInfo>?,
-    @Json(name = "lineups") val lineups: List<LineupInfo>?
+    @Json(name = "events") val events: List<EventInfo>? = null,
+    @Json(name = "lineups") val lineups: List<LineupInfo>? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -126,7 +36,7 @@ data class FixtureInfo(
     @Json(name = "id") val id: Long,
     @Json(name = "date") val date: String,
     @Json(name = "status") val status: StatusInfo,
-    @Json(name = "venue") val venue: VenueInfo?
+    @Json(name = "venue") val venue: VenueInfo? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -202,31 +112,76 @@ data class LineupPlayer(
 )
 
 interface ApiFootballService {
-    @GET("fixtures/date/{date}")
-    suspend fun getFixturesByDate(
-        @Path("date") date: String,
-        @Query("api_token") apiToken: String,
-        @Query("include") include: String = "participants;league;state;scores",
+    @GET("fixtures")
+    suspend fun getTeamFixtures(
+        @Query("team") teamId: Long,
+        @Query("next") next: Int? = null,
+        @Query("last") last: Int? = null,
         @Query("timezone") timezone: String = "America/Sao_Paulo"
-    ): retrofit2.Response<SportmonksResponse<List<SMFixture>>>
+    ): retrofit2.Response<ApiFootballResponse<List<FixtureData>>>
 
-    @GET("fixtures/{id}")
-    suspend fun getFixtureById(
-        @Path("id") id: Long,
-        @Query("api_token") apiToken: String,
-        @Query("include") include: String = "participants;league;state;scores;events;lineups",
+    @GET("fixtures")
+    suspend fun getFixturesByDate(
+        @Query("date") date: String,
         @Query("timezone") timezone: String = "America/Sao_Paulo"
-    ): retrofit2.Response<SportmonksResponse<SMFixture>>
+    ): retrofit2.Response<ApiFootballResponse<List<FixtureData>>>
+
+    @GET("fixtures")
+    suspend fun getFixtureById(
+        @Query("id") id: Long,
+        @Query("timezone") timezone: String = "America/Sao_Paulo"
+    ): retrofit2.Response<ApiFootballResponse<List<FixtureData>>>
 }
 
 class ApiFootballRepository(
-    private val api: ApiFootballService,
-    private val apiToken: String
+    private val api: ApiFootballService
 ) {
     private val mutex = Mutex()
     private var cachedFixture: FixtureData? = null
     private var lastFetchTime = 0L
     private val cacheDurationMillis = 5 * 60 * 1000
+
+    suspend fun getNextTeamFixture(teamId: Long): Result<FixtureData?> {
+        return try {
+            val response = api.getTeamFixtures(teamId = teamId, next = 1)
+            if (response.isSuccessful) {
+                val data = response.body()?.response?.firstOrNull()
+                Result.success(data)
+            } else {
+                Result.failure(Exception("Erro na API-Football (next): ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getLastTeamFixture(teamId: Long): Result<FixtureData?> {
+        return try {
+            val response = api.getTeamFixtures(teamId = teamId, last = 1)
+            if (response.isSuccessful) {
+                val data = response.body()?.response?.firstOrNull()
+                Result.success(data)
+            } else {
+                Result.failure(Exception("Erro na API-Football (last): ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getFixturesByDate(date: String): Result<List<FixtureData>> {
+        return try {
+            val response = api.getFixturesByDate(date = date)
+            if (response.isSuccessful) {
+                val data = response.body()?.response ?: emptyList()
+                Result.success(data)
+            } else {
+                Result.failure(Exception("Erro na API-Football (Date): ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     suspend fun getFixture(fixtureId: Long): Result<FixtureData> {
         val currentTime = System.currentTimeMillis()
@@ -238,14 +193,12 @@ class ApiFootballRepository(
             }
 
             try {
-                Log.i("ApiFootballRepo", "Buscando na Sportmonks (ID: $fixtureId)...")
-                val response = api.getFixtureById(apiToken = apiToken, id = fixtureId)
+                Log.i("ApiFootballRepo", "Buscando na API-Football (ID: $fixtureId)...")
+                val response = api.getFixtureById(id = fixtureId)
                 
                 if (response.isSuccessful) {
-                    val body = response.body()
-                    val smFixture = body?.data
-                    if (smFixture != null) {
-                        val fixtureData = smFixture.toFixtureData()
+                    val fixtureData = response.body()?.response?.firstOrNull()
+                    if (fixtureData != null) {
                         cachedFixture = fixtureData
                         lastFetchTime = currentTime
                         Result.success(fixtureData)
@@ -260,20 +213,6 @@ class ApiFootballRepository(
             }
         }
     }
-
-    suspend fun getFixturesByDate(date: String): Result<List<FixtureData>> {
-        return try {
-            val response = api.getFixturesByDate(apiToken = apiToken, date = date)
-            if (response.isSuccessful) {
-                val data = response.body()?.data?.map { it.toFixtureData() } ?: emptyList()
-                Result.success(data)
-            } else {
-                Result.failure(Exception("HTTP Erro: ${response.code()}"))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
 }
 
 object NetworkModule {
@@ -285,15 +224,26 @@ object NetworkModule {
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.HEADERS
         }
+
+        // Token do usuário
+        val apiToken = "s9M1yUatdExguK89eVzkubPv15aZO0hsQoRXjzh01b7g2nUGFPy5qxjmXOqo"
+        
+        val authInterceptor = Interceptor { chain ->
+            val request = chain.request().newBuilder()
+                .addHeader("x-apisports-key", apiToken)
+                .build()
+            chain.proceed(request)
+        }
         
         val client = OkHttpClient.Builder()
             .addInterceptor(logging)
+            .addInterceptor(authInterceptor)
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .build()
 
         return Retrofit.Builder()
-            .baseUrl("https://api.sportmonks.com/v3/football/")
+            .baseUrl("https://v3.football.api-sports.io/")
             .client(client)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
@@ -301,7 +251,6 @@ object NetworkModule {
     }
     
     fun provideApiFootballRepository(api: ApiFootballService): ApiFootballRepository {
-        val apiToken = "s9M1yUatdExguK89eVzkubPv15aZO0hsQoRXjzh01b7g2nUGFPy5qxjmXOqo"
-        return ApiFootballRepository(api, apiToken)
+        return ApiFootballRepository(api)
     }
 }

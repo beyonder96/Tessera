@@ -1837,33 +1837,45 @@ class TesseraViewModel(
                 }
 
                 if (teamsToWatch.isNotEmpty()) {
-                    // Busca próximo jogo do(s) time(s) configurado(s) até 60 dias no futuro
-                    for (dayOffset in 0..60) {
-                        val checkDate = nowLocalDate.plusDays(dayOffset.toLong()).format(dtf)
-                        val result = fixtureRepository.getFixturesByDate(checkDate)
-                        if (result.isSuccess) {
-                            val list = result.getOrNull()
-                            val match = list?.find { item -> isMainTeamMatch(item, teamsToWatch) }
-                            if (match != null) {
-                                targetFixtureId = match.fixture.id
-                                break
-                            }
+                    // Mapeamento local básico de times conhecidos
+                    val knownTeams = mapOf(
+                        "flamengo" to 127L,
+                        "palmeiras" to 121L,
+                        "são paulo" to 126L,
+                        "sao paulo" to 126L,
+                        "corinthians" to 131L,
+                        "fluminense" to 124L,
+                        "vasco" to 133L,
+                        "botafogo" to 120L
+                    )
+
+                    var targetTeamId: Long? = null
+                    for (team in teamsToWatch) {
+                        val cleanName = team.replace("(principal)", "").replace("(equipe principal)", "").trim().lowercase()
+                        val matchedId = knownTeams.entries.find { cleanName.contains(it.key) }?.value
+                        if (matchedId != null) {
+                            targetTeamId = matchedId
+                            break
                         }
                     }
 
-                    // Se não encontrou no futuro, busca nos últimos 14 dias para mostrar o resultado mais recente
-                    if (targetFixtureId == null) {
-                        for (dayOffset in 1..14) {
-                            val checkDate = nowLocalDate.minusDays(dayOffset.toLong()).format(dtf)
-                            val result = fixtureRepository.getFixturesByDate(checkDate)
-                            if (result.isSuccess) {
-                                val list = result.getOrNull()
-                                val match = list?.find { item -> isMainTeamMatch(item, teamsToWatch) }
-                                if (match != null) {
-                                    targetFixtureId = match.fixture.id
-                                    break
-                                }
+                    if (targetTeamId != null) {
+                        val result = fixtureRepository.getNextTeamFixture(targetTeamId)
+                        if (result.isSuccess && result.getOrNull() != null) {
+                            targetFixtureId = result.getOrNull()?.fixture?.id
+                        } else {
+                            val pastResult = fixtureRepository.getLastTeamFixture(targetTeamId)
+                            if (pastResult.isSuccess && pastResult.getOrNull() != null) {
+                                targetFixtureId = pastResult.getOrNull()?.fixture?.id
                             }
+                        }
+                    } else {
+                        // Fallback se não encontrar o time configurado
+                        val today = nowLocalDate.format(dtf)
+                        val latestResult = fixtureRepository.getFixturesByDate(today)
+                        if (latestResult.isSuccess) {
+                            val dtoList = latestResult.getOrNull() ?: emptyList()
+                            targetFixtureId = dtoList.firstOrNull()?.fixture?.id
                         }
                     }
                 } else {

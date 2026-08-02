@@ -4,6 +4,11 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.12
+
+- **Integração Otimizada com API-Football (v3):** O widget de placar agora utiliza identificadores de times e limites precisos da api-sports.io, garantindo apenas requisições cirúrgicas e protegendo o limite diário de requisições. 
+- **Thermal UI & Minimalismo Visual:** Redimensionamento suave de títulos para maior elegância no "TESSERA" e barra de saudações. Nova paleta de luz no widget do clima inspirada num efeito incandescente direcional sobre fundo profundo preto (#000000).
+
 ## 🚀 Novidades da Versão 2.0.9
 
 - **Novo Placar de Futebol e Widget de Clima (Estilo Termostato):** Interface em estilo arena luxury com gradiente térmico em camadas, agulha procedural e mostrador com tipografia em gradiente.
@@ -83,8 +88,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.11.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.11.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.12.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.12.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.
