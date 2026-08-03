@@ -65,6 +65,7 @@ import java.util.Calendar
 import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.ui.text.font.FontStyle
 
 
 
@@ -94,9 +95,7 @@ fun DailyScreen(
     val medications by viewModel.allMedications.collectAsStateWithLifecycle(initialValue = emptyList())
     val weatherState by viewModel.weatherState.collectAsStateWithLifecycle(initialValue = null)
     val dailyBriefingText by viewModel.dailyBriefingText.collectAsStateWithLifecycle(initialValue = null)
-
-
-
+    val dailyVerse by viewModel.dailyVerse.collectAsStateWithLifecycle(initialValue = null)
 
     var activeMindSession by remember { mutableStateOf<Pair<String, String>?>(null) }
     
@@ -440,6 +439,12 @@ fun DailyScreen(
 
                         // 3. FOOTBALL HIGHLIGHT MATCH WIDGET
                         com.example.ui.components.DetailedMatchWidget(viewModel = viewModel)
+
+                        // 3.5 BIBLE VERSE WIDGET
+                        DailyVerseWidget(dailyVerse)
+
+                        // 3.6 SPOTIFY WIDGET
+                        SpotifyEmbedWidget(url = "https://open.spotify.com/embed/playlist/37i9dQZF1DWWQRwui0ExPn?utm_source=generator&theme=0")
 
                         // 4. CONNECTIVITY FLOATING DOCK/PILL
                         ConnectivityDock(
@@ -1116,4 +1121,126 @@ fun QuietTheMindPlayerDialog(
     }
 }
 
+// 6. Daily Verse Widget Component
+@Composable
+fun DailyVerseWidget(verse: com.example.data.BibleVerseResponse?) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(Color(0x0CFFFFFF))
+            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(24.dp))
+            .padding(20.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Book,
+                    contentDescription = null,
+                    tint = Color(0xFFD7B4F3),
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "VERSÍCULO DO DIA",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFD7B4F3),
+                    letterSpacing = 1.5.sp
+                )
+            }
+            
+            if (verse != null) {
+                val cleanedText = verse.text?.replace("<br>", " ")?.replace("  ", " ")?.trim() ?: ""
+                val bookMap = mapOf(
+                    1 to "Gênesis", 2 to "Êxodo", 3 to "Levítico", 4 to "Números", 5 to "Deuteronômio",
+                    6 to "Josué", 7 to "Juízes", 8 to "Rute", 9 to "1 Samuel", 10 to "2 Samuel",
+                    11 to "1 Reis", 12 to "2 Reis", 13 to "1 Crônicas", 14 to "2 Crônicas", 15 to "Esdras",
+                    16 to "Neemias", 17 to "Ester", 18 to "Jó", 19 to "Salmos", 20 to "Provérbios",
+                    21 to "Eclesiastes", 22 to "Cânticos", 23 to "Isaías", 24 to "Jeremias", 25 to "Lamentações",
+                    26 to "Ezequiel", 27 to "Daniel", 28 to "Oseias", 29 to "Joel", 30 to "Amós",
+                    31 to "Obadias", 32 to "Jonas", 33 to "Miqueias", 34 to "Naum", 35 to "Habacuque",
+                    36 to "Sofonias", 37 to "Ageu", 38 to "Zacarias", 39 to "Malaquias",
+                    40 to "Mateus", 41 to "Marcos", 42 to "Lucas", 43 to "João", 44 to "Atos",
+                    45 to "Romanos", 46 to "1 Coríntios", 47 to "2 Coríntios", 48 to "Gálatas", 49 to "Efésios",
+                    50 to "Filipenses", 51 to "Colossenses", 52 to "1 Tessalonicenses", 53 to "2 Tessalonicenses",
+                    54 to "1 Timóteo", 55 to "2 Timóteo", 56 to "Tito", 57 to "Filemom", 58 to "Hebreus",
+                    59 to "Tiago", 60 to "1 Pedro", 61 to "2 Pedro", 62 to "1 João", 63 to "2 João",
+                    64 to "3 João", 65 to "Judas", 66 to "Apocalipse"
+                )
+                val bookName = bookMap[verse.book] ?: "Livro ${verse.book}"
+                
+                Text(
+                    text = "\"$cleanedText\"",
+                    fontFamily = FontFamily.Serif,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Light,
+                    fontStyle = FontStyle.Italic,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    lineHeight = 24.sp
+                )
+                
+                Text(
+                    text = "- $bookName ${verse.chapter}:${verse.verse} (${verse.translation})",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                Text(
+                    text = "Buscando inspiração diária...",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                    modifier = Modifier.padding(vertical = 12.dp)
+                )
+            }
+        }
+    }
+}
 
+// 7. Spotify Embed Widget Component
+@Composable
+fun SpotifyEmbedWidget(url: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(152.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(Color(0x0CFFFFFF))
+            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(24.dp))
+    ) {
+        androidx.compose.ui.viewinterop.AndroidView(
+            factory = { context ->
+                android.webkit.WebView(context).apply {
+                    layoutParams = android.view.ViewGroup.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                    settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
+                    settings.mediaPlaybackRequiresUserGesture = false
+                    webViewClient = android.webkit.WebViewClient()
+                    setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    loadDataWithBaseURL(
+                        null,
+                        """
+                        <html>
+                        <body style="margin: 0; padding: 0; background-color: transparent;">
+                            <iframe style="border-radius:24px" src="$url" width="100%" height="152" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+                        </body>
+                        </html>
+                        """.trimIndent(),
+                        "text/html",
+                        "UTF-8",
+                        null
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+    }
+}

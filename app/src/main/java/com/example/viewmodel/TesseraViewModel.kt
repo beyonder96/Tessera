@@ -20,6 +20,7 @@ import com.example.data.MedicationLog
 import com.example.data.StepsRecord
 import com.example.data.Routine
 import com.example.data.RoutineStep
+import com.example.data.BibleVerseResponse
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -53,6 +54,7 @@ class TesseraViewModel(
         marketListId.value?.let { id ->
             syncManager.startSync(id)
         }
+        loadDailyVerse()
     }
 
     fun startMarketSharing(listId: String) {
@@ -65,6 +67,45 @@ class TesseraViewModel(
         marketSharedPrefs.edit().remove("shared_list_id").apply()
         marketListId.value = null
         syncManager.stopSync()
+    }
+
+    private val _dailyVerse = MutableStateFlow<BibleVerseResponse?>(null)
+    val dailyVerse: StateFlow<BibleVerseResponse?> = _dailyVerse.asStateFlow()
+
+    private fun loadDailyVerse() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val prefs = applicationContext.getSharedPreferences("tessera_bible_prefs", Context.MODE_PRIVATE)
+                val today = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_YEAR)
+                val savedDay = prefs.getInt("saved_day", -1)
+                
+                if (savedDay == today) {
+                    val text = prefs.getString("verse_text", null)
+                    val book = prefs.getInt("verse_book", -1)
+                    val chapter = prefs.getInt("verse_chapter", -1)
+                    val verse = prefs.getInt("verse_verse", -1)
+                    if (text != null && book != -1) {
+                        _dailyVerse.value = BibleVerseResponse(
+                            pk = null, translation = "NVT", book = book, chapter = chapter, verse = verse, text = text
+                        )
+                        return@launch
+                    }
+                }
+                
+                val response = repository.getRandomBibleVerse()
+                _dailyVerse.value = response
+                
+                prefs.edit()
+                    .putInt("saved_day", today)
+                    .putString("verse_text", response.text)
+                    .putInt("verse_book", response.book ?: -1)
+                    .putInt("verse_chapter", response.chapter ?: -1)
+                    .putInt("verse_verse", response.verse ?: -1)
+                    .apply()
+            } catch (e: Exception) {
+                Log.e("TesseraViewModel", "Error loading bible verse", e)
+            }
+        }
     }
 
     data class InsightCard(

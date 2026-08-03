@@ -121,6 +121,7 @@ fun TransportScreen(
     val busSearchResults by viewModel.busSearchResults.collectAsState()
     val isSearchingBus by viewModel.isSearchingBus.collectAsState()
 
+    val lavaBrush = com.example.ui.components.rememberLavaBrush()
     val scrollState = androidx.compose.foundation.rememberScrollState()
     val accentColor = Color(0xFF4FC3F7) // SPTrans/Metro Cyan
     val busAccentColor = remember(savedBusLines) {
@@ -177,7 +178,7 @@ fun TransportScreen(
                 // Header Title inside scroll
                 Text(
                     text = "TRANSPORTE SP",
-                    color = MaterialTheme.colorScheme.onBackground,
+                    style = androidx.compose.ui.text.TextStyle(brush = lavaBrush),
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Black,
                     fontFamily = FontFamily.SansSerif,

@@ -236,4 +236,16 @@ class TesseraRepository(private val dao: TesseraDao) {
     suspend fun deleteDebt(debt: Debt) {
         dao.deleteDebt(debt)
     }
+
+    // Bible API Setup
+    private val bibleRetrofit = retrofit2.Retrofit.Builder()
+        .baseUrl("https://bolls.life/")
+        .addConverterFactory(retrofit2.converter.moshi.MoshiConverterFactory.create())
+        .build()
+
+    private val bibleApi = bibleRetrofit.create(BibleApi::class.java)
+
+    suspend fun getRandomBibleVerse(): BibleVerseResponse {
+        return bibleApi.getRandomVerse()
+    }
 }

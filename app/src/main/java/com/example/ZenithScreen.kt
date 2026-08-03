@@ -554,13 +554,14 @@ fun LembretesTab(viewModel: TesseraViewModel, listState: LazyListState) {
 @Composable
 fun CalendarEventCard(event: CalendarEvent, dateFormat: SimpleDateFormat) {
     val eventColor = Color(event.calendarColor)
+    val lavaBrush = com.example.ui.components.rememberLavaBrush()
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(Color(0xFF141918))
-            .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(20.dp))
+            .background(Color(0x0CFFFFFF))
+            .border(1.dp, lavaBrush, RoundedCornerShape(20.dp))
             .padding(16.dp),
         verticalAlignment = Alignment.Top
     ) {

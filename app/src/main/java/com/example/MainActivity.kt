@@ -1376,12 +1376,24 @@ fun TopHeader(onOpenSettings: () -> Unit, onOpenMetro: () -> Unit) {
                 modifier = Modifier.size(36.dp)
             ) {
                 if (profileUri != null) {
-                    AsyncImage(
-                        model = profileUri,
-                        contentDescription = "Foto de perfil",
-                        modifier = Modifier.size(32.dp).clip(CircleShape).border(2.dp, lavaBrush, CircleShape).drawBehind { drawCircle(brush = lavaBrush, radius = size.width/2 + 4.dp.toPx(), alpha = 0.4f) },
-                        contentScale = ContentScale.Crop
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        // Aura layer
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .blur(12.dp)
+                                .background(lavaBrush, CircleShape)
+                        )
+                        // Profile image
+                        AsyncImage(
+                            model = profileUri,
+                            contentDescription = "Foto de perfil",
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
                 } else {
                     Icon(
                         imageVector = Icons.Default.PhotoCamera,
@@ -3781,6 +3793,8 @@ fun BottomNavBar(
         }
     }
 
+    val lavaBrush = com.example.ui.components.rememberLavaBrush()
+    
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -3798,17 +3812,26 @@ fun BottomNavBar(
             },
         contentAlignment = Alignment.BottomCenter
     ) {
-        Row(
+        // Pill container for Thermal UI
+        Box(
             modifier = Modifier
                 .wrapContentSize()
-                .graphicsLayer {
-                    scaleX = scaleAnim.value
-                    scaleY = scaleAnim.value
-                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(pivotX, 0.5f)
-                },
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .clip(RoundedCornerShape(32.dp))
+                .background(Color(0x14000000))
+                .border(2.dp, lavaBrush, RoundedCornerShape(32.dp))
+                .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
+            Row(
+                modifier = Modifier
+                    .wrapContentSize()
+                    .graphicsLayer {
+                        scaleX = scaleAnim.value
+                        scaleY = scaleAnim.value
+                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(pivotX, 0.5f)
+                    },
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
             when (displayedRoute) {
                 "finance" -> {
                     CircularNavButton(
@@ -3930,8 +3953,9 @@ fun BottomNavBar(
                     )
                 }
             }
-        }
-    }
+        } // fecha Row
+        } // fecha Box Thermal UI
+    } // fecha Box externo
 }
 
 @Composable
@@ -4070,8 +4094,8 @@ fun PremiumGridTile(
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.SpaceBetween,
-            horizontalAlignment = Alignment.Start
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(
                 modifier = Modifier
@@ -4088,12 +4112,14 @@ fun PremiumGridTile(
                     modifier = Modifier.size(24.dp)
                 )
             }
+            Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = title,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
-                lineHeight = 22.sp
+                lineHeight = 22.sp,
+                textAlign = TextAlign.Center
             )
         }
     }

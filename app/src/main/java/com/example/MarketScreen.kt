@@ -687,12 +687,17 @@ fun MarketBottomDock(
     onCheckoutClick: () -> Unit,
     viewModel: TesseraViewModel
 ) {
+    val lavaBrush = com.example.ui.components.rememberLavaBrush()
+    
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background)
-            .navigationBarsPadding()
+            .padding(bottom = 90.dp)
             .padding(horizontal = 20.dp, vertical = 12.dp)
+            .clip(RoundedCornerShape(32.dp))
+            .background(Color(0x1A000000))
+            .border(2.dp, lavaBrush, RoundedCornerShape(32.dp))
+            .padding(16.dp)
     ) {
         if (selectedTab == 0) {
             // Planning Tab Action Button
