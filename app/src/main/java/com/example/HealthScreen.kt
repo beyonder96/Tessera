@@ -304,7 +304,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
         ) {
             Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp).padding(bottom = 32.dp)) {
                 Column {
-                    Text("REGISTRAR DADOS", color = androidx.compose.ui.graphics.Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Text("REGISTRAR DADOS", color = MaterialTheme.colorScheme.onBackground, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     Text("PESO (KG)", color = Color(0xFF879391), fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -408,7 +408,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
         ) {
             Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp).padding(bottom = 32.dp)) {
                 Column {
-                    Text("REGISTRAR SONO", color = androidx.compose.ui.graphics.Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Text("REGISTRAR SONO", color = MaterialTheme.colorScheme.onBackground, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                     Spacer(modifier = Modifier.height(20.dp))
                     
                     Text("DORMIU EM", color = Color(0xFF879391), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
@@ -443,7 +443,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Outlined.CalendarToday, null, tint = PrimaryTeal, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(sleepDateStr, color = androidx.compose.ui.graphics.Color.White, fontSize = 13.sp)
+                                Text(sleepDateStr, color = MaterialTheme.colorScheme.onBackground, fontSize = 13.sp)
                             }
                         }
 
@@ -472,7 +472,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Outlined.AccessTime, null, tint = PrimaryTeal, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(sleepTimeStr, color = androidx.compose.ui.graphics.Color.White, fontSize = 13.sp)
+                                Text(sleepTimeStr, color = MaterialTheme.colorScheme.onBackground, fontSize = 13.sp)
                             }
                         }
                     }
@@ -511,7 +511,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Outlined.CalendarToday, null, tint = PrimaryTeal, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(wakeDateStr, color = androidx.compose.ui.graphics.Color.White, fontSize = 13.sp)
+                                Text(wakeDateStr, color = MaterialTheme.colorScheme.onBackground, fontSize = 13.sp)
                             }
                         }
 
@@ -540,7 +540,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Outlined.AccessTime, null, tint = PrimaryTeal, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(wakeTimeStr, color = androidx.compose.ui.graphics.Color.White, fontSize = 13.sp)
+                                Text(wakeTimeStr, color = MaterialTheme.colorScheme.onBackground, fontSize = 13.sp)
                             }
                         }
                     }
@@ -618,7 +618,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
         ) {
             Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp).padding(bottom = 32.dp)) {
                 Column {
-                    Text("REGISTRAR PASSOS", color = androidx.compose.ui.graphics.Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Text("REGISTRAR PASSOS", color = MaterialTheme.colorScheme.onBackground, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                     Spacer(modifier = Modifier.height(20.dp))
                     
                     Text("DATA", color = Color(0xFF879391), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
@@ -649,7 +649,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Outlined.CalendarToday, null, tint = PrimaryTeal, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text(stepDateStr, color = androidx.compose.ui.graphics.Color.White, fontSize = 14.sp)
+                            Text(stepDateStr, color = MaterialTheme.colorScheme.onBackground, fontSize = 14.sp)
                         }
                     }
 
@@ -724,7 +724,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
         ) {
             Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp).padding(bottom = 32.dp)) {
                 Column {
-                    Text("NOVO MEDICAMENTO", color = androidx.compose.ui.graphics.Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Text("NOVO MEDICAMENTO", color = MaterialTheme.colorScheme.onBackground, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     Text("NOME", color = Color(0xFF879391), fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -894,8 +894,8 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
     if (medicationToDelete != null) {
         AlertDialog(
             onDismissRequest = { medicationToDelete = null },
-            title = { Text("Excluir Medicamento", fontFamily = FontFamily.Serif, color = OnBackgroundDark) },
-            text = { Text("Deseja realmente excluir o medicamento \"${medicationToDelete?.name}\"?", color = OnBackgroundDark.copy(alpha = 0.8f)) },
+            title = { Text("Excluir Medicamento", fontFamily = FontFamily.Serif, color = MaterialTheme.colorScheme.onBackground) },
+            text = { Text("Deseja realmente excluir o medicamento \"${medicationToDelete?.name}\"?", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)) },
             confirmButton = {
                 TextButton(onClick = {
                     medicationToDelete?.let { 
@@ -913,8 +913,8 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                 }
             },
             containerColor = Color(0xFF131817),
-            titleContentColor = OnBackgroundDark,
-            textContentColor = OnBackgroundDark.copy(alpha = 0.8f)
+            titleContentColor = MaterialTheme.colorScheme.onBackground,
+            textContentColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
         )
     }
 
@@ -1056,7 +1056,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                             AnimatedCardContainer(delayMillis = 500) {
                                 Column(modifier = PremiumGlassModifier.fillMaxWidth().padding(24.dp)) {
                                     Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                        Text("CONTROLE DE REMÉDIOS", style = MaterialTheme.typography.labelSmall, color = OnBackgroundDark.copy(alpha = 0.7f), letterSpacing = 1.sp)
+                                        Text("CONTROLE DE REMÉDIOS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f), letterSpacing = 1.sp)
                                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                             if (medications.isNotEmpty()) {
                                                 Text(
@@ -1078,7 +1078,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                                     Spacer(modifier = Modifier.height(16.dp))
                                     
                                     if (medications.isEmpty()) {
-                                        Text("Nenhum remédio registrado", color = OnBackgroundDark.copy(alpha = 0.5f), fontSize = 14.sp)
+                                        Text("Nenhum remédio registrado", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f), fontSize = 14.sp)
                                     } else {
                                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                                             medications.forEach { med ->
@@ -1120,7 +1120,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                                         fontFamily = FontFamily.Serif,
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = 28.sp,
-                                        color = OnBackgroundDark
+                                        color = MaterialTheme.colorScheme.onBackground
                                     )
                                 }
                             }
@@ -1242,17 +1242,17 @@ fun BmiCard(profile: HealthProfile?, latestWeight: WeightRecord?) {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
-                    Text("COMPOSIÇÃO CORPORAL", style = MaterialTheme.typography.labelSmall, color = OnBackgroundDark.copy(alpha = 0.7f), letterSpacing = 1.sp)
+                    Text("COMPOSIÇÃO CORPORAL", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f), letterSpacing = 1.sp)
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.Bottom) {
-                        Text(if (bmi > 0) String.format(Locale.getDefault(), "%.1f", bmi) else "--", fontFamily = FontFamily.Serif, fontSize = 42.sp, color = OnBackgroundDark, fontWeight = FontWeight.Bold)
+                        Text(if (bmi > 0) String.format(Locale.getDefault(), "%.1f", bmi) else "--", fontFamily = FontFamily.Serif, fontSize = 42.sp, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("IMC", fontSize = 16.sp, color = OnBackgroundDark.copy(alpha = 0.6f), modifier = Modifier.padding(bottom = 8.dp))
+                        Text("IMC", fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f), modifier = Modifier.padding(bottom = 8.dp))
                     }
                 }
                 
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("STATUS", style = MaterialTheme.typography.labelSmall, color = OnBackgroundDark.copy(alpha = 0.7f))
+                    Text("STATUS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f))
                     Spacer(modifier = Modifier.height(4.dp))
                     Box(
                         modifier = Modifier
@@ -1269,16 +1269,16 @@ fun BmiCard(profile: HealthProfile?, latestWeight: WeightRecord?) {
             // Histórico de peso rápido / altura
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column {
-                    Text("Altura", fontSize = 11.sp, color = OnBackgroundDark.copy(alpha = 0.6f))
-                    Text(if (heightM > 0) "${profile?.heightCm?.toInt()} cm" else "--", color = OnBackgroundDark, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Altura", fontSize = 11.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+                    Text(if (heightM > 0) "${profile?.heightCm?.toInt()} cm" else "--", color = MaterialTheme.colorScheme.onBackground, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Peso Registrado", fontSize = 11.sp, color = OnBackgroundDark.copy(alpha = 0.6f))
-                    Text(if (weightKg > 0) "${String.format(Locale.getDefault(), "%.1f", weightKg)} kg" else "--", color = OnBackgroundDark, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Peso Registrado", fontSize = 11.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+                    Text(if (weightKg > 0) "${String.format(Locale.getDefault(), "%.1f", weightKg)} kg" else "--", color = MaterialTheme.colorScheme.onBackground, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("Meta", fontSize = 11.sp, color = OnBackgroundDark.copy(alpha = 0.6f))
-                    Text(if (profile?.targetWeightKg != null && profile.targetWeightKg > 0) "${profile.targetWeightKg.toInt()} kg" else "--", color = OnBackgroundDark, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Meta", fontSize = 11.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+                    Text(if (profile?.targetWeightKg != null && profile.targetWeightKg > 0) "${profile.targetWeightKg.toInt()} kg" else "--", color = MaterialTheme.colorScheme.onBackground, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
 
@@ -1332,8 +1332,8 @@ fun HealthConnectBanner(onClick: () -> Unit) {
         }
         Spacer(modifier = Modifier.width(16.dp))
         Column {
-            Text("Conectar Health Connect", color = OnBackgroundDark, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            Text("Sincronize peso, sono e passos automaticamente", color = OnBackgroundDark.copy(alpha = 0.7f), fontSize = 12.sp)
+            Text("Conectar Health Connect", color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text("Sincronize peso, sono e passos automaticamente", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f), fontSize = 12.sp)
         }
     }
 }
@@ -1363,12 +1363,12 @@ fun StepsCard(stepsCount: Long, onRegisterClick: () -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Outlined.DirectionsWalk, null, tint = PrimaryTeal, modifier = Modifier.size(18.dp))
-                    Text("PASSOS DIÁRIOS", style = MaterialTheme.typography.labelSmall, color = OnBackgroundDark.copy(alpha = 0.7f), letterSpacing = 1.sp)
+                    Text("PASSOS DIÁRIOS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f), letterSpacing = 1.sp)
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("$stepsCount", fontFamily = FontFamily.Serif, fontSize = 42.sp, color = OnBackgroundDark, fontWeight = FontWeight.Bold)
+                Text("$stepsCount", fontFamily = FontFamily.Serif, fontSize = 42.sp, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("Meta de 10.000 passos", fontSize = 13.sp, color = OnBackgroundDark.copy(alpha = 0.6f))
+                Text("Meta de 10.000 passos", fontSize = 13.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = "REGISTRAR", 
@@ -1384,6 +1384,7 @@ fun StepsCard(stepsCount: Long, onRegisterClick: () -> Unit) {
                 modifier = Modifier.size(110.dp),
                 contentAlignment = Alignment.Center
             ) {
+                val sysOnBackground = MaterialTheme.colorScheme.onBackground
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val strokeWidth = 7.dp.toPx()
                     val center = Offset(size.width / 2, size.height / 2)
@@ -1449,7 +1450,7 @@ fun StepsCard(stepsCount: Long, onRegisterClick: () -> Unit) {
                         )
                         // Cursor core white
                         drawCircle(
-                            color = androidx.compose.ui.graphics.Color.White,
+                            color = sysOnBackground,
                             radius = 3.dp.toPx(),
                             center = Offset(endX, endY)
                         )
@@ -1460,13 +1461,13 @@ fun StepsCard(stepsCount: Long, onRegisterClick: () -> Unit) {
                         text = "${(progress * 100).toInt()}%",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = OnBackgroundDark,
+                        color = MaterialTheme.colorScheme.onBackground,
                         fontFamily = FontFamily.Serif
                     )
                     Text(
                         text = "meta",
                         fontSize = 9.sp,
-                        color = OnBackgroundDark.copy(alpha = 0.5f),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                         letterSpacing = 1.sp
                     )
                 }
@@ -1482,7 +1483,7 @@ fun WeightChartCard(records: List<WeightRecord>, targetWeight: Double?, onRegist
 
     Column(modifier = PremiumGlassModifier.fillMaxWidth().padding(24.dp)) {
         Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("HISTÓRICO DE PESO", style = MaterialTheme.typography.labelSmall, color = OnBackgroundDark.copy(alpha = 0.7f))
+            Text("HISTÓRICO DE PESO", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f))
             Text("REGISTRAR", color = PrimaryTeal, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { onRegisterClick() })
         }
         
@@ -1498,12 +1499,12 @@ fun WeightChartCard(records: List<WeightRecord>, targetWeight: Double?, onRegist
                     fontFamily = FontFamily.Serif,
                     fontSize = 36.sp,
                     fontWeight = FontWeight.Bold,
-                    color = OnBackgroundDark
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
                     text = "Último peso registrado",
                     fontSize = 11.sp,
-                    color = OnBackgroundDark.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                 )
             }
 
@@ -1548,6 +1549,7 @@ fun WeightChartCard(records: List<WeightRecord>, targetWeight: Double?, onRegist
                 animationProgress.animateTo(1f, animationSpec = tween(1500))
             }
 
+            val sysOnBackground = MaterialTheme.colorScheme.onBackground
             Canvas(modifier = Modifier.fillMaxWidth().height(150.dp)) {
                 val maxWeight = records.maxOf { it.weightKg } + 2
                 val minWeight = records.minOf { it.weightKg } - 2
@@ -1604,13 +1606,13 @@ fun WeightChartCard(records: List<WeightRecord>, targetWeight: Double?, onRegist
                 // Desenha a linha de peso
                 drawPath(path = path, brush = Brush.horizontalGradient(listOf(TertiaryPurple, PrimaryTeal)), style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round), alpha = animationProgress.value)
                 points.forEach { point ->
-                    drawCircle(color = androidx.compose.ui.graphics.Color.White, radius = 4.dp.toPx(), center = point, alpha = animationProgress.value)
+                    drawCircle(color = sysOnBackground, radius = 4.dp.toPx(), center = point, alpha = animationProgress.value)
                     drawCircle(color = PrimaryTeal, radius = 2.dp.toPx(), center = point, alpha = animationProgress.value)
                 }
             }
         } else {
             Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
-                Text("Adicione mais dados para ver o gráfico.", color = OnBackgroundDark.copy(alpha = 0.5f), fontSize = 12.sp)
+                Text("Adicione mais dados para ver o gráfico.", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f), fontSize = 12.sp)
             }
         }
 
@@ -1636,7 +1638,7 @@ fun WeightChartCard(records: List<WeightRecord>, targetWeight: Double?, onRegist
                     Text(
                         text = "Inicial: ${String.format(Locale.getDefault(), "%.1f kg", startWeight)}",
                         fontSize = 10.sp,
-                        color = OnBackgroundDark.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                     )
                     Text(
                         text = "Atual: ${String.format(Locale.getDefault(), "%.1f kg", latestWeight)}",
@@ -1676,7 +1678,7 @@ fun WeightChartCard(records: List<WeightRecord>, targetWeight: Double?, onRegist
 				Text(
 					text = "Você completou $progressPercent% do progresso em direção à sua meta.",
 					fontSize = 11.sp,
-					color = OnBackgroundDark.copy(alpha = 0.6f),
+					color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
 					modifier = Modifier.padding(top = 8.dp)
 				)
 			}
@@ -1700,7 +1702,7 @@ fun SleepCard(latestSleep: SleepRecord?, onRegisterClick: () -> Unit) {
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Outlined.Bedtime, null, tint = TertiaryPurple, modifier = Modifier.size(18.dp))
-                    Text("SONO E DESCANSO", style = MaterialTheme.typography.labelSmall, color = OnBackgroundDark.copy(alpha = 0.7f), letterSpacing = 1.sp)
+                    Text("SONO E DESCANSO", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f), letterSpacing = 1.sp)
                 }
                 Text("REGISTRAR", color = PrimaryTeal, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { onRegisterClick() })
             }
@@ -1714,17 +1716,18 @@ fun SleepCard(latestSleep: SleepRecord?, onRegisterClick: () -> Unit) {
                     if (latestSleep != null) {
                         val hours = latestSleep.durationHours.toInt()
                         val minutes = ((latestSleep.durationHours - hours) * 60).roundToInt()
-                        Text("${hours}h ${minutes}m", fontFamily = FontFamily.Serif, fontSize = 42.sp, color = OnBackgroundDark, fontWeight = FontWeight.Bold)
+                        Text("${hours}h ${minutes}m", fontFamily = FontFamily.Serif, fontSize = 42.sp, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text("Última noite sincronizada", fontSize = 13.sp, color = OnBackgroundDark.copy(alpha = 0.6f))
+                        Text("Última noite sincronizada", fontSize = 13.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
                     } else {
-                        Text("Sem Dados", fontFamily = FontFamily.Serif, fontSize = 28.sp, color = OnBackgroundDark.copy(alpha = 0.5f))
+                        Text("Sem Dados", fontFamily = FontFamily.Serif, fontSize = 28.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text("Sincronize com o Health Connect", fontSize = 13.sp, color = OnBackgroundDark.copy(alpha = 0.6f))
+                        Text("Sincronize com o Health Connect", fontSize = 13.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
                     }
                 }
                 
                 // Desenhar lua crescente estilizada no Canvas
+                val sysOnBackground = MaterialTheme.colorScheme.onBackground
                 Canvas(modifier = Modifier.size(64.dp)) {
                     val radius = size.width / 2
                     val center = Offset(size.width / 2, size.height / 2)
@@ -1744,8 +1747,8 @@ fun SleepCard(latestSleep: SleepRecord?, onRegisterClick: () -> Unit) {
                     }
                     drawPath(path = path, color = TertiaryPurple)
                     
-                    drawCircle(color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f), radius = 2.dp.toPx(), center = Offset(center.x - radius * 0.5f, center.y - radius * 0.4f))
-                    drawCircle(color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.6f), radius = 1.5.dp.toPx(), center = Offset(center.x + radius * 0.3f, center.y + radius * 0.5f))
+                    drawCircle(color = sysOnBackground.copy(alpha = 0.8f), radius = 2.dp.toPx(), center = Offset(center.x - radius * 0.5f, center.y - radius * 0.4f))
+                    drawCircle(color = sysOnBackground.copy(alpha = 0.6f), radius = 1.5.dp.toPx(), center = Offset(center.x + radius * 0.3f, center.y + radius * 0.5f))
                 }
             }
         }
@@ -1805,7 +1808,7 @@ fun StepsChartCard(records: List<StepsRecord>) {
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Outlined.DirectionsWalk, null, tint = PrimaryTeal, modifier = Modifier.size(18.dp))
-                Text("PASSOS SEMANAIS", style = MaterialTheme.typography.labelSmall, color = OnBackgroundDark.copy(alpha = 0.7f), letterSpacing = 1.sp)
+                Text("PASSOS SEMANAIS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f), letterSpacing = 1.sp)
             }
             
             if (averageSteps > 0) {
@@ -1916,7 +1919,7 @@ fun StepsChartCard(records: List<StepsRecord>) {
                             modifier = Modifier.weight(1f),
                             textAlign = TextAlign.Center,
                             fontSize = 11.sp,
-                            color = OnBackgroundDark.copy(alpha = 0.6f),
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -1931,7 +1934,7 @@ fun StepsChartCard(records: List<StepsRecord>) {
             ) {
                 Text(
                     text = "Nenhum dado de passos registrado nos últimos 7 dias.",
-                    color = OnBackgroundDark.copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                     fontSize = 13.sp,
                     textAlign = TextAlign.Center
                 )
@@ -1993,7 +1996,7 @@ fun SleepChartCard(records: List<SleepRecord>) {
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Outlined.Bedtime, null, tint = TertiaryPurple, modifier = Modifier.size(18.dp))
-                Text("SONO SEMANAL", style = MaterialTheme.typography.labelSmall, color = OnBackgroundDark.copy(alpha = 0.7f), letterSpacing = 1.sp)
+                Text("SONO SEMANAL", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f), letterSpacing = 1.sp)
             }
             
             if (averageHours > 0) {
@@ -2101,7 +2104,7 @@ fun SleepChartCard(records: List<SleepRecord>) {
                             modifier = Modifier.weight(1f),
                             textAlign = TextAlign.Center,
                             fontSize = 11.sp,
-                            color = OnBackgroundDark.copy(alpha = 0.6f),
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -2116,7 +2119,7 @@ fun SleepChartCard(records: List<SleepRecord>) {
             ) {
                 Text(
                     text = "Nenhum dado de sono registrado nos últimos 7 dias.",
-                    color = OnBackgroundDark.copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                     fontSize = 13.sp,
                     textAlign = TextAlign.Center
                 )
@@ -2164,14 +2167,14 @@ fun MedicationItem(med: Medication, onToggle: () -> Unit, onDeleteClick: () -> U
             Icon(
                 imageVector = if (med.isTaken) Icons.Filled.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
                 contentDescription = null,
-                tint = if (med.isTaken) PrimaryTeal else OnBackgroundDark.copy(alpha = 0.4f),
+                tint = if (med.isTaken) PrimaryTeal else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                 modifier = Modifier.size(22.dp)
             )
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.padding(vertical = 4.dp)) {
                 Text(
                     text = med.name,
-                    color = if (med.isTaken) OnBackgroundDark.copy(alpha = 0.6f) else OnBackgroundDark,
+                    color = if (med.isTaken) MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onBackground,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
                     textDecoration = if (med.isTaken) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
@@ -2179,15 +2182,15 @@ fun MedicationItem(med: Medication, onToggle: () -> Unit, onDeleteClick: () -> U
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = subtitleText,
-                    color = OnBackgroundDark.copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                     fontSize = 12.sp
                 )
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Icon(Icons.Outlined.AccessTime, null, tint = OnBackgroundDark.copy(alpha = 0.4f), modifier = Modifier.size(14.dp))
-                Text(med.time, color = if (med.isTaken) OnBackgroundDark.copy(alpha = 0.5f) else PrimaryTeal, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Icon(Icons.Outlined.AccessTime, null, tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f), modifier = Modifier.size(14.dp))
+                Text(med.time, color = if (med.isTaken) MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f) else PrimaryTeal, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             }
             IconButton(
                 onClick = onDeleteClick,
@@ -2308,7 +2311,7 @@ fun MedicationFullScreenAlert(
                     Text(
                         text = "Hora de cuidar de você",
                         fontSize = 14.sp,
-                        color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                     )
                 }
 
@@ -2351,7 +2354,7 @@ fun MedicationFullScreenAlert(
                         fontFamily = FontFamily.Serif,
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Bold,
-                        color = androidx.compose.ui.graphics.Color.White,
+                        color = MaterialTheme.colorScheme.onBackground,
                         textAlign = TextAlign.Center
                     )
                     
@@ -2361,7 +2364,7 @@ fun MedicationFullScreenAlert(
                             text = med.dosage,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Medium,
-                            color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f)
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
                         )
                     }
 
@@ -2422,7 +2425,7 @@ fun MedicationFullScreenAlert(
                     ) {
                         Text(
                             text = "LEMBRAR MAIS TARDE",
-                            color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f),
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
                             letterSpacing = 1.sp

@@ -16,6 +16,11 @@ import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,6 +69,7 @@ fun OuraMetricItem(
                         )
                     }
                     "sleep" -> {
+                        val sysOnBackground = MaterialTheme.colorScheme.onBackground
                         Canvas(modifier = Modifier.size(14.dp)) {
                             val w = size.width
                             val h = size.height
@@ -77,7 +83,7 @@ fun OuraMetricItem(
                                 lineTo(0f, h * 0.3f)
                                 close()
                             }
-                            drawPath(path, color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f))
+                            drawPath(path, color = sysOnBackground.copy(alpha = 0.8f))
                         }
                     }
                     "activity" -> {
@@ -106,7 +112,7 @@ fun OuraMetricItem(
                     fontSize = 22.sp,
                     fontFamily = FontFamily.SansSerif,
                     fontWeight = FontWeight.Normal,
-                    color = androidx.compose.ui.graphics.Color.White
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
         }
@@ -119,7 +125,7 @@ fun OuraMetricItem(
             fontSize = 11.sp,
             fontFamily = FontFamily.SansSerif,
             fontWeight = FontWeight.Light,
-            color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.7f)
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
         )
     }
 }
@@ -160,21 +166,38 @@ fun MetricItem(icon: ImageVector, value: String, label: String, onClick: () -> U
                     text = value,
                     fontSize = displayFontSize,
                     fontWeight = FontWeight.SemiBold,
-                    color = androidx.compose.ui.graphics.Color.White,
+                    color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
         }
         Spacer(modifier = Modifier.height(12.dp))
-        Text(label, fontSize = 9.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f))
+        Text(label, fontSize = 9.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
     }
 }
 
 @Composable
 fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, progressColor: Color, progress: Float, onClick: () -> Unit) {
+    var trigger by remember { mutableStateOf(false) }
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                trigger = false
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(trigger) {
+        if (!trigger) {
+            kotlinx.coroutines.delay(50)
+            trigger = true
+        }
+    }
     val animatedProgress by animateFloatAsState(
-        targetValue = progress,
+        targetValue = if (trigger) progress else 0f,
         animationSpec = tween(durationMillis = 1500, easing = FastOutSlowInEasing), label = ""
     )
     val displayFontSize = if (value.length > 5) 11.sp else if (value.length > 4) 13.sp else 15.sp
@@ -205,6 +228,7 @@ fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, prog
                 .bounceClick { onClick() },
             contentAlignment = Alignment.Center
         ) {
+            val lavaBrush = rememberLavaBrush()
             Canvas(modifier = Modifier.fillMaxSize().padding(1.dp)) {
                 drawArc(
                     color = progressColor.copy(alpha = 0.2f),
@@ -214,7 +238,7 @@ fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, prog
                     style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
                 )
                 drawArc(
-                    color = progressColor,
+                    brush = lavaBrush,
                     startAngle = -90f,
                     sweepAngle = 360f * animatedProgress,
                     useCenter = false,
@@ -223,6 +247,7 @@ fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, prog
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 4.dp)) {
                 if (icon == Icons.Outlined.Bedtime) {
+                    val sysOnBackground = MaterialTheme.colorScheme.onBackground
                     Canvas(modifier = Modifier.size(14.dp)) {
                         val w = size.width
                         val h = size.height
@@ -236,10 +261,10 @@ fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, prog
                             lineTo(w * 0.1f, h * 0.45f)
                             close()
                         }
-                        drawPath(path, color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f))
-                        drawCircle(color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f), radius = 1.dp.toPx(), center = Offset(w * 0.1f, h * 0.45f))
-                        drawCircle(color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f), radius = 1.dp.toPx(), center = Offset(w * 0.5f, h * 0.25f))
-                        drawCircle(color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f), radius = 1.dp.toPx(), center = Offset(w * 0.9f, h * 0.45f))
+                        drawPath(path, color = sysOnBackground.copy(alpha = 0.8f))
+                        drawCircle(color = sysOnBackground.copy(alpha = 0.8f), radius = 1.dp.toPx(), center = Offset(w * 0.1f, h * 0.45f))
+                        drawCircle(color = sysOnBackground.copy(alpha = 0.8f), radius = 1.dp.toPx(), center = Offset(w * 0.5f, h * 0.25f))
+                        drawCircle(color = sysOnBackground.copy(alpha = 0.8f), radius = 1.dp.toPx(), center = Offset(w * 0.9f, h * 0.45f))
                     }
                 } else {
                     Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onBackground)
@@ -249,14 +274,14 @@ fun MetricItemWithProgress(icon: ImageVector, value: String, label: String, prog
                     text = value,
                     fontSize = displayFontSize,
                     fontWeight = FontWeight.SemiBold,
-                    color = androidx.compose.ui.graphics.Color.White,
+                    color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
         }
         Spacer(modifier = Modifier.height(12.dp))
-        Text(label, fontSize = 9.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f))
+        Text(label, fontSize = 9.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
     }
 }
 
@@ -312,13 +337,13 @@ fun MetricItemWithNeonPulse(
                     text = value,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = androidx.compose.ui.graphics.Color.White,
+                    color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
         }
         Spacer(modifier = Modifier.height(12.dp))
-        Text(label, fontSize = 9.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f))
+        Text(label, fontSize = 9.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
     }
 }

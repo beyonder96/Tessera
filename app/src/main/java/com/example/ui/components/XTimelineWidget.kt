@@ -88,16 +88,17 @@ fun XTimelineWidget(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // Ícone do X (antigo Twitter) desenhado nativamente via Canvas para manter o peso leve
+                val sysOnBackground = MaterialTheme.colorScheme.onBackground
                 Canvas(modifier = Modifier.size(12.dp)) {
                     drawLine(
-                        color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.7f),
+                        color = sysOnBackground.copy(alpha = 0.7f),
                         start = Offset(0f, 0f),
                         end = Offset(size.width, size.height),
                         strokeWidth = 1.5.dp.toPx(),
                         cap = StrokeCap.Round
                     )
                     drawLine(
-                        color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.7f),
+                        color = sysOnBackground.copy(alpha = 0.7f),
                         start = Offset(size.width, 0f),
                         end = Offset(0f, size.height),
                         strokeWidth = 1.5.dp.toPx(),
@@ -107,7 +108,7 @@ fun XTimelineWidget(
                 
                 Text(
                     text = "LINHA DO TEMPO",
-                    color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.5.sp

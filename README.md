@@ -88,8 +88,13 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.13.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.13.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.14.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.14.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.
+
+### Versão 2.0.14
+- **Modo Claro Corrigido:** Resolvido o bug onde as telas Petz, Transporte, Desejos e Inicial não acompanhavam a alteração para tema claro (Frosty UI).
+- **Lava Aura:** Adicionado efeito especial de lâmpada de lava na logo, na foto de perfil e no ícone do metrô.
+- **Widgets Inteligentes:** Os anéis de progresso das métricas da página inicial agora recarregam dinamicamente todas as vezes que o aplicativo retorna à tela.
