@@ -3706,6 +3706,37 @@ fun CircularNavButton(
 }
 
 @Composable
+fun MinimalNavButton(
+    icon: ImageVector,
+    contentDescription: String,
+    isActive: Boolean,
+    activeColor: Color = Color(0xFFE85D04),
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .size(48.dp)
+            .bounceClick { onClick() }
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = if (isActive) Color.White else Color(0xFF888888),
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Box(
+            modifier = Modifier
+                .size(4.dp)
+                .clip(CircleShape)
+                .background(if (isActive) activeColor else Color.Transparent)
+        )
+    }
+}
+
+@Composable
 fun BottomNavBar(
     viewModel: TesseraViewModel,
     isExpanded: Boolean,
@@ -3716,246 +3747,147 @@ fun BottomNavBar(
     onCameraClick: () -> Unit = {}
 ) {
     var displayedRoute by remember { mutableStateOf(currentRoute) }
-    val scaleAnim = remember { androidx.compose.animation.core.Animatable(1f) }
-    var pivotX by remember { mutableStateOf(0.5f) }
-    val rippleFraction = remember { androidx.compose.animation.core.Animatable(0f) }
-    val scope = rememberCoroutineScope()
-
-    fun getRouteIndex(route: String): Int {
-        return when (route) {
-            "home" -> 0
-            "finance" -> 1
-            "market" -> 2
-            "health" -> 1
-            else -> 0
-        }
-    }
 
     LaunchedEffect(currentRoute) {
         if (currentRoute != displayedRoute) {
-            val oldIdx = getRouteIndex(displayedRoute)
-            val newIdx = getRouteIndex(currentRoute)
-            val clickedIdx = if (currentRoute == "home") 0 else newIdx
-            val pivot = when (clickedIdx) {
-                0 -> 0.166f
-                1 -> 0.5f
-                2 -> 0.833f
-                else -> 0.5f
-            }
-            pivotX = pivot
-            
-            scope.launch {
-                rippleFraction.snapTo(0f)
-                rippleFraction.animateTo(
-                    targetValue = 1f,
-                    animationSpec = tween(durationMillis = 800, easing = androidx.compose.animation.core.LinearOutSlowInEasing)
-                )
-            }
-            
-            scaleAnim.animateTo(
-                targetValue = 0f,
-                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
-            )
-            
             displayedRoute = currentRoute
-            
-            scaleAnim.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing)
-            )
         }
     }
 
-    val handleTabClick: (String, Int) -> Unit = { route, clickedIndex ->
+    val handleTabClick: (String, Int) -> Unit = { route, _ ->
         if (route != displayedRoute) {
-            val pivot = when (clickedIndex) {
-                0 -> 0.166f
-                1 -> 0.5f
-                2 -> 0.833f
-                else -> 0.5f
-            }
-            pivotX = pivot
-            
-            scope.launch {
-                launch {
-                    rippleFraction.snapTo(0f)
-                    rippleFraction.animateTo(
-                        targetValue = 1f,
-                        animationSpec = tween(durationMillis = 800, easing = androidx.compose.animation.core.LinearOutSlowInEasing)
-                    )
-                }
-                scaleAnim.animateTo(
-                    targetValue = 0f,
-                    animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
-                )
-                onNavigate(route)
-            }
+            onNavigate(route)
         }
     }
 
-    val lavaBrush = com.example.ui.components.rememberLavaBrush()
-    
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 16.dp)
-            .drawBehind {
-                if (rippleFraction.value > 0f && rippleFraction.value < 1f) {
-                    val radius = 48.dp.toPx() * rippleFraction.value
-                    drawCircle(
-                        color = PrimaryTeal.copy(alpha = 0.2f * (1f - rippleFraction.value)),
-                        radius = radius,
-                        center = Offset(size.width * pivotX, size.height / 2f)
-                    )
-                }
-            },
+            .padding(horizontal = 24.dp, vertical = 24.dp),
         contentAlignment = Alignment.BottomCenter
     ) {
-        // Pill container for Thermal UI
         Box(
             modifier = Modifier
                 .wrapContentSize()
-                .clip(RoundedCornerShape(32.dp))
-                .background(Color(0x14000000))
-                .border(2.dp, lavaBrush, RoundedCornerShape(32.dp))
-                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .clip(RoundedCornerShape(40.dp))
+                .background(Color(0x66000000))
+                .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(40.dp))
+                .padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp)
         ) {
             Row(
-                modifier = Modifier
-                    .wrapContentSize()
-                    .graphicsLayer {
-                        scaleX = scaleAnim.value
-                        scaleY = scaleAnim.value
-                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(pivotX, 0.5f)
-                    },
+                modifier = Modifier.wrapContentSize(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-            when (displayedRoute) {
-                "finance" -> {
-                    CircularNavButton(
-                        icon = Icons.Outlined.LightMode,
-                        contentDescription = "Hoje",
-                        isActive = false,
-                        onClick = { handleTabClick("home", 0) }
-                    )
-                    CircularNavButton(
-                        icon = Icons.Default.ArrowDownward,
-                        contentDescription = "Despesa",
-                        isActive = false,
-                        onClick = { viewModel.triggerFinanceAction(TesseraViewModel.FinanceAction.ADD_EXPENSE) }
-                    )
-                    CircularNavButton(
-                        icon = Icons.Default.ArrowUpward,
-                        contentDescription = "Receita",
-                        isActive = false,
-                        onClick = { viewModel.triggerFinanceAction(TesseraViewModel.FinanceAction.ADD_INCOME) }
-                    )
-                }
-                "health" -> {
-                    CircularNavButton(
-                        icon = Icons.Outlined.LightMode,
-                        contentDescription = "Hoje",
-                        isActive = false,
-                        onClick = { handleTabClick("home", 0) }
-                    )
-                    CircularNavButton(
-                        icon = Icons.Outlined.DirectionsWalk,
-                        contentDescription = "Passos",
-                        isActive = false,
-                        onClick = { viewModel.triggerHealthAction(TesseraViewModel.HealthAction.ADD_STEPS) }
-                    )
-                    CircularNavButton(
-                        icon = Icons.Outlined.Bedtime,
-                        contentDescription = "Sono",
-                        isActive = false,
-                        onClick = { viewModel.triggerHealthAction(TesseraViewModel.HealthAction.ADD_SLEEP) }
-                    )
-                }
-                else -> {
-                    CircularNavButton(
-                        icon = Icons.Outlined.LightMode,
-                        contentDescription = "Hoje",
-                        isActive = displayedRoute == "home",
-                        onClick = { handleTabClick("home", 0) }
-                    )
-                    CircularNavButton(
-                        icon = Icons.Outlined.AccountBalanceWallet,
-                        contentDescription = "Finanças",
-                        isActive = displayedRoute == "finance",
-                        onClick = { handleTabClick("finance", 1) }
-                    )
-                    CircularNavButton(
-                        icon = Icons.Outlined.Storefront,
-                        contentDescription = "Mercado",
-                        isActive = displayedRoute == "market",
-                        onClick = { handleTabClick("market", 2) }
-                    )
-                }
-            }
-
-            Box(
-                modifier = Modifier.size(56.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(2.dp)
-                        .blur(8.dp)
-                        .background(
-                            if (isExpanded) PrimaryTeal.copy(alpha = 0.3f) else Color(0x55000000),
-                            CircleShape
+                when (displayedRoute) {
+                    "finance" -> {
+                        MinimalNavButton(
+                            icon = Icons.Outlined.LightMode,
+                            contentDescription = "Hoje",
+                            isActive = false,
+                            onClick = { handleTabClick("home", 0) }
                         )
-                )
+                        MinimalNavButton(
+                            icon = Icons.Default.ArrowDownward,
+                            contentDescription = "Despesa",
+                            isActive = false,
+                            onClick = { viewModel.triggerFinanceAction(TesseraViewModel.FinanceAction.ADD_EXPENSE) }
+                        )
+                        MinimalNavButton(
+                            icon = Icons.Default.ArrowUpward,
+                            contentDescription = "Receita",
+                            isActive = false,
+                            onClick = { viewModel.triggerFinanceAction(TesseraViewModel.FinanceAction.ADD_INCOME) }
+                        )
+                    }
+                    "health" -> {
+                        MinimalNavButton(
+                            icon = Icons.Outlined.LightMode,
+                            contentDescription = "Hoje",
+                            isActive = false,
+                            onClick = { handleTabClick("home", 0) }
+                        )
+                        MinimalNavButton(
+                            icon = Icons.Outlined.DirectionsWalk,
+                            contentDescription = "Passos",
+                            isActive = false,
+                            onClick = { viewModel.triggerHealthAction(TesseraViewModel.HealthAction.ADD_STEPS) }
+                        )
+                        MinimalNavButton(
+                            icon = Icons.Outlined.Bedtime,
+                            contentDescription = "Sono",
+                            isActive = false,
+                            onClick = { viewModel.triggerHealthAction(TesseraViewModel.HealthAction.ADD_SLEEP) }
+                        )
+                    }
+                    else -> {
+                        MinimalNavButton(
+                            icon = Icons.Outlined.LightMode,
+                            contentDescription = "Hoje",
+                            isActive = displayedRoute == "home",
+                            onClick = { handleTabClick("home", 0) }
+                        )
+                        MinimalNavButton(
+                            icon = Icons.Outlined.AccountBalanceWallet,
+                            contentDescription = "Finanças",
+                            isActive = displayedRoute == "finance",
+                            onClick = { handleTabClick("finance", 1) }
+                        )
+                        MinimalNavButton(
+                            icon = Icons.Outlined.Storefront,
+                            contentDescription = "Mercado",
+                            isActive = displayedRoute == "market",
+                            onClick = { handleTabClick("market", 2) }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(4.dp))
 
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape)
-                        .background(
-                            if (isExpanded) {
-                                SolidColor(PrimaryTeal)
-                            } else {
+                    modifier = Modifier.size(56.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(4.dp)
+                            .blur(12.dp)
+                            .background(Color(0xFFE85D04).copy(alpha = 0.5f), CircleShape)
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                            .background(
                                 Brush.verticalGradient(
                                     colors = listOf(
-                                        Color(0x2BFFFFFF),
-                                        Color(0x06FFFFFF)
+                                        Color(0xFFF97316),
+                                        Color(0xFFC2410C)
                                     )
                                 )
-                            }
+                            )
+                            .bounceClick { onExpandedChange(!isExpanded) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val iconRotation by animateFloatAsState(
+                            targetValue = if (isExpanded) 45f else 0f,
+                            animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
                         )
-                        .border(
-                            width = 1.dp,
-                            brush = Brush.verticalGradient(
-                                colors = if (isExpanded) {
-                                    listOf(Color.White.copy(alpha = 0.6f), Color.White.copy(alpha = 0.2f))
-                                } else {
-                                    listOf(Color(0x59FFFFFF), Color(0x08FFFFFF))
-                                }
-                            ),
-                            shape = CircleShape
+                        Icon(
+                            Icons.Default.Add, 
+                            contentDescription = "Add", 
+                            tint = Color.White,
+                            modifier = Modifier
+                                .size(28.dp)
+                                .rotate(iconRotation)
                         )
-                        .bounceClick { onExpandedChange(!isExpanded) },
-                    contentAlignment = Alignment.Center
-                ) {
-                    val iconRotation by animateFloatAsState(
-                        targetValue = if (isExpanded) 45f else 0f,
-                        animationSpec = tween(durationMillis = 300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
-                    )
-                    Icon(
-                        Icons.Default.Add, 
-                        contentDescription = "Add", 
-                        tint = if (isExpanded) Color.Black else Color.White,
-                        modifier = Modifier
-                            .size(22.dp)
-                            .rotate(iconRotation)
-                    )
+                    }
                 }
             }
-        } // fecha Row
-        } // fecha Box Thermal UI
-    } // fecha Box externo
+        }
+    }
 }
 
 @Composable

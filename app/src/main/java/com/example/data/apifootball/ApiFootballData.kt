@@ -225,8 +225,8 @@ object NetworkModule {
             level = HttpLoggingInterceptor.Level.HEADERS
         }
 
-        // Token do usuário
-        val apiToken = "s9M1yUatdExguK89eVzkubPv15aZO0hsQoRXjzh01b7g2nUGFPy5qxjmXOqo"
+        // Token do usuário - lendo do .env via secrets plugin
+        val apiToken = com.example.BuildConfig.API_FOOTBALL_KEY
         
         val authInterceptor = Interceptor { chain ->
             val request = chain.request().newBuilder()

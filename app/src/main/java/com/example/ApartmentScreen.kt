@@ -174,6 +174,22 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                             )
                         }
                     }
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    Slider(
+                        value = progress,
+                        onValueChange = { newProgress ->
+                            progress = newProgress
+                            sharedPrefs.edit().putFloat("apartment_progress", newProgress).apply()
+                        },
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        colors = SliderDefaults.colors(
+                            thumbColor = SecondaryGold,
+                            activeTrackColor = SecondaryGold,
+                            inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                        )
+                    )
                 }
             }
 
