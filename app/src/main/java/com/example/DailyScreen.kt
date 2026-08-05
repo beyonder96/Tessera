@@ -441,6 +441,9 @@ fun DailyScreen(
                         // 3. FOOTBALL HIGHLIGHT MATCH WIDGET
                         com.example.ui.components.DetailedMatchWidget(viewModel = viewModel)
 
+                        // 3.3 VERSÍCULO DO DIA WIDGET
+                        BibleVerseWidget()
+
                         // 3.5 VOLCANIC LAVA WIDGET
                         VolcanicLavaWidget()
 
@@ -1280,6 +1283,58 @@ fun SpotifyLauncherWidget() {
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Medium,
                 color = Color.White.copy(alpha = 0.9f)
+            )
+        }
+    }
+}
+
+@Composable
+fun BibleVerseWidget() {
+    val thermalBrush = Brush.linearGradient(listOf(Color(0xFFec4899), Color(0xFFf97316)))
+    
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(Color(0x801E1E1E))
+            .border(1.dp, Color.White.copy(alpha=0.08f), RoundedCornerShape(24.dp))
+            .padding(20.dp)
+    ) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Outlined.MenuBook,
+                    contentDescription = "Versículo do Dia",
+                    tint = Color(0xFFf97316),
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Versículo do Dia",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Transparent,
+                    style = androidx.compose.ui.text.TextStyle(
+                        brush = thermalBrush
+                    )
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "\"Escuta minha voz, ó Senhor; dá ouvidos à minha oração.\"",
+                fontSize = 16.sp,
+                fontFamily = FontFamily.Serif,
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                color = Color.White,
+                lineHeight = 24.sp
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "- Salmos 130:2 (NVT)",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFFA0A0A0),
+                modifier = Modifier.align(Alignment.End)
             )
         }
     }
