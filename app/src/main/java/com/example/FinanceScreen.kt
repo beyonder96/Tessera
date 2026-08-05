@@ -2003,7 +2003,7 @@ fun TransactionItem(transaction: Transaction, bankAccounts: List<BankAccount>, c
             .then(PremiumGlassModifier)
             .then(
                 if (isOverdue) {
-                    Modifier.border(1.5.dp, Color(0xFFEF4444), RoundedCornerShape(28.dp))
+                    Modifier.border(1.5.dp, Color(0xFFEF4444), RoundedCornerShape(24.dp))
                 } else {
                     Modifier
                 }

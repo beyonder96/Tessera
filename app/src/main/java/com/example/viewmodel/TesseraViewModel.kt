@@ -158,12 +158,20 @@ class TesseraViewModel(
         ADD_STEPS,
         ADD_SLEEP
     }
+    
+    enum class WishesAction {
+        ADD_WISH,
+        SEARCH_WISHES
+    }
 
     private val _financeActionTrigger = MutableSharedFlow<FinanceAction>(extraBufferCapacity = 1)
     val financeActionTrigger = _financeActionTrigger.asSharedFlow()
 
     private val _healthActionTrigger = MutableSharedFlow<HealthAction>(extraBufferCapacity = 1)
     val healthActionTrigger = _healthActionTrigger.asSharedFlow()
+    
+    private val _wishesActionTrigger = MutableSharedFlow<WishesAction>(extraBufferCapacity = 1)
+    val wishesActionTrigger = _wishesActionTrigger.asSharedFlow()
 
     fun triggerFinanceAction(action: FinanceAction) {
         _financeActionTrigger.tryEmit(action)
@@ -171,6 +179,10 @@ class TesseraViewModel(
 
     fun triggerHealthAction(action: HealthAction) {
         _healthActionTrigger.tryEmit(action)
+    }
+    
+    fun triggerWishesAction(action: WishesAction) {
+        _wishesActionTrigger.tryEmit(action)
     }
 
     private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { sharedPreferences, key ->

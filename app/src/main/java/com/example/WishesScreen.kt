@@ -111,9 +111,65 @@ fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
     var showAddGoalDialog by remember { mutableStateOf(false) }
     var goalToEdit by remember { mutableStateOf<PurchaseGoal?>(null) }
     var searchQuery by remember { mutableStateOf("") }
+    var showSearchDialog by remember { mutableStateOf(false) }
+    
+    LaunchedEffect(Unit) {
+        viewModel.wishesActionTrigger.collect { action ->
+            when (action) {
+                TesseraViewModel.WishesAction.ADD_WISH -> showAddGoalDialog = true
+                TesseraViewModel.WishesAction.SEARCH_WISHES -> showSearchDialog = true
+            }
+        }
+    }
     
     val activeGoals = remember(purchaseGoals, searchQuery) {
         purchaseGoals.filter { !it.isBought && it.title.contains(searchQuery, ignoreCase = true) }
+    }
+    
+    if (showSearchDialog) {
+        AlertDialog(
+            onDismissRequest = { showSearchDialog = false },
+            containerColor = Color(0xFF0B0E14),
+            titleContentColor = Color.White,
+            textContentColor = Color.White,
+            shape = RoundedCornerShape(24.dp),
+            title = {
+                Text(
+                    text = "Pesquisar",
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp
+                )
+            },
+            text = {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Nome do produto...", color = Color.White.copy(alpha = 0.5f)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = com.example.ui.theme.SecondaryGold,
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showSearchDialog = false }) {
+                    Text("OK", color = com.example.ui.theme.SecondaryGold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { 
+                    searchQuery = ""
+                    showSearchDialog = false 
+                }) {
+                    Text("Limpar", color = Color.Gray)
+                }
+            }
+        )
     }
     
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF070909))) {
@@ -169,64 +225,6 @@ fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
             }
         }
         
-        // Sticky Header / Search Bar (Pílula de vidro com profundidade)
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(Color(0xFF070909).copy(alpha = 0.95f), Color.Transparent)
-                    )
-                )
-                .padding(top = 48.dp, bottom = 16.dp, start = 20.dp, end = 20.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(32.dp))
-                    .background(Color(0x800B0E14))
-                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(32.dp))
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.Search, contentDescription = "Buscar", tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f), modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                TextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Pesquisar desejos...", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f), fontSize = 14.sp) },
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
-                    ),
-                    modifier = Modifier.weight(1f)
-                )
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "Limpar", tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f))
-                    }
-                } else {
-                    Icon(Icons.Outlined.Mic, contentDescription = "Voz", tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
-                }
-            }
-        }
-        
-        // Floating Action Button
-        FloatingActionButton(
-            onClick = { showAddGoalDialog = true },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(bottom = 90.dp, end = 24.dp),
-            containerColor = com.example.ui.theme.SecondaryGold,
-            contentColor = Color.Black
-        ) {
-            Icon(Icons.Default.Add, contentDescription = "Adicionar Desejo")
-        }
     }
     
     if (showAddGoalDialog) {

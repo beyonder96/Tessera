@@ -93,17 +93,9 @@ class MedicationReceiver : BroadcastReceiver() {
                 }
                 
                 if (shouldShow) {
-                    // 1. Sempre exibe a Notificação de Alta Prioridade / Full-Screen Intent nativa do Android
-                    NotificationHelper.showNotification(
-                        context = context,
-                        title = "Hora do Remédio: $medName",
-                        message = messageText,
-                        notificationId = matchingMed.id
-                    )
-
-                    // 2. Se a permissão SYSTEM_ALERT_WINDOW estiver concedida, exibe a janela flutuante adicional
                     if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M || android.provider.Settings.canDrawOverlays(context)) {
-                        val serviceIntent = Intent(context, GlobalMedicationService::class.java).apply {
+                        val serviceIntent = Intent(context, GlobalOverlayService::class.java).apply {
+                            putExtra("REMINDER_TYPE", "MEDICATION")
                             putExtra("medicationId", matchingMed.id)
                             putExtra("medicationName", medName)
                             putExtra("medicationDosage", medDosage)
@@ -118,6 +110,13 @@ class MedicationReceiver : BroadcastReceiver() {
                         } catch (e: Exception) {
                             e.printStackTrace()
                         }
+                    } else {
+                        NotificationHelper.showNotification(
+                            context = context,
+                            title = "Hora do Remédio: $medName",
+                            message = messageText,
+                            notificationId = matchingMed.id
+                        )
                     }
                 }
                 
@@ -138,15 +137,9 @@ class MedicationReceiver : BroadcastReceiver() {
                     }
                 }
             } else {
-                NotificationHelper.showNotification(
-                    context = context,
-                    title = "Hora do Remédio: $medName",
-                    message = messageText,
-                    notificationId = medName.hashCode()
-                )
-                
                 if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M || android.provider.Settings.canDrawOverlays(context)) {
-                    val serviceIntent = Intent(context, GlobalMedicationService::class.java).apply {
+                    val serviceIntent = Intent(context, GlobalOverlayService::class.java).apply {
+                        putExtra("REMINDER_TYPE", "MEDICATION")
                         putExtra("medicationName", medName)
                         putExtra("medicationDosage", medDosage)
                     }
@@ -159,6 +152,13 @@ class MedicationReceiver : BroadcastReceiver() {
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
+                } else {
+                    NotificationHelper.showNotification(
+                        context = context,
+                        title = "Hora do Remédio: $medName",
+                        message = messageText,
+                        notificationId = medName.hashCode()
+                    )
                 }
             }
         }

@@ -57,14 +57,14 @@ val PremiumGlassModifier: Modifier
             }
         }
         
-        val modifier = this.clip(RoundedCornerShape(56.dp))
+        val modifier = this.clip(RoundedCornerShape(24.dp))
         
         modifier
             .background(Brush.verticalGradient(colors = bgColors))
             .border(
                 width = 1.dp,
                 brush = Brush.verticalGradient(colors = borderColors),
-                shape = RoundedCornerShape(56.dp)
+                shape = RoundedCornerShape(24.dp)
             )
             .drawWithContent {
                 drawContent()

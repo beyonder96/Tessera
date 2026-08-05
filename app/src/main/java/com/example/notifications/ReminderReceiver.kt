@@ -54,11 +54,26 @@ class ReminderReceiver : BroadcastReceiver() {
             }
         }
 
-        NotificationHelper.showBasicNotification(
-            context = context,
-            title = title,
-            message = message,
-            notificationId = notificationId
-        )
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M || android.provider.Settings.canDrawOverlays(context)) {
+            val serviceIntent = Intent(context, GlobalOverlayService::class.java).apply {
+                putExtra("REMINDER_TYPE", if (type.startsWith("METRO_")) "METRO" else type)
+            }
+            try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    context.startForegroundService(serviceIntent)
+                } else {
+                    context.startService(serviceIntent)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        } else {
+            NotificationHelper.showBasicNotification(
+                context = context,
+                title = title,
+                message = message,
+                notificationId = notificationId
+            )
+        }
     }
 }

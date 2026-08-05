@@ -1122,15 +1122,16 @@ fun QuietTheMindPlayerDialog(
 // 6. Daily Verse Widget Component
 @Composable
 fun VolcanicLavaWidget() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(48.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(Color(0x0CFFFFFF))
-            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(24.dp)),
-        contentAlignment = Alignment.Center
-    ) {
+    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.55f)
+                .height(36.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(Color(0x0CFFFFFF))
+                .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(18.dp)),
+            contentAlignment = Alignment.Center
+        ) {
         val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "lava")
         val anim1 by infiniteTransition.animateFloat(
             initialValue = 0f,
@@ -1193,6 +1194,7 @@ fun VolcanicLavaWidget() {
             }
         }
     }
+}
 }
 
 @Composable
@@ -1303,16 +1305,17 @@ fun BibleVerseWidget() {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = Icons.Outlined.MenuBook,
+                    imageVector = Icons.Outlined.BookmarkBorder,
                     contentDescription = "Versículo do Dia",
-                    tint = Color(0xFFf97316),
-                    modifier = Modifier.size(20.dp)
+                    tint = Color(0xFFEB6440),
+                    modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Versículo do Dia",
-                    fontSize = 14.sp,
+                    text = "VERSÍCULO DO DIA",
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.2.sp,
                     color = Color.Transparent,
                     style = androidx.compose.ui.text.TextStyle(
                         brush = thermalBrush
@@ -1322,18 +1325,18 @@ fun BibleVerseWidget() {
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "\"Escuta minha voz, ó Senhor; dá ouvidos à minha oração.\"",
-                fontSize = 16.sp,
+                fontSize = 18.sp,
                 fontFamily = FontFamily.Serif,
                 fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                color = Color.White,
-                lineHeight = 24.sp
+                color = Color.White.copy(alpha = 0.9f),
+                lineHeight = 26.sp
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "- Salmos 130:2 (NVT)",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFFA0A0A0),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Normal,
+                color = Color.White.copy(alpha = 0.45f),
                 modifier = Modifier.align(Alignment.End)
             )
         }

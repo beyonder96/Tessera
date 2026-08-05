@@ -95,6 +95,29 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
     val selectedTab = pagerState.currentPage
     val cartTotal = shoppingItems.filter { it.isChecked }.sumOf { it.price * it.quantity }
     val formattedTotal = String.format(Locale("pt", "BR"), "R$ %,.2f", cartTotal)
+    val context = LocalContext.current
+    var pendingCheckoutAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    
+    val pdfLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/pdf")
+    ) { uri ->
+        if (uri != null) {
+            val itemsToPrint = shoppingItems.filter { it.isChecked }
+            coroutineScope.launch {
+                try {
+                    com.example.utils.PdfUtils.generateMarketPdf(context, uri, itemsToPrint, cartTotal)
+                    android.widget.Toast.makeText(context, "Resumo PDF salvo com sucesso!", android.widget.Toast.LENGTH_SHORT).show()
+                } catch(e: Exception) {
+                    android.widget.Toast.makeText(context, "Erro ao salvar PDF", android.widget.Toast.LENGTH_SHORT).show()
+                }
+                pendingCheckoutAction?.invoke()
+                pendingCheckoutAction = null
+            }
+        } else {
+            pendingCheckoutAction?.invoke()
+            pendingCheckoutAction = null
+        }
+    }
 
     val planningListState = rememberLazyListState()
     val shoppingListState = rememberLazyListState()
@@ -187,11 +210,13 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                 onDismiss = { showCheckoutDebitDialog = false },
                 onSkip = {
                     showCheckoutDebitDialog = false
-                    viewModel.checkoutCart()
+                    pendingCheckoutAction = { viewModel.checkoutCart() }
+                    pdfLauncher.launch("Resumo_Mercado_${System.currentTimeMillis()}.pdf")
                 },
                 onDebit = { accountName, amount ->
                     showCheckoutDebitDialog = false
-                    viewModel.checkoutCartWithDebit(accountName, amount)
+                    pendingCheckoutAction = { viewModel.checkoutCartWithDebit(accountName, amount) }
+                    pdfLauncher.launch("Resumo_Mercado_${System.currentTimeMillis()}.pdf")
                 }
             )
         }
@@ -236,12 +261,13 @@ fun MarketHeader(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
+                val thermalBrush = remember { Brush.linearGradient(listOf(Color(0xFFec4899), Color(0xFFf97316))) }
                 Column {
                     Text(
                         text = "MERCADO INTELIGENTE",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = PrimaryTeal,
+                        style = TextStyle(brush = thermalBrush),
                         letterSpacing = 2.sp
                     )
                     Text(
@@ -339,14 +365,21 @@ fun PlanningView(
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(16.dp))
+                val thermalBrush = remember { Brush.linearGradient(listOf(Color(0xFFec4899), Color(0xFFf97316))) }
                 Button(
                     onClick = onAddClick,
-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal, contentColor = Color.Black),
-                    shape = RoundedCornerShape(16.dp)
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.White),
+                    contentPadding = PaddingValues(),
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier
+                        .fillMaxWidth(0.8f)
+                        .height(52.dp)
+                        .background(thermalBrush, RoundedCornerShape(20.dp))
+                        .bounceClick { onAddClick() }
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Adicionar Item", fontWeight = FontWeight.Bold)
+                    Text("Adicionar Item", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             }
         }
@@ -375,6 +408,26 @@ fun PlanningView(
                         onToggle = { viewModel.toggleMarketItemChecked(item) },
                         onDelete = { viewModel.deleteMarketItem(item) }
                     )
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    val thermalBrush = remember { Brush.linearGradient(listOf(Color(0xFFec4899), Color(0xFFf97316))) }
+                    Button(
+                        onClick = onAddClick,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.White),
+                        contentPadding = PaddingValues(),
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .background(thermalBrush, RoundedCornerShape(20.dp))
+                            .bounceClick { onAddClick() }
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Adicionar Item", fontWeight = FontWeight.Bold, color = Color.White)
+                    }
                 }
             }
 
@@ -690,83 +743,73 @@ fun MarketBottomDock(
     val lavaBrush = com.example.ui.components.rememberLavaBrush()
     val thermalBrush = Brush.linearGradient(listOf(Color(0xFFec4899), Color(0xFFf97316)))
     
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 90.dp)
-            .padding(horizontal = 20.dp, vertical = 12.dp)
-            .clip(RoundedCornerShape(32.dp))
-            .background(Color(0x801E1E1E))
-            .border(1.dp, Color.White.copy(alpha=0.08f), RoundedCornerShape(32.dp))
-            .padding(16.dp)
-    ) {
-        if (selectedTab == 0) {
-            // Planning Tab Action Button
-            Button(
-                onClick = onAddClick,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.White),
-                contentPadding = PaddingValues(),
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .background(thermalBrush, RoundedCornerShape(20.dp))
-                    .bounceClick { onAddClick() }
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("ADICIONAR ITEM À LISTA", fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = Color.White)
-            }
-        } else {
-            // Shopping Tab Action Bar with Cart Total & Checkout
+    if (selectedTab == 1) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 90.dp)
+                .padding(horizontal = 20.dp, vertical = 12.dp)
+                .clip(RoundedCornerShape(32.dp))
+                .background(Color(0x801E1E1E))
+                .border(1.dp, Color.White.copy(alpha=0.08f), RoundedCornerShape(32.dp))
+                .padding(16.dp)
+        ) {
+            // Shopping Tab Action Bar with Centered Cart Total & Checkout
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column {
-                        Text(
-                            text = "TOTAL NO CARRINHO",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            letterSpacing = 1.5.sp
-                        )
-                        Text(
-                            text = formattedTotal,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = SecondaryGold
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.width(16.dp))
-                    
+                // Spacer left to help center the total
+                Spacer(modifier = Modifier.weight(1f))
+
+                // Centered Total
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "TOTAL NO CARRINHO",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        letterSpacing = 1.5.sp
+                    )
+                    Text(
+                        text = formattedTotal,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = SecondaryGold
+                    )
+                }
+
+                // Spacer middle
+                Spacer(modifier = Modifier.weight(1f))
+                
+                // Actions
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     IconButton(
                         onClick = onAddClick,
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(48.dp)
                             .clip(CircleShape)
                             .background(thermalBrush)
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Adicionar Item", tint = Color.White, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Add, contentDescription = "Adicionar Item", tint = Color.White, modifier = Modifier.size(24.dp))
                     }
-                }
 
-                Button(
-                    onClick = onCheckoutClick,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.White),
-                    contentPadding = PaddingValues(),
-                    shape = RoundedCornerShape(18.dp),
-                    modifier = Modifier
-                        .height(48.dp)
-                        .background(thermalBrush, RoundedCornerShape(18.dp))
-                        .bounceClick { onCheckoutClick() }
-                ) {
-                    Icon(Icons.Default.ShoppingBag, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("FINALIZAR", fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = Color.White)
+                    Button(
+                        onClick = onCheckoutClick,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.White),
+                        contentPadding = PaddingValues(),
+                        shape = CircleShape,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(thermalBrush, CircleShape)
+                            .bounceClick { onCheckoutClick() }
+                    ) {
+                        Icon(Icons.Default.ShoppingBag, contentDescription = "Finalizar", modifier = Modifier.size(20.dp), tint = Color.White)
+                    }
                 }
             }
         }
@@ -971,7 +1014,7 @@ fun CheckoutDebitDialog(
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Text(card.name, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                             }
-                            Text("R$ ${card.balance}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                            Text(String.format(Locale("pt", "BR"), "R$ %,.2f", card.balance), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                         }
                     }
 
@@ -993,7 +1036,7 @@ fun CheckoutDebitDialog(
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Text(account.name, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                             }
-                            Text("R$ ${account.balance}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                            Text(String.format(Locale("pt", "BR"), "R$ %,.2f", account.balance), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                         }
                     }
                 }

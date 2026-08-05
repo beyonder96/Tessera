@@ -69,29 +69,33 @@ fun CompleteTransactionsModal(
     val monthsList = groupedByMonth.keys.toList()
     val pagerState = rememberPagerState(pageCount = { if (monthsList.isEmpty()) 1 else monthsList.size })
 
-    var pendingExportFormat by remember { mutableStateOf<String?>(null) }
     var pendingExportTransactions by remember { mutableStateOf<List<Transaction>?>(null) }
 
-    val createDocumentLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument(
-            if (pendingExportFormat == "pdf") "application/pdf" else "text/csv"
-        )
+    val pdfLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/pdf")
     ) { uri: Uri? ->
         uri?.let {
             coroutineScope.launch {
                 pendingExportTransactions?.let { txs ->
-                    val success = if (pendingExportFormat == "pdf") {
-                        generatePdf(context, it, txs, monthsList[pagerState.currentPage])
-                    } else {
-                        generateCsv(context, it, txs)
-                    }
-                    if (success) {
-                        Toast.makeText(context, "Arquivo salvo com sucesso!", Toast.LENGTH_LONG).show()
-                    } else {
-                        Toast.makeText(context, "Erro ao salvar arquivo.", Toast.LENGTH_LONG).show()
-                    }
+                    val success = generatePdf(context, it, txs, monthsList[pagerState.currentPage])
+                    if (success) Toast.makeText(context, "PDF salvo com sucesso!", Toast.LENGTH_LONG).show()
+                    else Toast.makeText(context, "Erro ao salvar PDF.", Toast.LENGTH_LONG).show()
                 }
-                pendingExportFormat = null
+                pendingExportTransactions = null
+            }
+        }
+    }
+
+    val csvLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri: Uri? ->
+        uri?.let {
+            coroutineScope.launch {
+                pendingExportTransactions?.let { txs ->
+                    val success = generateCsv(context, it, txs)
+                    if (success) Toast.makeText(context, "CSV salvo com sucesso!", Toast.LENGTH_LONG).show()
+                    else Toast.makeText(context, "Erro ao salvar CSV.", Toast.LENGTH_LONG).show()
+                }
                 pendingExportTransactions = null
             }
         }
@@ -163,9 +167,8 @@ fun CompleteTransactionsModal(
                             ) {
                                 OutlinedButton(
                                     onClick = { 
-                                        pendingExportFormat = "pdf"
                                         pendingExportTransactions = monthTransactions
-                                        createDocumentLauncher.launch("extrato_${formattedMonthName.replace(" ", "_").lowercase()}.pdf")
+                                        pdfLauncher.launch("extrato_${formattedMonthName.replace(" ", "_").lowercase()}.pdf")
                                     },
                                     modifier = Modifier.weight(1f).height(44.dp),
                                     shape = RoundedCornerShape(12.dp),
@@ -178,9 +181,8 @@ fun CompleteTransactionsModal(
 
                                 OutlinedButton(
                                     onClick = {
-                                        pendingExportFormat = "csv"
                                         pendingExportTransactions = monthTransactions
-                                        createDocumentLauncher.launch("extrato_${formattedMonthName.replace(" ", "_").lowercase()}.csv")
+                                        csvLauncher.launch("extrato_${formattedMonthName.replace(" ", "_").lowercase()}.csv")
                                     },
                                     modifier = Modifier.weight(1f).height(44.dp),
                                     shape = RoundedCornerShape(12.dp),

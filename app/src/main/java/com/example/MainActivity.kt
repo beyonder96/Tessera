@@ -165,6 +165,14 @@ class MainActivity : FragmentActivity() {
         CrashReporter.setup(this)
         handleDeepLink(intent)
 
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && !android.provider.Settings.canDrawOverlays(this)) {
+            val intent = Intent(
+                android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                android.net.Uri.parse("package:$packageName")
+            )
+            startActivity(intent)
+        }
+
         val imageLoader = coil.ImageLoader.Builder(this)
             .components {
                 add(coil.decode.SvgDecoder.Factory())
@@ -965,29 +973,8 @@ fun DailyScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScr
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .graphicsLayer {
-                        val scrollVal = scrollState.value
-                        alpha = (1f - (scrollVal / 250f)).coerceIn(0f, 1f)
-                        val scale = (1f - (scrollVal / 1200f)).coerceIn(0.85f, 1f)
-                        scaleX = scale
-                        scaleY = scale
-                        translationY = -scrollVal * 0.15f
-                    }
-            ) {
-                TopHeader(
-                    onOpenSettings = { onNavigate("settings") },
-                    onOpenMetro = {
-                        onNavigate("transport")
-                    }
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
+            // Espaço equivalente ao header flutuante
+            Spacer(modifier = Modifier.height(110.dp))
 
 
             Box(
@@ -1019,6 +1006,24 @@ fun DailyScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScr
 
             MainContent(netWorth, petEvents, mainViewModel, petViewModel, onNavigate)
             Spacer(modifier = Modifier.height(140.dp))
+        }
+
+        // Floating Header over the content
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopCenter)
+                .background(
+                    if (scrollState.value > 50) Color(0xCC000000) else Color.Transparent
+                )
+                .windowInsetsPadding(WindowInsets.statusBars)
+        ) {
+            TopHeader(
+                onOpenSettings = { onNavigate("settings") },
+                onOpenMetro = {
+                    onNavigate("transport")
+                }
+            )
         }
     }
 
@@ -3828,6 +3833,26 @@ fun BottomNavBar(
                             contentDescription = "Sono",
                             isActive = false,
                             onClick = { viewModel.triggerHealthAction(TesseraViewModel.HealthAction.ADD_SLEEP) }
+                        )
+                    }
+                    "wishes" -> {
+                        MinimalNavButton(
+                            icon = Icons.Outlined.LightMode,
+                            contentDescription = "Hoje",
+                            isActive = false,
+                            onClick = { handleTabClick("home", 0) }
+                        )
+                        MinimalNavButton(
+                            icon = Icons.Default.Add,
+                            contentDescription = "Adicionar Desejo",
+                            isActive = false,
+                            onClick = { viewModel.triggerWishesAction(TesseraViewModel.WishesAction.ADD_WISH) }
+                        )
+                        MinimalNavButton(
+                            icon = Icons.Default.Search,
+                            contentDescription = "Pesquisar",
+                            isActive = false,
+                            onClick = { viewModel.triggerWishesAction(TesseraViewModel.WishesAction.SEARCH_WISHES) }
                         )
                     }
                     else -> {

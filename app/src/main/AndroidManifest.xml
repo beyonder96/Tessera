@@ -48,7 +48,7 @@
         <receiver android:name="com.example.notifications.MedicationReceiver" android:exported="false" />
         <receiver android:name="com.example.notifications.ReminderReceiver" android:exported="false" />
         
-        <service android:name="com.example.notifications.GlobalMedicationService" android:exported="false" />
+        <service android:name="com.example.notifications.GlobalOverlayService" android:exported="false" />
         
         <receiver
             android:name="com.example.notifications.BootReceiver"
