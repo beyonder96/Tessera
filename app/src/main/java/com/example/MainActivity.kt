@@ -1329,13 +1329,21 @@ fun TopHeader(onOpenSettings: () -> Unit, onOpenMetro: () -> Unit) {
     // Thermal/Lava Lamp animation colors
     val lavaBrush = com.example.ui.components.rememberLavaBrush()
 
-    Row(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(32.dp))
+                .background(Color(0x99050505))
+                .border(1.dp, Color.White.copy(alpha=0.08f), RoundedCornerShape(32.dp))
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
         // Left side: Settings icon + TESSERA text
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -1418,6 +1426,7 @@ fun TopHeader(onOpenSettings: () -> Unit, onOpenMetro: () -> Unit) {
                 }
             }
         }
+    }
     }
 }
 

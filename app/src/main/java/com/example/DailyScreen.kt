@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -446,13 +447,7 @@ fun DailyScreen(
                         // 3.6 SPOTIFY LAUNCHER
                         SpotifyLauncherWidget()
 
-                        // 4. CONNECTIVITY FLOATING DOCK/PILL
-                        ConnectivityDock(
-                            onBellClick = {
-                                Toast.makeText(context, "Todas as notificações locais estão em dia.", Toast.LENGTH_SHORT).show()
-                            }
-                        )
-
+                        // 4. CONNECTIVITY FLOATING DOCK/PILL (Removed)
                     }
                 }
             }
@@ -1127,7 +1122,7 @@ fun VolcanicLavaWidget() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(140.dp)
+            .height(48.dp)
             .clip(RoundedCornerShape(24.dp))
             .background(Color(0x0CFFFFFF))
             .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(24.dp)),
@@ -1228,12 +1223,52 @@ fun SpotifyLauncherWidget() {
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(Brush.radialGradient(listOf(Color(0xFF1DB954), Color(0xFF128C3D))))
-                    .border(2.dp, Color(0xFF1ED760).copy(alpha = 0.5f), CircleShape),
+                    .background(Brush.linearGradient(listOf(Color(0xFFec4899), Color(0xFFf97316))))
+                    .border(2.dp, Color(0xFFf97316).copy(alpha = 0.5f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
+                val spotifyLogo = remember {
+                    androidx.compose.ui.graphics.vector.ImageVector.Builder(
+                        name = "Spotify", defaultWidth = 24.dp, defaultHeight = 24.dp,
+                        viewportWidth = 24f, viewportHeight = 24f
+                    ).path(
+                        fill = androidx.compose.ui.graphics.SolidColor(androidx.compose.ui.graphics.Color.White),
+                        pathBuilder = {
+                            moveTo(12f, 2f)
+                            curveTo(6.477f, 2f, 2f, 6.477f, 2f, 12f)
+                            curveTo(2f, 17.523f, 6.477f, 22f, 12f, 22f)
+                            curveTo(17.523f, 22f, 22f, 17.523f, 22f, 12f)
+                            curveTo(22f, 6.477f, 17.523f, 2f, 12f, 2f)
+                            close()
+                            moveTo(16.587f, 16.424f)
+                            curveToRelative(-0.18f, 0.295f, -0.563f, 0.387f, -0.857f, 0.207f)
+                            curveToRelative(-2.35f, -1.434f, -5.305f, -1.76f, -8.785f, -0.965f)
+                            curveToRelative(-0.335f, 0.077f, -0.67f, -0.133f, -0.746f, -0.47f)
+                            curveToRelative(-0.077f, -0.334f, 0.132f, -0.67f, 0.47f, -0.745f)
+                            curveToRelative(3.81f, -0.873f, 7.077f, -0.496f, 9.712f, 1.115f)
+                            curveToRelative(0.293f, 0.18f, 0.386f, 0.563f, 0.206f, 0.858f)
+                            close()
+                            moveTo(17.807f, 13.194f)
+                            curveToRelative(-0.225f, 0.37f, -0.704f, 0.488f, -1.072f, 0.264f)
+                            curveToRelative(-2.7f, -1.657f, -6.824f, -2.136f, -9.96f, -1.168f)
+                            curveToRelative(-0.423f, 0.128f, -0.87f, -0.107f, -1.002f, -0.53f)
+                            curveToRelative(-0.13f, -0.423f, 0.108f, -0.87f, 0.53f, -1.002f)
+                            curveToRelative(3.6f, -1.11f, 8.35f, -0.572f, 11.45f, 1.332f)
+                            curveToRelative(0.368f, 0.225f, 0.487f, 0.705f, 0.263f, 1.073f)
+                            close()
+                            moveTo(17.911f, 9.811f)
+                            curveToRelative(-3.194f, -1.89f, -9.379f, -2.098f, -12.946f, -1.02f)
+                            curveToRelative(-0.502f, 0.152f, -1.036f, -0.134f, -1.188f, -0.636f)
+                            curveToRelative(-0.153f, -0.503f, 0.134f, -1.036f, 0.637f, -1.188f)
+                            curveToRelative(4.09f, -1.234f, 10.92f, -1.007f, 14.773f, 1.284f)
+                            curveToRelative(0.455f, 0.27f, 0.604f, 0.862f, 0.333f, 1.317f)
+                            curveToRelative(-0.27f, 0.455f, -0.86f, 0.602f, -1.317f, 0.332f)
+                            close()
+                        }
+                    ).build()
+                }
                 Icon(
-                    imageVector = Icons.Default.MusicNote,
+                    imageVector = spotifyLogo,
                     contentDescription = "Spotify",
                     tint = Color.White,
                     modifier = Modifier.size(28.dp)

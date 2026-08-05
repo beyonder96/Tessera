@@ -403,7 +403,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
         @OptIn(ExperimentalMaterial3Api::class)
         ModalBottomSheet(
             onDismissRequest = { showSleepDialog = false },
-            containerColor = MaterialTheme.colorScheme.surface,
+            containerColor = Color.Black,
             scrimColor = Color.Black.copy(alpha = 0.5f)
         ) {
             Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp).padding(bottom = 32.dp)) {
@@ -954,11 +954,11 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                 )
 
                 Scaffold(
-                    containerColor = Color.Transparent,
+                    containerColor = Color.Black,
                     contentWindowInsets = WindowInsets(0, 0, 0, 0),
                     topBar = {}
                 ) { innerPadding ->
-                    Box(modifier = Modifier.fillMaxSize()) {
+                    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
                         LazyColumn(
                             state = listState,
                             modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),

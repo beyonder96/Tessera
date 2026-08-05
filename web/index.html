@@ -32,6 +32,34 @@
 
         <!-- Main Content -->
         <main>
+            <!-- Widget Versículo do Dia -->
+            <section class="bible-widget-container">
+               <div class="thermal-card noise-overlay">
+                   <!-- SVG Gradient -->
+                   <svg width="0" height="0" style="position: absolute;">
+                       <linearGradient id="thermal-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                           <stop stop-color="#ec4899" offset="0%" />
+                           <stop stop-color="#f97316" offset="100%" />
+                       </linearGradient>
+                   </svg>
+
+                   <div class="thermal-header">
+                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="icon-thermal">
+                           <path d="M5 4C5 2.89543 5.89543 2 7 2H17C18.1046 2 19 2.89543 19 4V21.5C19 21.8797 18.5913 22.1157 18.2573 21.9284L12.5143 18.706C12.1969 18.528 11.8031 18.528 11.4857 18.706L5.74275 21.9284C5.40871 22.1157 5 21.8797 5 21.5V4ZM7 4V19.382L11.7285 16.7297C11.8955 16.636 12.1045 16.636 12.2715 16.7297L17 19.382V4H7ZM9 7H15V9H9V7Z"></path>
+                       </svg>
+                       <span class="text-gradient-thermal">Versículo do Dia</span>
+                   </div>
+
+                   <blockquote class="thermal-verse">
+                       "Escuta minha voz, ó Senhor; dá ouvidos à minha oração."
+                   </blockquote>
+
+                   <div class="thermal-footer">
+                       - Salmos 130:2 (NVT)
+                   </div>
+               </div>
+            </section>
+
             <!-- Add Item Section (Collapsible/Dynamic) -->
             <section class="add-section">
                 <button id="show-add-modal-btn" class="btn-primary-add">
