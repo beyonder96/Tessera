@@ -89,6 +89,7 @@ fun ZenithScreen(
 
     val normalAlpha by animateFloatAsState(targetValue = if (isCompact) 0f else 1f, animationSpec = tween(250), label = "normalAlpha")
     val compactAlpha by animateFloatAsState(targetValue = if (isCompact) 1f else 0f, animationSpec = tween(250), label = "compactAlpha")
+    val thermalBrush = Brush.linearGradient(listOf(Color(0xFFec4899), Color(0xFFf97316)))
 
     val accentColor = when (pagerState.currentPage) {
         1 -> Color(0xFF71D7CD)
@@ -118,26 +119,19 @@ fun ZenithScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 8.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFF141918))
+                        .clip(RoundedCornerShape(32.dp))
+                        .background(Color(0x801E1E1E))
+                        .border(1.dp, Color.White.copy(alpha=0.08f), RoundedCornerShape(32.dp))
                         .padding(4.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     listOf("Lembretes", "Rotinas").forEachIndexed { index, title ->
                         val isSelected = pagerState.currentPage == index
-                        val bgSelectedColor = when (index) {
-                            1 -> Color(0xFF0F2624)
-                            else -> Color(0xFF26200F)
-                        }
-                        val textAccentColor = when (index) {
-                            1 -> Color(0xFF71D7CD)
-                            else -> Color(0xFFF9A826)
-                        }
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(if (isSelected) bgSelectedColor else Color.Transparent)
+                                .clip(RoundedCornerShape(28.dp))
+                                .then(if (isSelected) Modifier.background(thermalBrush) else Modifier.background(Color.Transparent))
                                 .bounceClick { 
                                     coroutineScope.launch {
                                         pagerState.animateScrollToPage(index)
@@ -148,7 +142,7 @@ fun ZenithScreen(
                         ) {
                             Text(
                                 text = title,
-                                color = if (isSelected) textAccentColor else Color(0xFF81928F),
+                                color = if (isSelected) Color.White else Color.White.copy(alpha=0.6f),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp
                             )
@@ -554,14 +548,13 @@ fun LembretesTab(viewModel: TesseraViewModel, listState: LazyListState) {
 @Composable
 fun CalendarEventCard(event: CalendarEvent, dateFormat: SimpleDateFormat) {
     val eventColor = Color(event.calendarColor)
-    val lavaBrush = com.example.ui.components.rememberLavaBrush()
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(Color(0x0CFFFFFF))
-            .border(1.dp, lavaBrush, RoundedCornerShape(20.dp))
+            .background(Color(0x801E1E1E))
+            .border(1.dp, Color.White.copy(alpha=0.08f), RoundedCornerShape(20.dp))
             .padding(16.dp),
         verticalAlignment = Alignment.Top
     ) {

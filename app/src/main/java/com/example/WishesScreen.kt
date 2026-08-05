@@ -538,88 +538,101 @@ fun WishesDialog(
         }
     }
 
-    AlertDialog(
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
+        sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.background,
-        shape = RoundedCornerShape(24.dp),
-        title = {
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
             Text(
                 text = if (goal == null) "Novo Desejo" else "Editar Desejo",
                 color = MaterialTheme.colorScheme.onBackground,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                if (imgUrl.isNotBlank()) {
-                    AsyncImage(
-                        model = imgUrl,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(12.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                } else if (isFetchingImage) {
-                    Box(modifier = Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = Color(0xFF71D7CD))
-                    }
+            
+            if (imgUrl.isNotBlank()) {
+                AsyncImage(
+                    model = imgUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(12.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            } else if (isFetchingImage) {
+                Box(modifier = Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Color(0xFF71D7CD))
                 }
-                
-                OutlinedTextField(
-                    value = buyUrl,
-                    onValueChange = { buyUrl = it },
-                    label = { Text("Link da Compra", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)) },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White, unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = Color(0xFF3D4947)
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = { Text("Nome do Produto", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)) },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White, unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = Color(0xFF3D4947)
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
-                OutlinedTextField(
-                    value = target,
-                    onValueChange = { target = it },
-                    label = { Text("Valor Estimado (R$)", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White, unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = Color(0xFF3D4947)
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val cleanTarget = target.replace(Regex("[^0-9,]"), "").replace(",", ".")
-                    val targetVal = cleanTarget.toDoubleOrNull() ?: 0.0
-                    if (title.isNotBlank() && targetVal > 0) {
-                        onSave(title, targetVal, buyUrl, imgUrl)
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF71D7CD))
+            
+            OutlinedTextField(
+                value = buyUrl,
+                onValueChange = { buyUrl = it },
+                label = { Text("Link da Compra", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)) },
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                    focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = Color(0xFF3D4947)
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+            
+            OutlinedTextField(
+                value = title,
+                onValueChange = { title = it },
+                label = { Text("Nome do Produto", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)) },
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                    focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = Color(0xFF3D4947)
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+            
+            OutlinedTextField(
+                value = target,
+                onValueChange = { target = it },
+                label = { Text("Valor Estimado (R$)", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                    focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = Color(0xFF3D4947)
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Salvar", color = Color.Black, fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancelar", color = Color(0xFF81928F))
+                TextButton(onClick = onDismiss) {
+                    Text("Cancelar", color = Color(0xFF81928F))
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Button(
+                    onClick = {
+                        val cleanTarget = target.replace(Regex("[^0-9,]"), "").replace(",", ".")
+                        val targetVal = cleanTarget.toDoubleOrNull() ?: 0.0
+                        if (title.isNotBlank() && targetVal > 0) {
+                            onSave(title, targetVal, buyUrl, imgUrl)
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF71D7CD))
+                ) {
+                    Text("Salvar", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
             }
         }
-    )
+    }
 }

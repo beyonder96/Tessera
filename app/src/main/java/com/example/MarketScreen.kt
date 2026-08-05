@@ -688,6 +688,7 @@ fun MarketBottomDock(
     viewModel: TesseraViewModel
 ) {
     val lavaBrush = com.example.ui.components.rememberLavaBrush()
+    val thermalBrush = Brush.linearGradient(listOf(Color(0xFFec4899), Color(0xFFf97316)))
     
     Box(
         modifier = Modifier
@@ -695,24 +696,26 @@ fun MarketBottomDock(
             .padding(bottom = 90.dp)
             .padding(horizontal = 20.dp, vertical = 12.dp)
             .clip(RoundedCornerShape(32.dp))
-            .background(Color(0x1A000000))
-            .border(2.dp, lavaBrush, RoundedCornerShape(32.dp))
+            .background(Color(0x801E1E1E))
+            .border(1.dp, Color.White.copy(alpha=0.08f), RoundedCornerShape(32.dp))
             .padding(16.dp)
     ) {
         if (selectedTab == 0) {
             // Planning Tab Action Button
             Button(
                 onClick = onAddClick,
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal, contentColor = Color.Black),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.White),
+                contentPadding = PaddingValues(),
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp)
+                    .background(thermalBrush, RoundedCornerShape(20.dp))
                     .bounceClick { onAddClick() }
             ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("ADICIONAR ITEM À LISTA", fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                Text("ADICIONAR ITEM À LISTA", fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = Color.White)
             }
         } else {
             // Shopping Tab Action Bar with Cart Total & Checkout
@@ -745,23 +748,25 @@ fun MarketBottomDock(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(PrimaryTeal)
+                            .background(thermalBrush)
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Adicionar Item", tint = Color.Black, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Add, contentDescription = "Adicionar Item", tint = Color.White, modifier = Modifier.size(18.dp))
                     }
                 }
 
                 Button(
                     onClick = onCheckoutClick,
-                    colors = ButtonDefaults.buttonColors(containerColor = SecondaryGold, contentColor = Color.Black),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.White),
+                    contentPadding = PaddingValues(),
                     shape = RoundedCornerShape(18.dp),
                     modifier = Modifier
                         .height(48.dp)
+                        .background(thermalBrush, RoundedCornerShape(18.dp))
                         .bounceClick { onCheckoutClick() }
                 ) {
-                    Icon(Icons.Default.ShoppingBag, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.ShoppingBag, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("FINALIZAR", fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Text("FINALIZAR", fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = Color.White)
                 }
             }
         }
