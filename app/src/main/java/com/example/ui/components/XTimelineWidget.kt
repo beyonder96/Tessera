@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.example.ui.theme.thermalCard
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -76,9 +77,7 @@ fun XTimelineWidget(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color(0x08FFFFFF))
-            .border(1.dp, Color(0x0AFFFFFF), RoundedCornerShape(16.dp))
+            .thermalCard(cornerRadius = 16.dp, elevation = 12.dp)
             .padding(16.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

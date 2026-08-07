@@ -49,7 +49,9 @@ fun SubscriptionsCentralModal(
     val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle(initialValue = emptyList())
     
     val subscriptions = remember(allTransactions) {
-        allTransactions.filter { !it.isIncome && (it.category == "Stream" || it.category == "Assinaturas/Streams") }
+        allTransactions
+            .filter { !it.isIncome && (it.category == "Stream" || it.category == "Assinaturas/Streams") }
+            .distinctBy { it.title.lowercase().trim() }
     }
     
     val totalCost = remember(subscriptions) {

@@ -30,6 +30,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.graphicsLayer
+import com.example.ui.theme.thermalCard
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -1292,52 +1296,68 @@ fun SpotifyLauncherWidget() {
 
 @Composable
 fun BibleVerseWidget() {
-    val thermalBrush = Brush.linearGradient(listOf(Color(0xFFec4899), Color(0xFFf97316)))
-    
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .background(Color(0x801E1E1E))
-            .border(1.dp, Color.White.copy(alpha=0.08f), RoundedCornerShape(24.dp))
-            .padding(20.dp)
+            .thermalCard(cornerRadius = 28.dp, elevation = 20.dp)
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Column {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Ícone com máscara de gradiente
                 Icon(
-                    imageVector = Icons.Outlined.BookmarkBorder,
-                    contentDescription = "Versículo do Dia",
-                    tint = Color(0xFFEB6440),
-                    modifier = Modifier.size(18.dp)
+                    imageVector = Icons.Default.Bookmark,
+                    contentDescription = "Versículo",
+                    modifier = Modifier
+                        .size(20.dp)
+                        .graphicsLayer(alpha = 0.99f)
+                        .drawWithCache {
+                            onDrawWithContent {
+                                drawContent()
+                                drawRect(
+                                    brush = com.example.ui.theme.ThermalGradientBrush,
+                                    blendMode = BlendMode.SrcAtop
+                                )
+                            }
+                        },
+                    tint = Color.Black
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+
                 Text(
                     text = "VERSÍCULO DO DIA",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.2.sp,
-                    color = Color.Transparent,
                     style = androidx.compose.ui.text.TextStyle(
-                        brush = thermalBrush
+                        brush = com.example.ui.theme.ThermalGradientBrush,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 12.sp,
+                        letterSpacing = 2.4.sp,
+                        fontFamily = FontFamily.SansSerif
                     )
                 )
             }
-            Spacer(modifier = Modifier.height(16.dp))
+
             Text(
                 text = "\"Escuta minha voz, ó Senhor; dá ouvidos à minha oração.\"",
-                fontSize = 18.sp,
-                fontFamily = FontFamily.Serif,
+                color = Color(0xF2FFFFFF),
+                fontSize = 22.sp,
                 fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                color = Color.White.copy(alpha = 0.9f),
-                lineHeight = 26.sp
+                fontFamily = FontFamily.Serif,
+                lineHeight = 30.sp
             )
-            Spacer(modifier = Modifier.height(16.dp))
+
             Text(
                 text = "- Salmos 130:2 (NVT)",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Normal,
-                color = Color.White.copy(alpha = 0.45f),
-                modifier = Modifier.align(Alignment.End)
+                color = Color(0x66FFFFFF),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                fontFamily = FontFamily.SansSerif,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = androidx.compose.ui.text.style.TextAlign.End
             )
         }
     }

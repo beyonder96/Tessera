@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import com.example.viewmodel.TesseraViewModel
 import kotlin.math.cos
 import kotlin.math.sin
+import com.example.ui.theme.thermalCard
 
 @Composable
 fun PremiumWeatherWidget(weatherState: TesseraViewModel.WeatherInfo?) {
@@ -84,15 +85,7 @@ fun PremiumWeatherWidget(weatherState: TesseraViewModel.WeatherInfo?) {
         modifier = Modifier
             .fillMaxWidth()
             .height(170.dp)
-            .clip(shape)
-            .background(cardGradient)
-            .border(
-                width = 1.dp,
-                brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF333333), Color(0xFFFF5E00).copy(alpha = 0.5f))
-                ),
-                shape = shape
-            )
+            .thermalCard(cornerRadius = 56.dp, elevation = 16.dp)
     ) {
         // Warm bottom radial & rim glow overlay
         Canvas(modifier = Modifier.fillMaxSize()) {

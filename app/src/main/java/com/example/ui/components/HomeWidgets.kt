@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
+import com.example.ui.theme.thermalCard
 
 @Composable
 fun PremiumSquareWidget(
@@ -33,9 +34,7 @@ fun PremiumSquareWidget(
     Box(
         modifier = Modifier
             .aspectRatio(1f)
-            .clip(RoundedCornerShape(24.dp))
-            .background(Color(0xFF070909).copy(alpha = 0.6f))
-            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp))
+            .thermalCard(cornerRadius = 24.dp, elevation = 12.dp)
             .clickable { onClick() }
             .padding(16.dp)
     ) {
