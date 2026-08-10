@@ -249,13 +249,19 @@ fun SubscriptionsCentralModal(
                                     else -> Color(0xFF71D7CD) to tx.title.take(2).capitalize(Locale.ROOT)
                                 }
                                 
-                                val logoUrl = when {
-                                    title.contains("spotify") -> "https://storage.googleapis.com/pr-newsroom-wp/1/2018/11/Spotify_Logo_RGB_Green.png"
-                                    title.contains("netflix") -> "https://images.ctfassets.net/y2ske730sjqp/1aONibCke6niZhgPxuiilC/2c401b05a07288746ddf3bd3943f176c/BrandAssets_Logos_01-Wordmark.jpg?w=940"
-                                    title.contains("prime") || title.contains("amazon") -> "https://m.media-amazon.com/images/G/01/primevideo/seo/primevideo-seo-logo.png"
-                                    title.contains("disney") -> "https://cnbl-cdn.bamgrid.com/assets/7ecc8bcb60ad77193058d63e321bd21cbac2fc67281dbd9927676ea4a4c83594/original"
+                                val domain = when {
+                                    title.contains("spotify") -> "spotify.com"
+                                    title.contains("netflix") -> "netflix.com"
+                                    title.contains("prime") || title.contains("amazon") -> "primevideo.com"
+                                    title.contains("youtube") -> "youtube.com"
+                                    title.contains("apple") -> "apple.com"
+                                    title.contains("disney") -> "disneyplus.com"
+                                    title.contains("hbo") || title.contains("max") -> "max.com"
+                                    title.contains("gympass") || title.contains("wellhub") -> "wellhub.com"
+                                    title.contains("globo") || title.contains("globoplay") -> "globo.com"
                                     else -> null
                                 }
+                                val logoUrl = domain?.let { "https://logo.clearbit.com/$it" }
 
                                 Row(
                                     modifier = Modifier

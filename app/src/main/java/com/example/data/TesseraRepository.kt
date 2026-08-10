@@ -237,10 +237,20 @@ class TesseraRepository(private val dao: TesseraDao) {
         dao.deleteDebt(debt)
     }
 
-    // Bible API Setup
+    private val bibleMoshi = com.squareup.moshi.Moshi.Builder()
+        .add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory())
+        .build()
+
     private val bibleRetrofit = retrofit2.Retrofit.Builder()
         .baseUrl("https://bolls.life/")
-        .addConverterFactory(retrofit2.converter.moshi.MoshiConverterFactory.create())
+        .client(
+            okhttp3.OkHttpClient.Builder()
+                .addInterceptor(okhttp3.logging.HttpLoggingInterceptor().apply {
+                    level = okhttp3.logging.HttpLoggingInterceptor.Level.BODY
+                })
+                .build()
+        )
+        .addConverterFactory(retrofit2.converter.moshi.MoshiConverterFactory.create(bibleMoshi))
         .build()
 
     private val bibleApi = bibleRetrofit.create(BibleApi::class.java)

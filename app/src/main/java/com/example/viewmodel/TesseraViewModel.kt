@@ -1913,13 +1913,24 @@ class TesseraViewModel(
                     }
 
                     if (targetTeamId != null) {
-                        val result = fixtureRepository.getNextTeamFixture(targetTeamId)
-                        if (result.isSuccess && result.getOrNull() != null) {
-                            targetFixtureId = result.getOrNull()?.fixture?.id
-                        } else {
-                            val pastResult = fixtureRepository.getLastTeamFixture(targetTeamId)
-                            if (pastResult.isSuccess && pastResult.getOrNull() != null) {
-                                targetFixtureId = pastResult.getOrNull()?.fixture?.id
+                        val datesToCheck = listOf(
+                            nowLocalDate,
+                            nowLocalDate.plusDays(1),
+                            nowLocalDate.minusDays(1),
+                            nowLocalDate.plusDays(2),
+                            nowLocalDate.minusDays(2)
+                        )
+
+                        for (date in datesToCheck) {
+                            val dateStr = date.format(dtf)
+                            val result = fixtureRepository.getFixturesByDate(dateStr)
+                            if (result.isSuccess) {
+                                val fixtures = result.getOrNull() ?: emptyList()
+                                val match = fixtures.find { it.teams.home.id == targetTeamId || it.teams.away.id == targetTeamId }
+                                if (match != null) {
+                                    targetFixtureId = match.fixture.id
+                                    break
+                                }
                             }
                         }
                     } else {

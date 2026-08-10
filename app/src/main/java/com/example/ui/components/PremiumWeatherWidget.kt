@@ -114,6 +114,12 @@ fun PremiumWeatherWidget(weatherState: TesseraViewModel.WeatherInfo?) {
                 strokeWidth = 3f
             )
         }
+        
+        // Native Particle Weather Animation
+        WeatherParticleEffects(
+            description = rawDesc,
+            modifier = Modifier.fillMaxSize()
+        )
 
         Row(
             modifier = Modifier
