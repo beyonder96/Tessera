@@ -313,7 +313,7 @@ fun FinanceScreen(
                         },
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF71D7CD),
+                        color = MaterialTheme.colorScheme.primary,
                         letterSpacing = 1.5.sp
                     )
 
@@ -325,7 +325,7 @@ fun FinanceScreen(
                         fontFamily = FontFamily.Serif,
                         fontWeight = FontWeight.Bold,
                         fontSize = 42.sp,
-                        color = if (isNegative && !isPrivacyModeEnabled) Color(0xFFEF4444) else Color(0xFFDFE3E2)
+                        color = if (isNegative && !isPrivacyModeEnabled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                     )
 
                     if (filterName == null) {
@@ -336,7 +336,7 @@ fun FinanceScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("Orçamento Comprometido", fontSize = 12.sp, color = Color(0x99BDC9C6))
+                                Text("Orçamento Comprometido", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(
                                     text = if (isPrivacyModeEnabled) "•••" else "${(ratio * 100).toInt()}%",
                                     fontSize = 12.sp,
@@ -350,7 +350,7 @@ fun FinanceScreen(
                                     .fillMaxWidth()
                                     .height(6.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0x1AFFFFFF))
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
                             ) {
                                 Box(
                                     modifier = Modifier

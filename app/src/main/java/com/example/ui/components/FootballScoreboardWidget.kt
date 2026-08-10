@@ -39,6 +39,10 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
+import coil.request.ImageRequest
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import com.example.data.DetailedFixture
 import com.example.viewmodel.TesseraViewModel
 
@@ -48,9 +52,11 @@ fun DetailedMatchWidget(
     modifier: Modifier = Modifier
 ) {
     val match by viewModel.featuredMatch.collectAsState()
+    val matchStandings by viewModel.matchStandings.collectAsState()
     val isLoading by viewModel.isLoadingFootball.collectAsState()
     var selectedTab by remember { mutableStateOf("RESUMO") }
     val tabs = listOf("RESUMO", "EVENTOS", "ESCALAÇÕES")
+    val pagerState = rememberPagerState(pageCount = { 2 })
 
     LaunchedEffect(Unit) {
         if (match == null && !isLoading) {
@@ -125,8 +131,10 @@ fun DetailedMatchWidget(
             )
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            // Header Area
+        HorizontalPager(state = pagerState, modifier = Modifier.fillMaxWidth()) { page ->
+            if (page == 0) {
+                Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                    // Header Area
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -376,9 +384,35 @@ fun DetailedMatchWidget(
                     }
                 }
             }
+            } // close Column
+            } else { // close if (page == 0)
+                StandingsCard(
+                    standingsData = matchStandings,
+                    homeTeamName = match?.matchDetail?.homeTeamName,
+                    awayTeamName = match?.matchDetail?.awayTeamName
+                )
+            }
+        } // close HorizontalPager
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            repeat(2) { iteration ->
+                val color = if (pagerState.currentPage == iteration) Color(0xFFF97316) else Color.White.copy(alpha = 0.2f)
+                Box(
+                    modifier = Modifier
+                        .padding(2.dp)
+                        .clip(CircleShape)
+                        .background(color)
+                        .size(6.dp)
+                )
+            }
         }
-    }
-}
+    } // close Box
+} // close fun DetailedMatchWidget
 
 @Composable
 fun MatchSummaryTab(match: DetailedFixture) {
@@ -451,13 +485,37 @@ fun MatchEventsTab(match: DetailedFixture) {
 
 @Composable
 fun MatchLineupsTab(match: DetailedFixture) {
-    Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-        Text("Escalações disponíveis próximo ao início do jogo.", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f), fontSize = 12.sp)
+    if (match.homeLineup.isEmpty() && match.awayLineup.isEmpty()) {
+        Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+            Text("Escalações disponíveis próximo ao início do jogo.", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f), fontSize = 12.sp)
+        }
+    } else {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(match.matchDetail.homeTeamName.uppercase(), color = Color(0xFFA1A1AA), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                match.homeLineup.take(11).forEach { player ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("${player.position ?: "-"}", color = Color.Gray, fontSize = 10.sp, modifier = Modifier.width(16.dp))
+                        Text(player.playerName, color = Color.White, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(match.matchDetail.awayTeamName.uppercase(), color = Color(0xFFA1A1AA), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                match.awayLineup.take(11).forEach { player ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("${player.position ?: "-"}", color = Color.Gray, fontSize = 10.sp, modifier = Modifier.width(16.dp))
+                        Text(player.playerName, color = Color.White, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+        }
     }
 }
 
 @Composable
 fun TeamLogo(logoUrl: String, teamName: String, size: Int = 48) {
+    val context = LocalContext.current
     Box(
         modifier = Modifier
             .size(size.dp)
@@ -468,7 +526,10 @@ fun TeamLogo(logoUrl: String, teamName: String, size: Int = 48) {
     ) {
         if (logoUrl.isNotBlank()) {
             AsyncImage(
-                model = logoUrl,
+                model = ImageRequest.Builder(context)
+                    .data(logoUrl)
+                    .crossfade(true)
+                    .build(),
                 contentDescription = teamName,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.size((size * 0.7f).dp)
@@ -480,6 +541,62 @@ fun TeamLogo(logoUrl: String, teamName: String, size: Int = 48) {
                 fontSize = (size * 0.35f).sp,
                 fontWeight = FontWeight.Bold
             )
+        }
+    }
+}
+
+@Composable
+fun StandingsCard(
+    standingsData: com.example.data.apifootball.StandingsData?,
+    homeTeamName: String?,
+    awayTeamName: String?
+) {
+    if (standingsData == null) {
+        Box(modifier = Modifier.fillMaxWidth().height(140.dp), contentAlignment = Alignment.Center) {
+            Text("Classificação não disponível.", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f), fontSize = 13.sp)
+        }
+        return
+    }
+    
+    val league = standingsData.league
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (league.logo != null) {
+                TeamLogo(league.logo, league.name, size = 24)
+            }
+            Text(text = league.name.uppercase(), color = Color(0xFFA1A1AA), fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+        }
+        
+        val allStandings = league.standings.firstOrNull() ?: emptyList()
+        if (allStandings.isEmpty()) {
+            Text("Sem dados na tabela.", color = Color.White)
+        } else {
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("TIME", color = Color.Gray, fontSize = 10.sp, modifier = Modifier.weight(1f))
+                Text("PTS", color = Color.Gray, fontSize = 10.sp, modifier = Modifier.width(30.dp), textAlign = TextAlign.Center)
+                Text("SG", color = Color.Gray, fontSize = 10.sp, modifier = Modifier.width(30.dp), textAlign = TextAlign.Center)
+            }
+            
+            allStandings.take(8).forEach { rank -> 
+                val isFavorite = rank.team.name.equals(homeTeamName, ignoreCase = true) || rank.team.name.equals(awayTeamName, ignoreCase = true)
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isFavorite) Color(0xFFF97316).copy(alpha = 0.15f) else Color.Transparent)
+                        .border(1.dp, if (isFavorite) Color(0xFFF97316).copy(alpha = 0.3f) else Color.Transparent, RoundedCornerShape(8.dp))
+                        .padding(vertical = 6.dp, horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("${rank.rank}", color = if(isFavorite) Color.White else Color.Gray, fontSize = 12.sp, modifier = Modifier.width(20.dp))
+                    if (rank.team.logo != null) {
+                        TeamLogo(rank.team.logo, rank.team.name, size = 18)
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+                    Text(rank.team.name, color = Color.White, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    Text("${rank.points}", color = if(isFavorite) Color(0xFFF97316) else Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(30.dp), textAlign = TextAlign.Center)
+                    Text("${rank.goalsDiff}", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.width(30.dp), textAlign = TextAlign.Center)
+                }
+            }
         }
     }
 }

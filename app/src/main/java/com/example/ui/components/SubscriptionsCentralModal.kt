@@ -26,6 +26,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.platform.LocalContext
 import com.example.viewmodel.TesseraViewModel
 import java.util.Locale
 
@@ -57,6 +59,8 @@ fun SubscriptionsCentralModal(
     val totalCost = remember(subscriptions) {
         subscriptions.sumOf { it.value }
     }
+    
+    val context = LocalContext.current
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -64,7 +68,7 @@ fun SubscriptionsCentralModal(
     ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
-            color = Color(0xFF070909)
+            color = MaterialTheme.colorScheme.background
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 // Header
@@ -281,7 +285,10 @@ fun SubscriptionsCentralModal(
                                     ) {
                                         if (logoUrl != null) {
                                             AsyncImage(
-                                                model = logoUrl,
+                                                model = ImageRequest.Builder(context)
+                                                    .data(logoUrl)
+                                                    .crossfade(true)
+                                                    .build(),
                                                 contentDescription = null,
                                                 contentScale = ContentScale.Inside,
                                                 modifier = Modifier.padding(4.dp).fillMaxSize()

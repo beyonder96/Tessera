@@ -696,72 +696,14 @@ fun TesseraApp() {
                                 verticalArrangement = Arrangement.spacedBy(16.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
-                                    Box(modifier = Modifier.weight(1f)) {
-                                        PremiumGridTile(
-                                            title = "Saúde",
-                                            icon = Icons.Outlined.MonitorHeart,
-                                            iconColor = PrimaryTeal,
-                                            alpha = itemsAlpha,
-                                            offsetY = itemsOffset,
-                                            onClick = { navigateAction("health"); isFabExpanded = false }
-                                        )
+                                com.example.ui.components.BentoBoxDashboard(
+                                    viewModel = viewModel,
+                                    isExpanded = isFabExpanded,
+                                    onNavigate = { route -> 
+                                        navigateAction(route)
+                                        isFabExpanded = false
                                     }
-                                    Box(modifier = Modifier.weight(1f)) {
-                                        PremiumGridTile(
-                                            title = "Rotinas",
-                                            icon = Icons.Outlined.Flag,
-                                            iconColor = Color(0xFFF9A826),
-                                            alpha = itemsAlpha,
-                                            offsetY = itemsOffset,
-                                            onClick = { navigateAction("goals"); isFabExpanded = false }
-                                        )
-                                    }
-                                }
-                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
-                                    Box(modifier = Modifier.weight(1f)) {
-                                        PremiumGridTile(
-                                            title = "Meu\nApê",
-                                            icon = Icons.Outlined.Construction,
-                                            iconColor = SecondaryGold,
-                                            alpha = itemsAlpha,
-                                            offsetY = itemsOffset,
-                                            onClick = { navigateAction("apartment"); isFabExpanded = false }
-                                        )
-                                    }
-                                    Box(modifier = Modifier.weight(1f)) {
-                                        PremiumGridTile(
-                                            title = "Meus\nPetz",
-                                            icon = Icons.Outlined.Pets,
-                                            iconColor = TertiaryPurple,
-                                            alpha = itemsAlpha,
-                                            offsetY = itemsOffset,
-                                            onClick = { navigateAction("petz"); isFabExpanded = false }
-                                        )
-                                    }
-                                }
-                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
-                                    Box(modifier = Modifier.weight(1f)) {
-                                        PremiumGridTile(
-                                            title = "Lista de\nDesejos",
-                                            icon = Icons.Outlined.Star,
-                                            iconColor = Color(0xFFF9A826),
-                                            alpha = itemsAlpha,
-                                            offsetY = itemsOffset,
-                                            onClick = { navigateAction("wishes"); isFabExpanded = false }
-                                        )
-                                    }
-                                    Box(modifier = Modifier.weight(1f)) {
-                                        PremiumGridTile(
-                                            title = "Transporte\nPúblico",
-                                            icon = Icons.Outlined.DirectionsBus,
-                                            iconColor = Color(0xFF4FC3F7),
-                                            alpha = itemsAlpha,
-                                            offsetY = itemsOffset,
-                                            onClick = { navigateAction("transport"); isFabExpanded = false }
-                                        )
-                                    }
-                                }
+                                )
                             }
                         }
                     }

@@ -30,12 +30,12 @@ fun WeatherParticleEffects(
     val effectType = remember(description) {
         val lower = description.lowercase()
         when {
-            lower.contains("thunder") || lower.contains("storm") -> WeatherEffectType.THUNDER
-            lower.contains("rain") || lower.contains("drizzle") -> WeatherEffectType.RAIN
-            lower.contains("snow") || lower.contains("ice") -> WeatherEffectType.SNOW
-            lower.contains("wind") || lower.contains("breeze") -> WeatherEffectType.WIND
-            lower.contains("cloud") || lower.contains("fog") || lower.contains("haze") || lower.contains("mist") -> WeatherEffectType.CLOUDS
-            lower.contains("clear") || lower.contains("sun") || lower.contains("summer") -> WeatherEffectType.SUN
+            lower.contains("thunder") || lower.contains("storm") || lower.contains("tempestade") || lower.contains("trovoada") -> WeatherEffectType.THUNDER
+            lower.contains("rain") || lower.contains("drizzle") || lower.contains("chuva") || lower.contains("garoa") -> WeatherEffectType.RAIN
+            lower.contains("snow") || lower.contains("ice") || lower.contains("neve") || lower.contains("gelo") -> WeatherEffectType.SNOW
+            lower.contains("wind") || lower.contains("breeze") || lower.contains("vento") || lower.contains("ventania") -> WeatherEffectType.WIND
+            lower.contains("cloud") || lower.contains("fog") || lower.contains("haze") || lower.contains("mist") || lower.contains("nublado") || lower.contains("neblina") || lower.contains("névoa") -> WeatherEffectType.CLOUDS
+            lower.contains("clear") || lower.contains("sun") || lower.contains("summer") || lower.contains("limpo") || lower.contains("sol") || lower.contains("claro") -> WeatherEffectType.SUN
             else -> WeatherEffectType.NONE
         }
     }

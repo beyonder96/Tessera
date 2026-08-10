@@ -107,7 +107,7 @@ fun CompleteTransactionsModal(
     ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
-            color = Color(0xFF070909)
+            color = MaterialTheme.colorScheme.background
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 Row(

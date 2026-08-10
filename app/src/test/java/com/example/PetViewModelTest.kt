@@ -80,6 +80,19 @@ class FakeTesseraDao : TesseraDao {
     override suspend fun clearAllTransactions() {}
     override suspend fun clearAllBankAccounts() {}
     override suspend fun clearAllCreditCards() {}
+
+    override fun getShoppingMarketItems(): Flow<List<MarketItem>> = flowOf(emptyList())
+    override suspend fun deleteMarketItem(item: MarketItem) {}
+    override suspend fun deletePlanningItemsByNames(names: List<String>) {}
+    override fun getAllBenefitCards(): Flow<List<BenefitCard>> = flowOf(emptyList())
+    override suspend fun insertBenefitCard(card: BenefitCard) {}
+    override suspend fun deleteBenefitCard(card: BenefitCard) {}
+    override suspend fun clearAllBenefitCards() {}
+    override suspend fun clearManualSleepForDay(startOfDay: Long, endOfDay: Long) {}
+    override suspend fun clearManualStepsForDay(startOfDay: Long, endOfDay: Long) {}
+    override fun getAllDebts(): Flow<List<Debt>> = flowOf(emptyList())
+    override suspend fun insertDebt(debt: Debt) {}
+    override suspend fun deleteDebt(debt: Debt) {}
 }
 
 class PetViewModelTest {

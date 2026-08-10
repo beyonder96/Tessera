@@ -267,6 +267,9 @@ class TesseraViewModel(
     private val _featuredMatch = MutableStateFlow<com.example.data.DetailedFixture?>(null)
     val featuredMatch: StateFlow<com.example.data.DetailedFixture?> = _featuredMatch.asStateFlow()
 
+    private val _matchStandings = MutableStateFlow<com.example.data.apifootball.StandingsData?>(null)
+    val matchStandings: StateFlow<com.example.data.apifootball.StandingsData?> = _matchStandings.asStateFlow()
+
     private val _availableFootballTeams = MutableStateFlow<List<String>>(listOf("Flamengo (Principal)", "Palmeiras", "São Paulo", "Corinthians", "Fluminense", "Vasco", "Botafogo", "Real Madrid", "Barcelona"))
     val availableFootballTeams: StateFlow<List<String>> = _availableFootballTeams.asStateFlow()
 
@@ -2012,6 +2015,15 @@ class TesseraViewModel(
                             )
 
                             _featuredMatch.value = detailedFixture
+                            
+                            // Fetch Standings
+                            if (fixtureData.league.id != null) {
+                                val season = fixtureData.league.season ?: java.time.LocalDate.now().year
+                                val standingsResult = fixtureRepository.getStandings(fixtureData.league.id, season)
+                                if (standingsResult.isSuccess) {
+                                    _matchStandings.value = standingsResult.getOrNull()
+                                }
+                            }
                         }
                     } else {
                         Log.e("TesseraViewModel", "Erro ao buscar placares: ${result.exceptionOrNull()?.message}")

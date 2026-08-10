@@ -273,7 +273,7 @@ fun DailyScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF000000))
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // Dynamic Breathing Background Glows
         val infiniteTransition = rememberInfiniteTransition(label = "BackgroundGlow")
@@ -446,8 +446,11 @@ fun DailyScreen(
                         com.example.ui.components.DetailedMatchWidget(viewModel = viewModel)
 
                         // 3.3 VERSÍCULO DO DIA WIDGET
-                        BibleVerseWidget()
-
+                        if (dailyVerse != null) {
+                            BibleVerseWidget(dailyVerse)
+                        } else {
+                            BibleVerseWidget(null)
+                        }
                         // 3.5 VOLCANIC LAVA WIDGET
                         VolcanicLavaWidget()
 
@@ -1255,7 +1258,16 @@ fun YouTubeMusicLauncherWidget() {
 }
 
 @Composable
-fun BibleVerseWidget() {
+fun BibleVerseWidget(dailyVerse: com.example.data.BibleVerseResponse?) {
+    val bibleBooks = arrayOf(
+        "", "Gênesis", "Êxodo", "Levítico", "Números", "Deuteronômio", "Josué", "Juízes", "Rute", "1 Samuel", "2 Samuel", "1 Reis", "2 Reis", "1 Crônicas", "2 Crônicas", "Esdras", "Neemias", "Ester", "Jó", "Salmos", "Provérbios", "Eclesiastes", "Cânticos", "Isaías", "Jeremias", "Lamentações", "Ezequiel", "Daniel", "Oséias", "Joel", "Amós", "Obadias", "Jonas", "Miquéias", "Naum", "Habacuque", "Sofonias", "Ageu", "Zacarias", "Malaquias",
+        "Mateus", "Marcos", "Lucas", "João", "Atos", "Romanos", "1 Coríntios", "2 Coríntios", "Gálatas", "Efésios", "Filipenses", "Colossenses", "1 Tessalonicenses", "2 Tessalonicenses", "1 Timóteo", "2 Timóteo", "Tito", "Filemom", "Hebreus", "Tiago", "1 Pedro", "2 Pedro", "1 João", "2 João", "3 João", "Judas", "Apocalipse"
+    )
+
+    val bookName = if (dailyVerse?.book != null && dailyVerse.book in 1..66) bibleBooks[dailyVerse.book] else "Bíblia Sagrada"
+    val referenceText = if (dailyVerse != null) "- $bookName ${dailyVerse.chapter}:${dailyVerse.verse} (${dailyVerse.translation ?: "NVT"})" else "Carregando..."
+    val verseText = dailyVerse?.text ?: "Buscando sabedoria diária..."
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -1302,7 +1314,7 @@ fun BibleVerseWidget() {
             }
 
             Text(
-                text = "\"Escuta minha voz, ó Senhor; dá ouvidos à minha oração.\"",
+                text = "\"$verseText\"",
                 color = Color(0xF2FFFFFF),
                 fontSize = 22.sp,
                 fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
@@ -1311,7 +1323,7 @@ fun BibleVerseWidget() {
             )
 
             Text(
-                text = "- Salmos 130:2 (NVT)",
+                text = referenceText,
                 color = Color(0x66FFFFFF),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,

@@ -51,7 +51,9 @@ data class VenueInfo(
 
 @JsonClass(generateAdapter = true)
 data class LeagueInfo(
-    @Json(name = "name") val name: String
+    @Json(name = "id") val id: Long? = null,
+    @Json(name = "name") val name: String,
+    @Json(name = "season") val season: Int? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -111,6 +113,33 @@ data class LineupPlayer(
     @Json(name = "pos") val pos: String?
 )
 
+@JsonClass(generateAdapter = true)
+data class StandingsData(
+    @Json(name = "league") val league: LeagueStandingsInfo
+)
+
+@JsonClass(generateAdapter = true)
+data class LeagueStandingsInfo(
+    @Json(name = "id") val id: Long,
+    @Json(name = "name") val name: String,
+    @Json(name = "country") val country: String,
+    @Json(name = "logo") val logo: String?,
+    @Json(name = "season") val season: Int,
+    @Json(name = "standings") val standings: List<List<StandingTeamRank>>
+)
+
+@JsonClass(generateAdapter = true)
+data class StandingTeamRank(
+    @Json(name = "rank") val rank: Int,
+    @Json(name = "team") val team: TeamInfo,
+    @Json(name = "points") val points: Int,
+    @Json(name = "goalsDiff") val goalsDiff: Int,
+    @Json(name = "group") val group: String,
+    @Json(name = "form") val form: String?,
+    @Json(name = "status") val status: String?,
+    @Json(name = "description") val description: String?
+)
+
 interface ApiFootballService {
     @GET("fixtures")
     suspend fun getTeamFixtures(
@@ -131,6 +160,12 @@ interface ApiFootballService {
         @Query("id") id: Long,
         @Query("timezone") timezone: String = "America/Sao_Paulo"
     ): retrofit2.Response<ApiFootballResponse<List<FixtureData>>>
+
+    @GET("standings")
+    suspend fun getStandings(
+        @Query("league") leagueId: Long,
+        @Query("season") season: Int
+    ): retrofit2.Response<ApiFootballResponse<List<StandingsData>>>
 }
 
 class ApiFootballRepository(
@@ -211,6 +246,24 @@ class ApiFootballRepository(
             } catch (e: Exception) {
                 Result.failure(e)
             }
+        }
+    }
+
+    suspend fun getStandings(leagueId: Long, season: Int): Result<StandingsData> {
+        return try {
+            val response = api.getStandings(leagueId = leagueId, season = season)
+            if (response.isSuccessful) {
+                val data = response.body()?.response?.firstOrNull()
+                if (data != null) {
+                    Result.success(data)
+                } else {
+                    Result.failure(Exception("Nenhum dado retornado para os standings da liga $leagueId"))
+                }
+            } else {
+                Result.failure(Exception("Erro na API-Football (Standings): ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 }
