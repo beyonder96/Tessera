@@ -85,36 +85,9 @@ fun PremiumWeatherWidget(weatherState: TesseraViewModel.WeatherInfo?) {
         modifier = Modifier
             .fillMaxWidth()
             .height(170.dp)
-            .thermalCard(cornerRadius = 56.dp, elevation = 16.dp)
+            .thermalCard(cornerRadius = 28.dp, elevation = 20.dp)
     ) {
-        // Warm bottom radial & rim glow overlay
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        glowRadialInner.copy(alpha = 0.35f),
-                        glowRadialOuter.copy(alpha = 0.15f),
-                        Color.Transparent
-                    ),
-                    center = Offset(size.width * 0.8f, size.height * 0.9f),
-                    radius = size.width * 0.5f
-                )
-            )
 
-            drawLine(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(
-                        Color.Transparent,
-                        glowLine.copy(alpha = 0.75f),
-                        Color.Transparent
-                    )
-                ),
-                start = Offset(size.width * 0.2f, size.height - 1.5f),
-                end = Offset(size.width * 0.8f, size.height - 1.5f),
-                strokeWidth = 3f
-            )
-        }
-        
         // Native Particle Weather Animation
         WeatherParticleEffects(
             description = rawDesc,

@@ -45,6 +45,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import com.example.data.DetailedFixture
 import com.example.viewmodel.TesseraViewModel
+import com.example.ui.theme.thermalCard
 
 @Composable
 fun DetailedMatchWidget(
@@ -99,37 +100,9 @@ fun DetailedMatchWidget(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(shape)
-            .background(cardGradient)
-            .border(1.dp, Color.White.copy(alpha = 0.08f), shape)
+            .thermalCard(cornerRadius = 28.dp, elevation = 20.dp)
             .padding(24.dp)
     ) {
-        // Bottom warm inner glow & rim edge
-        Canvas(modifier = Modifier.matchParentSize()) {
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        Color(0xFFFF5500).copy(alpha = 0.40f),
-                        Color(0xFF882200).copy(alpha = 0.20f),
-                        Color.Transparent
-                    ),
-                    center = Offset(size.width / 2f, size.height * 1.1f),
-                    radius = size.width * 0.7f
-                )
-            )
-            drawLine(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(
-                        Color.Transparent,
-                        Color(0xFFFFAA00).copy(alpha = 0.85f),
-                        Color.Transparent
-                    )
-                ),
-                start = Offset(size.width * 0.15f, size.height - 1.5f),
-                end = Offset(size.width * 0.85f, size.height - 1.5f),
-                strokeWidth = 3f
-            )
-        }
 
         HorizontalPager(state = pagerState, modifier = Modifier.fillMaxWidth()) { page ->
             if (page == 0) {
@@ -527,8 +500,7 @@ fun TeamLogo(logoUrl: String, teamName: String, size: Int = 48) {
         if (logoUrl.isNotBlank()) {
             AsyncImage(
                 model = ImageRequest.Builder(context)
-                    .data(logoUrl)
-                    .crossfade(true)
+                    .data(logoUrl.replace("http://", "https://"))
                     .build(),
                 contentDescription = teamName,
                 contentScale = ContentScale.Fit,

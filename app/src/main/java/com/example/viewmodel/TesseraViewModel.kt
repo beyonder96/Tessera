@@ -2019,7 +2019,13 @@ class TesseraViewModel(
                             // Fetch Standings
                             if (fixtureData.league.id != null) {
                                 val season = fixtureData.league.season ?: java.time.LocalDate.now().year
-                                val standingsResult = fixtureRepository.getStandings(fixtureData.league.id, season)
+                                var standingsResult = fixtureRepository.getStandings(fixtureData.league.id, season)
+                                
+                                if (standingsResult.isFailure || standingsResult.getOrNull() == null) {
+                                    // Fallback to previous year
+                                    standingsResult = fixtureRepository.getStandings(fixtureData.league.id, season - 1)
+                                }
+                                
                                 if (standingsResult.isSuccess) {
                                     _matchStandings.value = standingsResult.getOrNull()
                                 }

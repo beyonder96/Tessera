@@ -26,6 +26,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import androidx.compose.ui.platform.LocalContext
 import com.example.viewmodel.TesseraViewModel
@@ -250,7 +251,7 @@ fun SubscriptionsCentralModal(
                                     title.contains("disney") -> Color(0xFF113CCF) to "Di"
                                     title.contains("hbo") || title.contains("max") -> Color(0xFF5A25D6) to "Ma"
                                     title.contains("gympass") || title.contains("wellhub") -> Color(0xFFE51D2A) to "Wh"
-                                    else -> Color(0xFF71D7CD) to tx.title.take(2).capitalize(Locale.ROOT)
+                                    else -> Color(0xFF71D7CD) to tx.title.take(2).replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }
                                 }
                                 
                                 val domain = when {
@@ -284,14 +285,18 @@ fun SubscriptionsCentralModal(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         if (logoUrl != null) {
-                                            AsyncImage(
+                                            SubcomposeAsyncImage(
                                                 model = ImageRequest.Builder(context)
                                                     .data(logoUrl)
-                                                    .crossfade(true)
                                                     .build(),
                                                 contentDescription = null,
                                                 contentScale = ContentScale.Inside,
-                                                modifier = Modifier.padding(4.dp).fillMaxSize()
+                                                modifier = Modifier.padding(4.dp).fillMaxSize(),
+                                                error = {
+                                                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                                        Text(logoText, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                                    }
+                                                }
                                             )
                                         } else {
                                             Text(logoText, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 18.sp)
