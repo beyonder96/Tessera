@@ -743,11 +743,20 @@ fun MarketBottomDock(
     val lavaBrush = com.example.ui.components.rememberLavaBrush()
     val thermalBrush = Brush.linearGradient(listOf(Color(0xFFec4899), Color(0xFFf97316)))
     
+    val shoppingItems by viewModel.shoppingMarketItems.collectAsStateWithLifecycle()
+    val hasItems = shoppingItems.isNotEmpty()
+    
+    val animatedBottomPadding by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (hasItems) 110.dp else 300.dp,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 250, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "dock_animation"
+    )
+
     if (selectedTab == 1) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 90.dp)
+                .padding(bottom = animatedBottomPadding)
                 .padding(horizontal = 20.dp, vertical = 12.dp)
                 .clip(RoundedCornerShape(32.dp))
                 .background(Color(0x801E1E1E))

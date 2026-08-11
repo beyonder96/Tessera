@@ -133,6 +133,65 @@ class TesseraViewModel(
 
 
 
+    data class SharedWishState(
+        val title: String = "",
+        val buyUrl: String = "",
+        val imageUrl: String = "",
+        val targetValue: String = ""
+    )
+
+    private val _sharedWishState = MutableStateFlow<SharedWishState?>(null)
+    val sharedWishState: StateFlow<SharedWishState?> = _sharedWishState.asStateFlow()
+
+    fun consumeSharedWishState() {
+        _sharedWishState.value = null
+    }
+
+    fun handleSharedText(sharedText: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val urlRegex = "(https?://[^\\s]+)".toRegex()
+            val url = urlRegex.find(sharedText)?.value ?: return@launch
+            
+            var extractedTitle = sharedText.substringBefore(url).trim()
+            if (extractedTitle.length > 50) extractedTitle = extractedTitle.take(50) + "..."
+            
+            var extractedImg = ""
+            var extractedPrice = ""
+            
+            try {
+                val doc = org.jsoup.Jsoup.connect(url).userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)").get()
+                
+                val ogTitle = doc.select("meta[property=og:title]").attr("content")
+                if (ogTitle.isNotBlank()) extractedTitle = ogTitle
+                
+                val ogImage = doc.select("meta[property=og:image]").attr("content")
+                if (ogImage.isNotBlank()) extractedImg = ogImage
+                
+                val priceSelectors = listOf(".a-price-whole", "#priceblock_ourprice", ".a-offscreen")
+                for (selector in priceSelectors) {
+                    val priceEl = doc.select(selector).firstOrNull()
+                    if (priceEl != null) {
+                        val pText = priceEl.text().replace(Regex("[^0-9,]"), "")
+                        if (pText.isNotBlank()) {
+                            extractedPrice = pText.replace(",", ".")
+                            break
+                        }
+                    }
+                }
+            } catch (e: Exception) { }
+            
+            kotlinx.coroutines.withContext(Dispatchers.Main) {
+                _sharedWishState.value = SharedWishState(
+                    title = extractedTitle,
+                    buyUrl = url,
+                    imageUrl = extractedImg,
+                    targetValue = extractedPrice
+                )
+                triggerWishesAction(WishesAction.ADD_WISH)
+            }
+        }
+    }
+
     // Weather structures
     data class WeatherInfo(
         val temp: Double,

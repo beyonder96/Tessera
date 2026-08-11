@@ -164,6 +164,11 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         CrashReporter.setup(this)
         handleDeepLink(intent)
+        
+        var initialSharedText: String? = null
+        if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
+            initialSharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+        }
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && !android.provider.Settings.canDrawOverlays(this)) {
             val intent = Intent(
@@ -248,12 +253,15 @@ fun TesseraApp() {
         OnboardingScreen(
             viewModel = viewModel,
             onCompleted = {
+                val editor = sharedPrefs.edit()
+                editor.putBoolean("first_time_user", false)
+                editor.apply()
                 isFirstTime = false
-                sharedPrefs.edit().putBoolean("first_time_user", false).apply()
             }
         )
         return
     }
+
 
     var isBiometricEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("biometric_enabled", false)) }
     var isUnlocked by remember { mutableStateOf(!isBiometricEnabled) }
@@ -436,6 +444,21 @@ fun TesseraApp() {
                 restoreState = true
             }
             activity?.intent?.removeExtra("route")
+        }
+    }
+    LaunchedEffect(activity) {
+        val intent = activity?.intent
+        if (intent?.action == android.content.Intent.ACTION_SEND && intent.type == "text/plain") {
+            val text = intent.getStringExtra(android.content.Intent.EXTRA_TEXT)
+            if (text != null) {
+                viewModel.handleSharedText(text)
+                navController.navigate("wishes") {
+                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
+            intent.removeExtra(android.content.Intent.EXTRA_TEXT)
         }
     }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -3727,9 +3750,10 @@ fun BottomNavBar(
             modifier = Modifier
                 .wrapContentSize()
                 .clip(RoundedCornerShape(40.dp))
-                .background(Color(0x66000000))
+                .blur(20.dp, edgeTreatment = androidx.compose.ui.draw.BlurredEdgeTreatment.Unbounded)
+                .background(Color.White.copy(alpha=0.08f))
                 .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(40.dp))
-                .padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp)
+                .padding(horizontal = 16.dp, vertical = 6.dp)
         ) {
             Row(
                 modifier = Modifier.wrapContentSize(),
@@ -3821,46 +3845,13 @@ fun BottomNavBar(
 
                 Spacer(modifier = Modifier.width(4.dp))
 
-                Box(
-                    modifier = Modifier.size(56.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(4.dp)
-                            .blur(12.dp)
-                            .background(Color(0xFFE85D04).copy(alpha = 0.5f), CircleShape)
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape)
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color(0xFFF97316),
-                                        Color(0xFFC2410C)
-                                    )
-                                )
-                            )
-                            .bounceClick { onExpandedChange(!isExpanded) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        val iconRotation by animateFloatAsState(
-                            targetValue = if (isExpanded) 45f else 0f,
-                            animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
-                        )
-                        Icon(
-                            Icons.Default.Add, 
-                            contentDescription = "Add", 
-                            tint = Color.White,
-                            modifier = Modifier
-                                .size(28.dp)
-                                .rotate(iconRotation)
-                        )
-                    }
-                }
+                MinimalNavButton(
+                    icon = Icons.Default.Menu,
+                    contentDescription = "Mais",
+                    isActive = isExpanded,
+                    activeColor = Color.White,
+                    onClick = { onExpandedChange(!isExpanded) }
+                )
             }
         }
     }

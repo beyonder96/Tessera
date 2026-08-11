@@ -266,7 +266,7 @@ fun SubscriptionsCentralModal(
                                     title.contains("globo") || title.contains("globoplay") -> "globo.com"
                                     else -> null
                                 }
-                                val logoUrl = domain?.let { "https://logo.clearbit.com/$it" }
+                                val logoUrl = domain?.let { "https://www.google.com/s2/favicons?domain=$it&sz=128" }
 
                                 Row(
                                     modifier = Modifier

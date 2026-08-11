@@ -156,65 +156,7 @@ fun PremiumWeatherWidget(weatherState: TesseraViewModel.WeatherInfo?) {
                 }
             }
 
-            // Right Dial Gauge Display
-            Box(
-                modifier = Modifier
-                    .size(120.dp)
-                    .padding(end = 4.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val centerX = size.width / 2f
-                    val centerY = size.height / 2f
-                    val radius = 45.dp.toPx()
-                    val numTicks = 31
-                    val startAngle = -110f
-                    val endAngle = 110f
 
-                    for (i in 0 until numTicks) {
-                        val angleDeg = startAngle + (i * (endAngle - startAngle) / (numTicks - 1))
-                        val angleRad = Math.toRadians((angleDeg - 90).toDouble())
-
-                        val innerR = radius - 6.dp.toPx()
-                        val outerR = radius
-
-                        val startX = centerX + innerR * cos(angleRad).toFloat()
-                        val startY = centerY + innerR * sin(angleRad).toFloat()
-                        val endX = centerX + outerR * cos(angleRad).toFloat()
-                        val endY = centerY + outerR * sin(angleRad).toFloat()
-
-                        drawLine(
-                            color = Color(0xFF52525B),
-                            start = Offset(startX, startY),
-                            end = Offset(endX, endY),
-                            strokeWidth = 1.2.dp.toPx(),
-                            cap = StrokeCap.Round
-                        )
-                    }
-
-                    // Needle Pointer
-                    val needleRad = Math.toRadians((animatedAngle - 90).toDouble())
-                    val needleLength = 48.dp.toPx()
-                    val needleStartR = 12.dp.toPx()
-
-                    val nStartX = centerX + needleStartR * cos(needleRad).toFloat()
-                    val nStartY = centerY + needleStartR * sin(needleRad).toFloat()
-                    val nEndX = centerX + needleLength * cos(needleRad).toFloat()
-                    val nEndY = centerY + needleLength * sin(needleRad).toFloat()
-
-                    drawLine(
-                        brush = Brush.linearGradient(
-                            colors = listOf(Color.Transparent, Color(0xFFE4E4E7)),
-                            start = Offset(nStartX, nStartY),
-                            end = Offset(nEndX, nEndY)
-                        ),
-                        start = Offset(nStartX, nStartY),
-                        end = Offset(nEndX, nEndY),
-                        strokeWidth = 1.8.dp.toPx(),
-                        cap = StrokeCap.Round
-                    )
-                }
-            }
         }
     }
 }

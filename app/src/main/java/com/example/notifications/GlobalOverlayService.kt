@@ -50,7 +50,11 @@ class GlobalOverlayService : Service() {
             .setContentText("Aguardando confirmação do lembrete...")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .build()
-        startForeground(1991, notification)
+        if (Build.VERSION.SDK_INT >= 34) {
+            startForeground(1991, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        } else {
+            startForeground(1991, notification)
+        }
 
         val reminderType = intent?.getStringExtra("REMINDER_TYPE") ?: "MEDICATION"
         

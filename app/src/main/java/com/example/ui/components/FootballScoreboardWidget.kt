@@ -498,20 +498,35 @@ fun TeamLogo(logoUrl: String, teamName: String, size: Int = 48) {
         contentAlignment = Alignment.Center
     ) {
         if (logoUrl.isNotBlank()) {
-            AsyncImage(
-                model = ImageRequest.Builder(context)
+            coil.compose.SubcomposeAsyncImage(
+                model = coil.request.ImageRequest.Builder(context)
                     .data(logoUrl.replace("http://", "https://"))
+                    .crossfade(true)
                     .build(),
                 contentDescription = teamName,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.size((size * 0.7f).dp)
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                modifier = Modifier.size((size * 0.7f).dp),
+                loading = {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        color = Color.White.copy(alpha = 0.5f),
+                        modifier = Modifier.padding(4.dp).size((size * 0.4f).dp)
+                    )
+                },
+                error = {
+                    Text(
+                        text = if (teamName.isNotBlank()) teamName.take(2).uppercase() else "FC",
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+                        fontSize = (size * 0.35f).sp,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                    )
+                }
             )
         } else {
             Text(
                 text = if (teamName.isNotBlank()) teamName.take(2).uppercase() else "FC",
-                color = MaterialTheme.colorScheme.onBackground,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
                 fontSize = (size * 0.35f).sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
             )
         }
     }

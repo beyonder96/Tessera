@@ -15,6 +15,7 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <!-- Health Connect Permissions -->
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
@@ -48,7 +49,7 @@
         <receiver android:name="com.example.notifications.MedicationReceiver" android:exported="false" />
         <receiver android:name="com.example.notifications.ReminderReceiver" android:exported="false" />
         
-        <service android:name="com.example.notifications.GlobalOverlayService" android:exported="false" />
+        <service android:name="com.example.notifications.GlobalOverlayService" android:exported="false" android:foregroundServiceType="specialUse" />
         
         <receiver
             android:name="com.example.notifications.BootReceiver"
@@ -158,6 +159,12 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" />
+            </intent-filter>
+            <!-- Share Target -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
     </application>

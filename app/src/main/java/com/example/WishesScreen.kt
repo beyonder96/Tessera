@@ -108,6 +108,7 @@ suspend fun fetchOgImageFromUrl(urlStr: String): String? {
 @Composable
 fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
     val purchaseGoals by viewModel.allPurchaseGoals.collectAsStateWithLifecycle()
+    val sharedWish by viewModel.sharedWishState.collectAsStateWithLifecycle()
     var showAddGoalDialog by remember { mutableStateOf(false) }
     var goalToEdit by remember { mutableStateOf<PurchaseGoal?>(null) }
     var searchQuery by remember { mutableStateOf("") }
@@ -230,7 +231,11 @@ fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
     if (showAddGoalDialog) {
         WishesDialog(
             goal = null,
-            onDismiss = { showAddGoalDialog = false },
+            sharedWish = sharedWish,
+            onDismiss = { 
+                viewModel.consumeSharedWishState()
+                showAddGoalDialog = false 
+            },
             onSave = { title, target, buyUrl, imgUrl ->
                 viewModel.addPurchaseGoal(
                     title = title,
@@ -243,6 +248,7 @@ fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                     buyUrl = buyUrl,
                     category = "Eletrônicos"
                 )
+                viewModel.consumeSharedWishState()
                 showAddGoalDialog = false
             }
         )
@@ -513,13 +519,23 @@ fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -
 @Composable
 fun WishesDialog(
     goal: PurchaseGoal?,
+    sharedWish: com.example.viewmodel.TesseraViewModel.SharedWishState? = null,
     onDismiss: () -> Unit,
     onSave: (String, Double, String, String) -> Unit
 ) {
-    var title by remember { mutableStateOf(goal?.title ?: "") }
-    var target by remember { mutableStateOf(if (goal != null) String.format(Locale.US, "%.2f", goal.targetValue) else "") }
-    var buyUrl by remember { mutableStateOf(goal?.buyUrl ?: "") }
-    var imgUrl by remember { mutableStateOf(goal?.imageUrl ?: "") }
+    var title by remember { mutableStateOf(goal?.title ?: sharedWish?.title ?: "") }
+    var target by remember { mutableStateOf(if (goal != null) String.format(java.util.Locale.US, "%.2f", goal.targetValue) else sharedWish?.targetValue ?: "") }
+    var buyUrl by remember { mutableStateOf(goal?.buyUrl ?: sharedWish?.buyUrl ?: "") }
+    var imgUrl by remember { mutableStateOf(goal?.imageUrl ?: sharedWish?.imageUrl ?: "") }
+    
+    LaunchedEffect(sharedWish) {
+        if (sharedWish != null) {
+            if (title.isBlank() && sharedWish.title.isNotBlank()) title = sharedWish.title
+            if (target.isBlank() && sharedWish.targetValue.isNotBlank()) target = sharedWish.targetValue
+            if (buyUrl.isBlank() && sharedWish.buyUrl.isNotBlank()) buyUrl = sharedWish.buyUrl
+            if (imgUrl.isBlank() && sharedWish.imageUrl.isNotBlank()) imgUrl = sharedWish.imageUrl
+        }
+    }
     
     var isFetchingImage by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
