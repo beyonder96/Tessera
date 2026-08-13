@@ -42,6 +42,12 @@ import com.example.data.Transaction
 import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.components.AddTransactionBottomSheet
 import com.example.ui.components.ManageAccountsAndCardsBottomSheet
+import com.example.ui.components.isDarkTheme
+import com.example.ui.components.themedCardBackground
+import com.example.ui.components.themedCardBorder
+import com.example.ui.components.themedButtonBorder
+import com.example.ui.components.themedTextFieldColors
+import com.example.ui.components.themedSubtleBackground
 import com.example.viewmodel.TesseraViewModel
 import android.content.Context
 import androidx.compose.ui.platform.LocalContext
@@ -592,7 +598,7 @@ fun FinanceScreen(
                 horizontalArrangement = Arrangement.Center
             ) {
                 repeat(3) { iteration ->
-                    val color = if (topCardPagerState.currentPage == iteration) Color(0xFF71D7CD) else Color.White.copy(alpha = 0.2f)
+                    val color = if (topCardPagerState.currentPage == iteration) Color(0xFF71D7CD) else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f)
                     Box(
                         modifier = Modifier
                             .padding(horizontal = 4.dp)
@@ -687,7 +693,7 @@ fun FinanceScreen(
                 onClick = { showCompleteTransactions = true },
                 modifier = Modifier.fillMaxWidth().height(48.dp),
                 shape = RoundedCornerShape(12.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
+                border = androidx.compose.foundation.BorderStroke(1.dp, themedButtonBorder())
             ) {
                 Text("Transações Completas", color = MaterialTheme.colorScheme.onBackground, fontSize = 14.sp)
             }
@@ -1987,7 +1993,7 @@ fun TransactionItem(transaction: Transaction, bankAccounts: List<BankAccount>, c
         else -> Icons.Outlined.Receipt
     }
     
-    val color = if (transaction.isIncome) Color(0xFF71D7CD) else Color.White
+    val color = if (transaction.isIncome) Color(0xFF71D7CD) else MaterialTheme.colorScheme.onBackground
     val sign = if (transaction.isIncome) "+" else "-"
 
     val originColor = bankAccounts.find { it.name == transaction.accountOrCardName }?.colorHex
@@ -2432,7 +2438,7 @@ fun RecurringExpensesSection(
                                     text = tx.title,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp,
-                                    color = if (tx.isRealized) Color(0x99FFFFFF) else Color.White
+                                    color = if (tx.isRealized) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onBackground
                                 )
                                 Text(
                                     text = if (tx.accountOrCardName.isNotEmpty()) "Origem: ${tx.accountOrCardName}" else "Sem origem",
@@ -2481,7 +2487,7 @@ fun RecurringExpensesSection(
                                 color = when {
                                     tx.isRealized -> Color(0xFF81C784)
                                     isOverdue -> Color(0xFFEF4444)
-                                    else -> Color.White
+                                    else -> MaterialTheme.colorScheme.onBackground
                                 }
                             )
                             
@@ -2542,12 +2548,12 @@ fun EditBankAccountDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Nome da Conta", color = Color(0x99FFFFFF)) },
+                    label = { Text("Nome da Conta", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color(0xFF71D7CD),
-                        unfocusedBorderColor = Color(0x33FFFFFF),
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        unfocusedBorderColor = themedButtonBorder(),
+                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -2566,7 +2572,7 @@ fun EditBankAccountDialog(
                                 .padding(vertical = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(t, color = if (isSelected) Color.White else Color(0x99FFFFFF), fontSize = 12.sp)
+                            Text(t, color = if (isSelected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                         }
                     }
                 }

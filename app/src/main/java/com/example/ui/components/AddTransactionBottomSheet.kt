@@ -35,6 +35,15 @@ import com.example.data.BankAccount
 import com.example.data.BenefitCard
 import com.example.data.CreditCard
 import com.example.data.Transaction
+import com.example.ui.components.isDarkTheme
+import com.example.ui.components.themedCardBackground
+import com.example.ui.components.themedCardBorder
+import com.example.ui.components.themedButtonBorder
+import com.example.ui.components.themedTextFieldColors
+import com.example.ui.components.themedSubtleBackground
+import com.example.ui.components.themedSubtleBorder
+import com.example.ui.components.themedDivider
+import com.example.ui.components.themedOverlayBackground
 import android.content.Context
 import java.text.SimpleDateFormat
 import java.util.*
@@ -137,8 +146,8 @@ fun AddTransactionBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color(0xFF0F1115),
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0x33FFFFFF)) }
+        containerColor = themedOverlayBackground(),
+        dragHandle = { BottomSheetDefaults.DragHandle(color = themedDivider()) }
     ) {
         Column(
             modifier = Modifier
@@ -171,7 +180,7 @@ fun AddTransactionBottomSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0x14FFFFFF))
+                        .background(themedSubtleBackground())
                         .padding(4.dp)
                 ) {
                     Box(
@@ -184,7 +193,7 @@ fun AddTransactionBottomSheet(
                             .padding(vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Despesa", color = if (transactionType == 0) Color.White else Color(0x66FFFFFF), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text("Despesa", color = if (transactionType == 0) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                     Box(
                         modifier = Modifier
@@ -196,7 +205,7 @@ fun AddTransactionBottomSheet(
                             .padding(vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Receita", color = if (transactionType == 1) Color.White else Color(0x66FFFFFF), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text("Receita", color = if (transactionType == 1) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                     Box(
                         modifier = Modifier
@@ -208,7 +217,7 @@ fun AddTransactionBottomSheet(
                             .padding(vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Transferir", color = if (transactionType == 2) Color.White else Color(0x66FFFFFF), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text("Transferir", color = if (transactionType == 2) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                 }
             }
@@ -219,7 +228,7 @@ fun AddTransactionBottomSheet(
                     text = "VALOR",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0x66FFFFFF),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     letterSpacing = 1.5.sp
                 )
                 Row(
@@ -228,7 +237,7 @@ fun AddTransactionBottomSheet(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     val tint = when (transactionType) {
-                        0 -> Color.White
+                        0 -> MaterialTheme.colorScheme.onBackground
                         1 -> Color(0xFF71D7CD)
                         else -> Color(0xFF4A90E2)
                     }
@@ -254,13 +263,13 @@ fun AddTransactionBottomSheet(
                         modifier = Modifier.width(180.dp)
                     )
                 }
-                Box(modifier = Modifier.width(220.dp).height(1.dp).background(Color(0x33FFFFFF)))
+                Box(modifier = Modifier.width(220.dp).height(1.dp).background(themedDivider()))
             }
 
             if (isTransfer) {
                 // Origem Selector (Bank Accounts Only)
                 Column {
-                    Text("ORIGEM", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0x66FFFFFF), letterSpacing = 1.sp)
+                    Text("ORIGEM", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 1.sp)
                     Spacer(modifier = Modifier.height(8.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(bankAccounts) { acc ->
@@ -273,14 +282,14 @@ fun AddTransactionBottomSheet(
                                     .clickable { fromAccount = acc.name }
                                     .padding(horizontal = 16.dp, vertical = 10.dp)
                             ) {
-                                Text(acc.name, color = if (isSelected) Color.White else Color(0x99FFFFFF), fontSize = 14.sp)
+                                Text(acc.name, color = if (isSelected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
                             }
                         }
                     }
                 }
                 // Destino Selector (Bank Accounts Only)
                 Column {
-                    Text("DESTINO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0x66FFFFFF), letterSpacing = 1.sp)
+                    Text("DESTINO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 1.sp)
                     Spacer(modifier = Modifier.height(8.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(bankAccounts.filter { it.name != fromAccount }) { acc ->
@@ -288,12 +297,12 @@ fun AddTransactionBottomSheet(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isSelected) Color(0xFF4A90E2).copy(alpha = 0.2f) else Color(0x14FFFFFF))
+                                    .background(if (isSelected) Color(0xFF4A90E2).copy(alpha = 0.2f) else themedSubtleBackground())
                                     .border(1.dp, if (isSelected) Color(0xFF4A90E2) else Color.Transparent, RoundedCornerShape(12.dp))
                                     .clickable { toAccount = acc.name }
                                     .padding(horizontal = 16.dp, vertical = 10.dp)
                             ) {
-                                Text(acc.name, color = if (isSelected) Color.White else Color(0x99FFFFFF), fontSize = 14.sp)
+                                Text(acc.name, color = if (isSelected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
                             }
                         }
                     }
@@ -301,7 +310,7 @@ fun AddTransactionBottomSheet(
             } else {
                 // Origin selector for Income/Expense
                 Column {
-                    Text("DEBITAR/CREDITAR EM", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0x66FFFFFF), letterSpacing = 1.sp)
+                    Text("DEBITAR/CREDITAR EM", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 1.sp)
                     Spacer(modifier = Modifier.height(8.dp))
                     if (origins.isEmpty()) {
                         Text("Cadastre uma conta ou cartão primeiro.", color = Color(0xFFEF4444), fontSize = 12.sp)
@@ -313,17 +322,17 @@ fun AddTransactionBottomSheet(
                                     ?: creditCards.find { it.name == originName }?.colorHex
                                     ?: benefitCards.find { it.name == originName }?.colorHex
                                     ?: "#71D7CD"
-                                val c = try { Color(android.graphics.Color.parseColor(originColor)) } catch(e:Exception){ Color.White }
+                                val c = try { Color(android.graphics.Color.parseColor(originColor)) } catch(e:Exception){ MaterialTheme.colorScheme.onBackground }
                                 
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(if (isSelected) c.copy(alpha = 0.2f) else Color(0x14FFFFFF))
+                                        .background(if (isSelected) c.copy(alpha = 0.2f) else themedSubtleBackground())
                                         .border(1.dp, if (isSelected) c else Color.Transparent, RoundedCornerShape(12.dp))
                                         .clickable { selectedOrigin = originName }
                                         .padding(horizontal = 16.dp, vertical = 10.dp)
                                 ) {
-                                    Text(originName, color = if (isSelected) Color.White else Color(0x99FFFFFF), fontSize = 14.sp)
+                                    Text(originName, color = if (isSelected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
                                 }
                             }
                         }
@@ -344,8 +353,8 @@ fun AddTransactionBottomSheet(
                             unfocusedContainerColor = Color(0x0AFFFFFF),
                             focusedBorderColor = Color(0xFF71D7CD),
                             unfocusedBorderColor = Color(0x1AFFFFFF),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
+                            focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onBackground
                         ),
                         shape = RoundedCornerShape(12.dp)
                     )
@@ -362,7 +371,7 @@ fun AddTransactionBottomSheet(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isSelected) selColor.copy(alpha = 0.2f) else Color(0x14FFFFFF))
+                                    .background(if (isSelected) selColor.copy(alpha = 0.2f) else themedSubtleBackground())
                                     .border(1.dp, if (isSelected) selColor else Color.Transparent, RoundedCornerShape(12.dp))
                                     .clickable { category = catName }
                                     .padding(horizontal = 12.dp, vertical = 10.dp),
@@ -370,7 +379,7 @@ fun AddTransactionBottomSheet(
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Icon(icon, contentDescription = null, tint = if (isSelected) selColor else Color(0x99FFFFFF), modifier = Modifier.size(16.dp))
-                                    Text(catName, color = if (isSelected) Color.White else Color(0x99FFFFFF), fontSize = 13.sp)
+                                    Text(catName, color = if (isSelected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                                 }
                             }
                         }
@@ -378,7 +387,7 @@ fun AddTransactionBottomSheet(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0x14FFFFFF))
+                                    .background(themedSubtleBackground())
                                     .border(1.dp, Color.Transparent, RoundedCornerShape(12.dp))
                                     .clickable { showNewCategoryDialog = true }
                                     .padding(horizontal = 12.dp, vertical = 10.dp),
@@ -398,7 +407,7 @@ fun AddTransactionBottomSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0x14FFFFFF))
+                        .background(themedSubtleBackground())
                         .clickable { isRealized = !isRealized }
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -408,7 +417,7 @@ fun AddTransactionBottomSheet(
                     Switch(
                         checked = isRealized,
                         onCheckedChange = { isRealized = it },
-                        colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = if(isIncome) Color(0xFF71D7CD) else Color(0xFFEF4444))
+                        colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.onBackground, checkedTrackColor = if(isIncome) Color(0xFF71D7CD) else Color(0xFFEF4444))
                     )
                 }
 
@@ -475,7 +484,7 @@ fun AddTransactionBottomSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0x14FFFFFF))
+                        .background(themedSubtleBackground())
                         .clickable { isRecurrent = !isRecurrent }
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -488,7 +497,7 @@ fun AddTransactionBottomSheet(
                     Switch(
                         checked = isRecurrent,
                         onCheckedChange = { isRecurrent = it },
-                        colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Color(0xFF71D7CD))
+                        colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.onBackground, checkedTrackColor = Color(0xFF71D7CD))
                     )
                 }
 
@@ -503,13 +512,13 @@ fun AddTransactionBottomSheet(
                                     modifier = Modifier
                                         .weight(1f)
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(if (isSelected) Color(0xFF71D7CD).copy(alpha = 0.2f) else Color(0x14FFFFFF))
+                                        .background(if (isSelected) Color(0xFF71D7CD).copy(alpha = 0.2f) else themedSubtleBackground())
                                         .border(1.dp, if (isSelected) Color(0xFF71D7CD) else Color.Transparent, RoundedCornerShape(12.dp))
                                         .clickable { recurrenceInterval = interval }
                                         .padding(vertical = 10.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(interval, color = if (isSelected) Color.White else Color(0x99FFFFFF), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                    Text(interval, color = if (isSelected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                                 }
                             }
                         }
@@ -521,7 +530,7 @@ fun AddTransactionBottomSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0x14FFFFFF))
+                            .background(themedSubtleBackground())
                             .clickable { isInstallment = !isInstallment }
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -531,7 +540,7 @@ fun AddTransactionBottomSheet(
                         Switch(
                             checked = isInstallment,
                             onCheckedChange = { isInstallment = it },
-                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Color(0xFF4A90E2))
+                            colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.onBackground, checkedTrackColor = Color(0xFF4A90E2))
                         )
                     }
                     
@@ -550,8 +559,8 @@ fun AddTransactionBottomSheet(
                                     unfocusedContainerColor = Color(0x0AFFFFFF),
                                     focusedBorderColor = Color(0xFF4A90E2),
                                     unfocusedBorderColor = Color(0x1AFFFFFF),
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White
+                                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground
                                 ),
                                 shape = RoundedCornerShape(12.dp)
                             )
@@ -613,7 +622,7 @@ fun AddTransactionBottomSheet(
                     enabled = canSave,
                     modifier = Modifier.weight(if (editingTransaction != null) 1f else 2f).height(56.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isTransfer) Color(0xFF4A90E2) else if (isIncome) Color(0xFF71D7CD) else Color.White,
+                        containerColor = if (isTransfer) Color(0xFF4A90E2) else if (isIncome) Color(0xFF71D7CD) else MaterialTheme.colorScheme.onBackground,
                         disabledContainerColor = Color(0x33FFFFFF)
                     ),
                     shape = RoundedCornerShape(16.dp)
@@ -683,7 +692,7 @@ fun NewCategoryDialog(
                     onValueChange = { name = it },
                     label = { Text("Nome", color = Color(0x99FFFFFF)) },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                        focusedTextColor = MaterialTheme.colorScheme.onBackground, unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                         focusedBorderColor = Color(0xFF71D7CD)
                     )
                 )

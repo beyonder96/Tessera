@@ -242,7 +242,7 @@ class TesseraRepository(private val dao: TesseraDao) {
         .build()
 
     private val bibleRetrofit = retrofit2.Retrofit.Builder()
-        .baseUrl("https://bolls.life/")
+        .baseUrl("https://www.abibliadigital.com.br/api/")
         .client(
             okhttp3.OkHttpClient.Builder()
                 .addInterceptor(okhttp3.logging.HttpLoggingInterceptor().apply {

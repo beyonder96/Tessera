@@ -81,12 +81,12 @@ class TesseraViewModel(
                 
                 if (savedDay == today) {
                     val text = prefs.getString("verse_text", null)
-                    val book = prefs.getInt("verse_book", -1)
+                    val bookName = prefs.getString("verse_book_name", null)
                     val chapter = prefs.getInt("verse_chapter", -1)
                     val verse = prefs.getInt("verse_verse", -1)
-                    if (text != null && book != -1) {
+                    if (text != null && bookName != null) {
                         _dailyVerse.value = BibleVerseResponse(
-                            pk = null, translation = "NVT", book = book, chapter = chapter, verse = verse, text = text
+                            book = com.example.data.ABibliaBook(name = bookName, version = "nvt"), chapter = chapter, verse = verse, text = text
                         )
                         return@launch
                     }
@@ -98,7 +98,7 @@ class TesseraViewModel(
                 prefs.edit()
                     .putInt("saved_day", today)
                     .putString("verse_text", response.text)
-                    .putInt("verse_book", response.book ?: -1)
+                    .putString("verse_book_name", response.book?.name ?: "")
                     .putInt("verse_chapter", response.chapter ?: -1)
                     .putInt("verse_verse", response.verse ?: -1)
                     .apply()

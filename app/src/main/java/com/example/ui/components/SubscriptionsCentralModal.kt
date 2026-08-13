@@ -114,9 +114,9 @@ fun SubscriptionsCentralModal(
                             modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Color(0xFF71D7CD),
-                                unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
+                                unfocusedBorderColor = themedSubtleBorder(),
                                 focusedLabelColor = Color(0xFF71D7CD),
-                                unfocusedLabelColor = Color.White.copy(alpha = 0.6f)
+                                unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         )
                         
@@ -127,13 +127,13 @@ fun SubscriptionsCentralModal(
                             modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Color(0xFF71D7CD),
-                                unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
+                                unfocusedBorderColor = themedSubtleBorder(),
                                 focusedLabelColor = Color(0xFF71D7CD),
-                                unfocusedLabelColor = Color.White.copy(alpha = 0.6f)
+                                unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         )
 
-                        Text("Conta ou Cartão para Débito", color = Color.White.copy(alpha = 0.6f), fontSize = 14.sp)
+                        Text("Conta ou Cartão para Débito", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
                         LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 120.dp)) {
                             items(accounts.map { it.name } + cards.map { it.name }) { name ->
                                 val isSelected = name == selectedAccount
@@ -142,8 +142,8 @@ fun SubscriptionsCentralModal(
                                         .fillMaxWidth()
                                         .padding(vertical = 4.dp)
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(if (isSelected) Color(0xFF71D7CD).copy(alpha = 0.2f) else Color.Transparent)
-                                        .border(1.dp, if (isSelected) Color(0xFF71D7CD) else Color.White.copy(alpha=0.1f), RoundedCornerShape(8.dp))
+                                        .background(if (isSelected) Color(0xFF71D7CD).copy(alpha = 0.2f) else themedSubtleBackground())
+                                        .border(1.dp, if (isSelected) Color(0xFF71D7CD) else themedSubtleBorder(), RoundedCornerShape(8.dp))
                                         .padding(12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -153,7 +153,7 @@ fun SubscriptionsCentralModal(
                                         colors = androidx.compose.material3.RadioButtonDefaults.colors(selectedColor = Color(0xFF71D7CD))
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text(name, color = Color.White)
+                                    Text(name, color = MaterialTheme.colorScheme.onBackground)
                                 }
                             }
                         }
@@ -165,9 +165,9 @@ fun SubscriptionsCentralModal(
                             modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Color(0xFF71D7CD),
-                                unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
+                                unfocusedBorderColor = themedSubtleBorder(),
                                 focusedLabelColor = Color(0xFF71D7CD),
-                                unfocusedLabelColor = Color.White.copy(alpha = 0.6f)
+                                unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         )
                         
@@ -272,8 +272,8 @@ fun SubscriptionsCentralModal(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(16.dp))
-                                        .background(Color.White.copy(alpha = 0.05f))
-                                        .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
+                                        .background(themedSubtleBackground())
+                                        .border(1.dp, themedSubtleBorder(), RoundedCornerShape(16.dp))
                                         .padding(16.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -281,7 +281,7 @@ fun SubscriptionsCentralModal(
                                         modifier = Modifier
                                             .size(48.dp)
                                             .clip(CircleShape)
-                                            .background(if (logoUrl != null) Color.White else logoColor),
+                                            .background(if (logoUrl != null) MaterialTheme.colorScheme.onBackground else logoColor),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         if (logoUrl != null) {

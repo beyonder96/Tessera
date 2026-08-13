@@ -33,10 +33,21 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.data.PurchaseGoal
 import com.example.ui.components.PremiumGlassModifier
+import com.example.ui.components.bounceClick
+import com.example.ui.components.isDarkTheme
+import com.example.ui.components.themedCardBackground
+import com.example.ui.components.themedCardBorder
+import com.example.ui.components.themedButtonBorder
+import com.example.ui.components.themedTextFieldColors
+import com.example.ui.components.themedSubtleBackground
+import com.example.ui.components.themedSubtleBorder
+import com.example.ui.components.themedDivider
+import com.example.ui.components.themedOverlayBackground
 import com.example.ui.theme.PrimaryTeal
 import com.example.viewmodel.TesseraViewModel
 import kotlinx.coroutines.Dispatchers
@@ -130,9 +141,9 @@ fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
     if (showSearchDialog) {
         AlertDialog(
             onDismissRequest = { showSearchDialog = false },
-            containerColor = Color(0xFF0B0E14),
-            titleContentColor = Color.White,
-            textContentColor = Color.White,
+            containerColor = themedOverlayBackground(),
+            titleContentColor = MaterialTheme.colorScheme.onBackground,
+            textContentColor = MaterialTheme.colorScheme.onBackground,
             shape = RoundedCornerShape(24.dp),
             title = {
                 Text(
@@ -146,13 +157,13 @@ fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Nome do produto...", color = Color.White.copy(alpha = 0.5f)) },
+                    placeholder = { Text("Nome do produto...", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = com.example.ui.theme.SecondaryGold,
-                        unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        unfocusedBorderColor = themedSubtleBorder(),
+                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground
                     ),
                     singleLine = true
                 )
@@ -173,7 +184,7 @@ fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
         )
     }
     
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF070909))) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(top = 130.dp, bottom = 120.dp, start = 20.dp, end = 20.dp),
@@ -197,7 +208,7 @@ fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.5.sp,
-                        color = Color(0xFF71717A)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Spacer(modifier = Modifier.height(4.dp))
@@ -208,7 +219,7 @@ fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                     Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
                         Text(
                             text = "Nenhum desejo encontrado.\nToque no '+' para planejar algo!",
-                            color = Color(0xFF5E6D6A),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 14.sp,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
@@ -293,7 +304,7 @@ fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -
             .fillMaxWidth()
             .clip(shape)
             .background(cardGradient)
-            .border(1.dp, Color.White.copy(alpha = 0.08f), shape)
+            .border(1.dp, themedSubtleBorder(), shape)
     ) {
         // Bottom warm inner glow & rim edge
         Canvas(modifier = Modifier.matchParentSize()) {
@@ -362,7 +373,7 @@ fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -
                         .padding(16.dp)
                         .clip(RoundedCornerShape(20.dp))
                         .background(Color.Black.copy(alpha = 0.45f))
-                        .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(20.dp))
+                        .border(1.dp, themedSubtleBorder(), RoundedCornerShape(20.dp))
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Row(
@@ -381,7 +392,7 @@ fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -
                             modifier = Modifier
                                 .width(1.dp)
                                 .height(14.dp)
-                                .background(Color.White.copy(alpha = 0.2f))
+                                .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f))
                         )
                         Icon(
                             Icons.Outlined.DeleteOutline,
@@ -468,7 +479,7 @@ fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -
                         .size(52.dp)
                         .clip(RoundedCornerShape(18.dp))
                         .background(Color.Black.copy(alpha = 0.35f))
-                        .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
+                        .border(1.dp, themedSubtleBorder(), RoundedCornerShape(18.dp))
                         .clickable { if (goal.buyUrl.isNotBlank()) uriHandler.openUri(goal.buyUrl) },
                     contentAlignment = Alignment.Center
                 ) {
@@ -487,7 +498,7 @@ fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -
                         .height(52.dp)
                         .clip(RoundedCornerShape(18.dp))
                         .background(Color.Black.copy(alpha = 0.35f))
-                        .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
+                        .border(1.dp, themedSubtleBorder(), RoundedCornerShape(18.dp))
                         .clickable { onBuy() },
                     contentAlignment = Alignment.Center
                 ) {
@@ -594,8 +605,8 @@ fun WishesDialog(
                 label = { Text("Link da Compra", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)) },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White, unfocusedTextColor = Color.White,
-                    focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = Color(0xFF3D4947)
+                    focusedTextColor = MaterialTheme.colorScheme.onBackground, unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
+                    focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = themedButtonBorder()
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -606,8 +617,8 @@ fun WishesDialog(
                 label = { Text("Nome do Produto", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)) },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White, unfocusedTextColor = Color.White,
-                    focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = Color(0xFF3D4947)
+                    focusedTextColor = MaterialTheme.colorScheme.onBackground, unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
+                    focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = themedButtonBorder()
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -619,8 +630,8 @@ fun WishesDialog(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White, unfocusedTextColor = Color.White,
-                    focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = Color(0xFF3D4947)
+                    focusedTextColor = MaterialTheme.colorScheme.onBackground, unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
+                    focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = themedButtonBorder()
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -631,7 +642,7 @@ fun WishesDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(onClick = onDismiss) {
-                    Text("Cancelar", color = Color(0xFF81928F))
+                    Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(

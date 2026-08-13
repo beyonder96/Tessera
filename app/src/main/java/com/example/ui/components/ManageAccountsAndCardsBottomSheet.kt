@@ -31,6 +31,15 @@ import androidx.compose.ui.unit.sp
 import com.example.data.BankAccount
 import com.example.data.BenefitCard
 import com.example.data.CreditCard
+import com.example.ui.components.isDarkTheme
+import com.example.ui.components.themedCardBackground
+import com.example.ui.components.themedCardBorder
+import com.example.ui.components.themedButtonBorder
+import com.example.ui.components.themedTextFieldColors
+import com.example.ui.components.themedSubtleBackground
+import com.example.ui.components.themedSubtleBorder
+import com.example.ui.components.themedDivider
+import com.example.ui.components.themedOverlayBackground
 import com.example.viewmodel.TesseraViewModel
 import java.util.*
 
@@ -120,8 +129,8 @@ fun ManageAccountsAndCardsBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color(0xFF0F1115),
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0x33FFFFFF)) }
+        containerColor = themedOverlayBackground(),
+        dragHandle = { BottomSheetDefaults.DragHandle(color = themedDivider()) }
     ) {
         Column(
             modifier = Modifier
@@ -161,7 +170,7 @@ fun ManageAccountsAndCardsBottomSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0x14FFFFFF))
+                        .background(themedSubtleBackground())
                         .padding(4.dp)
                 ) {
                     val tabs = listOf("Contas", "Crédito", "Benefícios")
@@ -176,7 +185,7 @@ fun ManageAccountsAndCardsBottomSheet(
                                 .padding(vertical = 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(title, color = if (selectedTab == index) Color.White else Color(0x99FFFFFF), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text(title, color = if (selectedTab == index) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                     }
                 }
@@ -192,13 +201,13 @@ fun ManageAccountsAndCardsBottomSheet(
                     when (selectedTab) {
                         0 -> { // Contas
                             if (bankAccounts.isEmpty()) {
-                                Text("Nenhuma conta cadastrada.", color = Color(0x66FFFFFF), fontSize = 13.sp, modifier = Modifier.padding(vertical = 12.dp))
+                                Text("Nenhuma conta cadastrada.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, modifier = Modifier.padding(vertical = 12.dp))
                             }
                             bankAccounts.forEach { account ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(Color(0x0AFFFFFF), RoundedCornerShape(12.dp))
+                                        .background(themedSubtleBackground(), RoundedCornerShape(12.dp))
                                         .padding(12.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
@@ -237,13 +246,13 @@ fun ManageAccountsAndCardsBottomSheet(
                         }
                         1 -> { // Crédito
                             if (creditCards.isEmpty()) {
-                                Text("Nenhum cartão de crédito cadastrado.", color = Color(0x66FFFFFF), fontSize = 13.sp, modifier = Modifier.padding(vertical = 12.dp))
+                                Text("Nenhum cartão de crédito cadastrado.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, modifier = Modifier.padding(vertical = 12.dp))
                             }
                             creditCards.forEach { card ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(Color(0x0AFFFFFF), RoundedCornerShape(12.dp))
+                                        .background(themedSubtleBackground(), RoundedCornerShape(12.dp))
                                         .padding(12.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
@@ -284,13 +293,13 @@ fun ManageAccountsAndCardsBottomSheet(
                         }
                         2 -> { // Benefícios
                             if (benefitCards.isEmpty()) {
-                                Text("Nenhum cartão de benefício cadastrado.", color = Color(0x66FFFFFF), fontSize = 13.sp, modifier = Modifier.padding(vertical = 12.dp))
+                                Text("Nenhum cartão de benefício cadastrado.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, modifier = Modifier.padding(vertical = 12.dp))
                             }
                             benefitCards.forEach { card ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(Color(0x0AFFFFFF), RoundedCornerShape(12.dp))
+                                        .background(themedSubtleBackground(), RoundedCornerShape(12.dp))
                                         .padding(12.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
@@ -338,7 +347,7 @@ fun ManageAccountsAndCardsBottomSheet(
                         if (selectedTab == 1) cardUsedLimit = "0"
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onBackground),
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Text("Adicionar Novo(a)", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -352,18 +361,18 @@ fun ManageAccountsAndCardsBottomSheet(
                     label = { Text("Nome (ex: Nubank, VR)", color = Color(0x99FFFFFF)) },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color(0xFF71D7CD),
-                        unfocusedBorderColor = Color(0x33FFFFFF),
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        unfocusedBorderColor = themedButtonBorder(),
+                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 if (selectedTab == 0) {
                     // Bank Account Specifics
-                    Text("TIPO DE CONTA", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0x66FFFFFF), letterSpacing = 1.sp)
+                    Text("TIPO DE CONTA", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 1.sp)
                     Row(
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0x14FFFFFF)).padding(4.dp)
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(themedSubtleBackground()).padding(4.dp)
                     ) {
                         listOf("Corrente", "Poupança", "Investimento").forEach { type ->
                             Box(
@@ -376,7 +385,7 @@ fun ManageAccountsAndCardsBottomSheet(
                                     .padding(vertical = 10.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(type, color = if (accountType == type) Color.White else Color(0x99FFFFFF), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(type, color = if (accountType == type) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -389,7 +398,7 @@ fun ManageAccountsAndCardsBottomSheet(
                             label = { Text("Final", color = Color(0x99FFFFFF)) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = Color(0x33FFFFFF), focusedTextColor = Color.White, unfocusedTextColor = Color.White
+                                focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = themedButtonBorder(), focusedTextColor = MaterialTheme.colorScheme.onBackground, unfocusedTextColor = MaterialTheme.colorScheme.onBackground
                             ),
                             modifier = Modifier.weight(1f)
                         )
@@ -398,7 +407,7 @@ fun ManageAccountsAndCardsBottomSheet(
                             onValueChange = { holder = it },
                             label = { Text("Titular", color = Color(0x99FFFFFF)) },
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = Color(0x33FFFFFF), focusedTextColor = Color.White, unfocusedTextColor = Color.White
+                                focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = themedButtonBorder(), focusedTextColor = MaterialTheme.colorScheme.onBackground, unfocusedTextColor = MaterialTheme.colorScheme.onBackground
                             ),
                             modifier = Modifier.weight(2f)
                         )
@@ -412,9 +421,9 @@ fun ManageAccountsAndCardsBottomSheet(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color(0xFF71D7CD),
-                        unfocusedBorderColor = Color(0x33FFFFFF),
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        unfocusedBorderColor = themedButtonBorder(),
+                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -427,15 +436,15 @@ fun ManageAccountsAndCardsBottomSheet(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Color(0xFF71D7CD),
-                            unfocusedBorderColor = Color(0x33FFFFFF),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
+                            unfocusedBorderColor = themedButtonBorder(),
+                            focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onBackground
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
 
-                Text("COR DE IDENTIFICAÇÃO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0x66FFFFFF), letterSpacing = 1.sp)
+                Text("COR DE IDENTIFICAÇÃO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 1.sp)
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(manageColorPalettes) { hex ->
                         val color = parseManageHexColor(hex)

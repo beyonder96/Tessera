@@ -129,6 +129,24 @@ import kotlinx.coroutines.flow.first
 import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.components.OuraCircularProgress
 import com.example.ui.components.LocalGlassmorphismLevel
+import com.example.ui.components.isDarkTheme
+import com.example.ui.components.themedCardBackground
+import com.example.ui.components.themedCardBorder
+import com.example.ui.components.themedOverlayBackground
+import com.example.ui.components.themedOverlayBorderColors
+import com.example.ui.components.themedSubtleBackground
+import com.example.ui.components.themedSubtleBorder
+import com.example.ui.components.themedDivider
+import com.example.ui.components.themedButtonBorder
+import com.example.ui.components.themedScrim
+import com.example.ui.components.themedHeaderBackground
+import com.example.ui.components.themedNavBarBackground
+import com.example.ui.components.themedNavBarBorder
+import com.example.ui.components.themedInactiveIcon
+import com.example.ui.components.themedTextFieldColors
+import com.example.ui.components.themedSwitchColors
+import com.example.ui.components.themedCheckboxColors
+import com.example.ui.components.themedImageGradientOverlay
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.layout.positionInWindow
@@ -158,12 +176,20 @@ class MainActivity : FragmentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleDeepLink(intent)
+        handleAppActions(intent)
+    }
+
+    private fun handleAppActions(intent: Intent?) {
+        intent?.getStringExtra("OPEN_TARGET")?.let { target ->
+            AppState.pendingHealthAction = target
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         CrashReporter.setup(this)
         handleDeepLink(intent)
+        handleAppActions(intent)
         
         var initialSharedText: String? = null
         if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
@@ -506,6 +532,18 @@ fun TesseraApp() {
                         .background(MaterialTheme.colorScheme.background)
                 ) {
                     val contentBlur by animateDpAsState(if (isFabExpanded) 32.dp else 0.dp, tween(300))
+                    
+                    LaunchedEffect(AppState.pendingHealthAction) {
+                        val action = AppState.pendingHealthAction
+                        if (action != null) {
+                            if (action == "STEPS" || action == "SLEEP" || action == "MEDICATION") {
+                                navController.navigate("health")
+                            } else if (action == "METRO") {
+                                navController.navigate("transport")
+                            }
+                        }
+                    }
+
                     Box(modifier = Modifier.fillMaxSize().blur(contentBlur)) {
                     NavHost(navController = navController, startDestination = "home", modifier = Modifier.fillMaxSize()) {
                     composable("home") {
@@ -979,7 +1017,7 @@ fun DailyScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScr
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
                 .background(
-                    if (scrollState.value > 50) Color(0xCC000000) else Color.Transparent
+                    if (scrollState.value > 50) (if (isDarkTheme()) Color(0xCC000000) else Color(0xCCFFFFFF)) else Color.Transparent
                 )
                 .windowInsetsPadding(WindowInsets.statusBars)
         ) {
@@ -1002,11 +1040,11 @@ fun DailyScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScr
                 modifier = Modifier
                     .fillMaxWidth(0.95f)
                     .clip(RoundedCornerShape(28.dp))
-                    .background(Color(0xFF070909).copy(alpha = 0.85f))
+                    .background(themedOverlayBackground())
                     .border(
                         width = 1.dp,
                         brush = Brush.verticalGradient(
-                            colors = listOf(Color.White.copy(alpha = 0.25f), Color.White.copy(alpha = 0.05f))
+                            colors = themedOverlayBorderColors()
                         ),
                         shape = RoundedCornerShape(28.dp)
                     )
@@ -1161,8 +1199,8 @@ fun DailyScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScr
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(16.dp))
-                                            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                                            .background(themedSubtleBackground(), RoundedCornerShape(16.dp))
+                                            .border(1.dp, themedSubtleBorder(), RoundedCornerShape(16.dp))
                                             .padding(16.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
@@ -1223,7 +1261,7 @@ fun DailyScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScr
                         }
                     }
 
-                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
+                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(themedDivider()))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1232,7 +1270,7 @@ fun DailyScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScr
                         OutlinedButton(
                             onClick = { showMetroPopup = false },
                             shape = RoundedCornerShape(14.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, themedButtonBorder()),
                             modifier = Modifier.weight(1f).height(48.dp)
                         ) {
                             Text("Fechar", color = MaterialTheme.colorScheme.onBackground, fontSize = 14.sp)
@@ -1308,8 +1346,8 @@ fun TopHeader(onOpenSettings: () -> Unit, onOpenMetro: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(32.dp))
-                .background(Color(0x99050505))
-                .border(1.dp, Color.White.copy(alpha=0.08f), RoundedCornerShape(32.dp))
+                .background(themedHeaderBackground())
+                .border(1.dp, themedSubtleBorder(), RoundedCornerShape(32.dp))
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
@@ -1683,7 +1721,7 @@ fun HeroMetric(metric: com.example.viewmodel.TesseraViewModel.DynamicHeroMetric?
                             .size(44.dp)
                             .clip(CircleShape)
                             .background(Color(0x1F000000))
-                            .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape),
+                            .border(1.dp, themedButtonBorder(), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -1979,7 +2017,7 @@ fun MainContent(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             repeat(visibleModules.size) { iteration ->
-                val color = if (pagerState.currentPage == iteration) Color.White else Color.White.copy(alpha = 0.3f)
+                val color = if (pagerState.currentPage == iteration) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)
                 Box(
                     modifier = Modifier
                         .clip(CircleShape)
@@ -2068,10 +2106,10 @@ fun ModuleToggleWithOrder(
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
             Column {
                 IconButton(onClick = onMoveUp, enabled = !isFirst, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Subir", tint = if (isFirst) Color.Gray else Color.White)
+                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Subir", tint = if (isFirst) Color.Gray else MaterialTheme.colorScheme.onBackground)
                 }
                 IconButton(onClick = onMoveDown, enabled = !isLast, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Descer", tint = if (isLast) Color.Gray else Color.White)
+                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Descer", tint = if (isLast) Color.Gray else MaterialTheme.colorScheme.onBackground)
                 }
             }
             Spacer(modifier = Modifier.width(12.dp))
@@ -2390,7 +2428,7 @@ fun MedItem(name: String, time: String, isChecked: Boolean, onCheckedChange: (Bo
                 text = name,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
-                color = if (isChecked) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f) else Color.White,
+                color = if (isChecked) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onBackground,
                 style = if (isChecked) androidx.compose.ui.text.TextStyle(textDecoration = TextDecoration.LineThrough) else androidx.compose.ui.text.TextStyle.Default
             )
             Text(
@@ -3013,7 +3051,7 @@ fun MarketCardItemRow(item: com.example.data.MarketItem) {
             Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = item.name,
-                color = if (item.isChecked) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else Color.White,
+                color = if (item.isChecked) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onBackground,
                 textDecoration = if (item.isChecked) TextDecoration.LineThrough else TextDecoration.None,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
@@ -3366,7 +3404,7 @@ fun HomeFinanceWidget(
                 fontFamily = FontFamily.Serif,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Normal,
-                color = if (hideValues) Color.White else if (balance >= 0) PrimaryTeal else Color(0xFFE57373)
+                color = if (hideValues) MaterialTheme.colorScheme.onBackground else if (balance >= 0) PrimaryTeal else Color(0xFFE57373)
             )
         }
 
@@ -3702,7 +3740,7 @@ fun MinimalNavButton(
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            tint = if (isActive) Color.White else Color(0xFF888888),
+            tint = if (isActive) MaterialTheme.colorScheme.onBackground else themedInactiveIcon(),
             modifier = Modifier.size(24.dp)
         )
         Spacer(modifier = Modifier.height(4.dp))
@@ -3749,10 +3787,8 @@ fun BottomNavBar(
         Box(
             modifier = Modifier
                 .wrapContentSize()
-                .clip(RoundedCornerShape(40.dp))
-                .blur(20.dp, edgeTreatment = androidx.compose.ui.draw.BlurredEdgeTreatment.Unbounded)
-                .background(Color.White.copy(alpha=0.08f))
-                .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(40.dp))
+                .background(themedNavBarBackground(), RoundedCornerShape(40.dp))
+                .border(1.dp, themedNavBarBorder(), RoundedCornerShape(40.dp))
                 .padding(horizontal = 16.dp, vertical = 6.dp)
         ) {
             Row(
@@ -3849,7 +3885,7 @@ fun BottomNavBar(
                     icon = Icons.Default.Menu,
                     contentDescription = "Mais",
                     isActive = isExpanded,
-                    activeColor = Color.White,
+                    activeColor = MaterialTheme.colorScheme.onBackground,
                     onClick = { onExpandedChange(!isExpanded) }
                 )
             }
@@ -4094,7 +4130,7 @@ fun LockScreen(onUnlocked: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF070909)),
+            .background(if (isDarkTheme()) Color(0xFF070909) else MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
         // Soft background glow

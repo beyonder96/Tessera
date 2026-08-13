@@ -32,9 +32,129 @@ import com.example.ui.theme.*
 
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.composed
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 
 // Importações da biblioteca de desfoque (Glassmorphism real)
 val LocalGlassmorphismLevel = staticCompositionLocalOf { "Frosted" }
+
+// ── Theme-Aware Color Helpers ──
+
+/** Whether the current theme is dark */
+@Composable
+fun isDarkTheme(): Boolean = LocalAppTheme.current == "dark"
+
+/** Subtle card background */
+@Composable
+fun themedCardBackground(): Color = if (isDarkTheme()) Color(0x0CFFFFFF) else Color(0x0A0F172A)
+
+/** Subtle card border */
+@Composable
+fun themedCardBorder(): Color = if (isDarkTheme()) Color(0x14FFFFFF) else Color(0x1A0F172A)
+
+/** Overlay/dialog background */
+@Composable
+fun themedOverlayBackground(): Color = if (isDarkTheme()) Color(0xFF070909).copy(alpha = 0.85f) else Color(0xFFF8F9FA).copy(alpha = 0.95f)
+
+/** Overlay/dialog border gradient colors */
+@Composable
+fun themedOverlayBorderColors(): List<Color> = if (isDarkTheme())
+    listOf(Color.White.copy(alpha = 0.25f), Color.White.copy(alpha = 0.05f))
+else
+    listOf(Color(0xFF0F172A).copy(alpha = 0.1f), Color(0xFF0F172A).copy(alpha = 0.04f))
+
+/** Very subtle background */
+@Composable
+fun themedSubtleBackground(): Color = if (isDarkTheme()) Color.White.copy(alpha = 0.04f) else Color(0xFF0F172A).copy(alpha = 0.04f)
+
+/** Very subtle border */
+@Composable
+fun themedSubtleBorder(): Color = if (isDarkTheme()) Color.White.copy(alpha = 0.08f) else Color(0xFF0F172A).copy(alpha = 0.08f)
+
+/** Thin line divider */
+@Composable
+fun themedDivider(): Color = if (isDarkTheme()) Color(0x1AFFFFFF) else Color(0x1A0F172A)
+
+/** Button/outlined border */
+@Composable
+fun themedButtonBorder(): Color = if (isDarkTheme()) Color.White.copy(alpha = 0.2f) else Color(0xFF0F172A).copy(alpha = 0.15f)
+
+/** Full-screen scrim */
+@Composable
+fun themedScrim(): Color = if (isDarkTheme()) Color(0xCC000000) else Color(0x99000000)
+
+/** Header bar background */
+@Composable
+fun themedHeaderBackground(): Color = if (isDarkTheme()) Color(0x99050505) else Color(0xCCFFFFFF)
+
+/** Bottom nav bar pill background */
+@Composable
+fun themedNavBarBackground(): Color = if (isDarkTheme()) Color(0xFF1C1C1E).copy(alpha = 0.95f) else Color(0xFFF8F9FA).copy(alpha = 0.95f)
+
+/** Bottom nav bar pill border */
+@Composable
+fun themedNavBarBorder(): Color = if (isDarkTheme()) Color.White.copy(alpha = 0.15f) else Color(0xFF0F172A).copy(alpha = 0.12f)
+
+/** Inactive icon tint */
+@Composable
+fun themedInactiveIcon(): Color = if (isDarkTheme()) Color(0xFF888888) else Color(0xFF94A3B8)
+
+/** TextField colors for forms */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun themedTextFieldColors() = TextFieldDefaults.colors(
+    focusedContainerColor = if (isDarkTheme()) Color(0xFF131817) else Color(0xFFF1F3F5),
+    unfocusedContainerColor = if (isDarkTheme()) Color(0xFF131817) else Color(0xFFF1F3F5),
+    focusedTextColor = MaterialTheme.colorScheme.onBackground,
+    unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
+    focusedIndicatorColor = Color.Transparent,
+    unfocusedIndicatorColor = Color.Transparent,
+    cursorColor = MaterialTheme.colorScheme.primary,
+    focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
+)
+
+/** OutlinedTextField colors for forms */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun themedOutlinedTextFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = MaterialTheme.colorScheme.primary,
+    unfocusedBorderColor = if (isDarkTheme()) Color.White.copy(alpha = 0.2f) else Color(0xFF0F172A).copy(alpha = 0.15f),
+    focusedTextColor = MaterialTheme.colorScheme.onBackground,
+    unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
+    focusedLabelColor = MaterialTheme.colorScheme.primary,
+    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    cursorColor = MaterialTheme.colorScheme.primary
+)
+
+/** Switch colors */
+@Composable
+fun themedSwitchColors(checkedTrackColor: Color = MaterialTheme.colorScheme.primary) = SwitchDefaults.colors(
+    checkedThumbColor = Color.White,
+    checkedTrackColor = checkedTrackColor,
+    uncheckedThumbColor = if (isDarkTheme()) Color.White.copy(alpha = 0.7f) else Color(0xFF94A3B8),
+    uncheckedTrackColor = if (isDarkTheme()) Color.White.copy(alpha = 0.1f) else Color(0xFFE2E8F0)
+)
+
+/** Checkbox colors */
+@Composable
+fun themedCheckboxColors() = CheckboxDefaults.colors(
+    checkedColor = MaterialTheme.colorScheme.primary,
+    uncheckedColor = if (isDarkTheme()) Color.White.copy(alpha = 0.4f) else Color(0xFF94A3B8),
+    checkmarkColor = Color.White
+)
+
+/** Gradient overlay for images */
+@Composable
+fun themedImageGradientOverlay(): List<Color> = if (isDarkTheme())
+    listOf(Color.Transparent, Color(0xCC000000))
+else
+    listOf(Color.Transparent, Color(0xCCFFFFFF))
+
+
 
 // Shared GlassModifier for premium cards (Liquid Glass - Theme Aware)
 val PremiumGlassModifier: Modifier

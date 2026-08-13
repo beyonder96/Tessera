@@ -46,11 +46,21 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.example.data.BankAccount
 import com.example.data.BenefitCard
 import com.example.data.MarketItem
 import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.components.bounceClick
+import com.example.ui.components.isDarkTheme
+import com.example.ui.components.themedCardBackground
+import com.example.ui.components.themedCardBorder
+import com.example.ui.components.themedButtonBorder
+import com.example.ui.components.themedTextFieldColors
+import com.example.ui.components.themedSubtleBackground
+import com.example.ui.components.themedSubtleBorder
+import com.example.ui.components.themedDivider
+import com.example.ui.components.themedOverlayBackground
 import com.example.ui.theme.PrimaryTeal
 import com.example.ui.theme.SecondaryGold
 import com.example.viewmodel.TesseraViewModel
@@ -759,8 +769,8 @@ fun MarketBottomDock(
                 .padding(bottom = animatedBottomPadding)
                 .padding(horizontal = 20.dp, vertical = 12.dp)
                 .clip(RoundedCornerShape(32.dp))
-                .background(Color(0x801E1E1E))
-                .border(1.dp, Color.White.copy(alpha=0.08f), RoundedCornerShape(32.dp))
+                .background(themedOverlayBackground())
+                .border(1.dp, themedSubtleBorder(), RoundedCornerShape(32.dp))
                 .padding(16.dp)
         ) {
             // Shopping Tab Action Bar with Centered Cart Total & Checkout

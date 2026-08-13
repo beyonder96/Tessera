@@ -63,6 +63,14 @@ import com.example.ui.components.MetricItem
 import com.example.ui.components.MetricItemWithProgress
 import com.example.ui.components.MetricItemWithNeonPulse
 import com.example.ui.components.OuraMetricItem
+import com.example.ui.components.isDarkTheme
+import com.example.ui.components.themedCardBackground
+import com.example.ui.components.themedCardBorder
+import com.example.ui.components.themedOverlayBackground
+import com.example.ui.components.themedOverlayBorderColors
+import com.example.ui.components.themedSubtleBackground
+import com.example.ui.components.themedDivider
+import com.example.ui.components.themedImageGradientOverlay
 import com.example.ui.theme.*
 import com.example.viewmodel.TesseraViewModel
 import com.example.viewmodel.PetViewModel
@@ -526,7 +534,7 @@ fun DailyBriefingCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
-            .background(Color(0x0CFFFFFF))
+            .background(themedCardBackground())
             .border(
                 width = 1.dp,
                 brush = Brush.verticalGradient(
@@ -585,7 +593,7 @@ fun SleepCyclesCard(
             .aspectRatio(1f) // Square card
             .clip(RoundedCornerShape(24.dp))
             .background(Color(0x0CFFFFFF))
-            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(24.dp))
+            .border(1.dp, themedCardBorder(), RoundedCornerShape(24.dp))
             .padding(16.dp)
     ) {
         Column(
@@ -620,10 +628,11 @@ fun SleepCyclesCard(
                 modifier = Modifier.size(80.dp),
                 contentAlignment = Alignment.Center
             ) {
+                val dividerColor = themedDivider()
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     // Thin background track
                     drawCircle(
-                        color = Color(0x0DFFFFFF),
+                        color = dividerColor,
                         style = Stroke(width = 1.5.dp.toPx())
                     )
                     
@@ -693,8 +702,8 @@ fun InnerStateCard(
             .fillMaxWidth()
             .aspectRatio(1f) // Square card
             .clip(RoundedCornerShape(24.dp))
-            .background(Color(0x0CFFFFFF))
-            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(24.dp))
+            .background(themedCardBackground())
+            .border(1.dp, themedCardBorder(), RoundedCornerShape(24.dp))
             .padding(16.dp)
     ) {
         Column(
@@ -751,7 +760,7 @@ fun InnerStateCard(
                         colors = SliderDefaults.colors(
                             thumbColor = Color.White,
                             activeTrackColor = Color(0xFFC5B4E3),
-                            inactiveTrackColor = Color(0x1AFFFFFF)
+                            inactiveTrackColor = themedDivider()
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -795,8 +804,8 @@ fun ConnectivityDock(
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(32.dp))
-            .background(Color(0x0AFFFFFF))
-            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(32.dp))
+            .background(themedCardBackground())
+            .border(1.dp, themedCardBorder(), RoundedCornerShape(32.dp))
             .padding(horizontal = 24.dp, vertical = 12.dp)
     ) {
         Row(
@@ -856,8 +865,8 @@ fun QuietTheMindSection(onSessionClick: (Pair<String, String>) -> Unit) {
                         .width(180.dp)
                         .height(240.dp)
                         .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0x05FFFFFF))
-                        .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(20.dp))
+                        .background(themedSubtleBackground())
+                        .border(1.dp, themedCardBorder(), RoundedCornerShape(20.dp))
                         .clickable { onSessionClick(Pair(title, imageUrl)) }
                 ) {
                     AsyncImage(
@@ -874,7 +883,7 @@ fun QuietTheMindSection(onSessionClick: (Pair<String, String>) -> Unit) {
                             .align(Alignment.BottomCenter)
                             .background(
                                 Brush.verticalGradient(
-                                    colors = listOf(Color.Transparent, Color(0xCC000000))
+                                    colors = listOf(Color.Transparent, if (isDarkTheme()) Color(0xCC000000) else Color(0xCCFFFFFF))
                                 )
                             )
                             .padding(16.dp)
@@ -971,8 +980,8 @@ fun QuietTheMindPlayerDialog(
                 .fillMaxWidth(0.95f)
                 .wrapContentHeight()
                 .clip(RoundedCornerShape(32.dp))
-                .background(Color(0xFF0F0E17).copy(alpha = 0.95f))
-                .border(1.dp, Color(0x26FFFFFF), RoundedCornerShape(32.dp))
+                .background(themedOverlayBackground())
+                .border(1.dp, if (isDarkTheme()) Color(0x26FFFFFF) else Color(0x260F172A), RoundedCornerShape(32.dp))
                 .padding(24.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -1073,7 +1082,7 @@ fun QuietTheMindPlayerDialog(
                         },
                         modifier = Modifier
                             .size(44.dp)
-                            .background(Color(0x0DFFFFFF), CircleShape)
+                            .background(themedSubtleBackground(), CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
@@ -1105,7 +1114,7 @@ fun QuietTheMindPlayerDialog(
                         },
                         modifier = Modifier
                             .size(44.dp)
-                            .background(Color(0x0DFFFFFF), CircleShape)
+                            .background(themedSubtleBackground(), CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
@@ -1135,8 +1144,8 @@ fun VolcanicLavaWidget() {
                 .fillMaxWidth(0.55f)
                 .height(36.dp)
                 .clip(RoundedCornerShape(18.dp))
-                .background(Color(0x0CFFFFFF))
-                .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(18.dp)),
+                .background(themedCardBackground())
+                .border(1.dp, themedCardBorder(), RoundedCornerShape(18.dp)),
             contentAlignment = Alignment.Center
         ) {
         val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "lava")
@@ -1213,8 +1222,8 @@ fun YouTubeMusicLauncherWidget() {
             .fillMaxWidth()
             .height(80.dp)
             .clip(RoundedCornerShape(24.dp))
-            .background(Color(0x0CFFFFFF))
-            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(24.dp))
+            .background(themedCardBackground())
+            .border(1.dp, themedCardBorder(), RoundedCornerShape(24.dp))
             .clickable {
                 val pm = context.packageManager
                 val intent = pm.getLaunchIntentForPackage("com.google.android.apps.youtube.music")
@@ -1242,7 +1251,7 @@ fun YouTubeMusicLauncherWidget() {
                 Icon(
                     imageVector = androidx.compose.material.icons.Icons.Filled.PlayArrow,
                     contentDescription = "YouTube Music",
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.size(32.dp)
                 )
             }
@@ -1251,7 +1260,7 @@ fun YouTubeMusicLauncherWidget() {
                 text = "Abrir YT Music",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color.White.copy(alpha = 0.9f)
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f)
             )
         }
     }
@@ -1259,13 +1268,8 @@ fun YouTubeMusicLauncherWidget() {
 
 @Composable
 fun BibleVerseWidget(dailyVerse: com.example.data.BibleVerseResponse?) {
-    val bibleBooks = arrayOf(
-        "", "Gênesis", "Êxodo", "Levítico", "Números", "Deuteronômio", "Josué", "Juízes", "Rute", "1 Samuel", "2 Samuel", "1 Reis", "2 Reis", "1 Crônicas", "2 Crônicas", "Esdras", "Neemias", "Ester", "Jó", "Salmos", "Provérbios", "Eclesiastes", "Cânticos", "Isaías", "Jeremias", "Lamentações", "Ezequiel", "Daniel", "Oséias", "Joel", "Amós", "Obadias", "Jonas", "Miquéias", "Naum", "Habacuque", "Sofonias", "Ageu", "Zacarias", "Malaquias",
-        "Mateus", "Marcos", "Lucas", "João", "Atos", "Romanos", "1 Coríntios", "2 Coríntios", "Gálatas", "Efésios", "Filipenses", "Colossenses", "1 Tessalonicenses", "2 Tessalonicenses", "1 Timóteo", "2 Timóteo", "Tito", "Filemom", "Hebreus", "Tiago", "1 Pedro", "2 Pedro", "1 João", "2 João", "3 João", "Judas", "Apocalipse"
-    )
-
-    val bookName = if (dailyVerse?.book != null && dailyVerse.book in 1..66) bibleBooks[dailyVerse.book] else "Bíblia Sagrada"
-    val referenceText = if (dailyVerse != null) "- $bookName ${dailyVerse.chapter}:${dailyVerse.verse} (${dailyVerse.translation ?: "NVT"})" else "Carregando..."
+    val bookName = dailyVerse?.book?.name ?: "Bíblia Sagrada"
+    val referenceText = if (dailyVerse != null) "- $bookName ${dailyVerse.chapter}:${dailyVerse.verse} (${dailyVerse.book?.version?.uppercase() ?: "NVT"})" else "Carregando..."
     val verseText = dailyVerse?.text ?: "Buscando sabedoria diária..."
 
     Box(
@@ -1315,7 +1319,7 @@ fun BibleVerseWidget(dailyVerse: com.example.data.BibleVerseResponse?) {
 
             Text(
                 text = "\"$verseText\"",
-                color = Color(0xF2FFFFFF),
+                color = MaterialTheme.colorScheme.onBackground,
                 fontSize = 22.sp,
                 fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
                 fontFamily = FontFamily.Serif,
@@ -1324,7 +1328,7 @@ fun BibleVerseWidget(dailyVerse: com.example.data.BibleVerseResponse?) {
 
             Text(
                 text = referenceText,
-                color = Color(0x66FFFFFF),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 fontFamily = FontFamily.SansSerif,

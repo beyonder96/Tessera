@@ -172,7 +172,7 @@ fun CompleteTransactionsModal(
                                     },
                                     modifier = Modifier.weight(1f).height(44.dp),
                                     shape = RoundedCornerShape(12.dp),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, themedSubtleBorder())
                                 ) {
                                     Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onBackground)
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -186,7 +186,7 @@ fun CompleteTransactionsModal(
                                     },
                                     modifier = Modifier.weight(1f).height(44.dp),
                                     shape = RoundedCornerShape(12.dp),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, themedSubtleBorder())
                                 ) {
                                     Icon(Icons.Default.TableView, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onBackground)
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -215,7 +215,7 @@ fun CompleteTransactionsModal(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .clip(RoundedCornerShape(12.dp))
-                                                .background(Color.White.copy(alpha = 0.05f))
+                                                .background(themedSubtleBackground())
                                                 .padding(12.dp),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
@@ -257,7 +257,7 @@ fun CompleteTransactionsModal(
                             horizontalArrangement = Arrangement.Center
                         ) {
                             repeat(monthsList.size) { iteration ->
-                                val color = if (pagerState.currentPage == iteration) Color(0xFF71D7CD) else Color.White.copy(alpha = 0.2f)
+                                val color = if (pagerState.currentPage == iteration) Color(0xFF71D7CD) else themedSubtleBorder()
                                 Box(
                                     modifier = Modifier
                                         .padding(horizontal = 4.dp)

@@ -4,6 +4,11 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.28
+
+- **UI & Pop-ups (Overlay):** O pop-up do Global Overlay Service foi modernizado com bordas arredondadas (60f), tema escuro minimalista, feedback sonoro nativo e roteamento inteligente direto para a aba correspondente ao clicar em "Registrar Agora".
+- **Placar Esportivo (Football Scoreboard):** Substituído o renderizador de imagens (`SubcomposeAsyncImage` por `AsyncImage`) para corrigir a falha silenciosa na exibição dos escudos dos times que às vezes apresentava apenas siglas ("FC") ao invés dos logos reais. Incluído fallback inteligente e log de erros para monitoramento.
+
 ## 🚀 Novidades da Versão 2.0.12
 
 - **Integração Otimizada com API-Football (v3):** O widget de placar agora utiliza identificadores de times e limites precisos da api-sports.io, garantindo apenas requisições cirúrgicas e protegendo o limite diário de requisições. 
@@ -88,8 +93,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.27.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.27.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.28.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.28.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.

@@ -488,7 +488,9 @@ fun MatchLineupsTab(match: DetailedFixture) {
 
 @Composable
 fun TeamLogo(logoUrl: String, teamName: String, size: Int = 48) {
-    val context = LocalContext.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var isError by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
     Box(
         modifier = Modifier
             .size(size.dp)
@@ -497,8 +499,8 @@ fun TeamLogo(logoUrl: String, teamName: String, size: Int = 48) {
             .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape),
         contentAlignment = Alignment.Center
     ) {
-        if (logoUrl.isNotBlank()) {
-            coil.compose.SubcomposeAsyncImage(
+        if (logoUrl.isNotBlank() && !isError) {
+            coil.compose.AsyncImage(
                 model = coil.request.ImageRequest.Builder(context)
                     .data(logoUrl.replace("http://", "https://"))
                     .crossfade(true)
@@ -506,19 +508,11 @@ fun TeamLogo(logoUrl: String, teamName: String, size: Int = 48) {
                 contentDescription = teamName,
                 contentScale = androidx.compose.ui.layout.ContentScale.Fit,
                 modifier = Modifier.size((size * 0.7f).dp),
-                loading = {
-                    androidx.compose.material3.CircularProgressIndicator(
-                        color = Color.White.copy(alpha = 0.5f),
-                        modifier = Modifier.padding(4.dp).size((size * 0.4f).dp)
-                    )
-                },
-                error = {
-                    Text(
-                        text = if (teamName.isNotBlank()) teamName.take(2).uppercase() else "FC",
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
-                        fontSize = (size * 0.35f).sp,
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                    )
+                onState = { state ->
+                    if (state is coil.compose.AsyncImagePainter.State.Error) {
+                        isError = true
+                        android.util.Log.e("TeamLogo", "Failed to load logo: $logoUrl", state.result.throwable)
+                    }
                 }
             )
         } else {

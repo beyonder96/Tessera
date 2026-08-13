@@ -75,6 +75,13 @@ import com.example.data.WeightRecord
 import com.example.health.HealthConnectManager
 import com.example.ui.components.*
 import com.example.ui.theme.*
+import com.example.ui.components.isDarkTheme
+import com.example.ui.components.themedCardBackground
+import com.example.ui.components.themedCardBorder
+import com.example.ui.components.themedButtonBorder
+import com.example.ui.components.themedTextFieldColors
+import com.example.ui.components.themedSubtleBackground
+import com.example.ui.components.themedSwitchColors
 import com.example.viewmodel.TesseraViewModel
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -235,6 +242,23 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
     var showStepsDialog by remember { mutableStateOf(false) }
     var showMedicationDialog by remember { mutableStateOf(false) }
 
+    LaunchedEffect(AppState.pendingHealthAction) {
+        when (AppState.pendingHealthAction) {
+            "STEPS" -> {
+                showStepsDialog = true
+                AppState.pendingHealthAction = null
+            }
+            "SLEEP" -> {
+                showSleepDialog = true
+                AppState.pendingHealthAction = null
+            }
+            "MEDICATION" -> {
+                showMedicationDialog = true
+                AppState.pendingHealthAction = null
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
         viewModel.healthActionTrigger.collect { action ->
             when (action) {
@@ -308,15 +332,15 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     Text("PESO (KG)", color = Color(0xFF879391), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    TextField(value = inputWeight, onValueChange = { inputWeight = it }, colors = TextFieldDefaults.colors(focusedContainerColor = Color(0xFF131817), unfocusedContainerColor = Color(0xFF131817), focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent), modifier = Modifier.fillMaxWidth().padding(top = 4.dp), shape = RoundedCornerShape(12.dp))
+                    TextField(value = inputWeight, onValueChange = { inputWeight = it }, colors = themedTextFieldColors(), modifier = Modifier.fillMaxWidth().padding(top = 4.dp), shape = RoundedCornerShape(12.dp))
                     
                     Spacer(modifier = Modifier.height(12.dp))
                     Text("ALTURA (CM)", color = Color(0xFF879391), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    TextField(value = inputHeight, onValueChange = { inputHeight = it }, colors = TextFieldDefaults.colors(focusedContainerColor = Color(0xFF131817), unfocusedContainerColor = Color(0xFF131817), focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent), modifier = Modifier.fillMaxWidth().padding(top = 4.dp), shape = RoundedCornerShape(12.dp))
+                    TextField(value = inputHeight, onValueChange = { inputHeight = it }, colors = themedTextFieldColors(), modifier = Modifier.fillMaxWidth().padding(top = 4.dp), shape = RoundedCornerShape(12.dp))
                     
                     Spacer(modifier = Modifier.height(12.dp))
                     Text("META DE PESO (KG)", color = Color(0xFF879391), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    TextField(value = inputTarget, onValueChange = { inputTarget = it }, colors = TextFieldDefaults.colors(focusedContainerColor = Color(0xFF131817), unfocusedContainerColor = Color(0xFF131817), focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent), modifier = Modifier.fillMaxWidth().padding(top = 4.dp), shape = RoundedCornerShape(12.dp))
+                    TextField(value = inputTarget, onValueChange = { inputTarget = it }, colors = themedTextFieldColors(), modifier = Modifier.fillMaxWidth().padding(top = 4.dp), shape = RoundedCornerShape(12.dp))
 
                     Spacer(modifier = Modifier.height(24.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -421,7 +445,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                             modifier = Modifier
                                 .weight(1.2f)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF131817))
+                                .background(themedCardBackground())
                                 .clickable {
                                     val cal = Calendar.getInstance().apply { timeInMillis = sleepTimeMs }
                                     DatePickerDialog(
@@ -451,7 +475,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF131817))
+                                .background(themedCardBackground())
                                 .clickable {
                                     val cal = Calendar.getInstance().apply { timeInMillis = sleepTimeMs }
                                     TimePickerDialog(
@@ -489,7 +513,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                             modifier = Modifier
                                 .weight(1.2f)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF131817))
+                                .background(themedCardBackground())
                                 .clickable {
                                     val cal = Calendar.getInstance().apply { timeInMillis = wakeTimeMs }
                                     DatePickerDialog(
@@ -519,7 +543,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF131817))
+                                .background(themedCardBackground())
                                 .clickable {
                                     val cal = Calendar.getInstance().apply { timeInMillis = wakeTimeMs }
                                     TimePickerDialog(
@@ -559,7 +583,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                     ) {
                         Text(
                             text = durationText,
-                            color = if (isValid) Color.White else Color(0xFFFF5252),
+                            color = if (isValid) MaterialTheme.colorScheme.onBackground else Color(0xFFFF5252),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             textAlign = TextAlign.Center
@@ -587,7 +611,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = PrimaryTeal,
                                 contentColor = Color.Black,
-                                disabledContainerColor = Color(0xFF131817),
+                                disabledContainerColor = themedCardBackground(),
                                 disabledContentColor = Color.Gray
                             )
                         ) {
@@ -627,7 +651,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFF131817))
+                            .background(themedCardBackground())
                             .clickable {
                                 val cal = Calendar.getInstance().apply { timeInMillis = stepDateMs }
                                 DatePickerDialog(
@@ -660,7 +684,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                         value = inputSteps,
                         onValueChange = { inputSteps = it },
                         placeholder = { Text("Ex: 8500", color = Color(0xFF55605E)) },
-                        colors = TextFieldDefaults.colors(focusedContainerColor = Color(0xFF131817), unfocusedContainerColor = Color(0xFF131817), focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent),
+                        colors = themedTextFieldColors(),
                         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                         shape = RoundedCornerShape(12.dp)
                     )
@@ -728,11 +752,11 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     Text("NOME", color = Color(0xFF879391), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    TextField(value = name, onValueChange = { name = it }, placeholder = { Text("Ex: Vitamina C", color = Color(0xFF55605E)) }, colors = TextFieldDefaults.colors(focusedContainerColor = Color(0xFF131817), unfocusedContainerColor = Color(0xFF131817), focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent), modifier = Modifier.fillMaxWidth().padding(top = 4.dp), shape = RoundedCornerShape(12.dp))
+                    TextField(value = name, onValueChange = { name = it }, placeholder = { Text("Ex: Vitamina C", color = MaterialTheme.colorScheme.onSurfaceVariant) }, colors = themedTextFieldColors(), modifier = Modifier.fillMaxWidth().padding(top = 4.dp), shape = RoundedCornerShape(12.dp))
                     
                     Spacer(modifier = Modifier.height(12.dp))
                     Text("DOSAGEM", color = Color(0xFF879391), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    TextField(value = dosage, onValueChange = { dosage = it }, placeholder = { Text("Ex: 1 cápsula", color = Color(0xFF55605E)) }, colors = TextFieldDefaults.colors(focusedContainerColor = Color(0xFF131817), unfocusedContainerColor = Color(0xFF131817), focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent), modifier = Modifier.fillMaxWidth().padding(top = 4.dp), shape = RoundedCornerShape(12.dp))
+                    TextField(value = dosage, onValueChange = { dosage = it }, placeholder = { Text("Ex: 1 cápsula", color = MaterialTheme.colorScheme.onSurfaceVariant) }, colors = themedTextFieldColors(), modifier = Modifier.fillMaxWidth().padding(top = 4.dp), shape = RoundedCornerShape(12.dp))
                     
                     Spacer(modifier = Modifier.height(12.dp))
                     Text("HORÁRIO", color = Color(0xFF879391), fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -749,9 +773,9 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                             enabled = false,
                             modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
-                                disabledTextColor = Color.White,
+                                disabledTextColor = MaterialTheme.colorScheme.onBackground,
                                 disabledBorderColor = Color.Transparent,
-                                disabledContainerColor = Color(0xFF131817)
+                                disabledContainerColor = themedCardBackground()
                             ),
                             shape = RoundedCornerShape(12.dp),
                             trailingIcon = {
@@ -771,7 +795,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (recurrence == "DAILY") PrimaryTeal.copy(alpha = 0.2f) else Color(0xFF131817))
+                                .background(if (recurrence == "DAILY") PrimaryTeal.copy(alpha = 0.2f) else themedCardBackground())
                                 .border(
                                     width = 1.dp,
                                     color = if (recurrence == "DAILY") PrimaryTeal else Color.Transparent,
@@ -781,14 +805,14 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                                 .padding(vertical = 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("Diário", color = if (recurrence == "DAILY") Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text("Diário", color = if (recurrence == "DAILY") MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
 
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (recurrence == "ALTERNATE") PrimaryTeal.copy(alpha = 0.2f) else Color(0xFF131817))
+                                .background(if (recurrence == "ALTERNATE") PrimaryTeal.copy(alpha = 0.2f) else themedCardBackground())
                                 .border(
                                     width = 1.dp,
                                     color = if (recurrence == "ALTERNATE") PrimaryTeal else Color.Transparent,
@@ -798,14 +822,14 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                                 .padding(vertical = 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("Alternado", color = if (recurrence == "ALTERNATE") Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text("Alternado", color = if (recurrence == "ALTERNATE") MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
 
                         Box(
                             modifier = Modifier
                                 .weight(1.2f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (recurrence == "SPECIFIC") PrimaryTeal.copy(alpha = 0.2f) else Color(0xFF131817))
+                                .background(if (recurrence == "SPECIFIC") PrimaryTeal.copy(alpha = 0.2f) else themedCardBackground())
                                 .border(
                                     width = 1.dp,
                                     color = if (recurrence == "SPECIFIC") PrimaryTeal else Color.Transparent,
@@ -815,7 +839,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                                 .padding(vertical = 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("Personalizado", color = if (recurrence == "SPECIFIC") Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            Text("Personalizado", color = if (recurrence == "SPECIFIC") MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 11.sp)
                         }
                     }
 
@@ -843,7 +867,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                                     modifier = Modifier
                                         .size(32.dp)
                                         .clip(CircleShape)
-                                        .background(if (isSelected) PrimaryTeal.copy(alpha = 0.2f) else Color(0xFF131817))
+                                        .background(if (isSelected) PrimaryTeal.copy(alpha = 0.2f) else themedCardBackground())
                                         .border(
                                             width = 1.dp,
                                             color = if (isSelected) PrimaryTeal else Color.Transparent,
@@ -860,7 +884,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                                 ) {
                                     Text(
                                         text = label,
-                                        color = if (isSelected) Color.White else Color.Gray,
+                                        color = if (isSelected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 12.sp
                                     )
@@ -912,7 +936,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                     Text("CANCELAR", color = Color.Gray)
                 }
             },
-            containerColor = Color(0xFF131817),
+            containerColor = themedCardBackground(),
             titleContentColor = MaterialTheme.colorScheme.onBackground,
             textContentColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
         )
@@ -1168,11 +1192,11 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                                     
                                     val nameGlowBrush = Brush.linearGradient(
                                         colors = listOf(
-                                            Color.White,
+                                            MaterialTheme.colorScheme.onBackground,
+                                            MaterialTheme.colorScheme.onBackground,
+                                            MaterialTheme.colorScheme.onBackground,
                                             PrimaryTeal,
-                                            Color.White,
-                                            PrimaryTeal,
-                                            Color.White
+                                            MaterialTheme.colorScheme.onBackground
                                         ),
                                         start = Offset(shimmerOffset, 0f),
                                         end = Offset(shimmerOffset + 150f, 150f)
@@ -1311,7 +1335,7 @@ fun BmiCard(profile: HealthProfile?, latestWeight: WeightRecord?) {
                                 .offset(x = indicatorOffset)
                                 .size(12.dp)
                                 .clip(CircleShape)
-                                .background(Color.White)
+                                .background(MaterialTheme.colorScheme.onBackground)
                                 .border(2.dp, bmiColor, CircleShape)
                         )
                     }
@@ -1537,7 +1561,7 @@ fun WeightChartCard(records: List<WeightRecord>, targetWeight: Double?, onRegist
                         },
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (diff == 0.0) PrimaryTeal else Color.White.copy(alpha = 0.8f)
+                        color = if (diff == 0.0) PrimaryTeal else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
                     )
                 }
             }
@@ -2375,7 +2399,7 @@ fun MedicationFullScreenAlert(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color.White.copy(alpha = 0.05f))
+                            .background(themedSubtleBackground())
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Icon(

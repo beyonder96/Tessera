@@ -177,8 +177,8 @@ fun BentoTile(
             .height(height)
             .fillMaxWidth()
             .clip(RoundedCornerShape(28.dp))
-            .background(Color(0x33000000))
-            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(28.dp))
+            .background(themedSubtleBackground())
+            .border(1.dp, themedSubtleBorder(), RoundedCornerShape(28.dp))
             .clickable(onClick = onClick)
             .padding(16.dp)
     ) {

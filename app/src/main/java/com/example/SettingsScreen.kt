@@ -34,6 +34,17 @@ import com.example.ui.theme.PrimaryTeal
 import com.example.ui.theme.SecondaryGold
 import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.components.bounceClick
+import com.example.ui.components.isDarkTheme
+import com.example.ui.components.themedCardBackground
+import com.example.ui.components.themedCardBorder
+import com.example.ui.components.themedButtonBorder
+import com.example.ui.components.themedTextFieldColors
+import com.example.ui.components.themedSubtleBackground
+import com.example.ui.components.themedSubtleBorder
+import com.example.ui.components.themedDivider
+import com.example.ui.components.themedOverlayBackground
+import com.example.ui.components.themedSwitchColors
+import com.example.ui.components.themedCheckboxColors
 import androidx.compose.ui.draw.blur
 import com.example.data.AppDatabase
 import com.example.viewmodel.TesseraViewModel
@@ -282,8 +293,8 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                     modifier = Modifier
                                         .size(64.dp)
                                         .clip(CircleShape)
-                                        .background(Color.White.copy(alpha = 0.08f))
-                                        .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape),
+                                        .background(themedSubtleBackground())
+                                        .border(1.dp, themedSubtleBorder(), CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -519,13 +530,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                         sumInvestmentsToBalance = it
                                         sharedPrefs.edit().putBoolean("sum_investments_to_balance", it).apply()
                                     },
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = Color.White,
-                                        checkedTrackColor = Color(0xFF71D7CD),
-                                        uncheckedThumbColor = Color.White.copy(alpha=0.7f),
-                                        uncheckedTrackColor = Color(0x33FFFFFF),
-                                        uncheckedBorderColor = Color.Transparent
-                                    )
+                                    colors = themedSwitchColors()
                                 )
                             }
                             
@@ -558,9 +563,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                         sumInvestmentsToSpendable = it
                                         sharedPrefs.edit().putBoolean("sum_investments_to_spendable", it).apply()
                                     },
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = Color.White,
-                                    )
+                                    colors = themedSwitchColors()
                                 )
                             }
                         }
@@ -641,7 +644,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Box(modifier = Modifier.size(16.dp).clip(CircleShape).background(SecondaryGold))
                                                 Spacer(modifier = Modifier.width(6.dp))
-                                                Box(modifier = Modifier.width(50.dp).height(6.dp).clip(RoundedCornerShape(3.dp)).background(Color.White.copy(alpha = 0.8f)))
+                                                Box(modifier = Modifier.width(50.dp).height(6.dp).clip(RoundedCornerShape(3.dp)).background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)))
                                             }
                                         }
                                         
@@ -765,7 +768,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                     val cardBorder = if (isSelected) {
                                         accentColor
                                     } else if (isDark) {
-                                        Color.White.copy(alpha = 0.15f)
+                                        themedButtonBorder()
                                     } else {
                                         Color(0xFFCBD5E1)
                                     }
@@ -937,13 +940,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                     isBiometricEnabled = it
                                     sharedPrefs.edit().putBoolean("biometric_enabled", it).apply()
                                 },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = PrimaryTeal,
-                                    uncheckedThumbColor = Color.White.copy(alpha=0.7f),
-                                    uncheckedTrackColor = Color(0x33FFFFFF),
-                                    uncheckedBorderColor = Color.Transparent
-                                )
+                                colors = themedSwitchColors()
                             )
                         }
 
@@ -1045,13 +1042,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                         Toast.makeText(context, "Sincronização desativada", Toast.LENGTH_SHORT).show()
                                     }
                                 },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = PrimaryTeal,
-                                    uncheckedThumbColor = Color.White.copy(alpha=0.7f),
-                                    uncheckedTrackColor = Color(0x33FFFFFF),
-                                    uncheckedBorderColor = Color.Transparent
-                                )
+                                colors = themedSwitchColors()
                             )
                         }
 
@@ -1177,7 +1168,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(12.dp))
+                                        .background(themedSubtleBackground(), RoundedCornerShape(12.dp))
                                         .padding(16.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -1197,8 +1188,8 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                     alertTimes.value.forEach { time ->
                                         Row(
                                             modifier = Modifier
-                                                .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
-                                                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
+                                                .background(themedSubtleBackground(), RoundedCornerShape(16.dp))
+                                                .border(1.dp, themedSubtleBorder(), RoundedCornerShape(16.dp))
                                                 .padding(horizontal = 12.dp, vertical = 6.dp),
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -1340,7 +1331,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                                         },
                                                         colors = CheckboxDefaults.colors(
                                                             checkedColor = Color(0xFF4FC3F7),
-                                                            uncheckedColor = Color.White.copy(alpha = 0.4f),
+                                                            uncheckedColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                                                             checkmarkColor = Color.Black
                                                         )
                                                     )
@@ -1362,8 +1353,8 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                 modifier = Modifier
                                     .fillMaxWidth(0.9f)
                                     .clip(RoundedCornerShape(28.dp))
-                                    .background(Color(0xFF1E2322).copy(alpha = 0.95f))
-                                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(28.dp))
+                                    .background(themedOverlayBackground())
+                                    .border(1.dp, themedButtonBorder(), RoundedCornerShape(28.dp))
                                     .padding(24.dp)
                             ) {
                                 Column(
@@ -1428,7 +1419,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                         OutlinedButton(
                                             onClick = { showTimeDialog.value = false },
                                             shape = RoundedCornerShape(12.dp),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, themedButtonBorder()),
                                             modifier = Modifier.weight(1f)
                                         ) {
                                             Text("Cancelar", color = MaterialTheme.colorScheme.onBackground)
@@ -1488,7 +1479,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(12.dp))
+                                        .background(themedSubtleBackground(), RoundedCornerShape(12.dp))
                                         .padding(16.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -1508,8 +1499,8 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                     configuredFootballTeams.forEach { team ->
                                         Row(
                                             modifier = Modifier
-                                                .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
-                                                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
+                                                .background(themedSubtleBackground(), RoundedCornerShape(16.dp))
+                                                .border(1.dp, themedSubtleBorder(), RoundedCornerShape(16.dp))
                                                 .padding(horizontal = 12.dp, vertical = 6.dp),
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -1556,8 +1547,8 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                 modifier = Modifier
                                     .fillMaxWidth(0.9f)
                                     .clip(RoundedCornerShape(28.dp))
-                                    .background(Color(0xFF1E2322).copy(alpha = 0.95f))
-                                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(28.dp))
+                                    .background(themedOverlayBackground())
+                                    .border(1.dp, themedButtonBorder(), RoundedCornerShape(28.dp))
                                     .padding(24.dp)
                             ) {
                                 Column(
@@ -1576,12 +1567,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                         onValueChange = { tempTeamName = it },
                                         label = { Text("Nome do time ou seleção", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)) },
                                         modifier = Modifier.fillMaxWidth(),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedBorderColor = Color(0xFF69F0AE),
-                                            unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
-                                            focusedTextColor = Color.White,
-                                            unfocusedTextColor = Color.White
-                                        ),
+                                        colors = themedTextFieldColors(),
                                         singleLine = true
                                     )
 
@@ -1591,7 +1577,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .clip(RoundedCornerShape(12.dp))
-                                                .background(Color.White.copy(alpha = 0.05f))
+                                                .background(themedSubtleBackground())
                                         ) {
                                             filteredTeams.forEach { teamName ->
                                                 Text(
@@ -1603,7 +1589,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                                         .padding(vertical = 12.dp, horizontal = 16.dp)
                                                 )
                                                 if (teamName != filteredTeams.last()) {
-                                                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.1f)))
+                                                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(themedDivider()))
                                                 }
                                             }
                                         }
@@ -1616,7 +1602,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                         OutlinedButton(
                                             onClick = { showTeamDialog.value = false },
                                             shape = RoundedCornerShape(12.dp),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, themedButtonBorder()),
                                             modifier = Modifier.weight(1f)
                                         ) {
                                             Text("Cancelar", color = MaterialTheme.colorScheme.onBackground)
@@ -1656,9 +1642,9 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                         // DB Stats
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             StatRow("Status do Banco:", "Conectado", PrimaryTeal)
-                            StatRow("Tamanho Local:", getDatabaseSizeInKB(context), Color.White)
-                            StatRow("Transações Registradas:", "${transactions.size}", Color.White)
-                            StatRow("Eventos de Petz:", "${petEvents.size}", Color.White)
+                            StatRow("Tamanho Local:", getDatabaseSizeInKB(context), MaterialTheme.colorScheme.onBackground)
+                            StatRow("Transações Registradas:", "${transactions.size}", MaterialTheme.colorScheme.onBackground)
+                            StatRow("Eventos de Petz:", "${petEvents.size}", MaterialTheme.colorScheme.onBackground)
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
