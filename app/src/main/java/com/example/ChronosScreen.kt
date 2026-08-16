@@ -1,5 +1,6 @@
 package com.example
 import androidx.compose.material3.MaterialTheme
+import com.example.ui.components.*
 
 import android.media.AudioFormat
 import android.media.AudioManager
@@ -51,6 +52,7 @@ import java.util.Random
 // Programmatic Calm Ambient Sound Player (Brown Noise + Meditative Drone)
 class WhiteNoisePlayer {
     private var audioTrack: AudioTrack? = null
+    @Volatile
     private var isPlaying = false
 
     fun start() {
@@ -87,28 +89,34 @@ class WhiteNoisePlayer {
                 val phaseIncrement2 = 2f * Math.PI.toFloat() * freq2 / sampleRateF
                 
                 var time = 0L
-                while (isPlaying) {
-                    for (i in buffer.indices) {
-                        // 1. Brown noise generator (calm rain/waterfall)
-                        val white = random.nextGaussian().toFloat() * 1000f
-                        lastValue = (lastValue * 0.98f) + (white * 0.05f)
-                        
-                        // 2. Meditative drone sine waves (soft hum)
-                        val swell = 0.5f + 0.3f * Math.sin(2.0 * Math.PI * time / (sampleRateF * 6f)).toFloat()
-                        val sine1 = Math.sin(phase1.toDouble()).toFloat() * 1500f * swell
-                        val sine2 = Math.sin(phase2.toDouble()).toFloat() * 800f * swell
-                        
-                        phase1 += phaseIncrement1
-                        if (phase1 > 2f * Math.PI.toFloat()) phase1 -= 2f * Math.PI.toFloat()
-                        
-                        phase2 += phaseIncrement2
-                        if (phase2 > 2f * Math.PI.toFloat()) phase2 -= 2f * Math.PI.toFloat()
-                        
-                        val mixed = lastValue + sine1 + sine2
-                        buffer[i] = mixed.coerceIn(-32768f, 32767f).toInt().toShort()
-                        time++
+                try {
+                    while (isPlaying) {
+                        for (i in buffer.indices) {
+                            // 1. Brown noise generator (calm rain/waterfall)
+                            val white = random.nextGaussian().toFloat() * 1000f
+                            lastValue = (lastValue * 0.98f) + (white * 0.05f)
+                            
+                            // 2. Meditative drone sine waves (soft hum)
+                            val swell = 0.5f + 0.3f * Math.sin(2.0 * Math.PI * time / (sampleRateF * 6f)).toFloat()
+                            val sine1 = Math.sin(phase1.toDouble()).toFloat() * 1500f * swell
+                            val sine2 = Math.sin(phase2.toDouble()).toFloat() * 800f * swell
+                            
+                            phase1 += phaseIncrement1
+                            if (phase1 > 2f * Math.PI.toFloat()) phase1 -= 2f * Math.PI.toFloat()
+                            
+                            phase2 += phaseIncrement2
+                            if (phase2 > 2f * Math.PI.toFloat()) phase2 -= 2f * Math.PI.toFloat()
+                            
+                            val mixed = lastValue + sine1 + sine2
+                            buffer[i] = mixed.coerceIn(-32768f, 32767f).toInt().toShort()
+                            time++
+                        }
+                        if (isPlaying) {
+                            audioTrack?.write(buffer, 0, buffer.size)
+                        }
                     }
-                    audioTrack?.write(buffer, 0, buffer.size)
+                } catch (e: Exception) {
+                    // Silently terminate audio loop on track release
                 }
             }.start()
         } catch (e: Exception) {
@@ -119,6 +127,8 @@ class WhiteNoisePlayer {
     fun stop() {
         isPlaying = false
         try {
+            audioTrack?.pause()
+            audioTrack?.flush()
             audioTrack?.stop()
             audioTrack?.release()
         } catch (e: Exception) {}
@@ -435,13 +445,13 @@ fun ManageRoutineDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Nome da Rotina (ex: Manhã)", color = Color(0x66FFFFFF)) },
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = Color(0x1AFFFFFF), focusedTextColor = Color.White, unfocusedTextColor = Color.White),
+                    label = { Text("Nome da Rotina (ex: Manhã)") },
+                    colors = themedOutlinedTextFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
                 
                 Column {
-                    Text("ÍCONE DA ROTINA", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0x66FFFFFF))
+                    Text("ÍCONE DA ROTINA", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         modifier = Modifier
@@ -456,18 +466,18 @@ fun ManageRoutineDialog(
                                 modifier = Modifier
                                     .size(36.dp)
                                     .clip(CircleShape)
-                                    .background(if (isSel) Color(0xFF71D7CD).copy(alpha = 0.2f) else Color(0x0CFFFFFF))
+                                    .background(if (isSel) Color(0xFF71D7CD).copy(alpha = 0.2f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                                     .border(if (isSel) 1.dp else 0.dp, Color(0xFF71D7CD), CircleShape)
                                     .clickable { selectedIcon = iconName },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(icon, contentDescription = null, tint = if (isSel) Color(0xFF71D7CD) else Color(0xFF81928F), modifier = Modifier.size(18.dp))
+                                Icon(icon, contentDescription = null, tint = if (isSel) Color(0xFF71D7CD) else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                             }
                         }
                     }
                 }
                 
-                HorizontalDivider(color = Color(0x14FFFFFF))
+                HorizontalDivider(color = themedDivider())
                 
                 Text("PASSOS DA ROTINA (${steps.size})", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF71D7CD))
                 
@@ -476,7 +486,8 @@ fun ManageRoutineDialog(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color(0x0AFFFFFF), RoundedCornerShape(12.dp))
+                                .background(themedCardBackground(), RoundedCornerShape(12.dp))
+                                .border(1.dp, themedCardBorder(), RoundedCornerShape(12.dp))
                                 .padding(10.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
@@ -490,65 +501,17 @@ fun ManageRoutineDialog(
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
-                                    Text(step.title, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                                    Text("${step.durationSeconds}s", color = Color(0xFF81928F), fontSize = 11.sp)
-                                    
-                                    // Show checklist questions if present
-                                    if (step.checkQuestions.isNotBlank()) {
-                                        val questionList = step.checkQuestions.split("\n").filter { it.isNotBlank() }
-                                        if (questionList.isNotEmpty()) {
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            questionList.forEach { q ->
-                                                Text(
-                                                    text = "? $q",
-                                                    color = Color(0xFF71D7CD),
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Medium,
-                                                    modifier = Modifier.padding(start = 8.dp)
-                                                )
-                                            }
-                                        }
-                                    }
+                                    Text(step.title, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = MaterialTheme.colorScheme.onBackground)
+                                    Text(
+                                        "${step.durationSeconds / 60}m ${step.durationSeconds % 60}s" + 
+                                        if (step.checkQuestions.isNotEmpty()) " • ${step.checkQuestions.split("\n").filter { it.isNotBlank() }.size} perguntas" else "",
+                                        fontSize = 10.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
                             }
-                            
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                if (index > 0) {
-                                    IconButton(
-                                        onClick = {
-                                            steps = steps.toMutableList().apply {
-                                                val temp = this[index]
-                                                this[index] = this[index - 1]
-                                                this[index - 1] = temp
-                                            }
-                                        },
-                                        modifier = Modifier.size(24.dp)
-                                    ) {
-                                        Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Subir", tint = MaterialTheme.colorScheme.onBackground, modifier = Modifier.size(16.dp))
-                                    }
-                                }
-                                if (index < steps.size - 1) {
-                                    IconButton(
-                                        onClick = {
-                                            steps = steps.toMutableList().apply {
-                                                val temp = this[index]
-                                                this[index] = this[index + 1]
-                                                this[index + 1] = temp
-                                            }
-                                        },
-                                        modifier = Modifier.size(24.dp)
-                                    ) {
-                                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Descer", tint = MaterialTheme.colorScheme.onBackground, modifier = Modifier.size(16.dp))
-                                    }
-                                }
-                                IconButton(
-                                    onClick = {
-                                        steps = steps.filterIndexed { i, _ -> i != index }
-                                    },
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Excluir", tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
-                                }
+                            IconButton(onClick = { steps = steps.filterIndexed { i, _ -> i != index } }, modifier = Modifier.size(24.dp)) {
+                                Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFFF5252), modifier = Modifier.size(14.dp))
                             }
                         }
                     }
@@ -557,18 +520,18 @@ fun ManageRoutineDialog(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0x05FFFFFF), RoundedCornerShape(16.dp))
-                        .border(0.5.dp, Color(0x14FFFFFF), RoundedCornerShape(16.dp))
+                        .background(themedCardBackground(), RoundedCornerShape(16.dp))
+                        .border(1.dp, themedCardBorder(), RoundedCornerShape(16.dp))
                         .padding(12.dp)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("ADICIONAR NOVO PASSO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF81928F))
+                        Text("ADICIONAR NOVO PASSO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         
                         OutlinedTextField(
                             value = stepTitle,
                             onValueChange = { stepTitle = it },
-                            label = { Text("Nome do Passo (ex: Meditar)", color = Color(0x66FFFFFF)) },
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = Color(0x1AFFFFFF), focusedTextColor = Color.White, unfocusedTextColor = Color.White),
+                            label = { Text("Nome do Passo (ex: Meditar)") },
+                            colors = themedOutlinedTextFieldColors(),
                             modifier = Modifier.fillMaxWidth()
                         )
                         
@@ -576,21 +539,21 @@ fun ManageRoutineDialog(
                             OutlinedTextField(
                                 value = stepDurationMins,
                                 onValueChange = { stepDurationMins = it.filter { c -> c.isDigit() } },
-                                label = { Text("Minutos", color = Color(0x66FFFFFF)) },
-                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = Color(0x1AFFFFFF), focusedTextColor = Color.White, unfocusedTextColor = Color.White),
+                                label = { Text("Minutos") },
+                                colors = themedOutlinedTextFieldColors(),
                                 modifier = Modifier.weight(1f)
                             )
                             OutlinedTextField(
                                 value = stepDurationSecs,
                                 onValueChange = { stepDurationSecs = it.filter { c -> c.isDigit() } },
-                                label = { Text("Segundos", color = Color(0x66FFFFFF)) },
-                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF71D7CD), unfocusedBorderColor = Color(0x1AFFFFFF), focusedTextColor = Color.White, unfocusedTextColor = Color.White),
+                                label = { Text("Segundos") },
+                                colors = themedOutlinedTextFieldColors(),
                                 modifier = Modifier.weight(1f)
                             )
                         }
                         
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("ÍCONE DO PASSO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF81928F))
+                            Text("ÍCONE DO PASSO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -604,12 +567,12 @@ fun ManageRoutineDialog(
                                         modifier = Modifier
                                             .size(30.dp)
                                             .clip(CircleShape)
-                                            .background(if (isSel) Color(0xFF71D7CD).copy(alpha = 0.2f) else Color(0x0CFFFFFF))
+                                            .background(if (isSel) Color(0xFF71D7CD).copy(alpha = 0.2f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                                             .border(if (isSel) 1.dp else 0.dp, Color(0xFF71D7CD), CircleShape)
                                             .clickable { selectedStepIcon = iconName },
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Icon(icon, contentDescription = null, tint = if (isSel) Color(0xFF71D7CD) else Color(0xFF81928F), modifier = Modifier.size(14.dp))
+                                        Icon(icon, contentDescription = null, tint = if (isSel) Color(0xFF71D7CD) else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
                                     }
                                 }
                             }
@@ -617,7 +580,7 @@ fun ManageRoutineDialog(
                         
                         // Checklist Questions Input
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("PERGUNTAS DE VERIFICAÇÃO (OPCIONAL)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF81928F))
+                            Text("PERGUNTAS DE VERIFICAÇÃO (OPCIONAL)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -627,13 +590,8 @@ fun ManageRoutineDialog(
                                 OutlinedTextField(
                                     value = newQuestionText,
                                     onValueChange = { newQuestionText = it },
-                                    label = { Text("Ex: Desligou as luzes?", color = Color(0x44FFFFFF), fontSize = 11.sp) },
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = Color(0xFF71D7CD),
-                                        unfocusedBorderColor = Color(0x1AFFFFFF),
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White
-                                    ),
+                                    label = { Text("Ex: Desligou as luzes?", fontSize = 11.sp) },
+                                    colors = themedOutlinedTextFieldColors(),
                                     modifier = Modifier.weight(1f),
                                     singleLine = true
                                 )

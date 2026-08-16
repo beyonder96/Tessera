@@ -279,7 +279,7 @@ object NetworkModule {
         }
 
         // Token do usuário - lendo do .env via secrets plugin
-        val apiToken = com.example.BuildConfig.API_FOOTBALL_KEY
+        val apiToken = com.example.BuildConfig.FOOTBALL_API_KEY
         
         val authInterceptor = Interceptor { chain ->
             val request = chain.request().newBuilder()

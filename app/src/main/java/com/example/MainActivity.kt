@@ -196,14 +196,6 @@ class MainActivity : FragmentActivity() {
             initialSharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
         }
 
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && !android.provider.Settings.canDrawOverlays(this)) {
-            val intent = Intent(
-                android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                android.net.Uri.parse("package:$packageName")
-            )
-            startActivity(intent)
-        }
-
         val imageLoader = coil.ImageLoader.Builder(this)
             .components {
                 add(coil.decode.SvgDecoder.Factory())

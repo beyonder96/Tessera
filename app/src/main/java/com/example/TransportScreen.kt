@@ -1,5 +1,6 @@
 package com.example
 import androidx.compose.material3.MaterialTheme
+import com.example.ui.components.*
 
 import androidx.compose.ui.text.style.TextAlign
 
@@ -601,8 +602,8 @@ fun TransportScreen(
                     .fillMaxWidth(0.95f)
                     .fillMaxHeight(0.7f)
                     .clip(RoundedCornerShape(28.dp))
-                    .background(Color(0xFF121212).copy(alpha = 0.95f))
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(28.dp))
+                    .background(themedOverlayBackground())
+                    .border(1.dp, themedCardBorder(), RoundedCornerShape(28.dp))
                     .padding(24.dp)
             ) {
                 Column(
@@ -622,16 +623,10 @@ fun TransportScreen(
                             searchQuery = it
                             viewModel.searchBusLines(it)
                         },
-                        placeholder = { Text("Ex: 8000, 715M, Lapa...", color = Color.Gray) },
+                        placeholder = { Text("Ex: 8000, 715M, Lapa...") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = busAccentColor,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
-                            cursorColor = busAccentColor
-                        )
+                        colors = themedOutlinedTextFieldColors()
                     )
 
                     if (isSearchingBus) {

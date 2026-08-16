@@ -1194,10 +1194,10 @@ class TesseraViewModel(
         val cards = repository.allCreditCards.first()
         val matchingCard = cards.find { it.name == name }
         if (matchingCard != null) {
-            if (isRealized) {
-                val newUsedLimit = if (isIncome) matchingCard.usedLimit + value else (matchingCard.usedLimit - value).coerceAtLeast(0.0)
-                repository.insertCreditCard(matchingCard.copy(usedLimit = newUsedLimit))
-            }
+            // Em cartões de crédito, compras parceladas debitam o limite integral na criação.
+            // Ao deletar uma parcela (mesmo futura/pendente), estorna o limite correspondente.
+            val newUsedLimit = if (isIncome) matchingCard.usedLimit + value else (matchingCard.usedLimit - value).coerceAtLeast(0.0)
+            repository.insertCreditCard(matchingCard.copy(usedLimit = newUsedLimit))
             return
         }
         val benefitCards = repository.allBenefitCards.first()
@@ -1306,18 +1306,36 @@ class TesseraViewModel(
 
     fun checkoutCartWithDebit(accountName: String, amount: Double) {
         viewModelScope.launch {
-            // Debit the amount from the selected account/benefit card
+            // 1. Debit the amount from the selected account/benefit card
             adjustBalances(accountName, amount, isIncome = false, isRealized = true)
             
-            // Then perform normal checkout
             val shoppingItems = repository.shoppingMarketItems.first()
             val inCart = shoppingItems.filter { it.isChecked }
             val inCartNames = inCart.map { it.name.lowercase().trim() }.distinct()
+
+            // 2. Registrar no extrato financeiro a transação de despesa do mercado
+            if (amount > 0.0) {
+                val itemCountText = if (inCart.isNotEmpty()) "${inCart.size} itens" else "Compras"
+                repository.insertTransaction(
+                    Transaction(
+                        title = "Supermercado",
+                        subtitle = itemCountText,
+                        value = amount,
+                        isIncome = false,
+                        timestamp = System.currentTimeMillis(),
+                        category = "Mercado",
+                        accountOrCardName = accountName,
+                        isRealized = true
+                    )
+                )
+            }
             
+            // 3. Delete checked items from cart
             inCart.forEach { item ->
                 repository.deleteMarketItem(item)
             }
             
+            // 4. Delete same items from planning
             if (inCartNames.isNotEmpty()) {
                 repository.deletePlanningItemsByNames(inCartNames)
             }
@@ -1612,23 +1630,37 @@ class TesseraViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             val nextInstallment = debt.installmentsPaid + 1
             val isFullyPaid = nextInstallment >= debt.installmentsTotal
-            val updatedDebt = debt.copy(
-                installmentsPaid = nextInstallment,
-                isPaid = isFullyPaid
-            )
-            repository.insertDebt(updatedDebt)
             
-            // Register a transaction
-            val installmentValue = debt.value / debt.installmentsTotal
-            addTransaction(
-                title = "Pgto: ${debt.title} ($nextInstallment/${debt.installmentsTotal})",
-                subtitle = "Parcela de Dívida",
-                value = installmentValue,
-                isIncome = false,
-                category = "Dívidas",
-                accountOrCardName = accountName,
-                isRealized = true
-            )
+            if (debt.id < 0) {
+                // É uma dívida sintética gerada por uma transação vencida (!isRealized e vencimento passado)
+                val originalTxId = -debt.id
+                val allTxs = repository.allTransactions.first()
+                val originalTx = allTxs.find { it.id == originalTxId }
+                if (originalTx != null) {
+                    // Marca a transação original como realizada
+                    repository.insertTransaction(originalTx.copy(isRealized = true))
+                    // Ajusta o saldo da conta que realizou o pagamento
+                    adjustBalances(accountName, originalTx.value, originalTx.isIncome, isRealized = true)
+                }
+            } else {
+                val updatedDebt = debt.copy(
+                    installmentsPaid = nextInstallment,
+                    isPaid = isFullyPaid
+                )
+                repository.insertDebt(updatedDebt)
+                
+                // Register a transaction
+                val installmentValue = debt.value / debt.installmentsTotal
+                addTransaction(
+                    title = "Pgto: ${debt.title} ($nextInstallment/${debt.installmentsTotal})",
+                    subtitle = "Parcela de Dívida",
+                    value = installmentValue,
+                    isIncome = false,
+                    category = "Dívidas",
+                    accountOrCardName = accountName,
+                    isRealized = true
+                )
+            }
         }
     }
 
@@ -1919,182 +1951,100 @@ class TesseraViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             _isLoadingFootball.value = true
             try {
-                var targetFixtureId: Long? = null
-                val teamsToWatch = _configuredFootballTeams.value.map { it.lowercase() }
-                val dtf = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")
-                val nowLocalDate = java.time.LocalDate.now()
+                val teamsToWatch = _configuredFootballTeams.value
+                val primaryTeam = teamsToWatch.firstOrNull()?.ifBlank { "Flamengo" } ?: "Flamengo"
+                val cleanTeamName = primaryTeam.replace("(principal)", "").replace("(equipe principal)", "").trim().lowercase()
 
-                val isMainTeamMatch = { item: com.example.data.apifootball.FixtureData, teams: List<String> ->
-                    val homeName = item.teams.home.name.lowercase()
-                    val awayName = item.teams.away.name.lowercase()
-                    val homeId = item.teams.home.id
-                    val awayId = item.teams.away.id
-                    val leagueName = item.league.name.lowercase()
+                var teamId = com.example.data.TheSportsDbApi.knownBrazilianTeams.entries.find { cleanTeamName.contains(it.key) }?.value
 
-                    val forbidden = listOf("sub-20", "sub 20", "sub-17", "sub 17", "sub-23", "sub 23", "u20", "u17", "u23", "feminino", "women", "guarulhos", "sp", "base", "aspirantes")
-                    val isForbiddenCategory = forbidden.any { homeName.contains(it) || awayName.contains(it) || leagueName.contains(it) }
-
-                    if (isForbiddenCategory) {
-                        false
-                    } else {
-                        teams.any { teamConfig ->
-                            val clean = teamConfig.replace("(principal)", "").replace("(equipe principal)", "").trim().lowercase()
-                            if (clean.contains("flamengo")) {
-                                (homeId == 127L || awayId == 127L) ||
-                                ((homeName.contains("flamengo") || awayName.contains("flamengo")) &&
-                                 !homeName.contains("guarulhos") && !awayName.contains("guarulhos") &&
-                                 !homeName.contains("sp") && !awayName.contains("sp"))
-                            } else {
-                                homeName.contains(clean) || awayName.contains(clean)
-                            }
-                        }
+                if (teamId == null) {
+                    try {
+                        val searchResponse = com.example.data.TheSportsDbApi.service.searchTeam(cleanTeamName)
+                        teamId = searchResponse.teams?.firstOrNull()?.idTeam
+                    } catch (e: Exception) {
+                        Log.e("TesseraViewModel", "Erro ao buscar time no TheSportsDB", e)
                     }
                 }
 
-                if (teamsToWatch.isNotEmpty()) {
-                    // Mapeamento local básico de times conhecidos
-                    val knownTeams = mapOf(
-                        "flamengo" to 127L,
-                        "palmeiras" to 121L,
-                        "são paulo" to 126L,
-                        "sao paulo" to 126L,
-                        "corinthians" to 131L,
-                        "fluminense" to 124L,
-                        "vasco" to 133L,
-                        "botafogo" to 120L
+                // Fallback para Flamengo se nenhum ID for encontrado
+                val targetTeamId = teamId ?: "134287"
+
+                // 1. Tenta buscar próximos jogos
+                var selectedEvent: com.example.data.TSDBEvent? = null
+                try {
+                    val nextResponse = com.example.data.TheSportsDbApi.service.getNextEvents(targetTeamId)
+                    val nextEvents = nextResponse.events ?: nextResponse.results ?: emptyList()
+                    selectedEvent = nextEvents.firstOrNull()
+                } catch (e: Exception) {
+                    Log.e("TesseraViewModel", "Erro ao buscar próximos jogos", e)
+                }
+
+                // 2. Se não houver próximos jogos agendados, busca últimos jogos finalizados
+                if (selectedEvent == null) {
+                    try {
+                        val lastResponse = com.example.data.TheSportsDbApi.service.getLastEvents(targetTeamId)
+                        val lastEvents = lastResponse.events ?: lastResponse.results ?: emptyList()
+                        selectedEvent = lastEvents.firstOrNull()
+                    } catch (e: Exception) {
+                        Log.e("TesseraViewModel", "Erro ao buscar últimos jogos", e)
+                    }
+                }
+
+                if (selectedEvent != null) {
+                    val homeName = selectedEvent.strHomeTeam ?: "Time Casa"
+                    val awayName = selectedEvent.strAwayTeam ?: "Time Fora"
+                    val homeBadge = selectedEvent.strHomeTeamBadge ?: ""
+                    val awayBadge = selectedEvent.strAwayTeamBadge ?: ""
+                    val homeScore = selectedEvent.intHomeScore?.toIntOrNull()
+                    val awayScore = selectedEvent.intAwayScore?.toIntOrNull()
+                    val status = selectedEvent.strStatus ?: "NS"
+                    val venue = selectedEvent.strVenue
+                    val league = selectedEvent.strLeague ?: "Brasileirão Série A"
+
+                    val formattedDate = buildString {
+                        selectedEvent.dateEvent?.let { d ->
+                            try {
+                                val parts = d.split("-")
+                                if (parts.size == 3) {
+                                    append("${parts[2]}/${parts[1]}")
+                                } else {
+                                    append(d)
+                                }
+                            } catch (e: Exception) {
+                                append(d)
+                            }
+                        }
+                        val time = selectedEvent.strTimeLocal ?: selectedEvent.strTime
+                        if (!time.isNullOrBlank()) {
+                            val cleanTime = time.take(5)
+                            if (isNotEmpty()) append(" ")
+                            append(cleanTime)
+                        }
+                    }
+
+                    val matchDetail = com.example.data.MatchDetail(
+                        homeTeamName = homeName,
+                        homeTeamLogo = homeBadge,
+                        awayTeamName = awayName,
+                        awayTeamLogo = awayBadge,
+                        homeGoals = homeScore,
+                        awayGoals = awayScore,
+                        statusShort = status,
+                        dateFormatted = formattedDate.ifBlank { "Em breve" },
+                        leagueName = league
                     )
 
-                    var targetTeamId: Long? = null
-                    for (team in teamsToWatch) {
-                        val cleanName = team.replace("(principal)", "").replace("(equipe principal)", "").trim().lowercase()
-                        val matchedId = knownTeams.entries.find { cleanName.contains(it.key) }?.value
-                        if (matchedId != null) {
-                            targetTeamId = matchedId
-                            break
-                        }
-                    }
+                    val detailedFixture = com.example.data.DetailedFixture(
+                        matchDetail = matchDetail,
+                        venueName = venue,
+                        events = emptyList(),
+                        homeLineup = emptyList(),
+                        awayLineup = emptyList()
+                    )
 
-                    if (targetTeamId != null) {
-                        val datesToCheck = listOf(
-                            nowLocalDate,
-                            nowLocalDate.plusDays(1),
-                            nowLocalDate.minusDays(1),
-                            nowLocalDate.plusDays(2),
-                            nowLocalDate.minusDays(2)
-                        )
-
-                        for (date in datesToCheck) {
-                            val dateStr = date.format(dtf)
-                            val result = fixtureRepository.getFixturesByDate(dateStr)
-                            if (result.isSuccess) {
-                                val fixtures = result.getOrNull() ?: emptyList()
-                                val match = fixtures.find { it.teams.home.id == targetTeamId || it.teams.away.id == targetTeamId }
-                                if (match != null) {
-                                    targetFixtureId = match.fixture.id
-                                    break
-                                }
-                            }
-                        }
-                    } else {
-                        // Fallback se não encontrar o time configurado
-                        val today = nowLocalDate.format(dtf)
-                        val latestResult = fixtureRepository.getFixturesByDate(today)
-                        if (latestResult.isSuccess) {
-                            val dtoList = latestResult.getOrNull() ?: emptyList()
-                            targetFixtureId = dtoList.firstOrNull()?.fixture?.id
-                        }
-                    }
+                    _featuredMatch.value = detailedFixture
                 } else {
-                    // Se nenhum time foi configurado pelo usuário, busca partida padrão do dia
-                    val today = nowLocalDate.format(dtf)
-                    val latestResult = fixtureRepository.getFixturesByDate(today)
-                    if (latestResult.isSuccess) {
-                        val dtoList = latestResult.getOrNull()
-                        targetFixtureId = dtoList?.firstOrNull()?.fixture?.id
-                    }
-                }
-
-                if (targetFixtureId != null) {
-                    val result = fixtureRepository.getFixture(targetFixtureId)
-                    if (result.isSuccess) {
-                        val fixtureData = result.getOrNull()
-                        if (fixtureData != null) {
-                            val home = fixtureData.teams.home
-                            val away = fixtureData.teams.away
-                            
-                            val matchDetail = com.example.data.MatchDetail(
-                                homeTeamName = home.name,
-                                homeTeamLogo = home.logo ?: "",
-                                awayTeamName = away.name,
-                                awayTeamLogo = away.logo ?: "",
-                                homeGoals = fixtureData.goals.home,
-                                awayGoals = fixtureData.goals.away,
-                                statusShort = fixtureData.fixture.status.short,
-                                dateFormatted = formatFootballDate(fixtureData.fixture.date),
-                                leagueName = fixtureData.league.name
-                            )
-
-                            val events = fixtureData.events?.mapIndexed { index, e ->
-                                com.example.data.MatchEvent(
-                                    id = index.toLong(),
-                                    minute = e.time.elapsed,
-                                    typeName = e.detail ?: e.type,
-                                    typeCode = e.type,
-                                    playerName = e.player?.name ?: "Desconhecido",
-                                    isHomeTeam = e.team.id == home.id
-                                )
-                            } ?: emptyList()
-
-                            val homeLineupData = fixtureData.lineups?.find { it.team.id == home.id }
-                            val homeLineup = homeLineupData?.startXI?.mapIndexed { index, l ->
-                                com.example.data.MatchLineup(
-                                    playerId = l.player.id ?: index.toLong(),
-                                    playerName = l.player.name,
-                                    playerImage = null,
-                                    position = index
-                                )
-                            } ?: emptyList()
-
-                            val awayLineupData = fixtureData.lineups?.find { it.team.id == away.id }
-                            val awayLineup = awayLineupData?.startXI?.mapIndexed { index, l ->
-                                com.example.data.MatchLineup(
-                                    playerId = l.player.id ?: index.toLong(),
-                                    playerName = l.player.name,
-                                    playerImage = null,
-                                    position = index
-                                )
-                            } ?: emptyList()
-
-                            val detailedFixture = com.example.data.DetailedFixture(
-                                matchDetail = matchDetail,
-                                venueName = fixtureData.fixture.venue?.name,
-                                events = events.sortedBy { it.minute },
-                                homeLineup = homeLineup.sortedBy { it.position ?: 99 },
-                                awayLineup = awayLineup.sortedBy { it.position ?: 99 }
-                            )
-
-                            _featuredMatch.value = detailedFixture
-                            
-                            // Fetch Standings
-                            if (fixtureData.league.id != null) {
-                                val season = fixtureData.league.season ?: java.time.LocalDate.now().year
-                                var standingsResult = fixtureRepository.getStandings(fixtureData.league.id, season)
-                                
-                                if (standingsResult.isFailure || standingsResult.getOrNull() == null) {
-                                    // Fallback to previous year
-                                    standingsResult = fixtureRepository.getStandings(fixtureData.league.id, season - 1)
-                                }
-                                
-                                if (standingsResult.isSuccess) {
-                                    _matchStandings.value = standingsResult.getOrNull()
-                                }
-                            }
-                        }
-                    } else {
-                        Log.e("TesseraViewModel", "Erro ao buscar placares: ${result.exceptionOrNull()?.message}")
-                    }
-                } else {
-                    Log.e("TesseraViewModel", "Nenhuma partida encontrada na API")
+                    Log.e("TesseraViewModel", "Nenhuma partida encontrada para o time no TheSportsDB")
                 }
             } catch (e: Exception) {
                 Log.e("TesseraViewModel", "Erro na API de Futebol: ${e.message}")

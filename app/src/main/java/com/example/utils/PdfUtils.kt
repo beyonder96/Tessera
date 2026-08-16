@@ -12,9 +12,13 @@ import java.util.Locale
 object PdfUtils {
     fun generateMarketPdf(context: Context, uri: Uri, items: List<MarketItem>, totalAmount: Double) {
         val document = PdfDocument()
-        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // A4
-        val page = document.startPage(pageInfo)
-        val canvas: Canvas = page.canvas
+        val pageWidth = 595
+        val pageHeight = 842
+        var pageNumber = 1
+
+        var pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
+        var page = document.startPage(pageInfo)
+        var canvas: Canvas = page.canvas
         val paint = Paint()
 
         paint.color = Color.BLACK
@@ -28,9 +32,27 @@ object PdfUtils {
         val startX = 50f
 
         items.forEach { item ->
+            if (yPos > pageHeight - 100f) {
+                document.finishPage(page)
+                pageNumber++
+                pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
+                page = document.startPage(pageInfo)
+                canvas = page.canvas
+                yPos = 60f
+            }
+
             val line = "${item.quantity}x ${item.unit} - ${item.name} | R$ ${String.format(Locale("pt", "BR"), "%.2f", item.price * item.quantity)}"
             canvas.drawText(line, startX, yPos, paint)
             yPos += 25f
+        }
+
+        if (yPos > pageHeight - 80f) {
+            document.finishPage(page)
+            pageNumber++
+            pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
+            page = document.startPage(pageInfo)
+            canvas = page.canvas
+            yPos = 60f
         }
 
         yPos += 20f

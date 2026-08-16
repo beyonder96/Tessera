@@ -1,6 +1,8 @@
 package com.example
 import androidx.compose.material3.MaterialTheme
+import com.example.ui.components.*
 
+import com.example.utils.toDoubleClean
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -397,7 +399,7 @@ fun FinanceScreen(
                             Text(
                                 text = if (isPrivacyModeEnabled) "Limite disponível: R$ ••••••" else String.format(Locale("pt", "BR"), "Limite disponível: R$ %,.2f", activeCard.limit - activeCard.usedLimit),
                                 fontSize = 13.sp,
-                                color = Color(0xFFBDC9C6)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         } else {
                             val activeAccount = bankAccounts.find { it.name == selectedFilterName }
@@ -405,7 +407,7 @@ fun FinanceScreen(
                                 Text(
                                     text = "Conta tipo: ${activeAccount.type}",
                                     fontSize = 13.sp,
-                                    color = Color(0xFFBDC9C6)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -460,7 +462,7 @@ fun FinanceScreen(
                                             Text(
                                                 text = "Acompanhe tudo que deve e precisa pagar",
                                                 fontSize = 11.sp,
-                                                color = Color(0xFFBDC9C6)
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
                                         Icon(
@@ -478,7 +480,7 @@ fun FinanceScreen(
                             // Quadro 2: Painel de Parcelados
                             val installmentTxs = remember(filteredTransactions) {
                                 filteredTransactions.filter { tx ->
-                                    !tx.isIncome && (tx.subtitle.contains("Parcela", ignoreCase = true) || tx.title.contains("/"))
+                                    !tx.isIncome && (tx.subtitle.contains("Parcela") || tx.title.contains("/") || (!tx.isRecurrent && tx.dueDate > 0))
                                 }
                             }
                             val totalInstallmentValue = remember(installmentTxs) { installmentTxs.sumOf { it.value } }
@@ -518,7 +520,7 @@ fun FinanceScreen(
                                             Text(
                                                 text = "${installmentTxs.size} parcelas no mês (${String.format(Locale("pt", "BR"), "R$ %,.2f", totalInstallmentValue)})",
                                                 fontSize = 11.sp,
-                                                color = Color(0xFFBDC9C6)
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
                                         Icon(
@@ -574,7 +576,7 @@ fun FinanceScreen(
                                             Text(
                                                 text = "${recurrentTxs.size} contas fixas (${String.format(Locale("pt", "BR"), "R$ %,.2f", totalRecurrentValue)})",
                                                 fontSize = 11.sp,
-                                                color = Color(0xFFBDC9C6)
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
                                         Icon(
@@ -801,7 +803,7 @@ fun FinanceScreen(
                             Icon(
                                 imageVector = if (isPrivacyModeEnabled) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
                                 contentDescription = "Modo Privacidade",
-                                tint = Color(0xFFBDC9C6),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -819,7 +821,7 @@ fun FinanceScreen(
                             translationY = (1f - compactAlpha) * (-20f)
                         }
                         .clip(RoundedCornerShape(32.dp))
-                        .background(Color.Black.copy(alpha = 0.75f))
+                        .background(themedNavBarBackground())
                         .border(1.dp, accentColor.copy(alpha = 0.5f), RoundedCornerShape(32.dp))
                         .padding(horizontal = 24.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.Center,
@@ -834,38 +836,13 @@ fun FinanceScreen(
                     
                     Spacer(modifier = Modifier.width(12.dp))
                     
-                    val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
-                    val shimmerOffset by infiniteTransition.animateFloat(
-                        initialValue = -400f,
-                        targetValue = 400f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(2000, easing = LinearEasing),
-                            repeatMode = RepeatMode.Restart
-                        ),
-                        label = "shimmerOffset"
-                    )
-                    
-                    val nameGlowBrush = Brush.linearGradient(
-                        colors = listOf(
-                            Color.White,
-                            accentColor,
-                            Color.White,
-                            accentColor,
-                            Color.White
-                        ),
-                        start = Offset(shimmerOffset, 0f),
-                        end = Offset(shimmerOffset + 150f, 150f)
-                    )
-                    
                     Text(
                         text = "FINANÇAS",
-                        style = TextStyle(
-                            brush = nameGlowBrush,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            letterSpacing = 2.sp,
-                            fontFamily = FontFamily.Serif
-                        )
+                        color = MaterialTheme.colorScheme.onBackground,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        letterSpacing = 2.sp,
+                        fontFamily = FontFamily.Serif
                     )
                 }
             }
@@ -905,20 +882,20 @@ fun RaloXCard(
                         text = "Ralo-X do Adiantamento",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFFDFE3E2)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0x1AFFFFFF))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
                         text = "Este Mês",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFFBDC9C6)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -940,7 +917,7 @@ fun RaloXCard(
                     Text(
                         text = "Comprometido",
                         fontSize = 13.sp,
-                        color = Color(0xFFBDC9C6)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         text = if (isPrivacyMode) "R$ ••••••" else String.format(Locale("pt", "BR"), "R$ %,.2f", committed),
@@ -956,7 +933,7 @@ fun RaloXCard(
                         .fillMaxWidth()
                         .height(6.dp)
                         .clip(CircleShape)
-                        .background(Color(0x1AFFFFFF))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
                 ) {
                     Box(
                         modifier = Modifier
@@ -984,7 +961,7 @@ fun RaloXCard(
                 Text(
                     text = "Livre para gastar",
                     fontSize = 13.sp,
-                    color = Color(0xFFBDC9C6)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = if (isPrivacyMode) "R$ ••••••" else String.format(Locale("pt", "BR"), "R$ %,.2f", free),
@@ -1132,7 +1109,7 @@ fun BalanceHeaderSection(
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0x1AFFFFFF))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
                         .clickable { onClearFilter() }
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -1143,9 +1120,9 @@ fun BalanceHeaderSection(
                 }
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0x66FFFFFF), modifier = Modifier.size(12.dp))
+                    Icon(Icons.Default.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), modifier = Modifier.size(12.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Ajustar", fontSize = 11.sp, color = Color(0x66FFFFFF), fontWeight = FontWeight.Medium)
+                    Text("Ajustar", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), fontWeight = FontWeight.Medium)
                 }
             }
         }
@@ -1163,20 +1140,20 @@ fun BalanceHeaderSection(
             fontFamily = FontFamily.Serif,
             fontWeight = FontWeight.Bold,
             fontSize = 42.sp,
-            color = Color(0xFFDFE3E2)
+            color = MaterialTheme.colorScheme.onBackground
         )
 
         if (activeCard != null) {
             Text(
                 text = if (isPrivacyModeEnabled) "Limite disponível: R$ *****" else String.format(Locale("pt", "BR"), "Limite disponível: R$ %,.2f", activeCard.limit - activeCard.usedLimit),
                 fontSize = 13.sp,
-                color = Color(0xFF99A5A3)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } else if (activeAccount != null) {
             Text(
                 text = "Conta tipo ${activeAccount.type}",
                 fontSize = 13.sp,
-                color = Color(0xFF99A5A3)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } else {
             // Three Glass pills for Corrente, Poupança, Investimentos breakdown
@@ -1190,12 +1167,12 @@ fun BalanceHeaderSection(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0x0CFFFFFF))
-                        .border(0.5.dp, Color(0x14FFFFFF), RoundedCornerShape(12.dp))
+                        .background(themedCardBackground())
+                        .border(1.dp, themedCardBorder(), RoundedCornerShape(12.dp))
                         .padding(8.dp)
                 ) {
                     Column {
-                        Text("Corrente", fontSize = 9.sp, color = Color(0x99BDC9C6), fontWeight = FontWeight.SemiBold)
+                        Text("Corrente", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = if (isPrivacyModeEnabled) "R$ *****" else String.format(Locale("pt", "BR"), "R$ %,.2f", checkingBalance), 
@@ -1210,12 +1187,12 @@ fun BalanceHeaderSection(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0x0CFFFFFF))
-                        .border(0.5.dp, Color(0x14FFFFFF), RoundedCornerShape(12.dp))
+                        .background(themedCardBackground())
+                        .border(1.dp, themedCardBorder(), RoundedCornerShape(12.dp))
                         .padding(8.dp)
                 ) {
                     Column {
-                        Text("Poupança", fontSize = 9.sp, color = Color(0x99BDC9C6), fontWeight = FontWeight.SemiBold)
+                        Text("Poupança", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = if (isPrivacyModeEnabled) "R$ *****" else String.format(Locale("pt", "BR"), "R$ %,.2f", savingsBalance), 
@@ -1230,12 +1207,12 @@ fun BalanceHeaderSection(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0x0CFFFFFF))
-                        .border(0.5.dp, Color(0x14FFFFFF), RoundedCornerShape(12.dp))
+                        .background(themedCardBackground())
+                        .border(1.dp, themedCardBorder(), RoundedCornerShape(12.dp))
                         .padding(8.dp)
                 ) {
                     Column {
-                        Text("Investimento", fontSize = 9.sp, color = Color(0x99BDC9C6), fontWeight = FontWeight.SemiBold)
+                        Text("Investimento", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = if (isPrivacyModeEnabled) "R$ *****" else String.format(Locale("pt", "BR"), "R$ %,.2f", investmentBalance), 
@@ -1464,7 +1441,7 @@ fun CreditCardsCarousel(
                                 text = "••••  ••••  ••••  ${card.numberLastFour}",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFFDFE3E2),
+                                color = MaterialTheme.colorScheme.onBackground,
                                 letterSpacing = 1.5.sp
                             )
                         }
@@ -1475,7 +1452,7 @@ fun CreditCardsCarousel(
                                 Text(
                                     text = card.holderName,
                                     fontSize = 11.sp,
-                                    color = Color(0xFFBDC9C6),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontWeight = FontWeight.Medium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -1489,7 +1466,7 @@ fun CreditCardsCarousel(
                                 )
                             }
                             Spacer(modifier = Modifier.height(6.dp))
-                            Box(modifier = Modifier.fillMaxWidth().height(4.dp).background(Color(0x1AFFFFFF), CircleShape)) {
+                            Box(modifier = Modifier.fillMaxWidth().height(4.dp).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), CircleShape)) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth(ratio)
@@ -1833,7 +1810,7 @@ fun SmoothEvolutionChart(transactions: List<Transaction>) {
                     else -> listOf("S", "T", "Q", "Q", "S", "S", "D")
                 }
                 labels.forEach { label ->
-                    Text(label, fontSize = 11.sp, color = Color(0x66FFFFFF), fontWeight = FontWeight.SemiBold)
+                    Text(label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -1875,7 +1852,7 @@ fun CategoryBreakdown(transactions: List<Transaction>) {
                 ) {
                     Text(
                         text = "Nenhuma despesa registrada.",
-                        color = Color(0x80BDC9C6),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
                         fontSize = 14.sp
                     )
@@ -1889,11 +1866,11 @@ fun CategoryBreakdown(transactions: List<Transaction>) {
                     
                     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(category, fontSize = 14.sp, color = Color(0xFFDFE3E2))
+                            Text(category, fontSize = 14.sp, color = MaterialTheme.colorScheme.onBackground)
                             Text(String.format(Locale("pt", "BR"), "R$ %,.2f", amount), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
                         }
                         Spacer(modifier = Modifier.height(6.dp))
-                        Box(modifier = Modifier.fillMaxWidth().height(6.dp).background(Color(0x1AFFFFFF), CircleShape)) {
+                        Box(modifier = Modifier.fillMaxWidth().height(6.dp).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), CircleShape)) {
                             Box(modifier = Modifier.fillMaxWidth(percentage).fillMaxHeight().background(Color(0xFF71D7CD), CircleShape))
                         }
                     }
@@ -2293,7 +2270,7 @@ fun AdjustBalancesDialog(
                     Button(
                         onClick = {
                             bankAccounts.forEach { account ->
-                                val newValue = balanceEdits[account.id]?.toDoubleOrNull() ?: account.balance
+                                val newValue = balanceEdits[account.id]?.toDoubleClean() ?: account.balance
                                 if (newValue != account.balance) {
                                     viewModel.addBankAccount(
                                         name = account.name,

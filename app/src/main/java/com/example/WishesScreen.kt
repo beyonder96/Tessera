@@ -1,6 +1,7 @@
 package com.example
 import androidx.compose.material3.MaterialTheme
 
+import com.example.utils.toDoubleCleanOrZero
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.*
@@ -102,12 +103,18 @@ suspend fun fetchOgImageFromUrl(urlStr: String): String? {
             }
 
             if (imgUrl.isNotBlank()) {
-                val url = URL(fullUrl)
-                if (imgUrl.startsWith("//")) {
-                    "https:$imgUrl"
-                } else if (imgUrl.startsWith("/")) {
-                    "${url.protocol}://${url.host}$imgUrl"
-                } else imgUrl
+                try {
+                    val baseUrl = URL(fullUrl)
+                    if (imgUrl.startsWith("//")) {
+                        "https:$imgUrl"
+                    } else if (imgUrl.startsWith("http://") || imgUrl.startsWith("https://")) {
+                        imgUrl
+                    } else {
+                        URL(baseUrl, imgUrl).toString()
+                    }
+                } catch (e: Exception) {
+                    imgUrl
+                }
             } else null
         } catch (e: Exception) {
             null
@@ -647,8 +654,7 @@ fun WishesDialog(
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(
                     onClick = {
-                        val cleanTarget = target.replace(Regex("[^0-9,]"), "").replace(",", ".")
-                        val targetVal = cleanTarget.toDoubleOrNull() ?: 0.0
+                        val targetVal = target.toDoubleCleanOrZero()
                         if (title.isNotBlank() && targetVal > 0) {
                             onSave(title, targetVal, buyUrl, imgUrl)
                         }

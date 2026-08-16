@@ -1,6 +1,7 @@
 package com.example.ui.components
 import androidx.compose.material3.MaterialTheme
 
+import com.example.utils.toDoubleCleanOrZero
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -587,15 +588,16 @@ fun AddTransactionBottomSheet(
                     }
                 }
                 
+                val parsedValue = valueStr.toDoubleCleanOrZero()
                 val canSave = if (isTransfer) {
-                    fromAccount != null && toAccount != null && valueStr.toDoubleOrNull() ?: 0.0 > 0.0
+                    fromAccount != null && toAccount != null && parsedValue > 0.0
                 } else {
-                    title.isNotBlank() && valueStr.toDoubleOrNull() ?: 0.0 > 0.0 && selectedOrigin.isNotBlank()
+                    title.isNotBlank() && parsedValue > 0.0 && selectedOrigin.isNotBlank()
                 }
 
                 Button(
                     onClick = {
-                        val v = valueStr.toDoubleOrNull() ?: 0.0
+                        val v = parsedValue
                         if (isTransfer) {
                             onTransfer(fromAccount!!, toAccount!!, v, dueDate)
                             onDismiss()

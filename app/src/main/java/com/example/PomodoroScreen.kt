@@ -1,5 +1,6 @@
 package com.example
 import androidx.compose.material3.MaterialTheme
+import com.example.ui.components.*
 
 import android.content.Context
 import android.media.AudioFormat
@@ -55,6 +56,7 @@ enum class FocusMode(val title: String, val icon: androidx.compose.ui.graphics.v
 // Binaural beats sound player (4Hz Theta wave for focus)
 class FocusSoundPlayer {
     private var audioTrack: AudioTrack? = null
+    @Volatile
     private var isPlaying = false
 
     fun start() {
@@ -95,38 +97,44 @@ class FocusSoundPlayer {
                 val phaseIncRight = 2f * Math.PI.toFloat() * freqRight / sampleRateF
                 
                 var time = 0L
-                while (isPlaying) {
-                    for (i in 0 until buffer.size step 2) {
-                        // Soft brown noise simulating serene ocean waves
-                        val whiteL = random.nextGaussian().toFloat() * 550f
-                        val whiteR = random.nextGaussian().toFloat() * 550f
-                        
-                        lastLeft = (lastLeft * 0.98f) + (whiteL * 0.05f)
-                        lastRight = (lastRight * 0.98f) + (whiteR * 0.05f)
-                        
-                        // Binaural sine hum with dynamic volume swells (6-second cycle)
-                        val swell = 0.5f + 0.3f * Math.sin(2.0 * Math.PI * time / (sampleRateF * 6f)).toFloat()
-                        val sineL = Math.sin(phaseLeft.toDouble()).toFloat() * 1100f * swell
-                        val sineR = Math.sin(phaseRight.toDouble()).toFloat() * 1100f * swell
-                        
-                        phaseLeft += phaseIncLeft
-                        if (phaseLeft > 2f * Math.PI.toFloat()) phaseLeft -= 2f * Math.PI.toFloat()
-                        
-                        phaseRight += phaseIncRight
-                        if (phaseRight > 2f * Math.PI.toFloat()) phaseRight -= 2f * Math.PI.toFloat()
-                        
-                        val mixedL = lastLeft + sineL
-                        val mixedR = lastRight + sineR
-                        
-                        if (i < buffer.size) {
-                            buffer[i] = mixedL.coerceIn(-32768f, 32767f).toInt().toShort()
+                try {
+                    while (isPlaying) {
+                        for (i in 0 until buffer.size step 2) {
+                            // Soft brown noise simulating serene ocean waves
+                            val whiteL = random.nextGaussian().toFloat() * 550f
+                            val whiteR = random.nextGaussian().toFloat() * 550f
+                            
+                            lastLeft = (lastLeft * 0.98f) + (whiteL * 0.05f)
+                            lastRight = (lastRight * 0.98f) + (whiteR * 0.05f)
+                            
+                            // Binaural sine hum with dynamic volume swells (6-second cycle)
+                            val swell = 0.5f + 0.3f * Math.sin(2.0 * Math.PI * time / (sampleRateF * 6f)).toFloat()
+                            val sineL = Math.sin(phaseLeft.toDouble()).toFloat() * 1100f * swell
+                            val sineR = Math.sin(phaseRight.toDouble()).toFloat() * 1100f * swell
+                            
+                            phaseLeft += phaseIncLeft
+                            if (phaseLeft > 2f * Math.PI.toFloat()) phaseLeft -= 2f * Math.PI.toFloat()
+                            
+                            phaseRight += phaseIncRight
+                            if (phaseRight > 2f * Math.PI.toFloat()) phaseRight -= 2f * Math.PI.toFloat()
+                            
+                            val mixedL = lastLeft + sineL
+                            val mixedR = lastRight + sineR
+                            
+                            if (i < buffer.size) {
+                                buffer[i] = mixedL.coerceIn(-32768f, 32767f).toInt().toShort()
+                            }
+                            if (i + 1 < buffer.size) {
+                                buffer[i + 1] = mixedR.coerceIn(-32768f, 32767f).toInt().toShort()
+                            }
+                            time++
                         }
-                        if (i + 1 < buffer.size) {
-                            buffer[i + 1] = mixedR.coerceIn(-32768f, 32767f).toInt().toShort()
+                        if (isPlaying) {
+                            audioTrack?.write(buffer, 0, buffer.size)
                         }
-                        time++
                     }
-                    audioTrack?.write(buffer, 0, buffer.size)
+                } catch (e: Exception) {
+                    // Silently terminate audio loop on track release
                 }
             }.start()
         } catch (e: Exception) {
@@ -137,6 +145,8 @@ class FocusSoundPlayer {
     fun stop() {
         isPlaying = false
         try {
+            audioTrack?.pause()
+            audioTrack?.flush()
             audioTrack?.stop()
             audioTrack?.release()
         } catch (e: Exception) {}
@@ -259,8 +269,8 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
                             .clip(RoundedCornerShape(18.dp))
                             .background(if (isSelected) Color(0x3DFFFFFF) else Color(0x0CFFFFFF))
                             .border(
-                                width = if (isSelected) 1.5.dp else 0.5.dp,
-                                color = if (isSelected) Color(0xFF8AB4F8) else Color(0x1AFFFFFF),
+                                width = if (isSelected) 1.5.dp else 1.dp,
+                                color = if (isSelected) Color(0xFF8AB4F8) else themedCardBorder(),
                                 shape = RoundedCornerShape(18.dp)
                             )
                             .clickable {
@@ -274,7 +284,7 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
                             Icon(
                                 imageVector = mode.icon,
                                 contentDescription = mode.title,
-                                tint = if (isSelected) Color(0xFF8AB4F8) else Color.White.copy(alpha = 0.6f),
+                                tint = if (isSelected) Color(0xFF8AB4F8) else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp)
                             )
                             Text(
@@ -443,7 +453,7 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
     if (showSoundscapeDialog) {
         AlertDialog(
             onDismissRequest = { showSoundscapeDialog = false },
-            containerColor = Color(0xFF141918),
+            containerColor = themedOverlayBackground(),
             title = { Text("Select Soundscape", color = MaterialTheme.colorScheme.onBackground) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -452,7 +462,7 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(if (selectedSoundscape == sound) Color(0x1AFFFFFF) else Color.Transparent)
+                                .background(if (selectedSoundscape == sound) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f) else Color.Transparent)
                                 .clickable {
                                     selectedSoundscape = sound
                                     showSoundscapeDialog = false
@@ -502,6 +512,7 @@ fun TimeRuler(
             .height(54.dp),
         contentAlignment = Alignment.Center
     ) {
+        val tickBaseColor = MaterialTheme.colorScheme.onBackground
         Canvas(modifier = Modifier.fillMaxWidth().height(32.dp)) {
             val width = size.width
             val height = size.height
@@ -513,7 +524,7 @@ fun TimeRuler(
                 val isCenter = i == numTicks / 2
                 val tickHeight = if (isCenter) height * 0.85f else height * 0.45f
                 val tickAlpha = if (isCenter) 1f else 0.22f
-                val tickColor = if (isCenter) Color(0xFF4285F4) else Color.White
+                val tickColor = if (isCenter) Color(0xFF4285F4) else tickBaseColor
                 
                 drawLine(
                     color = tickColor.copy(alpha = tickAlpha),

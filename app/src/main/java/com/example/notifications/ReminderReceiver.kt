@@ -17,6 +17,13 @@ class ReminderReceiver : BroadcastReceiver() {
         val sharedPrefs = context.getSharedPreferences("tessera_prefs", Context.MODE_PRIVATE)
 
         when (type) {
+            "VR_RESET" -> {
+                title = "Vale Refeição"
+                message = "Chegou o dia de atualizar seu saldo do Vale Refeição no Tessera!"
+                notificationId = 9990
+                val vrResetDate = sharedPrefs.getInt("vr_reset_date", 1)
+                AlarmScheduler.scheduleVrAlarm(context, vrResetDate)
+            }
             "STEPS" -> {
                 title = "Lembrete de Passos"
                 message = "Já registrou seus passos hoje?"

@@ -49,22 +49,22 @@ fun isDarkTheme(): Boolean = LocalAppTheme.current == "dark"
 
 /** Subtle card background */
 @Composable
-fun themedCardBackground(): Color = if (isDarkTheme()) Color(0x0CFFFFFF) else Color(0x0A0F172A)
+fun themedCardBackground(): Color = if (isDarkTheme()) Color(0xFF111218) else Color(0xFFFFFFFF)
 
 /** Subtle card border */
 @Composable
-fun themedCardBorder(): Color = if (isDarkTheme()) Color(0x14FFFFFF) else Color(0x1A0F172A)
+fun themedCardBorder(): Color = if (isDarkTheme()) Color(0xFF27272A) else Color(0xFFE2E8F0)
 
 /** Overlay/dialog background */
 @Composable
-fun themedOverlayBackground(): Color = if (isDarkTheme()) Color(0xFF070909).copy(alpha = 0.85f) else Color(0xFFF8F9FA).copy(alpha = 0.95f)
+fun themedOverlayBackground(): Color = if (isDarkTheme()) Color(0xFF111218).copy(alpha = 0.98f) else Color(0xFFFFFFFF).copy(alpha = 0.98f)
 
 /** Overlay/dialog border gradient colors */
 @Composable
 fun themedOverlayBorderColors(): List<Color> = if (isDarkTheme())
     listOf(Color.White.copy(alpha = 0.25f), Color.White.copy(alpha = 0.05f))
 else
-    listOf(Color(0xFF0F172A).copy(alpha = 0.1f), Color(0xFF0F172A).copy(alpha = 0.04f))
+    listOf(Color(0xFF0F172A).copy(alpha = 0.12f), Color(0xFF0F172A).copy(alpha = 0.04f))
 
 /** Very subtle background */
 @Composable
@@ -76,7 +76,7 @@ fun themedSubtleBorder(): Color = if (isDarkTheme()) Color.White.copy(alpha = 0.
 
 /** Thin line divider */
 @Composable
-fun themedDivider(): Color = if (isDarkTheme()) Color(0x1AFFFFFF) else Color(0x1A0F172A)
+fun themedDivider(): Color = if (isDarkTheme()) Color(0x1AFFFFFF) else Color(0x140F172A)
 
 /** Button/outlined border */
 @Composable
@@ -84,23 +84,23 @@ fun themedButtonBorder(): Color = if (isDarkTheme()) Color.White.copy(alpha = 0.
 
 /** Full-screen scrim */
 @Composable
-fun themedScrim(): Color = if (isDarkTheme()) Color(0xCC000000) else Color(0x99000000)
+fun themedScrim(): Color = if (isDarkTheme()) Color(0xCC000000) else Color(0x66000000)
 
 /** Header bar background */
 @Composable
-fun themedHeaderBackground(): Color = if (isDarkTheme()) Color(0x99050505) else Color(0xCCFFFFFF)
+fun themedHeaderBackground(): Color = if (isDarkTheme()) Color(0xCC090A0F) else Color(0xCCF8FAFC)
 
 /** Bottom nav bar pill background */
 @Composable
-fun themedNavBarBackground(): Color = if (isDarkTheme()) Color(0xFF1C1C1E).copy(alpha = 0.95f) else Color(0xFFF8F9FA).copy(alpha = 0.95f)
+fun themedNavBarBackground(): Color = if (isDarkTheme()) Color(0xFF161722).copy(alpha = 0.95f) else Color(0xFFFFFFFF).copy(alpha = 0.95f)
 
 /** Bottom nav bar pill border */
 @Composable
-fun themedNavBarBorder(): Color = if (isDarkTheme()) Color.White.copy(alpha = 0.15f) else Color(0xFF0F172A).copy(alpha = 0.12f)
+fun themedNavBarBorder(): Color = if (isDarkTheme()) Color(0xFF27272A) else Color(0xFFE2E8F0)
 
 /** Inactive icon tint */
 @Composable
-fun themedInactiveIcon(): Color = if (isDarkTheme()) Color(0xFF888888) else Color(0xFF94A3B8)
+fun themedInactiveIcon(): Color = if (isDarkTheme()) Color(0xFF71717A) else Color(0xFF64748B)
 
 /** TextField colors for forms */
 @OptIn(ExperimentalMaterial3Api::class)

@@ -11,9 +11,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
-    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
@@ -49,7 +47,14 @@
         <receiver android:name="com.example.notifications.MedicationReceiver" android:exported="false" />
         <receiver android:name="com.example.notifications.ReminderReceiver" android:exported="false" />
         
-        <service android:name="com.example.notifications.GlobalOverlayService" android:exported="false" android:foregroundServiceType="specialUse" />
+        <service
+            android:name="com.example.notifications.GlobalOverlayService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Tessera medication and reminder alarms" />
+        </service>
         
         <receiver
             android:name="com.example.notifications.BootReceiver"
@@ -158,7 +163,9 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" />
+                <data
+                    android:scheme="https"
+                    android:host="tessera-app.firebaseapp.com" />
             </intent-filter>
             <!-- Share Target -->
             <intent-filter>

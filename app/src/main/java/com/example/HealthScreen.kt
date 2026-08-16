@@ -2281,7 +2281,7 @@ fun MedicationFullScreenAlert(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF070909))
+                .background(MaterialTheme.colorScheme.background)
         ) {
             Box(
                 modifier = Modifier

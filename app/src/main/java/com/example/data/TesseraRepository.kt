@@ -242,12 +242,11 @@ class TesseraRepository(private val dao: TesseraDao) {
         .build()
 
     private val bibleRetrofit = retrofit2.Retrofit.Builder()
-        .baseUrl("https://www.abibliadigital.com.br/api/")
+        .baseUrl("https://bible-api.com/")
         .client(
             okhttp3.OkHttpClient.Builder()
-                .addInterceptor(okhttp3.logging.HttpLoggingInterceptor().apply {
-                    level = okhttp3.logging.HttpLoggingInterceptor.Level.BODY
-                })
+                .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
                 .build()
         )
         .addConverterFactory(retrofit2.converter.moshi.MoshiConverterFactory.create(bibleMoshi))
@@ -255,7 +254,38 @@ class TesseraRepository(private val dao: TesseraDao) {
 
     private val bibleApi = bibleRetrofit.create(BibleApi::class.java)
 
+    private val offlineVerses = listOf(
+        BibleVerseResponse(book = ABibliaBook(name = "Salmos", version = "Almeida"), chapter = 23, verse = 1, text = "O Senhor é o meu pastor, nada me faltará."),
+        BibleVerseResponse(book = ABibliaBook(name = "Filipenses", version = "Almeida"), chapter = 4, verse = 13, text = "Posso todas as coisas naquele que me fortalece."),
+        BibleVerseResponse(book = ABibliaBook(name = "Josué", version = "Almeida"), chapter = 1, verse = 9, text = "Não to mandei eu? Esforça-te, e tem bom ânimo; não temas, nem te espantes; porque o Senhor teu Deus é contigo, por onde quer que andares."),
+        BibleVerseResponse(book = ABibliaBook(name = "Jeremias", version = "Almeida"), chapter = 29, verse = 11, text = "Porque eu bem sei os pensamentos que tenho a vosso respeito, diz o Senhor; pensamentos de paz, e não de mal, para vos dar um fim e uma esperança."),
+        BibleVerseResponse(book = ABibliaBook(name = "Provérbios", version = "Almeida"), chapter = 3, verse = 5, text = "Confia no Senhor de todo o teu coração, e não te estribes no teu próprio entendimento."),
+        BibleVerseResponse(book = ABibliaBook(name = "Isaías", version = "Almeida"), chapter = 41, verse = 10, text = "Não temas, porque eu sou contigo; não te assombres, porque eu sou o teu Deus; eu te fortaleço, e te ajudo, e te sustento com a destra da minha justiça."),
+        BibleVerseResponse(book = ABibliaBook(name = "Mateus", version = "Almeida"), chapter = 11, verse = 28, text = "Vinde a mim, todos os que estais cansados e oprimidos, e eu vos aliviarei."),
+        BibleVerseResponse(book = ABibliaBook(name = "Romanos", version = "Almeida"), chapter = 8, verse = 28, text = "E sabemos que todas as coisas conspiram para o bem daqueles que amam a Deus.")
+    )
+
     suspend fun getRandomBibleVerse(): BibleVerseResponse {
-        return bibleApi.getRandomVerse()
+        return try {
+            val response = bibleApi.getRandomVerse()
+            val firstVerse = response.verses?.firstOrNull()
+            val bookName = firstVerse?.bookName ?: response.reference?.split(" ")?.firstOrNull() ?: "Bíblia"
+            val chapter = firstVerse?.chapter ?: 1
+            val verseNum = firstVerse?.verse ?: 1
+            val cleanText = (response.text ?: firstVerse?.text ?: "").trim()
+            
+            if (cleanText.isNotBlank()) {
+                BibleVerseResponse(
+                    book = ABibliaBook(name = bookName, version = response.translationName ?: "Almeida"),
+                    chapter = chapter,
+                    verse = verseNum,
+                    text = cleanText
+                )
+            } else {
+                offlineVerses.random()
+            }
+        } catch (e: Exception) {
+            offlineVerses.random()
+        }
     }
 }

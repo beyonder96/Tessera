@@ -22,14 +22,15 @@ android {
     applicationId = "com.aistudio.tessera.xtrkna"
     minSdk = 26
     targetSdk = 35
-    versionCode = 81
-    versionName = "2.0.28"
+    versionCode = 82
+    versionName = "2.0.29"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     manifestPlaceholders["MAPS_API_KEY"] = "DUMMY_KEY"
     manifestPlaceholders["redirectSchemeName"] = "tessera"
   }
 
+  val defaultDebugKeystore = file("${rootDir}/debug.keystore").takeIf { it.exists() } ?: file("${System.getProperty("user.home")}/.android/debug.keystore")
   signingConfigs {
     val keystorePath = "${rootDir}/my-upload-key.jks"
     val keystoreFile = file(keystorePath)
@@ -45,14 +46,14 @@ android {
     } else {
       // Graceful fallback to debug signature if release key is not found (avoids local build errors)
       create("release") {
-        storeFile = file("${rootDir}/debug.keystore")
+        storeFile = defaultDebugKeystore
         storePassword = localProperties.getProperty("DEBUG_STORE_PASSWORD") ?: "android"
         keyAlias = "androiddebugkey"
         keyPassword = localProperties.getProperty("DEBUG_KEY_PASSWORD") ?: "android"
       }
     }
     create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
+      storeFile = defaultDebugKeystore
       storePassword = localProperties.getProperty("DEBUG_STORE_PASSWORD") ?: "android"
       keyAlias = "androiddebugkey"
       keyPassword = localProperties.getProperty("DEBUG_KEY_PASSWORD") ?: "android"

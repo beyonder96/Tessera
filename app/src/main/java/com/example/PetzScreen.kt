@@ -1,6 +1,9 @@
 package com.example
 import androidx.compose.material3.MaterialTheme
+import com.example.ui.components.*
 
+import com.example.utils.toDoubleClean
+import com.example.utils.toDoubleCleanOrZero
 import android.util.Log
 import android.app.DatePickerDialog
 import android.content.Context
@@ -98,11 +101,18 @@ fun calculateAge(birthDate: Long): String {
     if (now.get(Calendar.DAY_OF_YEAR) < birthCal.get(Calendar.DAY_OF_YEAR)) {
         age--
     }
+    
+    val totalMonths = (now.get(Calendar.YEAR) - birthCal.get(Calendar.YEAR)) * 12 +
+            (now.get(Calendar.MONTH) - birthCal.get(Calendar.MONTH)) +
+            (if (now.get(Calendar.DAY_OF_MONTH) < birthCal.get(Calendar.DAY_OF_MONTH)) -1 else 0)
+
     return when {
-        age <= 0 -> {
-            val months = now.get(Calendar.MONTH) - birthCal.get(Calendar.MONTH) +
-                    (if (now.get(Calendar.DAY_OF_MONTH) < birthCal.get(Calendar.DAY_OF_MONTH)) -1 else 0)
-            if (months <= 0) "Recém-nascido" else "$months meses"
+        age <= 0 || totalMonths < 12 -> {
+            when {
+                totalMonths <= 0 -> "Recém-nascido"
+                totalMonths == 1 -> "1 mês"
+                else -> "$totalMonths meses"
+            }
         }
         age == 1 -> "1 ano"
         else -> "$age anos"
@@ -833,7 +843,7 @@ fun PetzScreen(
                     hideLabelInput = true,
                     onDismiss = { healthCardToEdit = null },
                     onConfirm = { _, newValue ->
-                        val weightVal = newValue.toDoubleOrNull()
+                        val weightVal = newValue.toDoubleClean()
                         if (weightVal != null) {
                             petViewModel.addWeightHistoryRecord(activePet.id, System.currentTimeMillis(), weightVal)
                         }
@@ -873,14 +883,14 @@ fun OuraStatCard(
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFF111111))
-            .border(0.5.dp, Color(0xFF222222), RoundedCornerShape(16.dp))
+            .background(themedCardBackground())
+            .border(1.dp, themedCardBorder(), RoundedCornerShape(16.dp))
             .bounceClick(onClick = onClick)
             .padding(16.dp)
     ) {
         Text(
             text = title,
-            color = Color.Gray,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp,
             fontFamily = FontFamily.SansSerif,
             modifier = Modifier.padding(bottom = 8.dp)
@@ -1164,7 +1174,7 @@ fun EditPetDialog(
                     modifier = Modifier
                         .size(100.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF111111))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
                         .clickable { launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                     contentAlignment = Alignment.Center
                 ) {
@@ -1176,7 +1186,7 @@ fun EditPetDialog(
                             modifier = Modifier.fillMaxSize()
                         )
                     } else {
-                        Icon(Icons.Outlined.Pets, contentDescription = "Add Photo", tint = Color.DarkGray, modifier = Modifier.size(36.dp))
+                        Icon(Icons.Outlined.Pets, contentDescription = "Add Photo", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(36.dp))
                     }
                 }
 
@@ -1184,14 +1194,7 @@ fun EditPetDialog(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("Nome") },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = primaryColor,
-                        unfocusedBorderColor = Color(0xFF333333),
-                        focusedLabelColor = primaryColor,
-                        unfocusedLabelColor = Color.Gray
-                    ),
+                    colors = themedOutlinedTextFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -1199,14 +1202,7 @@ fun EditPetDialog(
                     value = breed,
                     onValueChange = { breed = it },
                     label = { Text("Raça") },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = primaryColor,
-                        unfocusedBorderColor = Color(0xFF333333),
-                        focusedLabelColor = primaryColor,
-                        unfocusedLabelColor = Color.Gray
-                    ),
+                    colors = themedOutlinedTextFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -1231,14 +1227,7 @@ fun EditPetDialog(
                             }
                         )
                     },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = primaryColor,
-                        unfocusedBorderColor = Color(0xFF333333),
-                        focusedLabelColor = primaryColor,
-                        unfocusedLabelColor = Color.Gray
-                    ),
+                    colors = themedOutlinedTextFieldColors(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
@@ -1252,7 +1241,7 @@ fun EditPetDialog(
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = "Sexo",
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(bottom = 6.dp)
                     )
@@ -1264,34 +1253,34 @@ fun EditPetDialog(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (sex == PetSex.MACHO) PrimaryTeal.copy(alpha = 0.2f) else Color(0xFF111111))
+                                .background(if (sex == PetSex.MACHO) PrimaryTeal.copy(alpha = 0.2f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                                 .border(
                                     width = 1.dp,
-                                    color = if (sex == PetSex.MACHO) PrimaryTeal else Color(0xFF333333),
+                                    color = if (sex == PetSex.MACHO) PrimaryTeal else themedCardBorder(),
                                     shape = RoundedCornerShape(8.dp)
                                 )
                                 .clickable { sex = PetSex.MACHO }
                                 .padding(vertical = 12.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("MACHO", color = if (sex == PetSex.MACHO) Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("MACHO", color = if (sex == PetSex.MACHO) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
 
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (sex == PetSex.FEMEA) TertiaryPurple.copy(alpha = 0.2f) else Color(0xFF111111))
+                                .background(if (sex == PetSex.FEMEA) TertiaryPurple.copy(alpha = 0.2f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                                 .border(
                                     width = 1.dp,
-                                    color = if (sex == PetSex.FEMEA) TertiaryPurple else Color(0xFF333333),
+                                    color = if (sex == PetSex.FEMEA) TertiaryPurple else themedCardBorder(),
                                     shape = RoundedCornerShape(8.dp)
                                 )
                                 .clickable { sex = PetSex.FEMEA }
                                 .padding(vertical = 12.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("FÊMEA", color = if (sex == PetSex.FEMEA) Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("FÊMEA", color = if (sex == PetSex.FEMEA) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
                     }
                 }
@@ -1300,7 +1289,7 @@ fun EditPetDialog(
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = "Castrado",
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(bottom = 6.dp)
                     )
@@ -1312,34 +1301,34 @@ fun EditPetDialog(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (isCastrated) primaryColor.copy(alpha = 0.2f) else Color(0xFF111111))
+                                .background(if (isCastrated) primaryColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                                 .border(
                                     width = 1.dp,
-                                    color = if (isCastrated) primaryColor else Color(0xFF333333),
+                                    color = if (isCastrated) primaryColor else themedCardBorder(),
                                     shape = RoundedCornerShape(8.dp)
                                 )
                                 .clickable { isCastrated = true }
                                 .padding(vertical = 12.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("Sim", color = if (isCastrated) Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Sim", color = if (isCastrated) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
 
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (!isCastrated) primaryColor.copy(alpha = 0.2f) else Color(0xFF111111))
+                                .background(if (!isCastrated) primaryColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                                 .border(
                                     width = 1.dp,
-                                    color = if (!isCastrated) primaryColor else Color(0xFF333333),
+                                    color = if (!isCastrated) primaryColor else themedCardBorder(),
                                     shape = RoundedCornerShape(8.dp)
                                 )
                                 .clickable { isCastrated = false }
                                 .padding(vertical = 12.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("Não", color = if (!isCastrated) Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Não", color = if (!isCastrated) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
                     }
                 }
@@ -1687,11 +1676,11 @@ fun PetWeightEvolutionChart(
             modifier = modifier
                 .fillMaxWidth()
                 .height(180.dp)
-                .background(Color(0xFF111111), RoundedCornerShape(16.dp))
-                .border(0.5.dp, Color(0xFF222222), RoundedCornerShape(16.dp)),
+                .background(themedCardBackground(), RoundedCornerShape(16.dp))
+                .border(0.5.dp, themedCardBorder(), RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Text("Nenhum dado de peso disponível.", color = Color.Gray, fontSize = 14.sp)
+            Text("Nenhum dado de peso disponível.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
         }
         return
     }
@@ -1721,8 +1710,8 @@ fun PetWeightEvolutionChart(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFF111111))
-            .border(0.5.dp, Color(0xFF222222), RoundedCornerShape(16.dp))
+            .background(themedCardBackground())
+            .border(1.dp, themedCardBorder(), RoundedCornerShape(16.dp))
             .padding(16.dp)
     ) {
         Text(
@@ -1927,7 +1916,7 @@ fun PetHealthDashboard(
     if (isAntipulgasExpired) healthScore -= 15
     if (isVermifugoExpired) healthScore -= 15
     if (isConsultaExpired) healthScore -= 15
-    val weightDouble = latestWeight.toDoubleOrNull() ?: 0.0
+    val weightDouble = latestWeight.toDoubleCleanOrZero()
     if (weightDouble <= 0.0) healthScore -= 10
     healthScore = healthScore.coerceIn(10, 100)
 
@@ -1962,9 +1951,10 @@ fun PetHealthDashboard(
                 modifier = Modifier.size(110.dp),
                 contentAlignment = Alignment.Center
             ) {
+                val trackColor = themedDivider()
                 Canvas(modifier = Modifier.fillMaxSize().padding(6.dp)) {
                     drawArc(
-                        color = Color(0xFF1E1E1E),
+                        color = trackColor,
                         startAngle = -90f,
                         sweepAngle = 360f,
                         useCenter = false,
@@ -2308,8 +2298,8 @@ fun DeletePetConfirmationDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
-                            .background(if (isSelected) accentColor.copy(alpha = 0.15f) else Color(0xFF111111))
-                            .border(0.5.dp, if (isSelected) accentColor else Color(0xFF222222), RoundedCornerShape(8.dp))
+                            .background(if (isSelected) accentColor.copy(alpha = 0.15f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+                            .border(1.dp, if (isSelected) accentColor else themedCardBorder(), RoundedCornerShape(8.dp))
                             .clickable { selectedReason = reason }
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -2319,7 +2309,7 @@ fun DeletePetConfirmationDialog(
                             onClick = { selectedReason = reason },
                             colors = RadioButtonDefaults.colors(
                                 selectedColor = accentColor,
-                                unselectedColor = Color.Gray
+                                unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -2401,7 +2391,7 @@ fun AddPetDialog(
 
     val rgaError = remember(rga) { rga.isNotEmpty() && !petViewModel.validateRga(rga) }
     val microchipError = remember(microchip) { microchip.isNotEmpty() && !petViewModel.validateMicrochip(microchip) }
-    val initialWeight = initialWeightStr.toDoubleOrNull() ?: 0.0
+    val initialWeight = initialWeightStr.toDoubleCleanOrZero()
     val canSave = name.trim().isNotEmpty() && breed.trim().isNotEmpty() &&
             (rga.isEmpty() || petViewModel.validateRga(rga)) &&
             (microchip.isEmpty() || petViewModel.validateMicrochip(microchip))
@@ -2455,14 +2445,7 @@ fun AddPetDialog(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("Nome") },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = primaryColor,
-                        unfocusedBorderColor = Color(0xFF333333),
-                        focusedLabelColor = primaryColor,
-                        unfocusedLabelColor = Color.Gray
-                    ),
+                    colors = themedOutlinedTextFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -2470,14 +2453,7 @@ fun AddPetDialog(
                     value = breed,
                     onValueChange = { breed = it },
                     label = { Text("Raça") },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = primaryColor,
-                        unfocusedBorderColor = Color(0xFF333333),
-                        focusedLabelColor = primaryColor,
-                        unfocusedLabelColor = Color.Gray
-                    ),
+                    colors = themedOutlinedTextFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -2501,14 +2477,7 @@ fun AddPetDialog(
                             }
                         )
                     },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = primaryColor,
-                        unfocusedBorderColor = Color(0xFF333333),
-                        focusedLabelColor = primaryColor,
-                        unfocusedLabelColor = Color.Gray
-                    ),
+                    colors = themedOutlinedTextFieldColors(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
@@ -2522,21 +2491,14 @@ fun AddPetDialog(
                     value = initialWeightStr,
                     onValueChange = { initialWeightStr = it },
                     label = { Text("Peso Inicial (kg)") },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = primaryColor,
-                        unfocusedBorderColor = Color(0xFF333333),
-                        focusedLabelColor = primaryColor,
-                        unfocusedLabelColor = Color.Gray
-                    ),
+                    colors = themedOutlinedTextFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = "Sexo",
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(bottom = 6.dp)
                     )
@@ -2548,34 +2510,34 @@ fun AddPetDialog(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (sex == PetSex.MACHO) PrimaryTeal.copy(alpha = 0.2f) else Color(0xFF111111))
+                                .background(if (sex == PetSex.MACHO) PrimaryTeal.copy(alpha = 0.2f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                                 .border(
                                     width = 1.dp,
-                                    color = if (sex == PetSex.MACHO) PrimaryTeal else Color(0xFF333333),
+                                    color = if (sex == PetSex.MACHO) PrimaryTeal else themedCardBorder(),
                                     shape = RoundedCornerShape(8.dp)
                                 )
                                 .clickable { sex = PetSex.MACHO }
                                 .padding(vertical = 12.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("MACHO", color = if (sex == PetSex.MACHO) Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("MACHO", color = if (sex == PetSex.MACHO) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
 
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (sex == PetSex.FEMEA) TertiaryPurple.copy(alpha = 0.2f) else Color(0xFF111111))
+                                .background(if (sex == PetSex.FEMEA) TertiaryPurple.copy(alpha = 0.2f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                                 .border(
                                     width = 1.dp,
-                                    color = if (sex == PetSex.FEMEA) TertiaryPurple else Color(0xFF333333),
+                                    color = if (sex == PetSex.FEMEA) TertiaryPurple else themedCardBorder(),
                                     shape = RoundedCornerShape(8.dp)
                                 )
                                 .clickable { sex = PetSex.FEMEA }
                                 .padding(vertical = 12.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("FÊMEA", color = if (sex == PetSex.FEMEA) Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("FÊMEA", color = if (sex == PetSex.FEMEA) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
                     }
                 }
@@ -2583,7 +2545,7 @@ fun AddPetDialog(
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = "Castrado",
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(bottom = 6.dp)
                     )
@@ -2595,59 +2557,50 @@ fun AddPetDialog(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (isCastrated) primaryColor.copy(alpha = 0.2f) else Color(0xFF111111))
+                                .background(if (isCastrated) primaryColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                                 .border(
                                     width = 1.dp,
-                                    color = if (isCastrated) primaryColor else Color(0xFF333333),
+                                    color = if (isCastrated) primaryColor else themedCardBorder(),
                                     shape = RoundedCornerShape(8.dp)
                                 )
                                 .clickable { isCastrated = true }
                                 .padding(vertical = 12.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("Sim", color = if (isCastrated) Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Sim", color = if (isCastrated) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
 
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (!isCastrated) primaryColor.copy(alpha = 0.2f) else Color(0xFF111111))
+                                .background(if (!isCastrated) primaryColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                                 .border(
                                     width = 1.dp,
-                                    color = if (!isCastrated) primaryColor else Color(0xFF333333),
+                                    color = if (!isCastrated) primaryColor else themedCardBorder(),
                                     shape = RoundedCornerShape(8.dp)
                                 )
                                 .clickable { isCastrated = false }
                                 .padding(vertical = 12.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("Não", color = if (!isCastrated) Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Não", color = if (!isCastrated) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
                     }
                 }
 
                 OutlinedTextField(
                     value = formatRga(rga),
-                    onValueChange = { input ->
+                    onValueChange = { input: String ->
                         val cleaned = input.filter { it.isDigit() }.take(7)
                         rga = cleaned
                     },
                     label = { Text("RGA (Opcional)") },
                     isError = rgaError,
-                    supportingText = {
-                        if (rgaError) {
-                            Text("Deve ter exatamente 7 dígitos numéricos.", color = MaterialTheme.colorScheme.error)
-                        }
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = primaryColor,
-                        unfocusedBorderColor = Color(0xFF333333),
-                        focusedLabelColor = primaryColor,
-                        unfocusedLabelColor = Color.Gray
-                    ),
+                    supportingText = if (rgaError) {
+                        { Text("Deve ter exatamente 7 dígitos numéricos.", color = MaterialTheme.colorScheme.error) }
+                    } else null,
+                    colors = themedOutlinedTextFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -2661,14 +2614,7 @@ fun AddPetDialog(
                             Text("Deve ter exatamente 15 dígitos numéricos.", color = MaterialTheme.colorScheme.error)
                         }
                     },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = primaryColor,
-                        unfocusedBorderColor = Color(0xFF333333),
-                        focusedLabelColor = primaryColor,
-                        unfocusedLabelColor = Color.Gray
-                    ),
+                    colors = themedOutlinedTextFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -2676,14 +2622,7 @@ fun AddPetDialog(
                     value = notes,
                     onValueChange = { notes = it },
                     label = { Text("Notas / Alergias") },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = primaryColor,
-                        unfocusedBorderColor = Color(0xFF333333),
-                        focusedLabelColor = primaryColor,
-                        unfocusedLabelColor = Color.Gray
-                    ),
+                    colors = themedOutlinedTextFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -2829,8 +2768,8 @@ fun CreationOverlay(
                     modifier = Modifier
                         .size(100.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF151515).copy(alpha = 0.9f))
-                        .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape),
+                        .background(themedOverlayBackground())
+                        .border(1.dp, themedCardBorder(), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(

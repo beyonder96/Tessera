@@ -592,7 +592,7 @@ fun SleepCyclesCard(
             .fillMaxWidth()
             .aspectRatio(1f) // Square card
             .clip(RoundedCornerShape(24.dp))
-            .background(Color(0x0CFFFFFF))
+            .background(themedCardBackground())
             .border(1.dp, themedCardBorder(), RoundedCornerShape(24.dp))
             .padding(16.dp)
     ) {

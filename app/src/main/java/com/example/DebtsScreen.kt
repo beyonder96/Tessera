@@ -1,6 +1,8 @@
 package com.example
 import androidx.compose.material3.MaterialTheme
+import com.example.ui.components.*
 
+import com.example.utils.toDoubleCleanOrZero
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -502,8 +504,8 @@ fun DebtsScreen(
                 modifier = Modifier
                     .fillMaxWidth(0.95f)
                     .clip(RoundedCornerShape(24.dp))
-                    .background(Color(0xFF161A19).copy(alpha = 0.98f))
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(24.dp))
+                    .background(themedOverlayBackground())
+                    .border(1.dp, themedCardBorder(), RoundedCornerShape(24.dp))
                     .padding(20.dp)
             ) {
                 LazyColumn(
@@ -524,11 +526,7 @@ fun DebtsScreen(
                             value = title,
                             onValueChange = { title = it },
                             label = { Text("Nome / Título") },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedBorderColor = SecondaryGold
-                            ),
+                            colors = themedOutlinedTextFieldColors(),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -538,11 +536,7 @@ fun DebtsScreen(
                             value = description,
                             onValueChange = { description = it },
                             label = { Text("Descrição") },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedBorderColor = SecondaryGold
-                            ),
+                            colors = themedOutlinedTextFieldColors(),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -552,11 +546,7 @@ fun DebtsScreen(
                             value = creditor,
                             onValueChange = { creditor = it },
                             label = { Text("Credor") },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedBorderColor = SecondaryGold
-                            ),
+                            colors = themedOutlinedTextFieldColors(),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -567,11 +557,7 @@ fun DebtsScreen(
                             onValueChange = { totalValueStr = it },
                             label = { Text("Valor Total Devido") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedBorderColor = SecondaryGold
-                            ),
+                            colors = themedOutlinedTextFieldColors(),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -583,11 +569,7 @@ fun DebtsScreen(
                                 onValueChange = { totalInstallmentsStr = it },
                                 label = { Text("Parcelas Totais") },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White,
-                                    focusedBorderColor = SecondaryGold
-                                ),
+                                colors = themedOutlinedTextFieldColors(),
                                 modifier = Modifier.weight(1f)
                             )
 
@@ -596,11 +578,7 @@ fun DebtsScreen(
                                 onValueChange = { paidInstallmentsStr = it },
                                 label = { Text("Pagas") },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White,
-                                    focusedBorderColor = SecondaryGold
-                                ),
+                                colors = themedOutlinedTextFieldColors(),
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -614,7 +592,7 @@ fun DebtsScreen(
                             OutlinedButton(
                                 onClick = { showAddDialog = false },
                                 shape = RoundedCornerShape(12.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, themedButtonBorder()),
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text("Cancelar", color = MaterialTheme.colorScheme.onBackground)
@@ -622,7 +600,7 @@ fun DebtsScreen(
 
                             Button(
                                 onClick = {
-                                    val finalVal = totalValueStr.toDoubleOrNull() ?: 0.0
+                                    val finalVal = totalValueStr.toDoubleCleanOrZero()
                                     val totInst = totalInstallmentsStr.toIntOrNull() ?: 1
                                     val paidInst = paidInstallmentsStr.toIntOrNull() ?: 0
                                     
@@ -678,8 +656,8 @@ fun DebtsScreen(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .clip(RoundedCornerShape(24.dp))
-                    .background(Color(0xFF161A19))
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(24.dp))
+                    .background(themedOverlayBackground())
+                    .border(1.dp, themedCardBorder(), RoundedCornerShape(24.dp))
                     .padding(20.dp)
             ) {
                 Column(

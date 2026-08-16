@@ -1,5 +1,6 @@
 package com.example
 import androidx.compose.material3.MaterialTheme
+import com.example.ui.components.*
 
 import android.Manifest
 import android.content.ContentUris
@@ -407,7 +408,7 @@ fun LembretesTab(viewModel: TesseraViewModel, listState: LazyListState) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(24.dp))
-                        .background(Color(0xFF141918))
+                        .background(themedCardBackground())
                         .border(1.dp, Color(0xFFF9A826).copy(alpha = 0.3f), RoundedCornerShape(24.dp))
                         .padding(28.dp),
                     contentAlignment = Alignment.Center
@@ -439,7 +440,7 @@ fun LembretesTab(viewModel: TesseraViewModel, listState: LazyListState) {
                         )
                         Text(
                             text = "Permita o acesso ao calendário para ver seus compromissos e lembretes aqui",
-                            color = Color(0xFF81928F),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 13.sp,
                             textAlign = TextAlign.Center,
                             lineHeight = 20.sp
@@ -470,8 +471,8 @@ fun LembretesTab(viewModel: TesseraViewModel, listState: LazyListState) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(24.dp))
-                        .background(Color(0xFF141918))
-                        .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(24.dp))
+                        .background(themedCardBackground())
+                        .border(1.dp, themedCardBorder(), RoundedCornerShape(24.dp))
                         .padding(32.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -487,13 +488,13 @@ fun LembretesTab(viewModel: TesseraViewModel, listState: LazyListState) {
                         )
                         Text(
                             text = "Agenda livre!",
-                            color = Color(0xFFDFE3E2),
+                            color = MaterialTheme.colorScheme.onBackground,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "Nenhum evento nos próximos 7 dias",
-                            color = Color(0xFF81928F),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 13.sp
                         )
                     }
@@ -531,7 +532,7 @@ fun LembretesTab(viewModel: TesseraViewModel, listState: LazyListState) {
                         Text(
                             text = "${dayEvents.size} evento${if (dayEvents.size > 1) "s" else ""}",
                             fontSize = 11.sp,
-                            color = Color(0xFF5E6D6A)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -553,8 +554,8 @@ fun CalendarEventCard(event: CalendarEvent, dateFormat: SimpleDateFormat) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(Color(0x801E1E1E))
-            .border(1.dp, Color.White.copy(alpha=0.08f), RoundedCornerShape(20.dp))
+            .background(themedCardBackground())
+            .border(1.dp, themedCardBorder(), RoundedCornerShape(20.dp))
             .padding(16.dp),
         verticalAlignment = Alignment.Top
     ) {
@@ -573,7 +574,7 @@ fun CalendarEventCard(event: CalendarEvent, dateFormat: SimpleDateFormat) {
             // Title
             Text(
                 text = event.title,
-                color = Color(0xFFDFE3E2),
+                color = MaterialTheme.colorScheme.onBackground,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 2,
@@ -587,14 +588,14 @@ fun CalendarEventCard(event: CalendarEvent, dateFormat: SimpleDateFormat) {
                 Icon(
                     imageVector = Icons.Outlined.Schedule,
                     contentDescription = null,
-                    tint = Color(0xFF81928F),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = if (event.allDay) "Dia inteiro"
                            else "${dateFormat.format(Date(event.startTime))} — ${dateFormat.format(Date(event.endTime))}",
-                    color = Color(0xFF81928F),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp
                 )
             }
@@ -606,13 +607,13 @@ fun CalendarEventCard(event: CalendarEvent, dateFormat: SimpleDateFormat) {
                     Icon(
                         imageVector = Icons.Outlined.LocationOn,
                         contentDescription = null,
-                        tint = Color(0xFF81928F),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(14.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = event.location,
-                        color = Color(0xFF81928F),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -633,7 +634,7 @@ fun CalendarEventCard(event: CalendarEvent, dateFormat: SimpleDateFormat) {
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = event.calendarName,
-                        color = Color(0xFF5E6D6A),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 11.sp
                     )
                 }
@@ -648,14 +649,14 @@ fun SectionHeader(title: String, icon: ImageVector) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.padding(bottom = 16.dp)
     ) {
-        Icon(icon, contentDescription = null, tint = Color(0xFF81928F), modifier = Modifier.size(16.dp))
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = title,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 2.sp,
-            color = Color(0xFF81928F)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

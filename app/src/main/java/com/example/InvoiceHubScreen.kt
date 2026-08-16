@@ -1,5 +1,6 @@
 package com.example
 import androidx.compose.material3.MaterialTheme
+import com.example.ui.components.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -107,7 +108,7 @@ fun InvoiceHubScreen(
             onDismissRequest = { showPayInvoiceDialog = false },
             title = { Text("Pagar Fatura", color = MaterialTheme.colorScheme.onBackground) },
             text = { Text("Deseja zerar a fatura atual de ${currencyFormat.format(card.usedLimit)}?", color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.7f)) },
-            containerColor = Color(0xFF1E1E1E),
+            containerColor = themedOverlayBackground(),
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.payInvoice(card.id)
@@ -124,7 +125,7 @@ fun InvoiceHubScreen(
         )
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0D0D0D))) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Scaffold(
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -275,7 +276,7 @@ fun InvoiceSummaryCard(card: CreditCard, currencyFormat: NumberFormat) {
 @Composable
 fun CardTransactionItem(transaction: Transaction, currencyFormat: NumberFormat) {
     val isIncome = transaction.isIncome
-    val amountColor = if (isIncome) Color(0xFF81C784) else Color.White
+    val amountColor = if (isIncome) Color(0xFF10B981) else MaterialTheme.colorScheme.onBackground
 
     Row(
         modifier = PremiumGlassModifier

@@ -1,6 +1,8 @@
 package com.example.ui.components
 import androidx.compose.material3.MaterialTheme
 
+import com.example.utils.toDoubleClean
+import com.example.utils.toDoubleCleanOrZero
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -459,16 +461,17 @@ fun ManageAccountsAndCardsBottomSheet(
                     }
                 }
 
-                val canSave = name.isNotBlank() && limitOrBalance.toDoubleOrNull() != null
+                val parsedValue = limitOrBalance.toDoubleClean()
+                val canSave = name.isNotBlank() && parsedValue != null
                 Button(
                     onClick = {
-                        val value = limitOrBalance.toDoubleOrNull() ?: 0.0
+                        val value = parsedValue ?: 0.0
                         when (selectedTab) {
                             0 -> {
                                 viewModel.addBankAccount(name, value, accountType, selectedColor, editingAccount?.id ?: 0)
                             }
                             1 -> {
-                                val used = cardUsedLimit.toDoubleOrNull() ?: 0.0
+                                val used = cardUsedLimit.toDoubleCleanOrZero()
                                 viewModel.addCreditCard(name, value, used, lastFour, selectedColor, holder, editingCard?.id ?: 0)
                             }
                             2 -> {

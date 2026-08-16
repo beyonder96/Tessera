@@ -57,7 +57,7 @@ fun BenefitHubScreen(
         cardTransactions.sortedByDescending { it.timestamp }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0D0D0D))) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Scaffold(
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -176,7 +176,7 @@ fun BenefitSummaryCard(card: BenefitCard, currencyFormat: NumberFormat) {
 @Composable
 fun BenefitTransactionItem(transaction: Transaction, currencyFormat: NumberFormat) {
     val isIncome = transaction.isIncome
-    val amountColor = if (isIncome) Color(0xFF81C784) else Color.White
+    val amountColor = if (isIncome) Color(0xFF10B981) else MaterialTheme.colorScheme.onBackground
 
     Row(
         modifier = PremiumGlassModifier

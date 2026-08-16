@@ -140,8 +140,8 @@ fun DetailedMatchWidget(
                     Box(
                         modifier = Modifier
                             .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.45f))
-                            .border(1.dp, Color.White.copy(alpha = 0.08f), CircleShape)
+                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                            .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f), CircleShape)
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Row(
@@ -150,7 +150,7 @@ fun DetailedMatchWidget(
                         ) {
                             Text(
                                 text = if (isMatchLive) "LIVE" else "PRÓXIMO JOGO",
-                                color = Color(0xFFD4D4D8),
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 1.5.sp
@@ -213,7 +213,7 @@ fun DetailedMatchWidget(
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = m.matchDetail.homeTeamName.uppercase(),
-                            color = Color(0xFFE4E4E7),
+                            color = MaterialTheme.colorScheme.onBackground,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 2.sp,
@@ -229,7 +229,7 @@ fun DetailedMatchWidget(
                     ) {
                         Text(
                             text = if (m.matchDetail.dateFormatted.isNotBlank()) "MATCH-DAY • ${m.matchDetail.dateFormatted.uppercase()}" else "MATCH-DAY",
-                            color = Color(0xFF71717A),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 2.sp
@@ -302,7 +302,7 @@ fun DetailedMatchWidget(
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = m.matchDetail.awayTeamName.uppercase(),
-                            color = Color(0xFFE4E4E7),
+                            color = MaterialTheme.colorScheme.onBackground,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 2.sp,
@@ -317,8 +317,8 @@ fun DetailedMatchWidget(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
-                        .background(Color.Black.copy(alpha = 0.30f))
-                        .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(14.dp))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+                        .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
                         .padding(4.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
@@ -328,14 +328,14 @@ fun DetailedMatchWidget(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(if (isSelected) Color.White.copy(alpha = 0.12f) else Color.Transparent)
+                                .background(if (isSelected) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f) else Color.Transparent)
                                 .clickable { selectedTab = tab }
                                 .padding(vertical = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = tab,
-                                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.5f),
+                                color = if (isSelected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 10.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 letterSpacing = 1.sp
@@ -384,8 +384,8 @@ fun DetailedMatchWidget(
                 )
             }
         }
-    } // close Box
-} // close fun DetailedMatchWidget
+    }
+}
 
 @Composable
 fun MatchSummaryTab(match: DetailedFixture) {
@@ -394,7 +394,7 @@ fun MatchSummaryTab(match: DetailedFixture) {
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
-                .background(Color.Black.copy(alpha = 0.25f))
+                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
@@ -411,7 +411,7 @@ fun MatchSummaryTab(match: DetailedFixture) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color.Black.copy(alpha = 0.25f))
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -440,7 +440,7 @@ fun MatchEventsTab(match: DetailedFixture) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
-                        .background(Color.Black.copy(alpha = 0.2f))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -465,20 +465,20 @@ fun MatchLineupsTab(match: DetailedFixture) {
     } else {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(match.matchDetail.homeTeamName.uppercase(), color = Color(0xFFA1A1AA), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text(match.matchDetail.homeTeamName.uppercase(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 match.homeLineup.take(11).forEach { player ->
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("${player.position ?: "-"}", color = Color.Gray, fontSize = 10.sp, modifier = Modifier.width(16.dp))
-                        Text(player.playerName, color = Color.White, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("${player.position ?: "-"}", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), fontSize = 10.sp, modifier = Modifier.width(16.dp))
+                        Text(player.playerName, color = MaterialTheme.colorScheme.onBackground, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(match.matchDetail.awayTeamName.uppercase(), color = Color(0xFFA1A1AA), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text(match.matchDetail.awayTeamName.uppercase(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 match.awayLineup.take(11).forEach { player ->
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("${player.position ?: "-"}", color = Color.Gray, fontSize = 10.sp, modifier = Modifier.width(16.dp))
-                        Text(player.playerName, color = Color.White, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("${player.position ?: "-"}", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), fontSize = 10.sp, modifier = Modifier.width(16.dp))
+                        Text(player.playerName, color = MaterialTheme.colorScheme.onBackground, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
@@ -550,12 +550,12 @@ fun StandingsCard(
         
         val allStandings = league.standings.firstOrNull() ?: emptyList()
         if (allStandings.isEmpty()) {
-            Text("Sem dados na tabela.", color = Color.White)
+            Text("Sem dados na tabela.", color = MaterialTheme.colorScheme.onBackground)
         } else {
             Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("TIME", color = Color.Gray, fontSize = 10.sp, modifier = Modifier.weight(1f))
-                Text("PTS", color = Color.Gray, fontSize = 10.sp, modifier = Modifier.width(30.dp), textAlign = TextAlign.Center)
-                Text("SG", color = Color.Gray, fontSize = 10.sp, modifier = Modifier.width(30.dp), textAlign = TextAlign.Center)
+                Text("TIME", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, modifier = Modifier.weight(1f))
+                Text("PTS", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, modifier = Modifier.width(30.dp), textAlign = TextAlign.Center)
+                Text("SG", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, modifier = Modifier.width(30.dp), textAlign = TextAlign.Center)
             }
             
             allStandings.take(8).forEach { rank -> 
@@ -568,14 +568,14 @@ fun StandingsCard(
                         .padding(vertical = 6.dp, horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("${rank.rank}", color = if(isFavorite) Color.White else Color.Gray, fontSize = 12.sp, modifier = Modifier.width(20.dp))
+                    Text("${rank.rank}", color = if(isFavorite) Color(0xFFF97316) else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.width(20.dp))
                     if (rank.team.logo != null) {
                         TeamLogo(rank.team.logo, rank.team.name, size = 18)
                         Spacer(modifier = Modifier.width(6.dp))
                     }
-                    Text(rank.team.name, color = Color.White, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                    Text("${rank.points}", color = if(isFavorite) Color(0xFFF97316) else Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(30.dp), textAlign = TextAlign.Center)
-                    Text("${rank.goalsDiff}", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.width(30.dp), textAlign = TextAlign.Center)
+                    Text(rank.team.name, color = MaterialTheme.colorScheme.onBackground, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    Text("${rank.points}", color = if(isFavorite) Color(0xFFF97316) else MaterialTheme.colorScheme.onBackground, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(30.dp), textAlign = TextAlign.Center)
+                    Text("${rank.goalsDiff}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.width(30.dp), textAlign = TextAlign.Center)
                 }
             }
         }

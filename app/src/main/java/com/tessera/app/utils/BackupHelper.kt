@@ -2,12 +2,15 @@ package com.tessera.app.utils
 
 import android.content.Context
 import android.net.Uri
+import com.example.data.AppDatabase
 import java.io.FileInputStream
 
 object BackupHelper {
     fun exportDatabase(context: Context, uri: Uri) {
         try {
-            // O nome deve ser exatamente o definido no seu AppDatabase ("tessera_database.db")
+            // Fechar instância para forçar flush e checkpoint do WAL no arquivo principal
+            AppDatabase.closeAndClearInstance()
+            
             val dbFile = context.getDatabasePath("tessera_database.db") 
             if (dbFile.exists()) {
                 FileInputStream(dbFile).use { inputStream ->

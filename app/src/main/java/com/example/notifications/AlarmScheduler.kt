@@ -96,13 +96,14 @@ object AlarmScheduler {
         if (pendingIntent != null) {
             alarmManager.cancel(pendingIntent)
             pendingIntent.cancel()
-            Log.d("AlarmScheduler", "No alarm found to cancel for medication: $medName")
+            Log.d("AlarmScheduler", "Alarm cancelled successfully for medication: $medName")
         }
     }
 
     fun scheduleVrAlarm(context: Context, resetDate: Int) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(context, ReminderReceiver::class.java).apply {
+            putExtra("REMINDER_TYPE", "VR_RESET")
             putExtra("NOTIFICATION_TITLE", "Vale Refeição")
             putExtra("NOTIFICATION_MESSAGE", "Chegou o dia de atualizar seu saldo do Vale Refeição no Tessera!")
         }

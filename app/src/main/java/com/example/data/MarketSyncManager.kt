@@ -10,6 +10,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -33,6 +34,7 @@ class MarketSyncManager(
 
     private var activeListId: String? = null
     private var isUpdatingFromRemote = false
+    private var localFlowJob: Job? = null
 
     enum class SyncStatus {
         INACTIVE,
@@ -90,33 +92,33 @@ class MarketSyncManager(
     }
 
     fun startSync(listId: String) {
-        if (db == null) {
-            Log.w("MarketSyncManager", "Cannot start sync: Firebase not configured")
-            _syncStatus.value = SyncStatus.ERROR
+        if (!_isConfigured.value || db == null) {
+            Log.w("MarketSyncManager", "Firebase not configured. Cannot start sync.")
             return
         }
-
-        if (activeListId == listId) return // Already syncing this list
 
         stopSync()
         activeListId = listId
         _syncStatus.value = SyncStatus.CONNECTING
 
-        val doc = db!!.collection("market_lists").document(listId)
-        docRef = doc
+        val document = db!!.collection("market_lists").document(listId)
+        docRef = document
 
-        firestoreListener = doc.addSnapshotListener { snapshot, error ->
+        // 1. Listen to Remote Changes (Firestore)
+        firestoreListener = document.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                Log.e("MarketSyncManager", "Firestore listener error: ${error.message}")
+                Log.e("MarketSyncManager", "Firestore listen failed: ${error.message}")
                 _syncStatus.value = SyncStatus.ERROR
                 return@addSnapshotListener
             }
 
             if (snapshot != null && snapshot.exists()) {
                 _syncStatus.value = SyncStatus.CONNECTED
-                val remoteItems = snapshot.get("items") as? List<Map<String, Any>> ?: emptyList()
-                scope.launch {
-                    syncRemoteToLocal(remoteItems)
+                val remoteItems = snapshot.get("items") as? List<Map<String, Any>>
+                if (remoteItems != null) {
+                    scope.launch {
+                        syncRemoteToLocal(remoteItems)
+                    }
                 }
             } else {
                 // If document does not exist, upload current local list to initialize it
@@ -128,7 +130,7 @@ class MarketSyncManager(
         }
 
         // 2. Listen to Local Changes (observe Room Flow)
-        scope.launch {
+        localFlowJob = scope.launch {
             repository.pendingMarketItems.collect { localItems ->
                 if (!isUpdatingFromRemote && activeListId != null) {
                     uploadLocalList(localItems)
@@ -140,6 +142,8 @@ class MarketSyncManager(
     fun stopSync() {
         firestoreListener?.remove()
         firestoreListener = null
+        localFlowJob?.cancel()
+        localFlowJob = null
         docRef = null
         activeListId = null
         _syncStatus.value = SyncStatus.INACTIVE
