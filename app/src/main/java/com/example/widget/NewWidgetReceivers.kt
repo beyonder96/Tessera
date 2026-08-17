@@ -26,3 +26,7 @@ class HealthWidgetReceiver : GlanceAppWidgetReceiver() {
 class GoalsWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = GoalsGlanceWidget()
 }
+
+class FootballWidgetReceiver : GlanceAppWidgetReceiver() {
+    override val glanceAppWidget: GlanceAppWidget = FootballGlanceWidget()
+}

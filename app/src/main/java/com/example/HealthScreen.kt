@@ -427,7 +427,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
         @OptIn(ExperimentalMaterial3Api::class)
         ModalBottomSheet(
             onDismissRequest = { showSleepDialog = false },
-            containerColor = Color.Black,
+            containerColor = themedOverlayBackground(),
             scrimColor = Color.Black.copy(alpha = 0.5f)
         ) {
             Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp).padding(bottom = 32.dp)) {
@@ -978,11 +978,11 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                 )
 
                 Scaffold(
-                    containerColor = Color.Black,
+                    containerColor = MaterialTheme.colorScheme.background,
                     contentWindowInsets = WindowInsets(0, 0, 0, 0),
                     topBar = {}
                 ) { innerPadding ->
-                    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+                    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
                         LazyColumn(
                             state = listState,
                             modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
@@ -1098,7 +1098,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                                             }
                                         }
                                     }
-                                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x1AFFFFFF)))
+                                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(themedDivider()))
                                     Spacer(modifier = Modifier.height(16.dp))
                                     
                                     if (medications.isEmpty()) {
@@ -1159,7 +1159,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                                             translationY = (1f - compactAlpha) * (-20f)
                                         }
                                         .clip(RoundedCornerShape(32.dp))
-                                        .background(Color.Black.copy(alpha = 0.75f))
+                                        .background(themedNavBarBackground())
                                         .border(1.dp, PrimaryTeal.copy(alpha = 0.5f), RoundedCornerShape(32.dp))
                                         .padding(horizontal = 24.dp, vertical = 12.dp),
                                     horizontalArrangement = Arrangement.Center,

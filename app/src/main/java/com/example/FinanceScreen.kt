@@ -100,6 +100,8 @@ fun FinanceScreen(
     
     var selectedFilterName by remember { mutableStateOf<String?>(null) }
     var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
+    var showShareFinanceModal by remember { mutableStateOf(false) }
+    val financeSyncStatus by viewModel.supabaseFinanceSync.syncStatus.collectAsStateWithLifecycle()
 
     if (showDebtsPanel) {
         DebtsScreen(
@@ -807,6 +809,15 @@ fun FinanceScreen(
                                 modifier = Modifier.size(20.dp)
                             )
                         }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        IconButton(onClick = { showShareFinanceModal = true }, modifier = Modifier.size(28.dp)) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Compartilhar Online",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -847,6 +858,17 @@ fun FinanceScreen(
                 }
             }
         }
+    }
+
+    if (showShareFinanceModal) {
+        com.example.ui.components.ShareOnlineModal(
+            title = "Dashboard Financeiro Online",
+            subtitle = "Compartilhe o link para visualizar o resumo financeiro em tempo real no navegador.",
+            shareUrl = viewModel.supabaseFinanceSync.getShareUrl(),
+            isSyncing = financeSyncStatus == com.example.data.supabase.SupabaseFinanceSyncManager.SyncStatus.SYNCING,
+            onDismiss = { showShareFinanceModal = false },
+            onRegenerateLink = { viewModel.supabaseFinanceSync.generateNewShareId() }
+        )
     }
     }
 }

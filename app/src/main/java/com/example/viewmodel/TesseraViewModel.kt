@@ -47,10 +47,17 @@ class TesseraViewModel(
 ) : ViewModel() {
 
     val syncManager = com.example.data.MarketSyncManager(applicationContext, repository)
+    val supabaseMarketSync = com.example.data.supabase.SupabaseMarketSyncManager(applicationContext, repository)
+    val supabaseFinanceSync = com.example.data.supabase.SupabaseFinanceSyncManager(applicationContext, repository)
+
     private val marketSharedPrefs = applicationContext.getSharedPreferences("tessera_market_prefs", Context.MODE_PRIVATE)
     val marketListId = MutableStateFlow<String?>(marketSharedPrefs.getString("shared_list_id", null))
 
     init {
+        com.example.data.supabase.SupabaseClientProvider.init(applicationContext)
+        supabaseMarketSync.startContinuousSync()
+        supabaseFinanceSync.startContinuousSync()
+
         marketListId.value?.let { id ->
             syncManager.startSync(id)
         }
@@ -197,7 +204,8 @@ class TesseraViewModel(
         val temp: Double,
         val description: String,
         val city: String,
-        val weatherCode: Int
+        val weatherCode: Int,
+        val isDay: Boolean = true
     )
 
     private val _weatherState = MutableStateFlow<WeatherInfo?>(null)
@@ -406,48 +414,57 @@ class TesseraViewModel(
                 val currentWeather = weatherJson.getJSONObject("current_weather")
                 val temp = currentWeather.getDouble("temperature")
                 val code = currentWeather.getInt("weathercode")
+                val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+                val isDay = if (currentWeather.has("is_day")) {
+                    currentWeather.getInt("is_day") == 1
+                } else {
+                    currentHour in 6..18
+                }
                 
-                val description = getWeatherDescription(code)
+                val description = getWeatherDescription(code, isDay)
                 
                 _weatherState.value = WeatherInfo(
                     temp = temp,
                     description = description,
                     city = city,
-                    weatherCode = code
+                    weatherCode = code,
+                    isDay = isDay
                 )
                 _userLocation.value = lat to lon
             } catch (e: Exception) {
                 Log.e("TesseraViewModel", "Erro ao buscar clima", e)
                 // Default fallback based on local time
                 val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+                val isDayFallback = hour in 6..18
                 val (fallbackTemp, fallbackDesc) = when (hour) {
-                    in 5..11 -> 21.0 to "Manhã Fresca"
+                    in 6..11 -> 21.0 to "Manhã Fresca"
                     in 12..17 -> 26.0 to "Sol e Nuvens"
                     in 18..19 -> 22.0 to "Pôr do Sol"
-                    else -> 18.0 to "Céu Limpo"
+                    else -> 18.0 to "Noite Limpa"
                 }
                 _weatherState.value = WeatherInfo(
                     temp = fallbackTemp,
                     description = fallbackDesc,
                     city = "Local",
-                    weatherCode = 0
+                    weatherCode = 0,
+                    isDay = isDayFallback
                 )
                 _userLocation.value = -23.5505 to -46.6333
             }
         }
     }
 
-    private fun getWeatherDescription(code: Int): String {
+    private fun getWeatherDescription(code: Int, isDay: Boolean = true): String {
         return when (code) {
-            0 -> "Céu Limpo"
-            1, 2, 3 -> "Parcialmente Nublado"
+            0 -> if (isDay) "Céu Limpo" else "Noite Limpa"
+            1, 2, 3 -> if (isDay) "Parcialmente Nublado" else "Noite Parcialmente Nublada"
             45, 48 -> "Nevoeiro"
             51, 53, 55 -> "Garoa"
             61, 63, 65 -> "Chuva"
             71, 73, 75 -> "Neve"
             80, 81, 82 -> "Pancadas de Chuva"
             95, 96, 99 -> "Tempestade"
-            else -> "Céu Limpo"
+            else -> if (isDay) "Céu Limpo" else "Noite Limpa"
         }
     }
 
@@ -2045,6 +2062,56 @@ class TesseraViewModel(
                     _featuredMatch.value = detailedFixture
                 } else {
                     Log.e("TesseraViewModel", "Nenhuma partida encontrada para o time no TheSportsDB")
+                }
+
+                // 3. Busca Tabela de Classificação do Brasileirão Série A (TheSportsDB com fallback API-Football)
+                try {
+                    val tableResponse = com.example.data.TheSportsDbApi.service.getLeagueTable("4351", "2024")
+                    val tableItems = tableResponse.table ?: emptyList()
+                    if (tableItems.isNotEmpty()) {
+                        val standingRanks = tableItems.mapIndexed { index, item ->
+                            com.example.data.apifootball.StandingTeamRank(
+                                rank = item.intRank?.toIntOrNull() ?: (index + 1),
+                                team = com.example.data.apifootball.TeamInfo(
+                                    id = item.idTeam?.toLongOrNull() ?: index.toLong(),
+                                    name = item.strTeam ?: "Time",
+                                    logo = item.strBadge ?: item.strLogo
+                                ),
+                                points = item.intPoints?.toIntOrNull() ?: 0,
+                                goalsDiff = item.intGoalDifference?.toIntOrNull() ?: 0,
+                                group = "Brasileirão Série A",
+                                form = item.strForm,
+                                status = null,
+                                description = item.strDescription
+                            )
+                        }
+                        val standingsData = com.example.data.apifootball.StandingsData(
+                            league = com.example.data.apifootball.LeagueStandingsInfo(
+                                id = 4351L,
+                                name = "Brasileirão Série A",
+                                country = "Brasil",
+                                logo = "https://www.thesportsdb.com/images/media/league/badge/2d3b5b1535384163.png",
+                                season = 2024,
+                                standings = listOf(standingRanks)
+                            )
+                        )
+                        _matchStandings.value = standingsData
+                    } else {
+                        val apiFootballResult = fixtureRepository.getStandings(71L, 2024)
+                        apiFootballResult.onSuccess { data ->
+                            _matchStandings.value = data
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("TesseraViewModel", "Erro ao carregar tabela TheSportsDB, tentando API-Football", e)
+                    try {
+                        val apiFootballResult = fixtureRepository.getStandings(71L, 2024)
+                        apiFootballResult.onSuccess { data ->
+                            _matchStandings.value = data
+                        }
+                    } catch (e2: Exception) {
+                        Log.e("TesseraViewModel", "Erro no fallback API-Football Standings", e2)
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("TesseraViewModel", "Erro na API de Futebol: ${e.message}")

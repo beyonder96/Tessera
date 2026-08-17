@@ -19,15 +19,16 @@ import kotlin.math.sin
 import kotlin.random.Random
 
 enum class WeatherEffectType {
-    SUN, RAIN, THUNDER, CLOUDS, SNOW, WIND, NONE
+    SUN, NIGHT_STARS, RAIN, THUNDER, CLOUDS, SNOW, WIND, NONE
 }
 
 @Composable
 fun WeatherParticleEffects(
     description: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isDay: Boolean = true
 ) {
-    val effectType = remember(description) {
+    val effectType = remember(description, isDay) {
         val lower = description.lowercase()
         when {
             lower.contains("thunder") || lower.contains("storm") || lower.contains("tempestade") || lower.contains("trovoada") -> WeatherEffectType.THUNDER
@@ -35,8 +36,9 @@ fun WeatherParticleEffects(
             lower.contains("snow") || lower.contains("ice") || lower.contains("neve") || lower.contains("gelo") -> WeatherEffectType.SNOW
             lower.contains("wind") || lower.contains("breeze") || lower.contains("vento") || lower.contains("ventania") -> WeatherEffectType.WIND
             lower.contains("cloud") || lower.contains("fog") || lower.contains("haze") || lower.contains("mist") || lower.contains("nublado") || lower.contains("neblina") || lower.contains("névoa") -> WeatherEffectType.CLOUDS
+            !isDay || lower.contains("noite") || lower.contains("estrel") || lower.contains("lua") -> WeatherEffectType.NIGHT_STARS
             lower.contains("clear") || lower.contains("sun") || lower.contains("summer") || lower.contains("limpo") || lower.contains("sol") || lower.contains("claro") -> WeatherEffectType.SUN
-            else -> WeatherEffectType.NONE
+            else -> if (isDay) WeatherEffectType.SUN else WeatherEffectType.NIGHT_STARS
         }
     }
 
@@ -56,6 +58,7 @@ fun WeatherParticleEffects(
     Canvas(modifier = modifier.fillMaxSize()) {
         when (effectType) {
             WeatherEffectType.SUN -> drawAuraSolar(time)
+            WeatherEffectType.NIGHT_STARS -> drawNightStars(time)
             WeatherEffectType.RAIN -> drawGlassRain(time)
             WeatherEffectType.THUNDER -> drawCinematicLightning(time)
             WeatherEffectType.CLOUDS -> drawVolumetricFog(time)
@@ -94,6 +97,47 @@ private fun DrawScope.drawAuraSolar(time: Float) {
         radius = coreRadius,
         blendMode = BlendMode.Screen
     )
+}
+
+// 1.1 Noite Estrelada / Lunar
+private fun DrawScope.drawNightStars(time: Float) {
+    val starCount = 35
+    val centerOffset = Offset(size.width * 0.8f, size.height * 0.35f)
+    val moonGlowRadius = size.width * 0.25f
+    
+    // Brilho da Lua
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(
+                Color(0xFF818CF8).copy(alpha = 0.18f),
+                Color(0xFF38BDF8).copy(alpha = 0.06f),
+                Color.Transparent
+            ),
+            center = centerOffset,
+            radius = moonGlowRadius
+        ),
+        center = centerOffset,
+        radius = moonGlowRadius,
+        blendMode = BlendMode.Screen
+    )
+    
+    // Estrelas cintilantes
+    for (i in 0 until starCount) {
+        val seed = i * 149.3f
+        val x = (seed * 17) % size.width
+        val y = (seed * 23) % size.height
+        val twinkleSpeed = 0.08f + (i % 5) * 0.03f
+        val twinkle = (sin(time * twinkleSpeed + i) + 1f) / 2f
+        val radius = 1f + (i % 3) * 0.8f
+        val starAlpha = (0.25f + twinkle * 0.75f).coerceIn(0f, 1f)
+        
+        drawCircle(
+            color = Color(0xFFE2E8F0).copy(alpha = starAlpha),
+            center = Offset(x, y),
+            radius = radius,
+            blendMode = BlendMode.Screen
+        )
+    }
 }
 
 // 2. Chuva (Fios de Vidro)

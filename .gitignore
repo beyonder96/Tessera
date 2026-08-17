@@ -1,18 +1,70 @@
+# ==============================================================================
+# TESSERA - Git Ignore
+# ==============================================================================
+
+# --- Android & Gradle ---
 *.iml
-.gradle
-.kotlin
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
+.gradle/
+.kotlin/
+build/
 /build
+app/build/
 /captures
-.externalNativeBuild
-.cxx
-local.properties
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+output-metadata.json
+
+# --- Environment & Credentials ---
 .env
-debug.keystore
+.env.*
+!.env.example
+local.properties
+/local.properties
+*.jks
+*.keystore
+debug.keystore*
+*.base64
+
+# --- Web Module (Vite + React + Node) ---
+web/node_modules/
+node_modules/
+web/dist/
+dist/
+web/.env
+web/.env.*
+!web/.env.example
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- IDEs & Editors ---
+.idea/
+!.idea/codeStyles/
+!.idea/misc.xml
+*.ipr
+*.iws
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- Logs & Temp Files ---
+*.log
+hs_err_pid*.log
+build_output*.txt
+cookies.txt
+scratch.*
+
+# --- OS Specific ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

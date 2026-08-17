@@ -101,6 +101,8 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
     val coroutineScope = rememberCoroutineScope()
     var showAddDialog by remember { mutableStateOf(false) }
     var showCheckoutDebitDialog by remember { mutableStateOf(false) }
+    var showShareOnlineModal by remember { mutableStateOf(false) }
+    val syncStatus by viewModel.supabaseMarketSync.syncStatus.collectAsStateWithLifecycle()
 
     val selectedTab = pagerState.currentPage
     val cartTotal = shoppingItems.filter { it.isChecked }.sumOf { it.price * it.quantity }
@@ -143,7 +145,8 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                     coroutineScope.launch { pagerState.animateScrollToPage(index) }
                 },
                 totalItemsCount = pendingItems.size + shoppingItems.size,
-                cartCheckedCount = shoppingItems.count { it.isChecked }
+                cartCheckedCount = shoppingItems.count { it.isChecked },
+                onShareClick = { showShareOnlineModal = true }
             )
         },
         bottomBar = {
@@ -230,6 +233,18 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                 }
             )
         }
+
+        // Share Online Modal
+        if (showShareOnlineModal) {
+            com.example.ui.components.ShareOnlineModal(
+                title = "Lista de Mercado Online",
+                subtitle = "Compartilhe o link para acompanhar ou marcar itens em tempo real no navegador.",
+                shareUrl = viewModel.supabaseMarketSync.getShareUrl(),
+                isSyncing = syncStatus == com.example.data.supabase.SupabaseMarketSyncManager.SyncStatus.SYNCING,
+                onDismiss = { showShareOnlineModal = false },
+                onRegenerateLink = { viewModel.supabaseMarketSync.generateNewShareId() }
+            )
+        }
     }
 }
 
@@ -239,7 +254,8 @@ fun MarketHeader(
     selectedTab: Int,
     onTabSelect: (Int) -> Unit,
     totalItemsCount: Int,
-    cartCheckedCount: Int
+    cartCheckedCount: Int,
+    onShareClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -289,20 +305,41 @@ fun MarketHeader(
                 }
             }
 
-            // Header Status Pill
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
-                    .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = "$cartCheckedCount / $totalItemsCount no carrinho",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
+                // Share Online Button
+                IconButton(
+                    onClick = onShareClick,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "Compartilhar Online",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                // Header Status Pill
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+                        .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "$cartCheckedCount / $totalItemsCount",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
             }
         }
 

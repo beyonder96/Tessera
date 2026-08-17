@@ -33,11 +33,14 @@ fun PremiumWeatherWidget(weatherState: TesseraViewModel.WeatherInfo?) {
     val temp = weatherState?.temp?.toInt() ?: 23
     val rawDesc = weatherState?.description ?: "Parcialmente Nublado"
     val city = weatherState?.city ?: "São Paulo"
+    val isDay = weatherState?.isDay ?: true
 
     // Determine display header text
-    val headerText = remember(rawDesc) {
-        if (rawDesc.contains("Sun", ignoreCase = true) || rawDesc.contains("Clear", ignoreCase = true) || rawDesc.contains("Summer", ignoreCase = true)) {
-            "SUMMER"
+    val headerText = remember(rawDesc, isDay) {
+        if (!isDay && (rawDesc.contains("Limpo", ignoreCase = true) || rawDesc.contains("Noite", ignoreCase = true))) {
+            "NOITE ESTRELADA"
+        } else if (isDay && (rawDesc.contains("Sun", ignoreCase = true) || rawDesc.contains("Clear", ignoreCase = true) || rawDesc.contains("Limpo", ignoreCase = true))) {
+            "CÉU LIMPO"
         } else {
             rawDesc.uppercase()
         }
@@ -53,20 +56,30 @@ fun PremiumWeatherWidget(weatherState: TesseraViewModel.WeatherInfo?) {
         )
     }
 
-    // Thermal UI - Gradient for the temperature numbers
-    val tempBrush = remember {
-        Brush.verticalGradient(
-            colors = listOf(
-                Color(0xFFFFFFFF),
-                Color(0xFFFF5E00),
-                Color(0xFFCC1100)
+    // Thermal UI - Gradient for the temperature numbers (adaptado dia / noite)
+    val tempBrush = remember(isDay) {
+        if (isDay) {
+            Brush.verticalGradient(
+                colors = listOf(
+                    Color(0xFFFFFFFF),
+                    Color(0xFFFF5E00),
+                    Color(0xFFCC1100)
+                )
             )
-        )
+        } else {
+            Brush.verticalGradient(
+                colors = listOf(
+                    Color(0xFFFFFFFF),
+                    Color(0xFF38BDF8),
+                    Color(0xFF6366F1)
+                )
+            )
+        }
     }
 
-    val glowRadialInner = Color(0xFFFF5E00)
-    val glowRadialOuter = Color(0xFF990000)
-    val glowLine = Color(0xFFFF3300)
+    val glowRadialInner = if (isDay) Color(0xFFFF5E00) else Color(0xFF38BDF8)
+    val glowRadialOuter = if (isDay) Color(0xFF990000) else Color(0xFF1E1B4B)
+    val glowLine = if (isDay) Color(0xFFFF3300) else Color(0xFF818CF8)
 
     // Animated pointer needle angle (mapping temp 0..50°C to -105°..+105°)
     val targetAngle = remember(temp) {
@@ -91,6 +104,7 @@ fun PremiumWeatherWidget(weatherState: TesseraViewModel.WeatherInfo?) {
         // Native Particle Weather Animation
         WeatherParticleEffects(
             description = rawDesc,
+            isDay = isDay,
             modifier = Modifier.fillMaxSize()
         )
 

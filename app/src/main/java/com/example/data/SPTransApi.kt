@@ -114,8 +114,13 @@ data class SavedBusLine(
 
 object SPTransApi {
     private const val BASE_URL = "https://api.olhovivo.sptrans.com.br/v2.1/"
-    // TODO: Insira aqui o seu token gerado no painel da SPTrans (Olho Vivo)
-    val API_TOKEN = com.example.BuildConfig.SPTRANS_TOKEN
+    private const val DEFAULT_TOKEN = "fc7a53cdc1cce061cc38365f4791b5f7d1977e4c21001feb964b76761bb0d8cc"
+    
+    val API_TOKEN: String
+        get() {
+            val buildToken = com.example.BuildConfig.SPTRANS_TOKEN
+            return if (buildToken.isNotBlank() && !buildToken.contains("MY_")) buildToken else DEFAULT_TOKEN
+        }
 
     private val cookieJar = object : CookieJar {
         private val cookies = mutableListOf<Cookie>()
@@ -133,6 +138,18 @@ object SPTransApi {
 
     val okHttpClient = OkHttpClient.Builder()
         .cookieJar(cookieJar)
+        .addInterceptor { chain ->
+            val original = chain.request()
+            val request = if (original.method == "POST" && (original.body == null || original.body?.contentLength() == 0L)) {
+                original.newBuilder()
+                    .header("Content-Length", "0")
+                    .post(okhttp3.RequestBody.create(null, ByteArray(0)))
+                    .build()
+            } else {
+                original
+            }
+            chain.proceed(request)
+        }
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .build()

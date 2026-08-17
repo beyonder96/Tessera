@@ -72,6 +72,6 @@ class ExampleRobolectricTest {
             }
         }
         composeTestRule.waitForIdle()
-        composeTestRule.onRoot().captureRoboImage("app/src/test/screenshots/bottom_nav_bar.png")
+        composeTestRule.onRoot().captureRoboImage("src/test/screenshots/bottom_nav_bar.png")
     }
 }

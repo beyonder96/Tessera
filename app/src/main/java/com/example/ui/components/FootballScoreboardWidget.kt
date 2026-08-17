@@ -8,6 +8,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -540,42 +542,133 @@ fun StandingsCard(
     }
     
     val league = standingsData.league
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (league.logo != null) {
-                TeamLogo(league.logo, league.name, size = 24)
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 280.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (league.logo != null) {
+                    TeamLogo(league.logo, league.name, size = 22)
+                }
+                Text(
+                    text = league.name.uppercase(),
+                    color = MaterialTheme.colorScheme.onBackground,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
             }
-            Text(text = league.name.uppercase(), color = Color(0xFFA1A1AA), fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+            Text(
+                text = "${league.season}",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium
+            )
         }
         
         val allStandings = league.standings.firstOrNull() ?: emptyList()
         if (allStandings.isEmpty()) {
-            Text("Sem dados na tabela.", color = MaterialTheme.colorScheme.onBackground)
+            Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                Text("Sem dados na tabela.", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f), fontSize = 12.sp)
+            }
         } else {
-            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("TIME", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, modifier = Modifier.weight(1f))
-                Text("PTS", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, modifier = Modifier.width(30.dp), textAlign = TextAlign.Center)
-                Text("SG", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, modifier = Modifier.width(30.dp), textAlign = TextAlign.Center)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("#", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, modifier = Modifier.width(22.dp), textAlign = TextAlign.Center)
+                Text("CLUBE", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, modifier = Modifier.weight(1f))
+                Text("PTS", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, modifier = Modifier.width(32.dp), textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
+                Text("SG", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, modifier = Modifier.width(28.dp), textAlign = TextAlign.Center)
             }
             
-            allStandings.take(8).forEach { rank -> 
-                val isFavorite = rank.team.name.equals(homeTeamName, ignoreCase = true) || rank.team.name.equals(awayTeamName, ignoreCase = true)
+            allStandings.forEach { rank -> 
+                val isFavorite = rank.team.name.equals(homeTeamName, ignoreCase = true) || rank.team.name.equals(awayTeamName, ignoreCase = true) || rank.team.name.contains("Flamengo", ignoreCase = true)
+                val zoneBorderColor = when {
+                    rank.rank <= 4 -> Color(0xFF10B981) // Libertadores G4
+                    rank.rank in 5..6 -> Color(0xFF38BDF8) // Pré-Libertadores
+                    rank.rank in 7..12 -> Color(0xFF6366F1) // Sul-Americana
+                    rank.rank >= 17 -> Color(0xFFEF4444) // Rebaixamento Z4
+                    else -> Color.Transparent
+                }
+
                 Row(
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
                         .clip(RoundedCornerShape(8.dp))
                         .background(if (isFavorite) Color(0xFFF97316).copy(alpha = 0.15f) else Color.Transparent)
-                        .border(1.dp, if (isFavorite) Color(0xFFF97316).copy(alpha = 0.3f) else Color.Transparent, RoundedCornerShape(8.dp))
-                        .padding(vertical = 6.dp, horizontal = 4.dp),
+                        .border(
+                            1.dp,
+                            if (isFavorite) Color(0xFFF97316).copy(alpha = 0.4f) else Color.Transparent,
+                            RoundedCornerShape(8.dp)
+                        )
+                        .padding(vertical = 5.dp, horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("${rank.rank}", color = if(isFavorite) Color(0xFFF97316) else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.width(20.dp))
+                    Box(
+                        modifier = Modifier
+                            .width(22.dp)
+                            .height(18.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (zoneBorderColor != Color.Transparent) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.CenterStart)
+                                    .width(3.dp)
+                                    .height(12.dp)
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(zoneBorderColor)
+                            )
+                        }
+                        Text(
+                            text = "${rank.rank}",
+                            color = if (isFavorite) Color(0xFFF97316) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.sp,
+                            fontWeight = if (isFavorite) FontWeight.Bold else FontWeight.Normal,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
                     if (rank.team.logo != null) {
                         TeamLogo(rank.team.logo, rank.team.name, size = 18)
                         Spacer(modifier = Modifier.width(6.dp))
                     }
-                    Text(rank.team.name, color = MaterialTheme.colorScheme.onBackground, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                    Text("${rank.points}", color = if(isFavorite) Color(0xFFF97316) else MaterialTheme.colorScheme.onBackground, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(30.dp), textAlign = TextAlign.Center)
-                    Text("${rank.goalsDiff}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.width(30.dp), textAlign = TextAlign.Center)
+                    Text(
+                        text = rank.team.name,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        fontSize = 12.sp,
+                        fontWeight = if (isFavorite) FontWeight.Bold else FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = "${rank.points}",
+                        color = if (isFavorite) Color(0xFFF97316) else MaterialTheme.colorScheme.onBackground,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.width(32.dp),
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = "${rank.goalsDiff}",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp,
+                        modifier = Modifier.width(28.dp),
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
         }

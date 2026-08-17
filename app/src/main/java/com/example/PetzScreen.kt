@@ -184,7 +184,7 @@ fun PetzScreen(
     val latestWeight = weightHistory.lastOrNull()?.weight?.toString() ?: "0.0"
 
     Scaffold(
-        containerColor = Color.Black,
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { innerPadding ->
         if (activePet == null) {
@@ -199,14 +199,6 @@ fun PetzScreen(
         } else {
             val isMarie = activePet.name == "Marie"
             val accentColor = if (isMarie) TertiaryPurple else PrimaryTeal
-            val ageStr = calculateAge(activePet.birthDate)
-
-            // Convert file:// string to File for Coil to avoid permission caching issues
-            val imageModel: Any = if (activePet.photoUri.startsWith("file://")) {
-                File(Uri.parse(activePet.photoUri).path ?: "")
-            } else {
-                activePet.photoUri
-            }
 
             var totalDrag by remember { mutableStateOf(0f) }
             Box(
@@ -247,7 +239,7 @@ fun PetzScreen(
                 }
 
                 Box(modifier = Modifier.fillMaxSize()) {
-                    // Hero Image with Fade to Black
+                    // Hero Image with Fade to Theme Background
                     val scrollOffset = scrollState.value
                     val baseBlur = (scrollOffset * 0.04f).coerceIn(0f, 16f)
                     val blurRadius = (if (isCreatingPet) baseBlur + 16f else baseBlur).dp
@@ -300,7 +292,11 @@ fun PetzScreen(
                                 .fillMaxSize()
                                 .background(
                                     Brush.verticalGradient(
-                                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.5f), Color.Black),
+                                        colors = listOf(
+                                            Color.Transparent,
+                                            MaterialTheme.colorScheme.background.copy(alpha = 0.6f),
+                                            MaterialTheme.colorScheme.background
+                                        ),
                                         startY = 200f
                                     )
                                 )
@@ -662,7 +658,7 @@ fun PetzScreen(
                                         translationY = (1f - compactAlpha) * (-20f)
                                     }
                                     .clip(RoundedCornerShape(32.dp))
-                                    .background(Color.Black.copy(alpha = 0.75f))
+                                    .background(themedNavBarBackground())
                                     .border(1.dp, accentColor.copy(alpha = 0.5f), RoundedCornerShape(32.dp))
                                     .padding(horizontal = 24.dp, vertical = 12.dp),
                                 horizontalArrangement = Arrangement.Center,

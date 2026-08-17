@@ -21,6 +21,7 @@ import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
+import androidx.glance.layout.width
 import androidx.glance.layout.padding
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
@@ -118,14 +119,20 @@ fun DailyWidgetContent(context: Context, balance: Double, steps: Long, petComple
 
     val calendar = Calendar.getInstance()
     val dayOfMonth = calendar.get(Calendar.DAY_OF_MONTH)
-    val monthName = calendar.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale("pt", "BR"))
+    val monthName = calendar.getDisplayName(Calendar.MONTH, Calendar.SHORT, Locale("pt", "BR"))?.replace(".", "")
+
+    val bgProvider = androidx.glance.color.ColorProvider(day = Color(0xF2FFFFFF), night = Color(0xF2111318))
+    val textPrimary = androidx.glance.color.ColorProvider(day = Color(0xFF0F172A), night = Color(0xFFF8FAFC))
+    val textSecondary = androidx.glance.color.ColorProvider(day = Color(0xFF64748B), night = Color(0xFF94A3B8))
+    val accentTeal = androidx.glance.color.ColorProvider(day = Color(0xFF0D9488), night = Color(0xFF2DD4BF))
+    val cardSurface = androidx.glance.color.ColorProvider(day = Color(0x0F0F172A), night = Color(0x1AFFFFFF))
 
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(Color(0x99000000))
+            .background(bgProvider)
             .appWidgetBackground()
-            .cornerRadius(32.dp)
+            .cornerRadius(24.dp)
             .padding(16.dp)
             .clickable(openAppAction),
         verticalAlignment = Alignment.Top,
@@ -133,38 +140,72 @@ fun DailyWidgetContent(context: Context, balance: Double, steps: Long, petComple
     ) {
         Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "DAILY BRIEF",
-                style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF64FFDA), night = Color(0xFF64FFDA)), fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                text = "TESSERA",
+                style = TextStyle(color = accentTeal, fontSize = 10.sp, fontWeight = FontWeight.Bold),
                 modifier = GlanceModifier.defaultWeight()
             )
-            Text("TESSERA", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x66FFFFFF), night = Color(0x66FFFFFF)), fontSize = 9.sp, fontWeight = FontWeight.Bold))
+            Text(
+                text = "$dayOfMonth $monthName".uppercase(),
+                style = TextStyle(color = textSecondary, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+            )
         }
-        Spacer(modifier = GlanceModifier.height(8.dp))
+        Spacer(modifier = GlanceModifier.height(4.dp))
         Text(
-            text = "$dayOfMonth de $monthName".uppercase(),
-            style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF81928F), night = Color(0xFF81928F)), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            text = "Resumo do Dia",
+            style = TextStyle(color = textPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         )
-        Text(
-            text = "Seu dia em resumo",
-            style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        )
-        Spacer(modifier = GlanceModifier.height(12.dp))
+        Spacer(modifier = GlanceModifier.height(10.dp))
         Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = GlanceModifier.defaultWeight()) {
-                Text("Saldo", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x99FFFFFF), night = Color(0x99FFFFFF)), fontSize = 10.sp))
-                Text("R$ ${String.format(Locale("pt", "BR"), "%,.0f", balance)}", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White), fontSize = 13.sp, fontWeight = FontWeight.Bold))
+            Column(
+                modifier = GlanceModifier
+                    .defaultWeight()
+                    .background(cardSurface)
+                    .cornerRadius(12.dp)
+                    .padding(vertical = 8.dp, horizontal = 6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("Saldo", style = TextStyle(color = textSecondary, fontSize = 9.sp, fontWeight = FontWeight.Medium))
+                Spacer(modifier = GlanceModifier.height(2.dp))
+                Text("R$ ${String.format(Locale("pt", "BR"), "%,.0f", balance)}", style = TextStyle(color = textPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold))
             }
-            Column(modifier = GlanceModifier.defaultWeight()) {
-                Text("Passos", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x99FFFFFF), night = Color(0x99FFFFFF)), fontSize = 10.sp))
-                Text("$steps", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White), fontSize = 13.sp, fontWeight = FontWeight.Bold))
+            Spacer(modifier = GlanceModifier.width(6.dp))
+            Column(
+                modifier = GlanceModifier
+                    .defaultWeight()
+                    .background(cardSurface)
+                    .cornerRadius(12.dp)
+                    .padding(vertical = 8.dp, horizontal = 6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("Passos", style = TextStyle(color = textSecondary, fontSize = 9.sp, fontWeight = FontWeight.Medium))
+                Spacer(modifier = GlanceModifier.height(2.dp))
+                Text("$steps", style = TextStyle(color = textPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold))
             }
-            Column(modifier = GlanceModifier.defaultWeight()) {
-                Text("Petz", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x99FFFFFF), night = Color(0x99FFFFFF)), fontSize = 10.sp))
-                Text("$petCompleted/$petTotal", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White), fontSize = 13.sp, fontWeight = FontWeight.Bold))
+            Spacer(modifier = GlanceModifier.width(6.dp))
+            Column(
+                modifier = GlanceModifier
+                    .defaultWeight()
+                    .background(cardSurface)
+                    .cornerRadius(12.dp)
+                    .padding(vertical = 8.dp, horizontal = 6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("Petz", style = TextStyle(color = textSecondary, fontSize = 9.sp, fontWeight = FontWeight.Medium))
+                Spacer(modifier = GlanceModifier.height(2.dp))
+                Text("$petCompleted/$petTotal", style = TextStyle(color = textPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold))
             }
-            Column(modifier = GlanceModifier.defaultWeight()) {
-                Text("Mercado", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x99FFFFFF), night = Color(0x99FFFFFF)), fontSize = 10.sp))
-                Text("$marketPending", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White), fontSize = 13.sp, fontWeight = FontWeight.Bold))
+            Spacer(modifier = GlanceModifier.width(6.dp))
+            Column(
+                modifier = GlanceModifier
+                    .defaultWeight()
+                    .background(cardSurface)
+                    .cornerRadius(12.dp)
+                    .padding(vertical = 8.dp, horizontal = 6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("Mercado", style = TextStyle(color = textSecondary, fontSize = 9.sp, fontWeight = FontWeight.Medium))
+                Spacer(modifier = GlanceModifier.height(2.dp))
+                Text("$marketPending", style = TextStyle(color = textPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold))
             }
         }
     }

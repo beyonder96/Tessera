@@ -51,6 +51,31 @@ data class TSDBEventsResponse(
     @Json(name = "results") val results: List<TSDBEvent>?
 )
 
+@JsonClass(generateAdapter = true)
+data class TSDBTableItem(
+    @Json(name = "idStanding") val idStanding: String?,
+    @Json(name = "intRank") val intRank: String?,
+    @Json(name = "idTeam") val idTeam: String?,
+    @Json(name = "strTeam") val strTeam: String?,
+    @Json(name = "strBadge") val strBadge: String?,
+    @Json(name = "strLogo") val strLogo: String?,
+    @Json(name = "intPlayed") val intPlayed: String?,
+    @Json(name = "intWin") val intWin: String?,
+    @Json(name = "intLoss") val intLoss: String?,
+    @Json(name = "intDraw") val intDraw: String?,
+    @Json(name = "intGoalsFor") val intGoalsFor: String?,
+    @Json(name = "intGoalsAgainst") val intGoalsAgainst: String?,
+    @Json(name = "intGoalDifference") val intGoalDifference: String?,
+    @Json(name = "intPoints") val intPoints: String?,
+    @Json(name = "strForm") val strForm: String?,
+    @Json(name = "strDescription") val strDescription: String?
+)
+
+@JsonClass(generateAdapter = true)
+data class TSDBTableResponse(
+    @Json(name = "table") val table: List<TSDBTableItem>?
+)
+
 interface TheSportsDbService {
     @GET("searchteams.php")
     suspend fun searchTeam(@Query("t") teamName: String): TSDBTeamsResponse
@@ -60,6 +85,12 @@ interface TheSportsDbService {
 
     @GET("eventslast.php")
     suspend fun getLastEvents(@Query("id") teamId: String): TSDBEventsResponse
+
+    @GET("lookuptable.php")
+    suspend fun getLeagueTable(
+        @Query("l") leagueId: String = "4351",
+        @Query("s") season: String = "2024"
+    ): TSDBTableResponse
 }
 
 object TheSportsDbApi {
