@@ -1050,8 +1050,8 @@ fun ActionButton(
         modifier = modifier
             .height(96.dp)
             .clip(RoundedCornerShape(20.dp))
-            .background(Color(0x0CFFFFFF))
-            .border(0.5.dp, Color(0x14FFFFFF), RoundedCornerShape(20.dp))
+            .background(themedCardBackground())
+            .border(1.dp, themedCardBorder(), RoundedCornerShape(20.dp))
             .clickable { onClick() }
             .padding(12.dp),
         contentAlignment = Alignment.Center
@@ -1083,7 +1083,7 @@ fun ActionButton(
                 text = title,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFFBDC9C6),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 letterSpacing = 1.sp
             )
         }
@@ -1330,7 +1330,7 @@ fun CreditCardsCarousel(
                                 colors = if (isSelected) {
                                     listOf(cardColor, Color.White, cardColor)
                                 } else {
-                                    listOf(Color.White.copy(alpha = 0.25f), Color(0x05FFFFFF))
+                                    listOf(themedCardBorder(), themedSubtleBorder())
                                 }
                             ),
                             shape = RoundedCornerShape(24.dp)
@@ -1371,14 +1371,14 @@ fun CreditCardsCarousel(
                                 Text(
                                     text = "Saldo Atual",
                                     fontSize = 11.sp,
-                                    color = Color(0xFFBDC9C6),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontWeight = FontWeight.Medium
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = card.holderName,
                                     fontSize = 10.sp,
-                                    color = Color(0xFF808A89),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                                     fontWeight = FontWeight.Normal
                                 )
                             }
@@ -1386,7 +1386,7 @@ fun CreditCardsCarousel(
                                 text = "•••• ${card.numberLastFour}",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFFDFE3E2)
+                                color = MaterialTheme.colorScheme.onBackground
                             )
                         }
                     }
@@ -1417,7 +1417,7 @@ fun CreditCardsCarousel(
                                 colors = if (isSelected) {
                                     listOf(cardColor, Color.White, cardColor)
                                 } else {
-                                    listOf(Color.White.copy(alpha = 0.25f), Color(0x05FFFFFF))
+                                    listOf(themedCardBorder(), themedSubtleBorder())
                                 }
                             ),
                             shape = RoundedCornerShape(24.dp)
@@ -1661,7 +1661,7 @@ fun FinancialScoreRing(score: Int, income: Double, expense: Double) {
             Text(
                 text = insightText,
                 fontSize = 14.sp,
-                color = Color(0xFFBDC9C6),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 lineHeight = 20.sp
             )
@@ -1670,12 +1670,12 @@ fun FinancialScoreRing(score: Int, income: Double, expense: Double) {
             
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("RECEITAS", fontSize = 10.sp, color = Color(0x99BDC9C6), letterSpacing = 1.sp)
+                    Text("RECEITAS", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), letterSpacing = 1.sp)
                     Text(String.format(Locale("pt", "BR"), "R$ %,.2f", income), fontWeight = FontWeight.SemiBold, color = Color(0xFF71D7CD))
                 }
-                HorizontalDivider(modifier = Modifier.height(30.dp).width(1.dp), color = Color(0x33FFFFFF))
+                HorizontalDivider(modifier = Modifier.height(30.dp).width(1.dp), color = themedDivider())
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("DESPESAS", fontSize = 10.sp, color = Color(0x99BDC9C6), letterSpacing = 1.sp)
+                    Text("DESPESAS", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), letterSpacing = 1.sp)
                     Text(String.format(Locale("pt", "BR"), "R$ %,.2f", expense), fontWeight = FontWeight.SemiBold, color = Color(0xFFEF4444))
                 }
             }
@@ -1739,16 +1739,16 @@ fun SmoothEvolutionChart(transactions: List<Transaction>) {
                             text = selectedPeriod,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFFBDC9C6)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Color(0xFFBDC9C6), modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                     }
                     DropdownMenu(
                         expanded = expandedPeriod,
                         onDismissRequest = { expandedPeriod = false },
                         modifier = Modifier
-                            .background(Color(0xFF000000))
-                            .border(1.dp, Brush.linearGradient(listOf(Color(0xFFFF9800).copy(alpha=0.5f), Color(0xFFFF5722).copy(alpha=0.5f))), RoundedCornerShape(8.dp))
+                            .background(themedOverlayBackground())
+                            .border(1.dp, themedCardBorder(), RoundedCornerShape(8.dp))
                     ) {
                         periods.forEach { period ->
                             DropdownMenuItem(
@@ -2243,7 +2243,8 @@ fun AdjustBalancesDialog(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color(0x0CFFFFFF), RoundedCornerShape(12.dp))
+                                .background(themedSubtleBackground(), RoundedCornerShape(12.dp))
+                                .border(1.dp, themedSubtleBorder(), RoundedCornerShape(12.dp))
                                 .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -2256,7 +2257,7 @@ fun AdjustBalancesDialog(
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
                                     Text(account.name, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                    Text(account.type, color = Color(0x66FFFFFF), fontSize = 10.sp)
+                                    Text(account.type, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
                                 }
                             }
                             
@@ -2273,8 +2274,8 @@ fun AdjustBalancesDialog(
                                 cursorBrush = SolidColor(Color(0xFF71D7CD)),
                                 modifier = Modifier
                                     .width(100.dp)
-                                    .background(Color(0x14FFFFFF), RoundedCornerShape(6.dp))
-                                    .border(0.5.dp, Color(0x2BFFFFFF), RoundedCornerShape(6.dp))
+                                    .background(themedCardBackground(), RoundedCornerShape(6.dp))
+                                    .border(1.dp, themedCardBorder(), RoundedCornerShape(6.dp))
                                     .padding(horizontal = 8.dp, vertical = 6.dp)
                             )
                         }
@@ -2286,7 +2287,7 @@ fun AdjustBalancesDialog(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("Cancelar", color = Color(0x99FFFFFF))
+                        Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Spacer(modifier = Modifier.weight(1f))
                     Button(
@@ -2367,7 +2368,7 @@ fun RecurringExpensesSection(
                     val dueDateStr = dateFormat.format(java.util.Date(tx.dueDate))
                     
                     val borderBrush = if (tx.isRealized) {
-                        SolidColor(Color(0x0CFFFFFF))
+                        SolidColor(themedCardBorder())
                     } else if (isOverdue) {
                         val infiniteTransition = rememberInfiniteTransition(label = "OverdueGlow")
                         val glowAlpha by infiniteTransition.animateFloat(
@@ -2381,14 +2382,14 @@ fun RecurringExpensesSection(
                         )
                         Brush.linearGradient(listOf(Color(0xFFEF4444).copy(alpha = glowAlpha), Color(0xFFEF4444).copy(alpha = 0.2f)))
                     } else {
-                        SolidColor(Color(0x1AFFFFFF))
+                        SolidColor(themedCardBorder())
                     }
                     
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0x0CFFFFFF))
+                            .background(themedCardBackground())
                             .border(
                                 width = if (isOverdue) 1.5.dp else 1.dp,
                                 brush = borderBrush,
@@ -2442,7 +2443,7 @@ fun RecurringExpensesSection(
                                 Text(
                                     text = if (tx.accountOrCardName.isNotEmpty()) "Origem: ${tx.accountOrCardName}" else "Sem origem",
                                     fontSize = 11.sp,
-                                    color = Color(0x80BDC9C6)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 when {
@@ -2468,7 +2469,7 @@ fun RecurringExpensesSection(
                                         Text(
                                             text = "Vence em: $dueDateStr (${tx.recurrenceInterval})",
                                             fontSize = 9.sp,
-                                            color = Color(0xFFBDC9C6)
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }

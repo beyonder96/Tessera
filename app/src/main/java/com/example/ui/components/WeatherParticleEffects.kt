@@ -102,15 +102,17 @@ private fun DrawScope.drawAuraSolar(time: Float) {
 // 1.1 Noite Estrelada / Lunar
 private fun DrawScope.drawNightStars(time: Float) {
     val starCount = 35
-    val centerOffset = Offset(size.width * 0.8f, size.height * 0.35f)
-    val moonGlowRadius = size.width * 0.25f
+    val centerOffset = Offset(size.width * 0.80f, size.height * 0.38f)
+    val pulse = (sin(time * 0.04f) + 1f) / 2f
+    val moonGlowRadius = size.width * 0.24f + (pulse * size.width * 0.03f)
+    val moonRadius = size.width * 0.09f
     
-    // Brilho da Lua
+    // Halo luminoso externo da Lua
     drawCircle(
         brush = Brush.radialGradient(
             colors = listOf(
-                Color(0xFF818CF8).copy(alpha = 0.18f),
-                Color(0xFF38BDF8).copy(alpha = 0.06f),
+                Color(0xFF818CF8).copy(alpha = 0.28f),
+                Color(0xFF38BDF8).copy(alpha = 0.12f),
                 Color.Transparent
             ),
             center = centerOffset,
@@ -118,24 +120,75 @@ private fun DrawScope.drawNightStars(time: Float) {
         ),
         center = centerOffset,
         radius = moonGlowRadius,
-        blendMode = BlendMode.Screen
+        blendMode = BlendMode.SrcOver
     )
     
-    // Estrelas cintilantes
+    // Disco Lunar Base (Gradiente prata / celestial com alto contraste para modo claro e escuro)
+    drawCircle(
+        brush = Brush.linearGradient(
+            colors = listOf(
+                Color(0xFFF8FAFC), // Branco puro lunar
+                Color(0xFFCBD5E1), // Prata médio
+                Color(0xFF94A3B8)  // Sombra lunar
+            ),
+            start = Offset(centerOffset.x - moonRadius, centerOffset.y - moonRadius),
+            end = Offset(centerOffset.x + moonRadius, centerOffset.y + moonRadius)
+        ),
+        center = centerOffset,
+        radius = moonRadius,
+        blendMode = BlendMode.SrcOver
+    )
+    
+    // Contorno sutil da borda da Lua
+    drawCircle(
+        color = Color(0xFF64748B).copy(alpha = 0.35f),
+        center = centerOffset,
+        radius = moonRadius,
+        style = Stroke(width = 1.5f),
+        blendMode = BlendMode.SrcOver
+    )
+    
+    // Detalhes de crateras lunares (relevo sutil)
+    drawCircle(
+        color = Color(0xFF64748B).copy(alpha = 0.30f),
+        center = Offset(centerOffset.x - moonRadius * 0.28f, centerOffset.y - moonRadius * 0.2f),
+        radius = moonRadius * 0.24f,
+        blendMode = BlendMode.SrcOver
+    )
+    drawCircle(
+        color = Color(0xFF475569).copy(alpha = 0.25f),
+        center = Offset(centerOffset.x + moonRadius * 0.25f, centerOffset.y + moonRadius * 0.25f),
+        radius = moonRadius * 0.32f,
+        blendMode = BlendMode.SrcOver
+    )
+    drawCircle(
+        color = Color(0xFF64748B).copy(alpha = 0.22f),
+        center = Offset(centerOffset.x - moonRadius * 0.1f, centerOffset.y + moonRadius * 0.38f),
+        radius = moonRadius * 0.18f,
+        blendMode = BlendMode.SrcOver
+    )
+    
+    // Estrelas cintilantes visíveis em ambos os modos
     for (i in 0 until starCount) {
         val seed = i * 149.3f
         val x = (seed * 17) % size.width
         val y = (seed * 23) % size.height
         val twinkleSpeed = 0.08f + (i % 5) * 0.03f
         val twinkle = (sin(time * twinkleSpeed + i) + 1f) / 2f
-        val radius = 1f + (i % 3) * 0.8f
-        val starAlpha = (0.25f + twinkle * 0.75f).coerceIn(0f, 1f)
+        val radius = 1.2f + (i % 3) * 0.8f
+        val starAlpha = (0.35f + twinkle * 0.65f).coerceIn(0f, 1f)
         
         drawCircle(
-            color = Color(0xFFE2E8F0).copy(alpha = starAlpha),
+            color = Color(0xFF64748B).copy(alpha = starAlpha * 0.85f),
             center = Offset(x, y),
             radius = radius,
-            blendMode = BlendMode.Screen
+            blendMode = BlendMode.SrcOver
+        )
+        drawCircle(
+            color = Color(0xFFF1F5F9).copy(alpha = starAlpha * 0.7f),
+            center = Offset(x, y),
+            radius = radius * 0.6f,
+            blendMode = BlendMode.SrcOver
         )
     }
 }

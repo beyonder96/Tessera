@@ -720,44 +720,28 @@ fun TesseraApp() {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .then(GlassModifier)
-                                .padding(vertical = 32.dp, horizontal = 20.dp)
+                                .padding(vertical = 24.dp, horizontal = 16.dp)
                         ) {
-                            val titleAlpha by animateFloatAsState(if (isFabExpanded) 1f else 0f, tween(300))
+                            val titleAlpha by animateFloatAsState(if (isFabExpanded) 1f else 0f, tween(250))
                             Text(
-                                text = "O que você deseja ver?",
+                                text = "Módulos",
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = titleAlpha),
-                                fontSize = 24.sp,
-                                fontFamily = FontFamily.Serif,
-                                fontWeight = FontWeight.Normal,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = "Selecione um painel para navegar",
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = titleAlpha * 0.5f),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Normal,
+                                fontSize = 18.sp,
+                                fontFamily = FontFamily.SansSerif,
+                                fontWeight = FontWeight.SemiBold,
                                 textAlign = TextAlign.Center
                             )
                             
-                            Spacer(modifier = Modifier.height(36.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
                             
-                            val itemsAlpha by animateFloatAsState(if (isFabExpanded) 1f else 0f, tween(400, delayMillis = 50))
-                            val itemsOffset by animateDpAsState(if (isFabExpanded) 0.dp else 60.dp, spring(dampingRatio = 0.8f, stiffness = 150f))
-                            
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(16.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                com.example.ui.components.BentoBoxDashboard(
-                                    viewModel = viewModel,
-                                    isExpanded = isFabExpanded,
-                                    onNavigate = { route -> 
-                                        navigateAction(route)
-                                        isFabExpanded = false
-                                    }
-                                )
-                            }
+                            com.example.ui.components.BentoBoxDashboard(
+                                viewModel = viewModel,
+                                isExpanded = isFabExpanded,
+                                onNavigate = { route -> 
+                                    navigateAction(route)
+                                    isFabExpanded = false
+                                }
+                            )
                         }
                     }
                 }

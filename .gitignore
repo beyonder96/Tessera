@@ -34,6 +34,8 @@ web/node_modules/
 node_modules/
 web/dist/
 dist/
+web/.firebase/
+.firebase/
 web/.env
 web/.env.*
 !web/.env.example

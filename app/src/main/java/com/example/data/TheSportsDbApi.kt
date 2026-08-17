@@ -89,8 +89,44 @@ interface TheSportsDbService {
     @GET("lookuptable.php")
     suspend fun getLeagueTable(
         @Query("l") leagueId: String = "4351",
-        @Query("s") season: String = "2024"
+        @Query("s") season: String
     ): TSDBTableResponse
+}
+
+fun formatUtcMatchDateTime(dateStr: String?, timeStr: String?): String {
+    if (dateStr.isNullOrBlank()) return "Em breve"
+    val cleanDate = dateStr.trim()
+    val rawTime = timeStr?.trim()?.replace("+00:00", "")?.replace("Z", "")?.trim()
+
+    if (rawTime.isNullOrBlank() || rawTime == "00:00:00") {
+        return try {
+            val parts = cleanDate.split("-")
+            if (parts.size == 3) "${parts[2]}/${parts[1]}" else cleanDate
+        } catch (e: Exception) {
+            cleanDate
+        }
+    }
+
+    val timeWithSeconds = when (rawTime.count { it == ':' }) {
+        0 -> "$rawTime:00:00"
+        1 -> "$rawTime:00"
+        else -> rawTime
+    }
+
+    return try {
+        val utcFormat = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US).apply {
+            timeZone = java.util.TimeZone.getTimeZone("UTC")
+        }
+        val date = utcFormat.parse("${cleanDate}T$timeWithSeconds")
+        val localFormat = java.text.SimpleDateFormat("dd/MM HH:mm", java.util.Locale.getDefault()).apply {
+            timeZone = java.util.TimeZone.getDefault()
+        }
+        if (date != null) localFormat.format(date) else "$cleanDate $rawTime"
+    } catch (e: Exception) {
+        val parts = cleanDate.split("-")
+        val dFormatted = if (parts.size == 3) "${parts[2]}/${parts[1]}" else cleanDate
+        "$dFormatted ${rawTime.take(5)}"
+    }
 }
 
 object TheSportsDbApi {

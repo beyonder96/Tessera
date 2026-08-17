@@ -36,7 +36,7 @@ object SupabaseClientProvider {
     }
 
     fun getWebBaseUrl(): String {
-        return "https://tessera-online.vercel.app"
+        return "https://tessera-35c54.web.app"
     }
 
     fun updateCredentials(context: Context, url: String, key: String) {

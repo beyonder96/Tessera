@@ -6,6 +6,7 @@ import androidx.compose.ui.text.style.TextAlign
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -133,12 +134,14 @@ fun TransportScreen(
         }
     }
 
+    val bgThemeColor = MaterialTheme.colorScheme.background
+
     Scaffold(
-        containerColor = Color.Black,
+        containerColor = bgThemeColor,
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize()) {
-            // Hero Image with Fade to Black
+            // Hero Image with Fade to Background
             val scrollOffset = scrollState.value
             val baseBlur = (scrollOffset * 0.04f).coerceIn(0f, 16f)
             val blurRadius = baseBlur.dp
@@ -161,8 +164,12 @@ fun TransportScreen(
                         .fillMaxSize()
                         .background(
                             Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.5f), Color.Black),
-                                startY = 200f
+                                colors = listOf(
+                                    Color.Transparent,
+                                    bgThemeColor.copy(alpha = 0.6f),
+                                    bgThemeColor
+                                ),
+                                startY = 160f
                             )
                         )
                 )
@@ -188,7 +195,7 @@ fun TransportScreen(
                 )
                 Text(
                     text = "Status e Previsões em Tempo Real",
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 14.sp,
                     modifier = Modifier.padding(bottom = 32.dp)
                 )
@@ -230,8 +237,8 @@ fun TransportScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(16.dp))
-                                .background(Color.White.copy(alpha = 0.03f))
-                                .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                                .background(themedCardBackground())
+                                .border(1.dp, themedCardBorder(), RoundedCornerShape(16.dp))
                                 .padding(20.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -256,12 +263,12 @@ fun TransportScreen(
                                         .fillMaxWidth()
                                         .height(86.dp)
                                         .clip(RoundedCornerShape(16.dp))
-                                        .background(Color.White.copy(alpha = 0.03f))
-                                        .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                                        .background(themedCardBackground())
+                                        .border(1.dp, themedCardBorder(), RoundedCornerShape(16.dp))
                                 ) {
                                     // Animated Train Background
                                     AnimatedMetroTrain(
-                                        lineColor = color.copy(alpha = 0.3f),
+                                        lineColor = color.copy(alpha = 0.25f),
                                         modifier = Modifier.fillMaxSize().padding(top = 20.dp)
                                     )
                                     
@@ -361,15 +368,8 @@ fun TransportScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(24.dp))
-                                    .background(Color.White.copy(alpha = 0.02f))
-                                    // Minimalist border with gradient
-                                    .border(
-                                        width = 0.5.dp, 
-                                        brush = Brush.verticalGradient(
-                                            colors = listOf(busColor.copy(alpha = 0.4f), Color.Transparent)
-                                        ), 
-                                        shape = RoundedCornerShape(24.dp)
-                                    )
+                                    .background(themedCardBackground())
+                                    .border(1.dp, themedCardBorder(), RoundedCornerShape(24.dp))
                                     .padding(20.dp)
                             ) {
                                 Column {
@@ -401,7 +401,7 @@ fun TransportScreen(
                                                 Spacer(modifier = Modifier.height(2.dp))
                                                 Text(
                                                     text = "Via ${bus.stopName}", 
-                                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f), 
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant, 
                                                     fontSize = 12.sp,
                                                     maxLines = 1,
                                                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
@@ -416,7 +416,7 @@ fun TransportScreen(
                                             Icon(
                                                 imageVector = Icons.Default.Delete,
                                                 contentDescription = "Remover Linha",
-                                                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f),
+                                                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f),
                                             )
                                         }
                                     }
@@ -429,14 +429,14 @@ fun TransportScreen(
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.Bottom
                                     ) {
-                                        // Simple Progress Bar indicating time (fake visual progress)
+                                        // Simple Progress Bar indicating time
                                         Box(
                                             modifier = Modifier
                                                 .weight(1f)
                                                 .padding(end = 24.dp, bottom = 4.dp)
                                                 .height(4.dp)
                                                 .clip(RoundedCornerShape(2.dp))
-                                                .background(Color.White.copy(alpha = 0.1f))
+                                                .background(themedSubtleBackground())
                                         ) {
                                             if (!isOffline) {
                                                 val infiniteTransition = rememberInfiniteTransition(label = "bus_progress")
@@ -667,8 +667,8 @@ fun TransportScreen(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clip(RoundedCornerShape(12.dp))
-                                            .background(Color.White.copy(alpha = 0.03f))
-                                            .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                                            .background(themedSubtleBackground())
+                                            .border(1.dp, themedSubtleBorder(), RoundedCornerShape(12.dp))
                                             .clickable {
                                                 viewModel.saveBusLine(result.cl, result.lt, dest)
                                                 showSearchDialog = false
@@ -703,7 +703,7 @@ fun TransportScreen(
                                             Spacer(modifier = Modifier.height(4.dp))
                                             Text(
                                                 text = if (result.sl == 1) "Sentido Ida" else "Sentido Volta",
-                                                color = Color.Gray,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 fontSize = 11.sp
                                             )
                                         }
@@ -725,7 +725,11 @@ fun TransportScreen(
                             searchQuery = ""
                             viewModel.searchBusLines("")
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.1f)),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = themedSubtleBackground(),
+                            contentColor = MaterialTheme.colorScheme.onBackground
+                        ),
+                        border = BorderStroke(1.dp, themedButtonBorder()),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Fechar", color = MaterialTheme.colorScheme.onBackground)

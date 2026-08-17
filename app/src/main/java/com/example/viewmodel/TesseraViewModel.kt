@@ -2018,26 +2018,10 @@ class TesseraViewModel(
                     val venue = selectedEvent.strVenue
                     val league = selectedEvent.strLeague ?: "Brasileirão Série A"
 
-                    val formattedDate = buildString {
-                        selectedEvent.dateEvent?.let { d ->
-                            try {
-                                val parts = d.split("-")
-                                if (parts.size == 3) {
-                                    append("${parts[2]}/${parts[1]}")
-                                } else {
-                                    append(d)
-                                }
-                            } catch (e: Exception) {
-                                append(d)
-                            }
-                        }
-                        val time = selectedEvent.strTimeLocal ?: selectedEvent.strTime
-                        if (!time.isNullOrBlank()) {
-                            val cleanTime = time.take(5)
-                            if (isNotEmpty()) append(" ")
-                            append(cleanTime)
-                        }
-                    }
+                    val formattedDate = com.example.data.formatUtcMatchDateTime(
+                        selectedEvent.dateEvent,
+                        selectedEvent.strTime
+                    )
 
                     val matchDetail = com.example.data.MatchDetail(
                         homeTeamName = homeName,
@@ -2064,50 +2048,63 @@ class TesseraViewModel(
                     Log.e("TesseraViewModel", "Nenhuma partida encontrada para o time no TheSportsDB")
                 }
 
-                // 3. Busca Tabela de Classificação do Brasileirão Série A (TheSportsDB com fallback API-Football)
-                try {
-                    val tableResponse = com.example.data.TheSportsDbApi.service.getLeagueTable("4351", "2024")
-                    val tableItems = tableResponse.table ?: emptyList()
-                    if (tableItems.isNotEmpty()) {
-                        val standingRanks = tableItems.mapIndexed { index, item ->
-                            com.example.data.apifootball.StandingTeamRank(
-                                rank = item.intRank?.toIntOrNull() ?: (index + 1),
-                                team = com.example.data.apifootball.TeamInfo(
-                                    id = item.idTeam?.toLongOrNull() ?: index.toLong(),
-                                    name = item.strTeam ?: "Time",
-                                    logo = item.strBadge ?: item.strLogo
-                                ),
-                                points = item.intPoints?.toIntOrNull() ?: 0,
-                                goalsDiff = item.intGoalDifference?.toIntOrNull() ?: 0,
-                                group = "Brasileirão Série A",
-                                form = item.strForm,
-                                status = null,
-                                description = item.strDescription
-                            )
-                        }
-                        val standingsData = com.example.data.apifootball.StandingsData(
-                            league = com.example.data.apifootball.LeagueStandingsInfo(
-                                id = 4351L,
-                                name = "Brasileirão Série A",
-                                country = "Brasil",
-                                logo = "https://www.thesportsdb.com/images/media/league/badge/2d3b5b1535384163.png",
-                                season = 2024,
-                                standings = listOf(standingRanks)
-                            )
-                        )
-                        _matchStandings.value = standingsData
-                    } else {
-                        val apiFootballResult = fixtureRepository.getStandings(71L, 2024)
-                        apiFootballResult.onSuccess { data ->
-                            _matchStandings.value = data
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e("TesseraViewModel", "Erro ao carregar tabela TheSportsDB, tentando API-Football", e)
+                // 3. Busca Tabela de Classificação do Brasileirão Série A (Ano corrente com fallback automático)
+                val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+                val seasonsToTry = listOf(currentYear.toString(), (currentYear - 1).toString())
+                var tableItems: List<com.example.data.TSDBTableItem> = emptyList()
+                var activeSeason = currentYear
+
+                for (seasonStr in seasonsToTry) {
                     try {
-                        val apiFootballResult = fixtureRepository.getStandings(71L, 2024)
+                        val tableResponse = com.example.data.TheSportsDbApi.service.getLeagueTable("4351", seasonStr)
+                        val items = tableResponse.table ?: emptyList()
+                        if (items.isNotEmpty()) {
+                            tableItems = items
+                            activeSeason = seasonStr.toIntOrNull() ?: currentYear
+                            break
+                        }
+                    } catch (e: Exception) {
+                        Log.e("TesseraViewModel", "Erro ao carregar tabela TheSportsDB temporada $seasonStr", e)
+                    }
+                }
+
+                if (tableItems.isNotEmpty()) {
+                    val standingRanks = tableItems.mapIndexed { index, item ->
+                        com.example.data.apifootball.StandingTeamRank(
+                            rank = item.intRank?.toIntOrNull() ?: (index + 1),
+                            team = com.example.data.apifootball.TeamInfo(
+                                id = item.idTeam?.toLongOrNull() ?: index.toLong(),
+                                name = item.strTeam ?: "Time",
+                                logo = item.strBadge ?: item.strLogo
+                            ),
+                            points = item.intPoints?.toIntOrNull() ?: 0,
+                            goalsDiff = item.intGoalDifference?.toIntOrNull() ?: 0,
+                            group = "Brasileirão Série A",
+                            form = item.strForm,
+                            status = null,
+                            description = item.strDescription
+                        )
+                    }
+                    val standingsData = com.example.data.apifootball.StandingsData(
+                        league = com.example.data.apifootball.LeagueStandingsInfo(
+                            id = 4351L,
+                            name = "Brasileirão Série A",
+                            country = "Brasil",
+                            logo = "https://www.thesportsdb.com/images/media/league/badge/2d3b5b1535384163.png",
+                            season = activeSeason,
+                            standings = listOf(standingRanks)
+                        )
+                    )
+                    _matchStandings.value = standingsData
+                } else {
+                    try {
+                        val apiFootballResult = fixtureRepository.getStandings(71L, activeSeason)
                         apiFootballResult.onSuccess { data ->
                             _matchStandings.value = data
+                        }.onFailure {
+                            fixtureRepository.getStandings(71L, activeSeason - 1).onSuccess { prevData ->
+                                _matchStandings.value = prevData
+                            }
                         }
                     } catch (e2: Exception) {
                         Log.e("TesseraViewModel", "Erro no fallback API-Football Standings", e2)

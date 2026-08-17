@@ -85,18 +85,10 @@ class FootballGlanceWidget : GlanceAppWidget() {
                             else -> "PRÓXIMO"
                         }
 
-                        val dateFormatted = buildString {
-                            event.dateEvent?.let { d ->
-                                val parts = d.split("-")
-                                if (parts.size == 3) append("${parts[2]}/${parts[1]}") else append(d)
-                            }
-                            val time = event.strTimeLocal ?: event.strTime
-                            if (!time.isNullOrBlank()) {
-                                if (isNotEmpty()) append(" ")
-                                append(time.take(5))
-                            }
-                        }
-                        matchDate = dateFormatted.ifBlank { "Em breve" }
+                        matchDate = com.example.data.formatUtcMatchDateTime(
+                            event.dateEvent,
+                            event.strTime
+                        ).ifBlank { "Em breve" }
                     }
                 }
             }

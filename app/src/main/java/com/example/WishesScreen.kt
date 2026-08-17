@@ -293,16 +293,27 @@ fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
 @Composable
 fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -> Unit, onDelete: () -> Unit) {
     val uriHandler = LocalUriHandler.current
+    val isDark = isDarkTheme()
     
-    // Gradient Obsidian Glow (Thermal UI background)
-    val cardGradient = Brush.verticalGradient(
-        colorStops = arrayOf(
-            0.0f to Color(0xFF101012),
-            0.55f to Color(0xFF0F0F11),
-            0.80f to Color(0xFF1A0A06),
-            1.0f to Color(0xFF5E1603)
+    // Gradient background sensitive to theme
+    val cardGradient = if (isDark) {
+        Brush.verticalGradient(
+            colorStops = arrayOf(
+                0.0f to Color(0xFF101012),
+                0.55f to Color(0xFF0F0F11),
+                0.80f to Color(0xFF1A0A06),
+                1.0f to Color(0xFF5E1603)
+            )
         )
-    )
+    } else {
+        Brush.verticalGradient(
+            colorStops = arrayOf(
+                0.0f to Color(0xFFFFFFFF),
+                0.60f to Color(0xFFF8FAFC),
+                1.0f to Color(0xFFF1F5F9)
+            )
+        )
+    }
     
     val shape = RoundedCornerShape(32.dp)
     
@@ -311,32 +322,28 @@ fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -
             .fillMaxWidth()
             .clip(shape)
             .background(cardGradient)
-            .border(1.dp, themedSubtleBorder(), shape)
+            .border(1.dp, themedCardBorder(), shape)
     ) {
         // Bottom warm inner glow & rim edge
         Canvas(modifier = Modifier.matchParentSize()) {
+            val glowColor = if (isDark) Color(0xFFFF5500).copy(alpha = 0.35f) else Color(0xFFD4B36A).copy(alpha = 0.12f)
+            val glowOuter = if (isDark) Color(0xFF882200).copy(alpha = 0.15f) else Color.Transparent
+            val rimColor = if (isDark) Color(0xFFFFAA00).copy(alpha = 0.75f) else Color(0xFFD4B36A).copy(alpha = 0.4f)
+            
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(
-                        Color(0xFFFF5500).copy(alpha = 0.35f),
-                        Color(0xFF882200).copy(alpha = 0.15f),
-                        Color.Transparent
-                    ),
+                    colors = listOf(glowColor, glowOuter, Color.Transparent),
                     center = Offset(size.width / 2f, size.height * 1.05f),
                     radius = size.width * 0.75f
                 )
             )
             drawLine(
                 brush = Brush.horizontalGradient(
-                    colors = listOf(
-                        Color.Transparent,
-                        Color(0xFFFFAA00).copy(alpha = 0.75f),
-                        Color.Transparent
-                    )
+                    colors = listOf(Color.Transparent, rimColor, Color.Transparent)
                 ),
                 start = Offset(size.width * 0.2f, size.height - 1.5f),
                 end = Offset(size.width * 0.8f, size.height - 1.5f),
-                strokeWidth = 3f
+                strokeWidth = 2f
             )
         }
 
@@ -354,10 +361,16 @@ fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    Box(modifier = Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF18181B), Color(0xFF09090B)))))
+                    val placeholderColors = if (isDark) {
+                        listOf(Color(0xFF18181B), Color(0xFF09090B))
+                    } else {
+                        listOf(Color(0xFFF1F5F9), Color(0xFFE2E8F0))
+                    }
+                    Box(modifier = Modifier.fillMaxSize().background(Brush.linearGradient(placeholderColors)))
                 }
                 
-                // Gradient overlay fusing image into dark card background
+                // Gradient overlay fusing image into card background
+                val overlayFadeColor = if (isDark) Color(0xFF0F0F11) else Color(0xFFF8FAFC)
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -365,9 +378,9 @@ fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -
                             Brush.verticalGradient(
                                 colorStops = arrayOf(
                                     0.0f to Color.Transparent,
-                                    0.5f to Color(0x33000000),
-                                    0.85f to Color(0xCC0F0F11),
-                                    1.0f to Color(0xFF0F0F11)
+                                    0.45f to (if (isDark) Color(0x33000000) else Color(0x1AFFFFFF)),
+                                    0.85f to overlayFadeColor.copy(alpha = 0.8f),
+                                    1.0f to overlayFadeColor
                                 )
                             )
                         )
@@ -379,8 +392,8 @@ fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -
                         .align(Alignment.TopEnd)
                         .padding(16.dp)
                         .clip(RoundedCornerShape(20.dp))
-                        .background(Color.Black.copy(alpha = 0.45f))
-                        .border(1.dp, themedSubtleBorder(), RoundedCornerShape(20.dp))
+                        .background(themedOverlayBackground())
+                        .border(1.dp, themedCardBorder(), RoundedCornerShape(20.dp))
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Row(
@@ -485,8 +498,8 @@ fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -
                     modifier = Modifier
                         .size(52.dp)
                         .clip(RoundedCornerShape(18.dp))
-                        .background(Color.Black.copy(alpha = 0.35f))
-                        .border(1.dp, themedSubtleBorder(), RoundedCornerShape(18.dp))
+                        .background(themedSubtleBackground())
+                        .border(1.dp, themedCardBorder(), RoundedCornerShape(18.dp))
                         .clickable { if (goal.buyUrl.isNotBlank()) uriHandler.openUri(goal.buyUrl) },
                     contentAlignment = Alignment.Center
                 ) {
@@ -504,8 +517,8 @@ fun AnimatedPurchaseGoalCard(goal: PurchaseGoal, onEdit: () -> Unit, onBuy: () -
                         .weight(1f)
                         .height(52.dp)
                         .clip(RoundedCornerShape(18.dp))
-                        .background(Color.Black.copy(alpha = 0.35f))
-                        .border(1.dp, themedSubtleBorder(), RoundedCornerShape(18.dp))
+                        .background(themedSubtleBackground())
+                        .border(1.dp, themedCardBorder(), RoundedCornerShape(18.dp))
                         .clickable { onBuy() },
                     contentAlignment = Alignment.Center
                 ) {

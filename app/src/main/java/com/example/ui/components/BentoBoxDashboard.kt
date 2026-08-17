@@ -21,11 +21,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
 import com.example.viewmodel.TesseraViewModel
+
+private data class ModuleItem(
+    val title: String,
+    val route: String,
+    val icon: ImageVector,
+    val iconColor: Color
+)
 
 @Composable
 fun BentoBoxDashboard(
@@ -33,233 +39,104 @@ fun BentoBoxDashboard(
     isExpanded: Boolean,
     onNavigate: (String) -> Unit
 ) {
-    val itemsAlpha by animateFloatAsState(if (isExpanded) 1f else 0f, tween(400, delayMillis = 50), label = "alpha")
-    val itemsOffset by animateDpAsState(if (isExpanded) 0.dp else 60.dp, spring(dampingRatio = 0.8f, stiffness = 150f), label = "offset")
+    val itemsAlpha by animateFloatAsState(
+        targetValue = if (isExpanded) 1f else 0f,
+        animationSpec = tween(300, easing = FastOutSlowInEasing),
+        label = "alpha"
+    )
+    val itemsOffset by animateDpAsState(
+        targetValue = if (isExpanded) 0.dp else 30.dp,
+        animationSpec = spring(dampingRatio = 0.85f, stiffness = 200f),
+        label = "offset"
+    )
 
-    // Coletando Live Data para a Bento Box
-    val healthProfile by viewModel.healthProfile.collectAsState(initial = null)
-    val routines by viewModel.allRoutines.collectAsState(initial = emptyList())
-    val marketItems by viewModel.pendingMarketItems.collectAsState(initial = emptyList())
-    val petEvents by viewModel.allPetEvents.collectAsState(initial = emptyList())
-    val wishes by viewModel.allPurchaseGoals.collectAsState(initial = emptyList())
-    val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
-
-    // Cálculos rápidos de dados
-    val totalRoutines = routines.size
-    val marketCount = marketItems.size
-    val petEventsCount = petEvents.size
-    val activeWishes = wishes.filter { it.currentValue < it.targetValue }.size
-
-    val healthValue = if (healthProfile != null && healthProfile?.targetWeightKg != 0.0) "${healthProfile?.targetWeightKg} kg meta" else "Em dia"
-
-    val balance = transactions.sumOf { if (it.isIncome) it.value else -it.value }
-    val balanceStr = String.format("R$ %.2f", balance)
+    val modules = remember {
+        listOf(
+            ModuleItem("Finanças", "finance", Icons.Outlined.AccountBalanceWallet, Color(0xFF10B981)),
+            ModuleItem("Desejos", "wishes", Icons.Outlined.BookmarkBorder, Color(0xFFF59E0B)),
+            ModuleItem("Transporte", "transport", Icons.Outlined.DirectionsBus, Color(0xFF38BDF8)),
+            ModuleItem("Saúde", "health", Icons.Outlined.MonitorHeart, PrimaryTeal),
+            ModuleItem("Rotinas", "goals", Icons.Outlined.Flag, Color(0xFFF97316)),
+            ModuleItem("Meu Apê", "apartment", Icons.Outlined.Construction, SecondaryGold),
+            ModuleItem("Petz", "petz", Icons.Outlined.Pets, TertiaryPurple),
+            ModuleItem("Mercado", "market", Icons.Outlined.ShoppingCart, Color(0xFF34D399))
+        )
+    }
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = Modifier.fillMaxWidth()
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .offset(y = itemsOffset)
+            .alpha(itemsAlpha)
     ) {
-        // Linha 1: 2 blocos grandes (Saúde e Rotinas)
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
-            Box(modifier = Modifier.weight(1f)) {
-                BentoTile(
-                    title = "Saúde",
-                    subtitle = healthValue,
-                    icon = Icons.Outlined.MonitorHeart,
-                    iconColor = PrimaryTeal,
-                    alpha = itemsAlpha,
-                    offsetY = itemsOffset,
-                    isLarge = true,
-                    onClick = { onNavigate("health") }
-                )
-            }
-            Box(modifier = Modifier.weight(1f)) {
-                BentoTile(
-                    title = "Rotinas",
-                    subtitle = "$totalRoutines ativas",
-                    icon = Icons.Outlined.Flag,
-                    iconColor = Color(0xFFF9A826),
-                    alpha = itemsAlpha,
-                    offsetY = itemsOffset,
-                    isLarge = true,
-                    onClick = { onNavigate("goals") }
-                )
-            }
-        }
-
-        // Linha 2: 3 blocos pequenos (Meu Apê, Finanças, Pets)
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
-            Box(modifier = Modifier.weight(1f)) {
-                BentoTile(
-                    title = "Apê",
-                    subtitle = "$marketCount itens",
-                    icon = Icons.Outlined.Construction,
-                    iconColor = SecondaryGold,
-                    alpha = itemsAlpha,
-                    offsetY = itemsOffset,
-                    isLarge = false,
-                    onClick = { onNavigate("apartment") }
-                )
-            }
-            Box(modifier = Modifier.weight(1f)) {
-                BentoTile(
-                    title = "Finanças",
-                    subtitle = balanceStr,
-                    icon = Icons.Outlined.AttachMoney,
-                    iconColor = Color(0xFF10B981),
-                    alpha = itemsAlpha,
-                    offsetY = itemsOffset,
-                    isLarge = false,
-                    onClick = { onNavigate("finance") }
-                )
-            }
-            Box(modifier = Modifier.weight(1f)) {
-                BentoTile(
-                    title = "Petz",
-                    subtitle = "$petEventsCount eventos",
-                    icon = Icons.Outlined.Pets,
-                    iconColor = TertiaryPurple,
-                    alpha = itemsAlpha,
-                    offsetY = itemsOffset,
-                    isLarge = false,
-                    onClick = { onNavigate("petz") }
-                )
-            }
-        }
-
-        // Linha 3: 2 blocos mistos (Desejos, Transporte)
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
-            Box(modifier = Modifier.weight(1f)) {
-                BentoTile(
-                    title = "Desejos",
-                    subtitle = "$activeWishes salvos",
-                    icon = Icons.Outlined.Star,
-                    iconColor = Color(0xFFF9A826),
-                    alpha = itemsAlpha,
-                    offsetY = itemsOffset,
-                    isLarge = false,
-                    onClick = { onNavigate("wishes") }
-                )
-            }
-            Box(modifier = Modifier.weight(1f)) {
-                BentoTile(
-                    title = "Transporte",
-                    subtitle = "Ao vivo",
-                    icon = Icons.Outlined.DirectionsBus,
-                    iconColor = Color(0xFF4FC3F7),
-                    alpha = itemsAlpha,
-                    offsetY = itemsOffset,
-                    isLarge = false,
-                    onClick = { onNavigate("transport") }
-                )
+        modules.chunked(2).forEach { rowModules ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                rowModules.forEach { module ->
+                    Box(modifier = Modifier.weight(1f)) {
+                        MinimalModuleTile(
+                            title = module.title,
+                            icon = module.icon,
+                            iconColor = module.iconColor,
+                            onClick = { onNavigate(module.route) }
+                        )
+                    }
+                }
+                if (rowModules.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
         }
     }
 }
 
 @Composable
-fun BentoTile(
+private fun MinimalModuleTile(
     title: String,
-    subtitle: String,
     icon: ImageVector,
     iconColor: Color,
-    alpha: Float,
-    offsetY: Dp,
-    isLarge: Boolean,
     onClick: () -> Unit
 ) {
-    val height = if (isLarge) 140.dp else 110.dp
+    val shape = RoundedCornerShape(16.dp)
     
-    Box(
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .offset(y = offsetY)
-            .alpha(alpha)
-            .height(height)
             .fillMaxWidth()
-            .clip(RoundedCornerShape(28.dp))
-            .background(themedSubtleBackground())
-            .border(1.dp, themedSubtleBorder(), RoundedCornerShape(28.dp))
+            .height(56.dp)
+            .clip(shape)
+            .background(themedCardBackground())
+            .border(1.dp, themedCardBorder(), shape)
             .clickable(onClick = onClick)
-            .padding(16.dp)
+            .padding(horizontal = 14.dp)
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = if (isLarge) Arrangement.SpaceBetween else Arrangement.Center,
-            horizontalAlignment = Alignment.Start
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(iconColor.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
         ) {
-            if (isLarge) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(CircleShape)
-                            .background(iconColor.copy(alpha = 0.15f))
-                            .border(1.dp, iconColor.copy(alpha = 0.3f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = iconColor,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-                
-                Column {
-                    Text(
-                        text = subtitle,
-                        color = iconColor,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.SansSerif
-                    )
-                    Text(
-                        text = title,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Normal,
-                        fontFamily = FontFamily.Serif
-                    )
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(iconColor.copy(alpha = 0.15f))
-                        .border(1.dp, iconColor.copy(alpha = 0.3f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = iconColor,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = title,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    fontFamily = FontFamily.SansSerif,
-                    maxLines = 1
-                )
-                Text(
-                    text = subtitle,
-                    color = iconColor,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    fontFamily = FontFamily.SansSerif,
-                    maxLines = 1
-                )
-            }
+            Icon(
+                imageVector = icon,
+                contentDescription = title,
+                tint = iconColor,
+                modifier = Modifier.size(18.dp)
+            )
         }
+        
+        Spacer(modifier = Modifier.width(12.dp))
+        
+        Text(
+            text = title,
+            color = MaterialTheme.colorScheme.onBackground,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            fontFamily = FontFamily.SansSerif,
+            maxLines = 1
+        )
     }
 }
