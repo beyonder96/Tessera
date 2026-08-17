@@ -13,6 +13,7 @@ app/build/
 .externalNativeBuild/
 .cxx/
 *.apk
+!.build-outputs/*.apk
 *.aab
 *.ap_
 output-metadata.json
