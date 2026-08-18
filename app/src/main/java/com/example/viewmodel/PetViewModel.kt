@@ -30,7 +30,8 @@ class PetViewModel(private val repository: TesseraRepository) : ViewModel() {
                             name = "Marie",
                             breed = "Golden Retriever",
                             birthDate = System.currentTimeMillis() - 4L * 365 * 24 * 3600 * 1000, // ~4 years ago
-                            photoUri = "https://lh3.googleusercontent.com/aida-public/AB6AXuC-nfJPLwsDCoZAPRnyoFfm-kb7-YGKFlZERj6GnvfsPRWF04QUeCIX1WhZHhCQLUF4_4wKhJZZ_Pjz7Q86FxU0IpCdNNwQFjU5MHMRrs5lQl4cD1DJTeYqV574VjOoD3xOAusiBniyTZI0VWBYGbhi0NUc57PSZP_6rU7yVmXK85XXkeVqYgYA6Z_-kIeU4PINEX9lZBUfcgobmRvse9pFNN-27sq-IuJzPyavZxsCKJk7pXdnHy5vLrP8xPsnWkGmCE1VhtBiXRw",
+                            photoUri = "https://images.unsplash.com/photo-1552053831-71594a27632d?q=80&w=800&auto=format&fit=crop",
+                            photoUriDark = "https://lh3.googleusercontent.com/aida-public/AB6AXuC-nfJPLwsDCoZAPRnyoFfm-kb7-YGKFlZERj6GnvfsPRWF04QUeCIX1WhZHhCQLUF4_4wKhJZZ_Pjz7Q86FxU0IpCdNNwQFjU5MHMRrs5lQl4cD1DJTeYqV574VjOoD3xOAusiBniyTZI0VWBYGbhi0NUc57PSZP_6rU7yVmXK85XXkeVqYgYA6Z_-kIeU4PINEX9lZBUfcgobmRvse9pFNN-27sq-IuJzPyavZxsCKJk7pXdnHy5vLrP8xPsnWkGmCE1VhtBiXRw",
                             rga = "1234567",
                             microchip = "123456789012345",
                             sex = PetSex.FEMEA,
@@ -50,7 +51,8 @@ class PetViewModel(private val repository: TesseraRepository) : ViewModel() {
                             name = "Churchill",
                             breed = "Buldogue Francês",
                             birthDate = System.currentTimeMillis() - 2L * 365 * 24 * 3600 * 1000, // ~2 years ago
-                            photoUri = "https://lh3.googleusercontent.com/aida-public/AB6AXuBwE9mkw-3Q01XMMJNCBsgQYL4vceyVCaIpNVZLlNpqFxq56lIYShGa2Y2Ayd2cWilSsA1Sh7N8EhEeP0UmPiTX1Jxrt5v-bwMd7go8hp_GMPk-ujDr-jURbRlfoI92fsudTavmulIvwmwVFRX5oy5pq4tLAm0ouBfSkwAy2knOwtJPymqKdo2ZhqgGc_eH8IPceKSvI0ugGLLmnBGc5BIGL9mwFb4JUYULZY9PQ4BuBWZGmIU3n7lN0G86yPzXd3Zi58hh3NsMgjw",
+                            photoUri = "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?q=80&w=800&auto=format&fit=crop",
+                            photoUriDark = "https://lh3.googleusercontent.com/aida-public/AB6AXuBwE9mkw-3Q01XMMJNCBsgQYL4vceyVCaIpNVZLlNpqFxq56lIYShGa2Y2Ayd2cWilSsA1Sh7N8EhEeP0UmPiTX1Jxrt5v-bwMd7go8hp_GMPk-ujDr-jURbRlfoI92fsudTavmulIvwmwVFRX5oy5pq4tLAm0ouBfSkwAy2knOwtJPymqKdo2ZhqgGc_eH8IPceKSvI0ugGLLmnBGc5BIGL9mwFb4JUYULZY9PQ4BuBWZGmIU3n7lN0G86yPzXd3Zi58hh3NsMgjw",
                             rga = "7654321",
                             microchip = "987654321098765",
                             sex = PetSex.MACHO,

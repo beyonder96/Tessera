@@ -3,25 +3,60 @@ import { MarketSharePage } from './pages/MarketSharePage'
 import { FinanceSharePage } from './pages/FinanceSharePage'
 import { Sparkles, Shield, Smartphone } from 'lucide-react'
 
+function parseRoute(): { type: 'market' | 'finance' | 'home'; id: string } {
+  const path = window.location.pathname
+  const hash = window.location.hash
+  const params = new URLSearchParams(window.location.search)
+
+  // 1. Direct path /market/:id or /finance/:id
+  const marketMatch = path.match(/^\/market\/([^/]+)/)
+  if (marketMatch) return { type: 'market', id: decodeURIComponent(marketMatch[1]) }
+
+  const financeMatch = path.match(/^\/finance\/([^/]+)/)
+  if (financeMatch) return { type: 'finance', id: decodeURIComponent(financeMatch[1]) }
+
+  // 2. Hash routes #/market/:id or #/finance/:id
+  const hashMarket = hash.match(/^#\/?market\/([^/]+)/)
+  if (hashMarket) return { type: 'market', id: decodeURIComponent(hashMarket[1]) }
+
+  const hashFinance = hash.match(/^#\/?finance\/([^/]+)/)
+  if (hashFinance) return { type: 'finance', id: decodeURIComponent(hashFinance[1]) }
+
+  // 3. Query params
+  const listId = params.get('listId') || params.get('marketId')
+  if (listId) return { type: 'market', id: listId }
+
+  const financeId = params.get('financeId') || params.get('dashboardId')
+  if (financeId) return { type: 'finance', id: financeId }
+
+  const typeParam = params.get('type')
+  const idParam = params.get('id')
+  if (typeParam === 'finance' && idParam) return { type: 'finance', id: idParam }
+  if (typeParam === 'market' && idParam) return { type: 'market', id: idParam }
+  if (idParam) return { type: 'market', id: idParam }
+
+  return { type: 'home', id: '' }
+}
+
 export function App() {
-  const [route, setRoute] = useState(window.location.pathname)
+  const [routeInfo, setRouteInfo] = useState(parseRoute())
 
   useEffect(() => {
-    const handlePopState = () => setRoute(window.location.pathname)
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
+    const handleLocationChange = () => setRouteInfo(parseRoute())
+    window.addEventListener('popstate', handleLocationChange)
+    window.addEventListener('hashchange', handleLocationChange)
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange)
+      window.removeEventListener('hashchange', handleLocationChange)
+    }
   }, [])
 
-  // Match /market/:id
-  const marketMatch = route.match(/^\/market\/([^/]+)/)
-  if (marketMatch) {
-    return <MarketSharePage listId={marketMatch[1]} />
+  if (routeInfo.type === 'market' && routeInfo.id) {
+    return <MarketSharePage listId={routeInfo.id} />
   }
 
-  // Match /finance/:id
-  const financeMatch = route.match(/^\/finance\/([^/]+)/)
-  if (financeMatch) {
-    return <FinanceSharePage dashboardId={financeMatch[1]} />
+  if (routeInfo.type === 'finance' && routeInfo.id) {
+    return <FinanceSharePage dashboardId={routeInfo.id} />
   }
 
   // Fallback Home / Landing

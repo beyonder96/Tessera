@@ -308,7 +308,12 @@ fun TransportScreen(
                                             Column {
                                                 Text(line.nome, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                                                 Spacer(modifier = Modifier.height(2.dp))
-                                                Text(statusTxt, color = if (isNormal) Color(0xFF81C784) else Color(0xFFFF6B6B), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                                val statusDetailText = if (!line.status?.atualizadoHa.isNullOrBlank()) {
+                                                    "$statusTxt • ${line.status?.atualizadoHa}"
+                                                } else {
+                                                    statusTxt
+                                                }
+                                                Text(statusDetailText, color = if (isNormal) Color(0xFF81C784) else Color(0xFFFF6B6B), fontSize = 12.sp, fontWeight = FontWeight.Medium)
                                             }
                                         }
                                         if (!isNormal) {

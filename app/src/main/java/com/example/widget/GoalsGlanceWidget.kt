@@ -14,6 +14,7 @@ import androidx.glance.appwidget.appWidgetBackground
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
+import androidx.glance.color.ColorProvider
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
@@ -76,46 +77,68 @@ fun GoalsWidgetContent(context: Context, completedHabits: Int, totalHabits: Int,
         }
     )
 
+    val bgProvider = ColorProvider(day = Color(0xF8FFFFFF), night = Color(0xF0121316))
+    val textPrimary = ColorProvider(day = Color(0xFF0F172A), night = Color(0xFFF8FAFC))
+    val textSecondary = ColorProvider(day = Color(0xFF64748B), night = Color(0xFF94A3B8))
+    val accentPurple = ColorProvider(day = Color(0xFF7C3AED), night = Color(0xFFA78BFA))
+    val cardSurface = ColorProvider(day = Color(0x0F0F172A), night = Color(0x18FFFFFF))
+
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(Color(0x99000000))
+            .background(bgProvider)
             .appWidgetBackground()
-            .cornerRadius(32.dp)
-            .padding(16.dp)
+            .cornerRadius(18.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
             .clickable(openAppAction),
-        verticalAlignment = Alignment.Top,
-        horizontalAlignment = Alignment.Start
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = GlanceModifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
-                text = "METAS E HÁBITOS",
-                style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFFF9A826), night = Color(0xFFF9A826)), fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                text = "METAS & FOCO",
+                style = TextStyle(color = accentPurple, fontSize = 9.sp, fontWeight = FontWeight.Bold),
                 modifier = GlanceModifier.defaultWeight()
             )
-            Text("TESSERA", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x66FFFFFF), night = Color(0x66FFFFFF)), fontSize = 9.sp, fontWeight = FontWeight.Bold))
+            Text(
+                text = "TESSERA",
+                style = TextStyle(color = textSecondary, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+            )
         }
-        Spacer(modifier = GlanceModifier.height(8.dp))
 
-        Row(modifier = GlanceModifier.fillMaxWidth()) {
+        Spacer(modifier = GlanceModifier.height(4.dp))
+
+        Row(
+            modifier = GlanceModifier
+                .fillMaxWidth()
+                .background(cardSurface)
+                .cornerRadius(12.dp)
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Column(modifier = GlanceModifier.defaultWeight()) {
-                Text("Rituais Diários", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF81928F), night = Color(0xFF81928F)), fontSize = 11.sp))
+                Text(
+                    text = "Rituais Diários",
+                    style = TextStyle(color = textSecondary, fontSize = 8.sp, fontWeight = FontWeight.Medium)
+                )
                 Text(
                     text = "$completedHabits de $totalHabits concluídos",
-                    style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    style = TextStyle(color = textPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 )
             }
+
             Column(modifier = GlanceModifier.defaultWeight(), horizontalAlignment = Alignment.End) {
-                Text("Rotinas Chronos", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF81928F), night = Color(0xFF81928F)), fontSize = 11.sp))
                 Text(
-                    text = "$routinesCount ativas hoje",
-                    style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    text = "Rotinas Chronos",
+                    style = TextStyle(color = textSecondary, fontSize = 8.sp, fontWeight = FontWeight.Medium)
+                )
+                Text(
+                    text = "$routinesCount ativas",
+                    style = TextStyle(color = textPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 )
             }
         }
-
-        Spacer(modifier = GlanceModifier.height(12.dp))
-        Text("Deseja focar agora?", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x99FFFFFF), night = Color(0x99FFFFFF)), fontSize = 11.sp))
-        Text("Toque para abrir e iniciar Pomodoro ou Chronos.", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x66FFFFFF), night = Color(0x66FFFFFF)), fontSize = 10.sp))
     }
 }

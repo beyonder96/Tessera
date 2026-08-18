@@ -14,6 +14,7 @@ import androidx.glance.appwidget.appWidgetBackground
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
+import androidx.glance.color.ColorProvider
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
@@ -63,51 +64,65 @@ fun MarketWidgetContent(context: Context, items: List<MarketItem>) {
         }
     )
 
+    val bgProvider = ColorProvider(day = Color(0xF8FFFFFF), night = Color(0xF0121316))
+    val textPrimary = ColorProvider(day = Color(0xFF0F172A), night = Color(0xFFF8FAFC))
+    val textSecondary = ColorProvider(day = Color(0xFF64748B), night = Color(0xFF94A3B8))
+    val accentBlue = ColorProvider(day = Color(0xFF0284C7), night = Color(0xFF38BDF8))
+    val cardSurface = ColorProvider(day = Color(0x0F0F172A), night = Color(0x18FFFFFF))
+
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(Color(0x99000000))
+            .background(bgProvider)
             .appWidgetBackground()
-            .cornerRadius(32.dp)
-            .padding(16.dp)
+            .cornerRadius(18.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
             .clickable(openAppAction),
-        verticalAlignment = Alignment.Top,
-        horizontalAlignment = Alignment.Start
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = GlanceModifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
                 text = "MERCADO",
-                style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF4D96FF), night = Color(0xFF4D96FF)), fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                style = TextStyle(color = accentBlue, fontSize = 9.sp, fontWeight = FontWeight.Bold),
                 modifier = GlanceModifier.defaultWeight()
             )
-            Text("TESSERA", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x66FFFFFF), night = Color(0x66FFFFFF)), fontSize = 9.sp, fontWeight = FontWeight.Bold))
+            Text(
+                text = "TESSERA",
+                style = TextStyle(color = textSecondary, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+            )
         }
-        Spacer(modifier = GlanceModifier.height(8.dp))
 
-        Text("Lista de Compras", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF81928F), night = Color(0xFF81928F)), fontSize = 11.sp))
-        Text(
-            text = "${items.size} itens pendentes",
-            style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        )
+        Spacer(modifier = GlanceModifier.height(4.dp))
 
-        Spacer(modifier = GlanceModifier.height(10.dp))
-        Column(modifier = GlanceModifier.fillMaxWidth()) {
-            if (items.isEmpty()) {
-                Text("Tudo comprado!", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF64FFDA), night = Color(0xFF64FFDA)), fontSize = 13.sp))
-            } else {
-                items.take(2).forEach { item ->
-                    val qtyText = if (item.unit == "Kg") "${item.quantity} Kg" else "${item.quantity.toInt()} un"
-                    Text(
-                        text = "• ${item.name} ($qtyText)",
-                        style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xE6FFFFFF), night = Color(0xE6FFFFFF)), fontSize = 12.sp)
-                    )
-                }
-                if (items.size > 2) {
-                    Text(
-                        text = "+ ${items.size - 2} outros itens...",
-                        style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x80FFFFFF), night = Color(0x80FFFFFF)), fontSize = 11.sp)
-                    )
-                }
+        Row(
+            modifier = GlanceModifier
+                .fillMaxWidth()
+                .background(cardSurface)
+                .cornerRadius(12.dp)
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = GlanceModifier.defaultWeight()) {
+                Text(
+                    text = "Lista de Compras",
+                    style = TextStyle(color = textSecondary, fontSize = 8.sp, fontWeight = FontWeight.Medium)
+                )
+                Text(
+                    text = if (items.isEmpty()) "Tudo comprado!" else "${items.size} itens pendentes",
+                    style = TextStyle(color = textPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                )
+            }
+
+            if (items.isNotEmpty()) {
+                val preview = items.take(2).joinToString(", ") { it.name }
+                Text(
+                    text = preview,
+                    style = TextStyle(color = textSecondary, fontSize = 10.sp, fontWeight = FontWeight.Medium),
+                    maxLines = 1
+                )
             }
         }
     }

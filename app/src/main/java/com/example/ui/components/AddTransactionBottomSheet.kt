@@ -1,7 +1,6 @@
 package com.example.ui.components
-import androidx.compose.material3.MaterialTheme
 
-import com.example.utils.toDoubleCleanOrZero
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -9,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -36,16 +36,7 @@ import com.example.data.BankAccount
 import com.example.data.BenefitCard
 import com.example.data.CreditCard
 import com.example.data.Transaction
-import com.example.ui.components.isDarkTheme
-import com.example.ui.components.themedCardBackground
-import com.example.ui.components.themedCardBorder
-import com.example.ui.components.themedButtonBorder
-import com.example.ui.components.themedTextFieldColors
-import com.example.ui.components.themedSubtleBackground
-import com.example.ui.components.themedSubtleBorder
-import com.example.ui.components.themedDivider
-import com.example.ui.components.themedOverlayBackground
-import android.content.Context
+import com.example.utils.toDoubleCleanOrZero
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -100,8 +91,8 @@ fun AddTransactionBottomSheet(
     }
 
     // Origins and Destinations for Transfer
-    var fromAccount by remember { mutableStateOf<String?>(null) }
-    var toAccount by remember { mutableStateOf<String?>(null) }
+    var fromAccount by remember { mutableStateOf(bankAccounts.firstOrNull()?.name) }
+    var toAccount by remember { mutableStateOf(bankAccounts.getOrNull(1)?.name) }
     
     val context = LocalContext.current
     val sharedPrefs = remember(context) { context.getSharedPreferences("tessera_prefs", Context.MODE_PRIVATE) }
@@ -270,7 +261,7 @@ fun AddTransactionBottomSheet(
             if (isTransfer) {
                 // Origem Selector (Bank Accounts Only)
                 Column {
-                    Text("ORIGEM", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 1.sp)
+                    Text("CONTA DE ORIGEM", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 1.sp)
                     Spacer(modifier = Modifier.height(8.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(bankAccounts) { acc ->
@@ -278,7 +269,7 @@ fun AddTransactionBottomSheet(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isSelected) Color(0xFF4A90E2).copy(alpha = 0.2f) else Color(0x14FFFFFF))
+                                    .background(if (isSelected) Color(0xFF4A90E2).copy(alpha = 0.2f) else themedSubtleBackground())
                                     .border(1.dp, if (isSelected) Color(0xFF4A90E2) else Color.Transparent, RoundedCornerShape(12.dp))
                                     .clickable { fromAccount = acc.name }
                                     .padding(horizontal = 16.dp, vertical = 10.dp)
@@ -290,7 +281,7 @@ fun AddTransactionBottomSheet(
                 }
                 // Destino Selector (Bank Accounts Only)
                 Column {
-                    Text("DESTINO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 1.sp)
+                    Text("CONTA DE DESTINO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 1.sp)
                     Spacer(modifier = Modifier.height(8.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(bankAccounts.filter { it.name != fromAccount }) { acc ->
@@ -339,233 +330,233 @@ fun AddTransactionBottomSheet(
                         }
                     }
                 }
+            }
 
-                // Title Input
-                Column {
-                    Text("TÍTULO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0x66FFFFFF), letterSpacing = 1.sp)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    OutlinedTextField(
-                        value = title,
-                        onValueChange = { title = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color(0x0AFFFFFF),
-                            unfocusedContainerColor = Color(0x0AFFFFFF),
-                            focusedBorderColor = Color(0xFF71D7CD),
-                            unfocusedBorderColor = Color(0x1AFFFFFF),
-                            focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onBackground
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                }
+            // Title Input
+            Column {
+                Text("TÍTULO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 1.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = themedSubtleBackground(),
+                        unfocusedContainerColor = themedSubtleBackground(),
+                        focusedBorderColor = if (isIncome) Color(0xFF71D7CD) else Color(0xFFEF4444),
+                        unfocusedBorderColor = themedSubtleBorder(),
+                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+            }
 
-                // Category Selector
-                Column {
-                    Text("CATEGORIA", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0x66FFFFFF), letterSpacing = 1.sp)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(allCategories) { (catName, icon) ->
-                            val isSelected = category == catName
-                            val selColor = if (isIncome) Color(0xFF71D7CD) else Color(0xFFEF4444)
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isSelected) selColor.copy(alpha = 0.2f) else themedSubtleBackground())
-                                    .border(1.dp, if (isSelected) selColor else Color.Transparent, RoundedCornerShape(12.dp))
-                                    .clickable { category = catName }
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Icon(icon, contentDescription = null, tint = if (isSelected) selColor else Color(0x99FFFFFF), modifier = Modifier.size(16.dp))
-                                    Text(catName, color = if (isSelected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
-                                }
-                            }
-                        }
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(themedSubtleBackground())
-                                    .border(1.dp, Color.Transparent, RoundedCornerShape(12.dp))
-                                    .clickable { showNewCategoryDialog = true }
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Icon(Icons.Outlined.Add, contentDescription = null, tint = Color(0x99FFFFFF), modifier = Modifier.size(16.dp))
-                                    Text("Nova", color = Color(0x99FFFFFF), fontSize = 13.sp)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Status Checkbox
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(themedSubtleBackground())
-                        .clickable { isRealized = !isRealized }
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(if (isIncome) "Recebido" else "Pago", color = MaterialTheme.colorScheme.onBackground, fontSize = 16.sp)
-                    Switch(
-                        checked = isRealized,
-                        onCheckedChange = { isRealized = it },
-                        colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.onBackground, checkedTrackColor = if(isIncome) Color(0xFF71D7CD) else Color(0xFFEF4444))
-                    )
-                }
-
-                // Data de Vencimento
-                val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale("pt", "BR")) }
-                var showDatePicker by remember { mutableStateOf(false) }
-
-                Column {
-                    Text("DATA DE VENCIMENTO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0x66FFFFFF), letterSpacing = 1.sp)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0x0AFFFFFF))
-                            .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(12.dp))
-                            .clickable { showDatePicker = true }
-                            .padding(horizontal = 16.dp, vertical = 14.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+            // Category Selector
+            Column {
+                Text("CATEGORIA", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 1.sp)
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(allCategories) { (catName, icon) ->
+                        val isSelected = category == catName
+                        val selColor = if (isIncome) Color(0xFF71D7CD) else Color(0xFFEF4444)
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isSelected) selColor.copy(alpha = 0.2f) else themedSubtleBackground())
+                                .border(1.dp, if (isSelected) selColor else Color.Transparent, RoundedCornerShape(12.dp))
+                                .clickable { category = catName }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = if (dueDate > 0L) dateFormat.format(Date(dueDate)) else "Hoje",
-                                color = MaterialTheme.colorScheme.onBackground,
-                                fontSize = 15.sp
-                            )
-                            Icon(
-                                imageVector = Icons.Outlined.CalendarMonth,
-                                contentDescription = "Selecionar Data",
-                                tint = Color(0xFF71D7CD),
-                                modifier = Modifier.size(20.dp)
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Icon(icon, contentDescription = null, tint = if (isSelected) selColor else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                                Text(catName, color = if (isSelected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                            }
+                        }
+                    }
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(themedSubtleBackground())
+                                .border(1.dp, Color.Transparent, RoundedCornerShape(12.dp))
+                                .clickable { showNewCategoryDialog = true }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Icon(Icons.Outlined.Add, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                                Text("Nova", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                            }
                         }
                     }
                 }
+            }
 
-                if (showDatePicker) {
-                    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = if (dueDate > 0L) dueDate else System.currentTimeMillis())
-                    DatePickerDialog(
-                        onDismissRequest = { showDatePicker = false },
-                        confirmButton = {
-                            TextButton(onClick = {
-                                datePickerState.selectedDateMillis?.let { dueDate = it }
-                                showDatePicker = false
-                            }) {
-                                Text("OK", color = Color(0xFF71D7CD))
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showDatePicker = false }) {
-                                Text("Cancelar", color = Color.Gray)
-                            }
-                        }
-                    ) {
-                        DatePicker(state = datePickerState)
-                    }
-                }
+            // Status Checkbox
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(themedSubtleBackground())
+                    .clickable { isRealized = !isRealized }
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(if (isIncome) "Recebido" else "Pago", color = MaterialTheme.colorScheme.onBackground, fontSize = 16.sp)
+                Switch(
+                    checked = isRealized,
+                    onCheckedChange = { isRealized = it },
+                    colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.onBackground, checkedTrackColor = if(isIncome) Color(0xFF71D7CD) else Color(0xFFEF4444))
+                )
+            }
 
-                // Opção de Conta Recorrente / Fixa
-                Row(
+            // Data de Vencimento
+            val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale("pt", "BR")) }
+            var showDatePicker by remember { mutableStateOf(false) }
+
+            Column {
+                Text("DATA DE VENCIMENTO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 1.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
                         .background(themedSubtleBackground())
-                        .clickable { isRecurrent = !isRecurrent }
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .border(1.dp, themedSubtleBorder(), RoundedCornerShape(12.dp))
+                        .clickable { showDatePicker = true }
+                        .padding(horizontal = 16.dp, vertical = 14.dp)
                 ) {
-                    Column {
-                        Text("Conta Recorrente / Fixa Mensal?", color = MaterialTheme.colorScheme.onBackground, fontSize = 16.sp)
-                        Text("Repete todos os meses automaticamente", color = Color(0x66FFFFFF), fontSize = 11.sp)
-                    }
-                    Switch(
-                        checked = isRecurrent,
-                        onCheckedChange = { isRecurrent = it },
-                        colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.onBackground, checkedTrackColor = Color(0xFF71D7CD))
-                    )
-                }
-
-                if (isRecurrent) {
-                    Column {
-                        Text("FREQUÊNCIA DA RECORRÊNCIA", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0x66FFFFFF), letterSpacing = 1.sp)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf("Mensal", "Semanal", "Anual").forEach { interval ->
-                                val isSelected = recurrenceInterval == interval
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(if (isSelected) Color(0xFF71D7CD).copy(alpha = 0.2f) else themedSubtleBackground())
-                                        .border(1.dp, if (isSelected) Color(0xFF71D7CD) else Color.Transparent, RoundedCornerShape(12.dp))
-                                        .clickable { recurrenceInterval = interval }
-                                        .padding(vertical = 10.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(interval, color = if (isSelected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (!isIncome) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(themedSubtleBackground())
-                            .clickable { isInstallment = !isInstallment }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Parcelar Lançamento?", color = MaterialTheme.colorScheme.onBackground, fontSize = 16.sp)
-                        Switch(
-                            checked = isInstallment,
-                            onCheckedChange = { isInstallment = it },
-                            colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.onBackground, checkedTrackColor = Color(0xFF4A90E2))
+                        Text(
+                            text = if (dueDate > 0L) dateFormat.format(Date(dueDate)) else "Hoje",
+                            color = MaterialTheme.colorScheme.onBackground,
+                            fontSize = 15.sp
+                        )
+                        Icon(
+                            imageVector = Icons.Outlined.CalendarMonth,
+                            contentDescription = "Selecionar Data",
+                            tint = Color(0xFF71D7CD),
+                            modifier = Modifier.size(20.dp)
                         )
                     }
-                    
-                    if (isInstallment) {
-                        Column {
-                            Text("QUANTIDADE DE PARCELAS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0x66FFFFFF), letterSpacing = 1.sp)
-                            Spacer(modifier = Modifier.height(4.dp))
-                            OutlinedTextField(
-                                value = installmentsCountStr,
-                                onValueChange = { installmentsCountStr = it },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = Color(0x0AFFFFFF),
-                                    unfocusedContainerColor = Color(0x0AFFFFFF),
-                                    focusedBorderColor = Color(0xFF4A90E2),
-                                    unfocusedBorderColor = Color(0x1AFFFFFF),
-                                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground
-                                ),
-                                shape = RoundedCornerShape(12.dp)
-                            )
+                }
+            }
+
+            if (showDatePicker) {
+                val datePickerState = rememberDatePickerState(initialSelectedDateMillis = if (dueDate > 0L) dueDate else System.currentTimeMillis())
+                DatePickerDialog(
+                    onDismissRequest = { showDatePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            datePickerState.selectedDateMillis?.let { dueDate = it }
+                            showDatePicker = false
+                        }) {
+                            Text("OK", color = Color(0xFF71D7CD))
                         }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDatePicker = false }) {
+                            Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                ) {
+                    DatePicker(state = datePickerState)
+                }
+            }
+
+            // Opção de Conta Recorrente / Fixa
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(themedSubtleBackground())
+                    .clickable { isRecurrent = !isRecurrent }
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text("Conta Recorrente / Fixa Mensal?", color = MaterialTheme.colorScheme.onBackground, fontSize = 16.sp)
+                    Text("Repete todos os meses automaticamente", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                }
+                Switch(
+                    checked = isRecurrent,
+                    onCheckedChange = { isRecurrent = it },
+                    colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.onBackground, checkedTrackColor = Color(0xFF71D7CD))
+                )
+            }
+
+            if (isRecurrent) {
+                Column {
+                    Text("FREQUÊNCIA DA RECORRÊNCIA", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 1.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("Mensal", "Semanal", "Anual").forEach { interval ->
+                            val isSelected = recurrenceInterval == interval
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (isSelected) Color(0xFF71D7CD).copy(alpha = 0.2f) else themedSubtleBackground())
+                                    .border(1.dp, if (isSelected) Color(0xFF71D7CD) else Color.Transparent, RoundedCornerShape(12.dp))
+                                    .clickable { recurrenceInterval = interval }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(interval, color = if (isSelected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!isIncome && !isTransfer) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(themedSubtleBackground())
+                        .clickable { isInstallment = !isInstallment }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Parcelar Lançamento?", color = MaterialTheme.colorScheme.onBackground, fontSize = 16.sp)
+                    Switch(
+                        checked = isInstallment,
+                        onCheckedChange = { isInstallment = it },
+                        colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.onBackground, checkedTrackColor = Color(0xFF4A90E2))
+                    )
+                }
+                
+                if (isInstallment) {
+                    Column {
+                        Text("QUANTIDADE DE PARCELAS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 1.sp)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        OutlinedTextField(
+                            value = installmentsCountStr,
+                            onValueChange = { installmentsCountStr = it },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = themedSubtleBackground(),
+                                unfocusedContainerColor = themedSubtleBackground(),
+                                focusedBorderColor = Color(0xFF4A90E2),
+                                unfocusedBorderColor = themedSubtleBorder(),
+                                focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onBackground
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        )
                     }
                 }
             }
@@ -594,6 +585,9 @@ fun AddTransactionBottomSheet(
                 } else {
                     title.isNotBlank() && parsedValue > 0.0 && selectedOrigin.isNotBlank()
                 }
+
+                val actionButtonColor = if (isTransfer) Color(0xFF4A90E2) else if (isIncome) Color(0xFF71D7CD) else MaterialTheme.colorScheme.primary
+                val actionTextColor = if (isTransfer || isIncome) Color.Black else MaterialTheme.colorScheme.onPrimary
 
                 Button(
                     onClick = {
@@ -624,12 +618,12 @@ fun AddTransactionBottomSheet(
                     enabled = canSave,
                     modifier = Modifier.weight(if (editingTransaction != null) 1f else 2f).height(56.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isTransfer) Color(0xFF4A90E2) else if (isIncome) Color(0xFF71D7CD) else MaterialTheme.colorScheme.onBackground,
-                        disabledContainerColor = Color(0x33FFFFFF)
+                        containerColor = actionButtonColor,
+                        disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                     ),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text(if (editingTransaction != null) "Salvar Alterações" else "Confirmar", color = Color.Black, fontWeight = FontWeight.Bold)
+                    Text(if (editingTransaction != null) "Salvar Alterações" else "Confirmar", color = actionTextColor, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -685,18 +679,15 @@ fun NewCategoryDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF1E1E1E),
         title = { Text("Nova Categoria", color = MaterialTheme.colorScheme.onBackground) },
         text = {
             Column {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Nome", color = Color(0x99FFFFFF)) },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = MaterialTheme.colorScheme.onBackground, unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        focusedBorderColor = Color(0xFF71D7CD)
-                    )
+                    label = { Text("Nome") },
+                    colors = themedOutlinedTextFieldColors(),
+                    modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -706,12 +697,12 @@ fun NewCategoryDialog(
                             modifier = Modifier
                                 .size(48.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSel) Color(0xFF71D7CD).copy(alpha = 0.2f) else Color.Transparent)
-                                .border(1.dp, if (isSel) Color(0xFF71D7CD) else Color.Transparent, RoundedCornerShape(8.dp))
+                                .background(if (isSel) Color(0xFF71D7CD).copy(alpha = 0.2f) else themedSubtleBackground())
+                                .border(1.dp, if (isSel) Color(0xFF71D7CD) else themedSubtleBorder(), RoundedCornerShape(8.dp))
                                 .clickable { selectedIcon = iconName },
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(iconVector, contentDescription = null, tint = if (isSel) Color(0xFF71D7CD) else Color(0x99FFFFFF))
+                            Icon(iconVector, contentDescription = null, tint = if (isSel) Color(0xFF71D7CD) else MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }

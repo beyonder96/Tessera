@@ -14,6 +14,7 @@ import androidx.glance.appwidget.appWidgetBackground
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
+import androidx.glance.color.ColorProvider
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
@@ -22,6 +23,7 @@ import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
+import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
@@ -99,40 +101,71 @@ fun FinanceWidgetContent(context: Context, totalIncome: Double, totalExpense: Do
         }
     )
 
+    val bgProvider = ColorProvider(day = Color(0xF8FFFFFF), night = Color(0xF0121316))
+    val textPrimary = ColorProvider(day = Color(0xFF0F172A), night = Color(0xFFF8FAFC))
+    val textSecondary = ColorProvider(day = Color(0xFF64748B), night = Color(0xFF94A3B8))
+    val accentGold = ColorProvider(day = Color(0xFFD97706), night = Color(0xFFF59E0B))
+    val incomeGreen = ColorProvider(day = Color(0xFF059669), night = Color(0xFF10B981))
+    val expenseRed = ColorProvider(day = Color(0xFFDC2626), night = Color(0xFFEF4444))
+    val cardSurface = ColorProvider(day = Color(0x0F0F172A), night = Color(0x18FFFFFF))
+
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(Color(0x99000000))
+            .background(bgProvider)
             .appWidgetBackground()
-            .cornerRadius(32.dp)
-            .padding(16.dp)
+            .cornerRadius(18.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
             .clickable(openAppAction),
-        verticalAlignment = Alignment.Top,
-        horizontalAlignment = Alignment.Start
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = GlanceModifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
                 text = "FINANÇAS",
-                style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFFF9A826), night = Color(0xFFF9A826)), fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                style = TextStyle(color = accentGold, fontSize = 9.sp, fontWeight = FontWeight.Bold),
                 modifier = GlanceModifier.defaultWeight()
             )
-            Text("TESSERA", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x66FFFFFF), night = Color(0x66FFFFFF)), fontSize = 9.sp, fontWeight = FontWeight.Bold))
+            Text(
+                text = "TESSERA",
+                style = TextStyle(color = textSecondary, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+            )
         }
-        Spacer(modifier = GlanceModifier.height(8.dp))
-        Text("Saldo Geral", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF81928F), night = Color(0xFF81928F)), fontSize = 11.sp))
-        Text(
-            text = "R$ ${String.format(Locale("pt", "BR"), "%,.2f", balance)}",
-            style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White), fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        )
-        Spacer(modifier = GlanceModifier.height(12.dp))
-        Row(modifier = GlanceModifier.fillMaxWidth()) {
+
+        Spacer(modifier = GlanceModifier.height(4.dp))
+
+        Row(
+            modifier = GlanceModifier
+                .fillMaxWidth()
+                .background(cardSurface)
+                .cornerRadius(12.dp)
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Column(modifier = GlanceModifier.defaultWeight()) {
-                Text("Receitas", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x99FFFFFF), night = Color(0x99FFFFFF)), fontSize = 10.sp))
-                Text("R$ ${String.format(Locale("pt", "BR"), "%,.0f", totalIncome)}", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF64FFDA), night = Color(0xFF64FFDA)), fontSize = 13.sp, fontWeight = FontWeight.Bold))
+                Text(
+                    text = "Saldo Geral",
+                    style = TextStyle(color = textSecondary, fontSize = 8.sp, fontWeight = FontWeight.Medium)
+                )
+                Text(
+                    text = "R$ ${String.format(Locale("pt", "BR"), "%,.2f", balance)}",
+                    style = TextStyle(color = textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                )
             }
-            Column(modifier = GlanceModifier.defaultWeight(), horizontalAlignment = Alignment.End) {
-                Text("Despesas", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x99FFFFFF), night = Color(0x99FFFFFF)), fontSize = 10.sp))
-                Text("R$ ${String.format(Locale("pt", "BR"), "%,.0f", totalExpense)}", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFFFF6B6B), night = Color(0xFFFF6B6B)), fontSize = 13.sp, fontWeight = FontWeight.Bold))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "+ R$ ${String.format(Locale("pt", "BR"), "%,.0f", totalIncome)}",
+                        style = TextStyle(color = incomeGreen, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    )
+                    Text(
+                        text = "- R$ ${String.format(Locale("pt", "BR"), "%,.0f", totalExpense)}",
+                        style = TextStyle(color = expenseRed, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    )
+                }
             }
         }
     }

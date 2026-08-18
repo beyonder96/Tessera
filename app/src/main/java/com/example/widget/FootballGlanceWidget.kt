@@ -2,11 +2,14 @@ package com.example.widget
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.Image
+import androidx.glance.ImageProvider
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.action.actionStartActivity
@@ -16,13 +19,16 @@ import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.color.ColorProvider
 import androidx.glance.layout.Alignment
+import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
+import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
+import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
@@ -41,10 +47,14 @@ class FootballGlanceWidget : GlanceAppWidget() {
         var awayScore: String? = null
         var matchDate = "Em breve"
         var status = "PRÓXIMO"
-        var league = "Brasileirão Série A"
+        var league = "Brasileirão"
+        var homeLogoUrl: String? = null
+        var awayLogoUrl: String? = null
+        var homeLogoBitmap: Bitmap? = null
+        var awayLogoBitmap: Bitmap? = null
 
         try {
-            withTimeoutOrNull(2500) {
+            withTimeoutOrNull(3000) {
                 withContext(Dispatchers.IO) {
                     val prefs = context.getSharedPreferences("tessera_prefs", Context.MODE_PRIVATE)
                     val configuredTeams = prefs.getStringSet("football_teams", setOf("Flamengo (Principal)")) ?: setOf("Flamengo (Principal)")
@@ -53,18 +63,15 @@ class FootballGlanceWidget : GlanceAppWidget() {
 
                     val teamId = TheSportsDbApi.knownBrazilianTeams.entries.find { cleanTeamName.contains(it.key) }?.value ?: "134287"
 
-                    // Tenta buscar próximo jogo ou último jogo
                     val nextEvents = try {
-                        val nextResponse = TheSportsDbApi.service.getNextEvents(teamId)
-                        nextResponse.events ?: nextResponse.results ?: emptyList()
+                        TheSportsDbApi.service.getNextEvents(teamId).events ?: emptyList()
                     } catch (e: Exception) {
                         emptyList()
                     }
 
                     val lastEvents = if (nextEvents.isEmpty()) {
                         try {
-                            val lastResponse = TheSportsDbApi.service.getLastEvents(teamId)
-                            lastResponse.events ?: lastResponse.results ?: emptyList()
+                            TheSportsDbApi.service.getLastEvents(teamId).events ?: emptyList()
                         } catch (e: Exception) {
                             emptyList()
                         }
@@ -76,7 +83,9 @@ class FootballGlanceWidget : GlanceAppWidget() {
                         awayTeam = event.strAwayTeam ?: "Adversário"
                         homeScore = event.intHomeScore
                         awayScore = event.intAwayScore
-                        league = event.strLeague ?: "Brasileirão Série A"
+                        league = (event.strLeague ?: "Brasileirão").replace("Campeonato Brasileiro", "Brasileirão")
+                        homeLogoUrl = event.strHomeTeamBadge
+                        awayLogoUrl = event.strAwayTeamBadge
 
                         val rawStatus = event.strStatus ?: "NS"
                         status = when (rawStatus) {
@@ -90,6 +99,10 @@ class FootballGlanceWidget : GlanceAppWidget() {
                             event.strTime
                         ).ifBlank { "Em breve" }
                     }
+
+                    // Carrega os Bitmaps das logos (se disponível)
+                    homeLogoBitmap = loadTeamBadgeBitmap(context, homeLogoUrl, homeTeam)
+                    awayLogoBitmap = loadTeamBadgeBitmap(context, awayLogoUrl, awayTeam)
                 }
             }
         } catch (e: Exception) {
@@ -105,8 +118,26 @@ class FootballGlanceWidget : GlanceAppWidget() {
                 awayScore = awayScore,
                 matchDate = matchDate,
                 status = status,
-                league = league
+                league = league,
+                homeLogoBitmap = homeLogoBitmap,
+                awayLogoBitmap = awayLogoBitmap
             )
+        }
+    }
+
+    private suspend fun loadTeamBadgeBitmap(context: Context, url: String?, teamName: String): Bitmap? = withContext(Dispatchers.IO) {
+        if (url.isNullOrBlank()) return@withContext null
+        try {
+            val loader = coil.ImageLoader(context)
+            val request = coil.request.ImageRequest.Builder(context)
+                .data(url.replace("http://", "https://"))
+                .allowHardware(false) // Essencial para RemoteViews do Android
+                .size(64, 64)
+                .build()
+            val result = (loader.execute(request) as? coil.request.SuccessResult)?.drawable
+            (result as? android.graphics.drawable.BitmapDrawable)?.bitmap
+        } catch (e: Exception) {
+            null
         }
     }
 }
@@ -120,7 +151,9 @@ fun FootballWidgetContent(
     awayScore: String?,
     matchDate: String,
     status: String,
-    league: String
+    league: String,
+    homeLogoBitmap: Bitmap?,
+    awayLogoBitmap: Bitmap?
 ) {
     val openAppAction = actionStartActivity(
         Intent(context, MainActivity::class.java).apply {
@@ -129,16 +162,16 @@ fun FootballWidgetContent(
         }
     )
 
-    val bgProvider = ColorProvider(day = Color(0xF2FFFFFF), night = Color(0xF2111318))
+    val bgProvider = ColorProvider(day = Color(0xF8FFFFFF), night = Color(0xF0121316))
     val textPrimary = ColorProvider(day = Color(0xFF0F172A), night = Color(0xFFF8FAFC))
     val textSecondary = ColorProvider(day = Color(0xFF64748B), night = Color(0xFF94A3B8))
     val accentOrange = ColorProvider(day = Color(0xFFEA580C), night = Color(0xFFF97316))
-    val cardSurface = ColorProvider(day = Color(0x0F0F172A), night = Color(0x1AFFFFFF))
+    val cardSurface = ColorProvider(day = Color(0x0F0F172A), night = Color(0x18FFFFFF))
 
     val statusBg = when (status) {
         "AO VIVO" -> ColorProvider(day = Color(0x26EF4444), night = Color(0x33EF4444))
-        "ENCERRADO" -> ColorProvider(day = Color(0x1A64748B), night = Color(0x2694A3B8))
-        else -> ColorProvider(day = Color(0x1AEA580C), night = Color(0x26F97316))
+        "ENCERRADO" -> ColorProvider(day = Color(0x1464748B), night = Color(0x2094A3B8))
+        else -> ColorProvider(day = Color(0x1AEA580C), night = Color(0x22F97316))
     }
     val statusColor = when (status) {
         "AO VIVO" -> ColorProvider(day = Color(0xFFDC2626), night = Color(0xFFEF4444))
@@ -151,90 +184,106 @@ fun FootballWidgetContent(
             .fillMaxSize()
             .background(bgProvider)
             .appWidgetBackground()
-            .cornerRadius(24.dp)
-            .padding(16.dp)
+            .cornerRadius(18.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
             .clickable(openAppAction),
-        verticalAlignment = Alignment.Top,
-        horizontalAlignment = Alignment.Start
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        // Top Header Row
-        Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        // Header minimalista
+        Row(
+            modifier = GlanceModifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
-                text = "PLACAR",
-                style = TextStyle(color = accentOrange, fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                text = league.uppercase(),
+                style = TextStyle(color = textSecondary, fontSize = 9.sp, fontWeight = FontWeight.Bold),
                 modifier = GlanceModifier.defaultWeight()
             )
             Text(
                 text = status,
-                style = TextStyle(color = statusColor, fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                style = TextStyle(color = statusColor, fontSize = 8.sp, fontWeight = FontWeight.Bold),
                 modifier = GlanceModifier
                     .background(statusBg)
-                    .cornerRadius(6.dp)
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                    .cornerRadius(4.dp)
+                    .padding(horizontal = 5.dp, vertical = 1.dp)
             )
         }
 
         Spacer(modifier = GlanceModifier.height(4.dp))
-        Text(
-            text = league,
-            style = TextStyle(color = textSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
-        )
 
-        Spacer(modifier = GlanceModifier.height(10.dp))
-
-        // Match Info Box
+        // Match Info Row com Logos
         Row(
             modifier = GlanceModifier
                 .fillMaxWidth()
                 .background(cardSurface)
-                .cornerRadius(14.dp)
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .cornerRadius(12.dp)
+                .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Home Team
-            Column(
+            Row(
                 modifier = GlanceModifier.defaultWeight(),
-                horizontalAlignment = Alignment.CenterHorizontally
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalAlignment = Alignment.Start
             ) {
+                if (homeLogoBitmap != null) {
+                    Image(
+                        provider = ImageProvider(homeLogoBitmap),
+                        contentDescription = homeTeam,
+                        modifier = GlanceModifier.size(20.dp)
+                    )
+                    Spacer(modifier = GlanceModifier.width(6.dp))
+                }
                 Text(
-                    text = homeTeam,
-                    style = TextStyle(color = textPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold),
+                    text = homeTeam.take(10),
+                    style = TextStyle(color = textPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold),
                     maxLines = 1
                 )
             }
 
-            // Score / VS Center Area
-            Column(
-                modifier = GlanceModifier.width(60.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            // Score / VS
+            Box(
+                modifier = GlanceModifier.padding(horizontal = 6.dp),
+                contentAlignment = Alignment.Center
             ) {
                 if (homeScore != null && awayScore != null) {
                     Text(
                         text = "$homeScore - $awayScore",
-                        style = TextStyle(color = textPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        style = TextStyle(color = textPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     )
                 } else {
-                    Text(
-                        text = "VS",
-                        style = TextStyle(color = accentOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    )
-                    Text(
-                        text = matchDate,
-                        style = TextStyle(color = textSecondary, fontSize = 9.sp, fontWeight = FontWeight.Medium)
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "VS",
+                            style = TextStyle(color = accentOrange, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        )
+                        Text(
+                            text = matchDate.take(11),
+                            style = TextStyle(color = textSecondary, fontSize = 8.sp, fontWeight = FontWeight.Medium)
+                        )
+                    }
                 }
             }
 
             // Away Team
-            Column(
+            Row(
                 modifier = GlanceModifier.defaultWeight(),
-                horizontalAlignment = Alignment.CenterHorizontally
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalAlignment = Alignment.End
             ) {
                 Text(
-                    text = awayTeam,
-                    style = TextStyle(color = textPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold),
+                    text = awayTeam.take(10),
+                    style = TextStyle(color = textPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold),
                     maxLines = 1
                 )
+                if (awayLogoBitmap != null) {
+                    Spacer(modifier = GlanceModifier.width(6.dp))
+                    Image(
+                        provider = ImageProvider(awayLogoBitmap),
+                        contentDescription = awayTeam,
+                        modifier = GlanceModifier.size(20.dp)
+                    )
+                }
             }
         }
     }

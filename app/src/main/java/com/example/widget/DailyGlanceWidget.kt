@@ -14,6 +14,7 @@ import androidx.glance.appwidget.appWidgetBackground
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
+import androidx.glance.color.ColorProvider
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
@@ -21,8 +22,8 @@ import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
-import androidx.glance.layout.width
 import androidx.glance.layout.padding
+import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
@@ -119,93 +120,98 @@ fun DailyWidgetContent(context: Context, balance: Double, steps: Long, petComple
 
     val calendar = Calendar.getInstance()
     val dayOfMonth = calendar.get(Calendar.DAY_OF_MONTH)
-    val monthName = calendar.getDisplayName(Calendar.MONTH, Calendar.SHORT, Locale("pt", "BR"))?.replace(".", "")
+    val monthName = calendar.getDisplayName(Calendar.MONTH, Calendar.SHORT, Locale.getDefault())?.replace(".", "") ?: "Mês"
 
-    val bgProvider = androidx.glance.color.ColorProvider(day = Color(0xF2FFFFFF), night = Color(0xF2111318))
-    val textPrimary = androidx.glance.color.ColorProvider(day = Color(0xFF0F172A), night = Color(0xFFF8FAFC))
-    val textSecondary = androidx.glance.color.ColorProvider(day = Color(0xFF64748B), night = Color(0xFF94A3B8))
-    val accentTeal = androidx.glance.color.ColorProvider(day = Color(0xFF0D9488), night = Color(0xFF2DD4BF))
-    val cardSurface = androidx.glance.color.ColorProvider(day = Color(0x0F0F172A), night = Color(0x1AFFFFFF))
+    val bgProvider = ColorProvider(day = Color(0xF8FFFFFF), night = Color(0xF0121316))
+    val textPrimary = ColorProvider(day = Color(0xFF0F172A), night = Color(0xFFF8FAFC))
+    val textSecondary = ColorProvider(day = Color(0xFF64748B), night = Color(0xFF94A3B8))
+    val accentTeal = ColorProvider(day = Color(0xFF0D9488), night = Color(0xFF2DD4BF))
+    val cardSurface = ColorProvider(day = Color(0x0F0F172A), night = Color(0x18FFFFFF))
 
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
             .background(bgProvider)
             .appWidgetBackground()
-            .cornerRadius(24.dp)
-            .padding(16.dp)
+            .cornerRadius(18.dp)
+            .padding(horizontal = 10.dp, vertical = 8.dp)
             .clickable(openAppAction),
-        verticalAlignment = Alignment.Top,
-        horizontalAlignment = Alignment.Start
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = GlanceModifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
                 text = "TESSERA",
-                style = TextStyle(color = accentTeal, fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                style = TextStyle(color = accentTeal, fontSize = 9.sp, fontWeight = FontWeight.Bold),
                 modifier = GlanceModifier.defaultWeight()
             )
             Text(
                 text = "$dayOfMonth $monthName".uppercase(),
-                style = TextStyle(color = textSecondary, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                style = TextStyle(color = textSecondary, fontSize = 8.sp, fontWeight = FontWeight.Bold)
             )
         }
+
         Spacer(modifier = GlanceModifier.height(4.dp))
-        Text(
-            text = "Resumo do Dia",
-            style = TextStyle(color = textPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-        )
-        Spacer(modifier = GlanceModifier.height(10.dp))
-        Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+
+        Row(
+            modifier = GlanceModifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Saldo
             Column(
                 modifier = GlanceModifier
                     .defaultWeight()
                     .background(cardSurface)
-                    .cornerRadius(12.dp)
-                    .padding(vertical = 8.dp, horizontal = 6.dp),
+                    .cornerRadius(10.dp)
+                    .padding(vertical = 4.dp, horizontal = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Saldo", style = TextStyle(color = textSecondary, fontSize = 9.sp, fontWeight = FontWeight.Medium))
-                Spacer(modifier = GlanceModifier.height(2.dp))
-                Text("R$ ${String.format(Locale("pt", "BR"), "%,.0f", balance)}", style = TextStyle(color = textPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold))
+                Text("Saldo", style = TextStyle(color = textSecondary, fontSize = 7.sp, fontWeight = FontWeight.Medium))
+                Text("R$ ${String.format(Locale.getDefault(), "%,.0f", balance)}", style = TextStyle(color = textPrimary, fontSize = 10.sp, fontWeight = FontWeight.Bold))
             }
-            Spacer(modifier = GlanceModifier.width(6.dp))
+            Spacer(modifier = GlanceModifier.width(4.dp))
+
+            // Passos
             Column(
                 modifier = GlanceModifier
                     .defaultWeight()
                     .background(cardSurface)
-                    .cornerRadius(12.dp)
-                    .padding(vertical = 8.dp, horizontal = 6.dp),
+                    .cornerRadius(10.dp)
+                    .padding(vertical = 4.dp, horizontal = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Passos", style = TextStyle(color = textSecondary, fontSize = 9.sp, fontWeight = FontWeight.Medium))
-                Spacer(modifier = GlanceModifier.height(2.dp))
-                Text("$steps", style = TextStyle(color = textPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold))
+                Text("Passos", style = TextStyle(color = textSecondary, fontSize = 7.sp, fontWeight = FontWeight.Medium))
+                Text("$steps", style = TextStyle(color = textPrimary, fontSize = 10.sp, fontWeight = FontWeight.Bold))
             }
-            Spacer(modifier = GlanceModifier.width(6.dp))
+            Spacer(modifier = GlanceModifier.width(4.dp))
+
+            // Petz
             Column(
                 modifier = GlanceModifier
                     .defaultWeight()
                     .background(cardSurface)
-                    .cornerRadius(12.dp)
-                    .padding(vertical = 8.dp, horizontal = 6.dp),
+                    .cornerRadius(10.dp)
+                    .padding(vertical = 4.dp, horizontal = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Petz", style = TextStyle(color = textSecondary, fontSize = 9.sp, fontWeight = FontWeight.Medium))
-                Spacer(modifier = GlanceModifier.height(2.dp))
-                Text("$petCompleted/$petTotal", style = TextStyle(color = textPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold))
+                Text("Petz", style = TextStyle(color = textSecondary, fontSize = 7.sp, fontWeight = FontWeight.Medium))
+                Text("$petCompleted/$petTotal", style = TextStyle(color = textPrimary, fontSize = 10.sp, fontWeight = FontWeight.Bold))
             }
-            Spacer(modifier = GlanceModifier.width(6.dp))
+            Spacer(modifier = GlanceModifier.width(4.dp))
+
+            // Mercado
             Column(
                 modifier = GlanceModifier
                     .defaultWeight()
                     .background(cardSurface)
-                    .cornerRadius(12.dp)
-                    .padding(vertical = 8.dp, horizontal = 6.dp),
+                    .cornerRadius(10.dp)
+                    .padding(vertical = 4.dp, horizontal = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Mercado", style = TextStyle(color = textSecondary, fontSize = 9.sp, fontWeight = FontWeight.Medium))
-                Spacer(modifier = GlanceModifier.height(2.dp))
-                Text("$marketPending", style = TextStyle(color = textPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold))
+                Text("Mercado", style = TextStyle(color = textSecondary, fontSize = 7.sp, fontWeight = FontWeight.Medium))
+                Text("$marketPending", style = TextStyle(color = textPrimary, fontSize = 10.sp, fontWeight = FontWeight.Bold))
             }
         }
     }

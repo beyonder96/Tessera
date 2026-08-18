@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
-import { TrendingUp, TrendingDown, Wallet, Eye, EyeOff, Share2, AlertCircle, RefreshCw, ArrowUpRight, ArrowDownLeft } from 'lucide-react'
+import { TrendingUp, TrendingDown, Wallet, Eye, EyeOff, Share2, AlertCircle, RefreshCw, ArrowUpRight, ArrowDownLeft, Home } from 'lucide-react'
 
 interface CategoryBreakdown {
   name: string
@@ -42,20 +42,35 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
       setLoading(true)
       setError(null)
       try {
-        const { data, error } = await supabase
+        const { data, error: sbError } = await supabase
           .from('shared_finance_dashboards')
           .select('*')
           .eq('id', dashboardId)
           .single()
 
-        if (error) {
-          throw error
+        if (sbError) {
+          throw sbError
         }
 
-        setDoc(data)
+        if (data) {
+          setDoc(data)
+          localStorage.setItem(`tessera_finance_${dashboardId}`, JSON.stringify(data))
+        }
       } catch (err: any) {
         console.error('Error fetching finance dashboard:', err)
-        setError('Resumo financeiro não encontrado ou link expirado.')
+        // Check localStorage cache as fallback
+        const cached = localStorage.getItem(`tessera_finance_${dashboardId}`)
+        if (cached) {
+          try {
+            setDoc(JSON.parse(cached))
+            setError(null)
+            setLoading(false)
+            return
+          } catch (e) {
+            // ignore
+          }
+        }
+        setError(err.message || 'Resumo financeiro não encontrado ou link expirado.')
       } finally {
         setLoading(false)
       }
@@ -77,6 +92,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
         (payload: any) => {
           if (payload.new) {
             setDoc(payload.new as FinanceDashboardDoc)
+            localStorage.setItem(`tessera_finance_${dashboardId}`, JSON.stringify(payload.new))
           }
         }
       )
@@ -120,15 +136,25 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
   if (error || !doc) {
     return (
       <div className="container" style={{ textAlign: 'center', paddingTop: 80 }}>
-        <div className="card" style={{ maxWidth: 420, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+        <div className="card" style={{ maxWidth: 460, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
           <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--danger-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <AlertCircle size={24} color="var(--danger)" />
           </div>
           <h2 style={{ fontSize: 18, fontWeight: 700 }}>Resumo indisponível</h2>
-          <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{error || 'Não encontramos este resumo financeiro.'}</p>
-          <button className="btn btn-outline" onClick={() => window.location.reload()}>
-            <RefreshCw size={14} /> Tentar novamente
-          </button>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            O painel financeiro (<code>{dashboardId}</code>) não foi localizado no servidor.
+          </p>
+          <div style={{ background: 'var(--bg-surface)', padding: '12px 16px', borderRadius: 'var(--radius-sm)', width: '100%', textAlign: 'left', fontSize: 12, color: 'var(--text-muted)' }}>
+            💡 <strong>Dica:</strong> Abra o aplicativo Tessera no celular, acesse a aba <em>Finanças</em> e toque em <em>Compartilhar / Gerar Novo Link</em> para atualizar os dados compartilhados.
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+            <button className="btn btn-outline" onClick={() => window.location.reload()}>
+              <RefreshCw size={14} /> Tentar novamente
+            </button>
+            <button className="btn btn-outline" onClick={() => window.location.href = '/'}>
+              <Home size={14} /> Início
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -201,29 +227,28 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
         </div>
       </div>
 
-      {/* Categories Breakdown */}
+      {/* Category Breakdown */}
       {doc.categories && doc.categories.length > 0 && (
         <div className="card" style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 16 }}>
+          <h2 style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-muted)', marginBottom: 16 }}>
             Gastos por Categoria
-          </div>
+          </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {doc.categories.map((cat, idx) => (
               <div key={idx}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                  <span>{cat.name}</span>
-                  <span style={{ color: 'var(--text-secondary)' }}>
-                    {formatCurrency(cat.amount)} <small style={{ opacity: 0.7 }}>({cat.percentage.toFixed(0)}%)</small>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cat.name}</span>
+                  <span style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>
+                    {formatCurrency(cat.amount)} ({cat.percentage}%)
                   </span>
                 </div>
                 <div style={{ width: '100%', height: 6, background: 'var(--bg-surface-hover)', borderRadius: 999, overflow: 'hidden' }}>
                   <div 
                     style={{ 
-                      width: `${Math.min(cat.percentage, 100)}%`, 
+                      width: `${cat.percentage}%`, 
                       height: '100%', 
                       background: 'var(--accent)', 
-                      borderRadius: 999,
-                      opacity: 0.85
+                      borderRadius: 999 
                     }} 
                   />
                 </div>
@@ -236,12 +261,12 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
       {/* Recent Transactions List */}
       {doc.transactions && doc.transactions.length > 0 && (
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 12, paddingLeft: 4 }}>
+          <h2 style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-muted)', marginBottom: 12 }}>
             Últimas Movimentações
-          </div>
+          </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {doc.transactions.map((tx) => {
-              const isIncome = tx.type?.toLowerCase() === 'income' || tx.type?.toLowerCase() === 'receita'
+              const isIncome = tx.type === 'INCOME'
               return (
                 <div 
                   key={tx.id}
@@ -252,34 +277,33 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
                     padding: '12px 16px',
                     background: 'var(--bg-card)',
                     border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-md)'
+                    borderRadius: 'var(--radius-md)',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ 
                       width: 32, 
                       height: 32, 
                       borderRadius: '50%', 
-                      background: isIncome ? 'var(--success-subtle)' : 'var(--bg-surface)', 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center' 
+                      background: isIncome ? 'var(--success-subtle)' : 'var(--danger-subtle)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
                     }}>
-                      {isIncome ? <ArrowDownLeft size={16} color="var(--success)" /> : <ArrowUpRight size={16} color="var(--text-muted)" />}
+                      {isIncome ? <ArrowDownLeft size={16} color="var(--success)" /> : <ArrowUpRight size={16} color="var(--danger)" />}
                     </div>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{tx.title}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{tx.category || 'Geral'}</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {tx.title}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        {tx.category} • {tx.date}
+                      </div>
                     </div>
                   </div>
 
-                  <div style={{ 
-                    fontSize: 13, 
-                    fontWeight: 700, 
-                    color: isIncome ? 'var(--success)' : 'var(--text-primary)' 
-                  }}>
-                    {isIncome ? '+ ' : '- '}
-                    {formatCurrency(tx.amount)}
+                  <div style={{ fontSize: 14, fontWeight: 700, color: isIncome ? 'var(--success)' : 'var(--text-primary)' }}>
+                    {isIncome ? '+' : '-'} {formatCurrency(tx.amount)}
                   </div>
                 </div>
               )

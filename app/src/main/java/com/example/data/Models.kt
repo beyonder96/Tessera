@@ -149,6 +149,7 @@ data class PetEntity(
     val breed: String,
     val birthDate: Long, // Epoch timestamp (ms)
     val photoUri: String,
+    val photoUriDark: String? = null,
     val rga: String,
     val microchip: String,
     val sex: PetSex,

@@ -14,6 +14,7 @@ import androidx.glance.appwidget.appWidgetBackground
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
+import androidx.glance.color.ColorProvider
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
@@ -70,40 +71,70 @@ fun PetsWidgetContent(context: Context, completedCount: Int, totalCount: Int, ne
         }
     )
 
+    val bgProvider = ColorProvider(day = Color(0xF8FFFFFF), night = Color(0xF0121316))
+    val textPrimary = ColorProvider(day = Color(0xFF0F172A), night = Color(0xFFF8FAFC))
+    val textSecondary = ColorProvider(day = Color(0xFF64748B), night = Color(0xFF94A3B8))
+    val accentPink = ColorProvider(day = Color(0xFFC026D3), night = Color(0xFFE879F9))
+    val cardSurface = ColorProvider(day = Color(0x0F0F172A), night = Color(0x18FFFFFF))
+
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(Color(0x99000000))
+            .background(bgProvider)
             .appWidgetBackground()
-            .cornerRadius(32.dp)
-            .padding(16.dp)
+            .cornerRadius(18.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
             .clickable(openAppAction),
-        verticalAlignment = Alignment.Top,
-        horizontalAlignment = Alignment.Start
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = GlanceModifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
                 text = "PETZ",
-                style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFFD7B4F3), night = Color(0xFFD7B4F3)), fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                style = TextStyle(color = accentPink, fontSize = 9.sp, fontWeight = FontWeight.Bold),
                 modifier = GlanceModifier.defaultWeight()
             )
-            Text("TESSERA", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x66FFFFFF), night = Color(0x66FFFFFF)), fontSize = 9.sp, fontWeight = FontWeight.Bold))
+            Text(
+                text = "TESSERA",
+                style = TextStyle(color = textSecondary, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+            )
         }
-        Spacer(modifier = GlanceModifier.height(8.dp))
 
-        Text("Atividades de Hoje", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF81928F), night = Color(0xFF81928F)), fontSize = 11.sp))
-        Text(
-            text = "$completedCount de $totalCount concluídas",
-            style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        )
+        Spacer(modifier = GlanceModifier.height(4.dp))
 
-        Spacer(modifier = GlanceModifier.height(10.dp))
-        Column(modifier = GlanceModifier.fillMaxWidth()) {
+        Row(
+            modifier = GlanceModifier
+                .fillMaxWidth()
+                .background(cardSurface)
+                .cornerRadius(12.dp)
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = GlanceModifier.defaultWeight()) {
+                Text(
+                    text = "Atividades de Hoje",
+                    style = TextStyle(color = textSecondary, fontSize = 8.sp, fontWeight = FontWeight.Medium)
+                )
+                Text(
+                    text = "$completedCount de $totalCount concluídas",
+                    style = TextStyle(color = textPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                )
+            }
+
             if (nextEventText.isNotEmpty()) {
-                Text("Próxima atividade:", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0x99FFFFFF), night = Color(0x99FFFFFF)), fontSize = 10.sp))
-                Text(nextEventText, style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color.White, night = Color.White), fontSize = 13.sp, fontWeight = FontWeight.Bold))
-            } else {
-                Text("Todas as atividades concluídas!", style = TextStyle(color = androidx.glance.color.ColorProvider(day = Color(0xFF64FFDA), night = Color(0xFF64FFDA)), fontSize = 13.sp))
+                Column(modifier = GlanceModifier.defaultWeight(), horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "Próxima:",
+                        style = TextStyle(color = textSecondary, fontSize = 8.sp, fontWeight = FontWeight.Medium)
+                    )
+                    Text(
+                        text = nextEventText,
+                        style = TextStyle(color = textPrimary, fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                        maxLines = 1
+                    )
+                }
             }
         }
     }

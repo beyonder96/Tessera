@@ -205,7 +205,10 @@ class TesseraViewModel(
         val description: String,
         val city: String,
         val weatherCode: Int,
-        val isDay: Boolean = true
+        val isDay: Boolean = true,
+        val sunriseTime: String? = null,
+        val sunsetTime: String? = null,
+        val dayProgress: Float = 0.5f
     )
 
     private val _weatherState = MutableStateFlow<WeatherInfo?>(null)
@@ -402,8 +405,8 @@ class TesseraViewModel(
                     }
                 }
                 
-                // 2. Get current weather from Open-Meteo
-                val weatherUrl = java.net.URL("https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true")
+                // 2. Get current weather and sunrise/sunset from Open-Meteo
+                val weatherUrl = java.net.URL("https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true&daily=sunrise,sunset&timezone=auto")
                 val weatherConnection = weatherUrl.openConnection() as java.net.HttpURLConnection
                 weatherConnection.connectTimeout = 3000
                 weatherConnection.readTimeout = 3000
@@ -420,6 +423,39 @@ class TesseraViewModel(
                 } else {
                     currentHour in 6..18
                 }
+
+                var sunriseTime: String? = null
+                var sunsetTime: String? = null
+                val dailyObj = weatherJson.optJSONObject("daily")
+                if (dailyObj != null) {
+                    val sunriseArr = dailyObj.optJSONArray("sunrise")
+                    val sunsetArr = dailyObj.optJSONArray("sunset")
+                    if (sunriseArr != null && sunriseArr.length() > 0) {
+                        val fullSunrise = sunriseArr.getString(0)
+                        sunriseTime = fullSunrise.substringAfter("T")
+                    }
+                    if (sunsetArr != null && sunsetArr.length() > 0) {
+                        val fullSunset = sunsetArr.getString(0)
+                        sunsetTime = fullSunset.substringAfter("T")
+                    }
+                }
+
+                val nowCal = Calendar.getInstance()
+                val nowMinutes = nowCal.get(Calendar.HOUR_OF_DAY) * 60 + nowCal.get(Calendar.MINUTE)
+                val sunriseMinutes = if (sunriseTime != null && sunriseTime.contains(":")) {
+                    val parts = sunriseTime.split(":")
+                    parts[0].toIntOrNull()?.times(60)?.plus(parts[1].toIntOrNull() ?: 0) ?: 360
+                } else 360
+                val sunsetMinutes = if (sunsetTime != null && sunsetTime.contains(":")) {
+                    val parts = sunsetTime.split(":")
+                    parts[0].toIntOrNull()?.times(60)?.plus(parts[1].toIntOrNull() ?: 0) ?: 1080
+                } else 1080
+
+                val dayProgress = if (sunsetMinutes > sunriseMinutes) {
+                    ((nowMinutes - sunriseMinutes).toFloat() / (sunsetMinutes - sunriseMinutes).toFloat()).coerceIn(0f, 1f)
+                } else {
+                    0.5f
+                }
                 
                 val description = getWeatherDescription(code, isDay)
                 
@@ -428,7 +464,10 @@ class TesseraViewModel(
                     description = description,
                     city = city,
                     weatherCode = code,
-                    isDay = isDay
+                    isDay = isDay,
+                    sunriseTime = sunriseTime,
+                    sunsetTime = sunsetTime,
+                    dayProgress = dayProgress
                 )
                 _userLocation.value = lat to lon
             } catch (e: Exception) {
@@ -442,12 +481,16 @@ class TesseraViewModel(
                     in 18..19 -> 22.0 to "Pôr do Sol"
                     else -> 18.0 to "Noite Limpa"
                 }
+                val fallbackProgress = ((hour - 6).toFloat() / 12f).coerceIn(0f, 1f)
                 _weatherState.value = WeatherInfo(
                     temp = fallbackTemp,
                     description = fallbackDesc,
                     city = "Local",
                     weatherCode = 0,
-                    isDay = isDayFallback
+                    isDay = isDayFallback,
+                    sunriseTime = "06:00",
+                    sunsetTime = "18:00",
+                    dayProgress = fallbackProgress
                 )
                 _userLocation.value = -23.5505 to -46.6333
             }
@@ -1854,39 +1897,9 @@ class TesseraViewModel(
             _isLoadingMetroConfig.value = true
             _metroError.value = null
             try {
-                val hardcodedEmpresas = listOf(
-                    com.example.data.MetroEmpresaConfig(
-                        id = 1, nome = "Metrô de São Paulo", fiscalizacaoArtesp = false,
-                        linhas = listOf(
-                            com.example.data.MetroLinhaConfig("Azul", "1"),
-                            com.example.data.MetroLinhaConfig("Verde", "2"),
-                            com.example.data.MetroLinhaConfig("Vermelha", "3"),
-                            com.example.data.MetroLinhaConfig("Prata", "15")
-                        )
-                    ),
-                    com.example.data.MetroEmpresaConfig(
-                        id = 2, nome = "ViaQuatro / ViaMobilidade", fiscalizacaoArtesp = false,
-                        linhas = listOf(
-                            com.example.data.MetroLinhaConfig("Amarela", "4"),
-                            com.example.data.MetroLinhaConfig("Lilás", "5"),
-                            com.example.data.MetroLinhaConfig("Diamante", "8"),
-                            com.example.data.MetroLinhaConfig("Esmeralda", "9")
-                        )
-                    ),
-                    com.example.data.MetroEmpresaConfig(
-                        id = 3, nome = "CPTM", fiscalizacaoArtesp = false,
-                        linhas = listOf(
-                            com.example.data.MetroLinhaConfig("Rubi", "7"),
-                            com.example.data.MetroLinhaConfig("Turquesa", "10"),
-                            com.example.data.MetroLinhaConfig("Coral", "11"),
-                            com.example.data.MetroLinhaConfig("Safira", "12"),
-                            com.example.data.MetroLinhaConfig("Jade", "13")
-                        )
-                    )
-                )
-                _metroConcessionarias.value = hardcodedEmpresas
+                _metroConcessionarias.value = com.example.data.MetroCptmApi.defaultEmpresas
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("TesseraViewModel", "Erro ao carregar concessionárias", e)
             } finally {
                 _isLoadingMetroConfig.value = false
             }
@@ -1898,64 +1911,11 @@ class TesseraViewModel(
             _isLoadingMetroStatus.value = true
             _metroError.value = null
             try {
-                val hardcodedEmpresas = listOf(
-                    com.example.data.MetroEmpresaConfig(
-                        id = 1, nome = "Metrô de São Paulo", fiscalizacaoArtesp = false,
-                        linhas = listOf(
-                            com.example.data.MetroLinhaConfig("Azul", "1"),
-                            com.example.data.MetroLinhaConfig("Verde", "2"),
-                            com.example.data.MetroLinhaConfig("Vermelha", "3"),
-                            com.example.data.MetroLinhaConfig("Prata", "15")
-                        )
-                    ),
-                    com.example.data.MetroEmpresaConfig(
-                        id = 2, nome = "ViaQuatro / ViaMobilidade", fiscalizacaoArtesp = false,
-                        linhas = listOf(
-                            com.example.data.MetroLinhaConfig("Amarela", "4"),
-                            com.example.data.MetroLinhaConfig("Lilás", "5"),
-                            com.example.data.MetroLinhaConfig("Diamante", "8"),
-                            com.example.data.MetroLinhaConfig("Esmeralda", "9")
-                        )
-                    ),
-                    com.example.data.MetroEmpresaConfig(
-                        id = 3, nome = "CPTM", fiscalizacaoArtesp = false,
-                        linhas = listOf(
-                            com.example.data.MetroLinhaConfig("Rubi", "7"),
-                            com.example.data.MetroLinhaConfig("Turquesa", "10"),
-                            com.example.data.MetroLinhaConfig("Coral", "11"),
-                            com.example.data.MetroLinhaConfig("Safira", "12"),
-                            com.example.data.MetroLinhaConfig("Jade", "13")
-                        )
-                    )
-                )
-
-                val empresasStatus = hardcodedEmpresas.map { empresa ->
-                    val linhasStatus = empresa.linhas?.map { linha ->
-                        com.example.data.MetroLinhaStatus(
-                            nome = linha.nome,
-                            codigo = linha.codigo,
-                            ativa = true,
-                            status = com.example.data.MetroLinhaStatusDetail(
-                                situacao = "Operação Normal",
-                                classificacao = "Normal",
-                                operacaoNormal = true,
-                                atualizadoEm = null,
-                                atualizadoHa = "Agora"
-                            )
-                        )
-                    }
-                    com.example.data.MetroEmpresaStatus(
-                        id = empresa.id,
-                        nome = empresa.nome,
-                        fiscalizacaoArtesp = false,
-                        linhas = linhasStatus
-                    )
-                }
-                
-                _metroStatus.value = empresasStatus
+                val liveStatus = com.example.data.MetroCptmApi.getLiveMetroAndTrainStatus()
+                _metroStatus.value = liveStatus
             } catch (e: Exception) {
-                Log.e("TesseraViewModel", "Erro ao buscar status do metrô", e)
-                _metroError.value = "Erro interno"
+                Log.e("TesseraViewModel", "Erro ao buscar status do metrô e trens", e)
+                _metroError.value = "Erro ao atualizar status das linhas"
             } finally {
                 _isLoadingMetroStatus.value = false
             }
@@ -2048,61 +2008,18 @@ class TesseraViewModel(
                     Log.e("TesseraViewModel", "Nenhuma partida encontrada para o time no TheSportsDB")
                 }
 
-                // 3. Busca Tabela de Classificação do Brasileirão Série A (Ano corrente com fallback automático)
-                val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
-                val seasonsToTry = listOf(currentYear.toString(), (currentYear - 1).toString())
-                var tableItems: List<com.example.data.TSDBTableItem> = emptyList()
-                var activeSeason = currentYear
-
-                for (seasonStr in seasonsToTry) {
-                    try {
-                        val tableResponse = com.example.data.TheSportsDbApi.service.getLeagueTable("4351", seasonStr)
-                        val items = tableResponse.table ?: emptyList()
-                        if (items.isNotEmpty()) {
-                            tableItems = items
-                            activeSeason = seasonStr.toIntOrNull() ?: currentYear
-                            break
-                        }
-                    } catch (e: Exception) {
-                        Log.e("TesseraViewModel", "Erro ao carregar tabela TheSportsDB temporada $seasonStr", e)
-                    }
-                }
-
-                if (tableItems.isNotEmpty()) {
-                    val standingRanks = tableItems.mapIndexed { index, item ->
-                        com.example.data.apifootball.StandingTeamRank(
-                            rank = item.intRank?.toIntOrNull() ?: (index + 1),
-                            team = com.example.data.apifootball.TeamInfo(
-                                id = item.idTeam?.toLongOrNull() ?: index.toLong(),
-                                name = item.strTeam ?: "Time",
-                                logo = item.strBadge ?: item.strLogo
-                            ),
-                            points = item.intPoints?.toIntOrNull() ?: 0,
-                            goalsDiff = item.intGoalDifference?.toIntOrNull() ?: 0,
-                            group = "Brasileirão Série A",
-                            form = item.strForm,
-                            status = null,
-                            description = item.strDescription
-                        )
-                    }
-                    val standingsData = com.example.data.apifootball.StandingsData(
-                        league = com.example.data.apifootball.LeagueStandingsInfo(
-                            id = 4351L,
-                            name = "Brasileirão Série A",
-                            country = "Brasil",
-                            logo = "https://www.thesportsdb.com/images/media/league/badge/2d3b5b1535384163.png",
-                            season = activeSeason,
-                            standings = listOf(standingRanks)
-                        )
-                    )
-                    _matchStandings.value = standingsData
+                // 3. Busca Tabela de Classificação do Brasileirão Série A em Tempo Real (Oficial com Fallback)
+                val liveStandings = com.example.data.BrasileiraoRepository.getLiveStandings()
+                if (liveStandings != null) {
+                    _matchStandings.value = liveStandings
                 } else {
                     try {
-                        val apiFootballResult = fixtureRepository.getStandings(71L, activeSeason)
+                        val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+                        val apiFootballResult = fixtureRepository.getStandings(71L, currentYear)
                         apiFootballResult.onSuccess { data ->
                             _matchStandings.value = data
                         }.onFailure {
-                            fixtureRepository.getStandings(71L, activeSeason - 1).onSuccess { prevData ->
+                            fixtureRepository.getStandings(71L, currentYear - 1).onSuccess { prevData ->
                                 _matchStandings.value = prevData
                             }
                         }

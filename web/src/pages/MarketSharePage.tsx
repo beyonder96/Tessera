@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
-import { ShoppingCart, RefreshCw, AlertCircle, Share2 } from 'lucide-react'
+import { ShoppingCart, RefreshCw, AlertCircle, Share2, Home } from 'lucide-react'
 
 interface MarketItem {
   id: number
@@ -32,20 +32,35 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
       setLoading(true)
       setError(null)
       try {
-        const { data, error } = await supabase
+        const { data, error: sbError } = await supabase
           .from('shared_market_lists')
           .select('*')
           .eq('id', listId)
           .single()
 
-        if (error) {
-          throw error
+        if (sbError) {
+          throw sbError
         }
 
-        setList(data)
+        if (data) {
+          setList(data)
+          localStorage.setItem(`tessera_market_${listId}`, JSON.stringify(data))
+        }
       } catch (err: any) {
         console.error('Error fetching market list:', err)
-        setError('Lista de compras não encontrada ou o link expirou.')
+        // Check localStorage cache as fallback
+        const cached = localStorage.getItem(`tessera_market_${listId}`)
+        if (cached) {
+          try {
+            setList(JSON.parse(cached))
+            setError(null)
+            setLoading(false)
+            return
+          } catch (e) {
+            // ignore
+          }
+        }
+        setError(err.message || 'Lista de compras não encontrada ou o link expirou.')
       } finally {
         setLoading(false)
       }
@@ -67,6 +82,7 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
         (payload: any) => {
           if (payload.new) {
             setList(payload.new as MarketListDoc)
+            localStorage.setItem(`tessera_market_${listId}`, JSON.stringify(payload.new))
           }
         }
       )
@@ -84,7 +100,9 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
     updatedItems[index].isChecked = !updatedItems[index].isChecked
     
     // Optimistic UI update
-    setList({ ...list, items: updatedItems })
+    const updatedDoc = { ...list, items: updatedItems, updated_at: new Date().toISOString() }
+    setList(updatedDoc)
+    localStorage.setItem(`tessera_market_${listId}`, JSON.stringify(updatedDoc))
 
     try {
       await supabase
@@ -124,15 +142,25 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
   if (error || !list) {
     return (
       <div className="container" style={{ textAlign: 'center', paddingTop: 80 }}>
-        <div className="card" style={{ maxWidth: 420, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+        <div className="card" style={{ maxWidth: 460, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
           <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--danger-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <AlertCircle size={24} color="var(--danger)" />
           </div>
-          <h2 style={{ fontSize: 18, fontWeight: 700 }}>Ops, nada por aqui</h2>
-          <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{error || 'Não encontramos a lista solicitada.'}</p>
-          <button className="btn btn-outline" onClick={() => window.location.reload()}>
-            <RefreshCw size={14} /> Tentar novamente
-          </button>
+          <h2 style={{ fontSize: 18, fontWeight: 700 }}>Lista não encontrada</h2>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            O identificador da lista (<code>{listId}</code>) não foi localizado no servidor.
+          </p>
+          <div style={{ background: 'var(--bg-surface)', padding: '12px 16px', borderRadius: 'var(--radius-sm)', width: '100%', textAlign: 'left', fontSize: 12, color: 'var(--text-muted)' }}>
+            💡 <strong>Dica:</strong> Abra o aplicativo Tessera no celular, acesse a aba <em>Mercado</em> e toque em <em>Compartilhar / Gerar Link</em> para atualizar a sincronização.
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+            <button className="btn btn-outline" onClick={() => window.location.reload()}>
+              <RefreshCw size={14} /> Tentar novamente
+            </button>
+            <button className="btn btn-outline" onClick={() => window.location.href = '/'}>
+              <Home size={14} /> Início
+            </button>
+          </div>
         </div>
       </div>
     )

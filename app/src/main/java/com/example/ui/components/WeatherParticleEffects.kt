@@ -26,7 +26,8 @@ enum class WeatherEffectType {
 fun WeatherParticleEffects(
     description: String,
     modifier: Modifier = Modifier,
-    isDay: Boolean = true
+    isDay: Boolean = true,
+    dayProgress: Float = 0.5f
 ) {
     val effectType = remember(description, isDay) {
         val lower = description.lowercase()
@@ -57,7 +58,7 @@ fun WeatherParticleEffects(
 
     Canvas(modifier = modifier.fillMaxSize()) {
         when (effectType) {
-            WeatherEffectType.SUN -> drawAuraSolar(time)
+            WeatherEffectType.SUN -> drawAuraSolar(time, dayProgress)
             WeatherEffectType.NIGHT_STARS -> drawNightStars(time)
             WeatherEffectType.RAIN -> drawGlassRain(time)
             WeatherEffectType.THUNDER -> drawCinematicLightning(time)
@@ -69,18 +70,26 @@ fun WeatherParticleEffects(
     }
 }
 
-// 1. Ensolarado (Aura Solar)
-private fun DrawScope.drawAuraSolar(time: Float) {
+// 1. Ensolarado (Aura Solar com posição real nascer -> ápice -> pôr do sol)
+private fun DrawScope.drawAuraSolar(time: Float, dayProgress: Float) {
+    val progress = dayProgress.coerceIn(0f, 1f)
     val pulse = (sin(time * 0.05f) + 1f) / 2f
-    val glowRadius = size.width * 0.4f + (pulse * size.width * 0.1f)
-    val coreRadius = size.width * 0.15f
-    val centerOffset = Offset(size.width * 0.5f, size.height * 0.4f)
-    
+
+    // Posição em arco real (Nascer no canto esquerdo inferior -> Meio-dia no topo -> Pôr no canto direito inferior)
+    val arcX = size.width * (0.18f + 0.64f * progress)
+    val arcY = size.height * (0.80f - 0.52f * sin(progress * PI.toFloat()))
+    val centerOffset = Offset(arcX, arcY)
+
+    val coreRadius = size.height * 0.22f
+    val glowRadius = size.height * 0.55f + (pulse * size.height * 0.08f)
+
+    // Halo luminoso externo solar
     drawCircle(
         brush = Brush.radialGradient(
             colors = listOf(
-                Color(0xFFFF9900).copy(alpha = 0.3f),
-                Color(0xFFFF3300).copy(alpha = 0.1f),
+                Color(0xFFF59E0B).copy(alpha = 0.35f + pulse * 0.10f),
+                Color(0xFFEA580C).copy(alpha = 0.18f),
+                Color(0xFFD97706).copy(alpha = 0.05f),
                 Color.Transparent
             ),
             center = centerOffset,
@@ -88,14 +97,62 @@ private fun DrawScope.drawAuraSolar(time: Float) {
         ),
         center = centerOffset,
         radius = glowRadius,
-        blendMode = BlendMode.Screen
+        blendMode = BlendMode.SrcOver
     )
 
+    // Raios solares suaves girando
+    val rayCount = 8
+    val rayLength = coreRadius * 1.5f
+    val rotAngle = (time * 0.02f) % (2 * PI.toFloat())
+    for (i in 0 until rayCount) {
+        val angle = rotAngle + (i * 2 * PI.toFloat() / rayCount)
+        val startX = centerOffset.x + cos(angle) * (coreRadius * 0.9f)
+        val startY = centerOffset.y + sin(angle) * (coreRadius * 0.9f)
+        val endX = centerOffset.x + cos(angle) * rayLength
+        val endY = centerOffset.y + sin(angle) * rayLength
+
+        drawLine(
+            brush = Brush.linearGradient(
+                colors = listOf(
+                    Color(0xFFFDE047).copy(alpha = 0.6f + pulse * 0.2f),
+                    Color(0xFFF59E0B).copy(alpha = 0.1f),
+                    Color.Transparent
+                ),
+                start = Offset(startX, startY),
+                end = Offset(endX, endY)
+            ),
+            start = Offset(startX, startY),
+            end = Offset(endX, endY),
+            strokeWidth = 3f,
+            cap = StrokeCap.Round,
+            blendMode = BlendMode.SrcOver
+        )
+    }
+
+    // Disco Solar Principal (Gradiente Branco Dourado com borda âmbar viva, visível 100% no modo claro e escuro)
     drawCircle(
-        color = Color(0xFFFFCC00).copy(alpha = 0.8f + (pulse * 0.2f)),
+        brush = Brush.radialGradient(
+            colors = listOf(
+                Color(0xFFFFFBEB), // Núcleo brilhante
+                Color(0xFFFDE047), // Amarelo sol
+                Color(0xFFF59E0B), // Âmbar
+                Color(0xFFD97706)  // Borda solar
+            ),
+            center = centerOffset,
+            radius = coreRadius
+        ),
         center = centerOffset,
         radius = coreRadius,
-        blendMode = BlendMode.Screen
+        blendMode = BlendMode.SrcOver
+    )
+
+    // Contorno sutil com brilho solar
+    drawCircle(
+        color = Color(0xFFF59E0B).copy(alpha = 0.5f),
+        center = centerOffset,
+        radius = coreRadius,
+        style = Stroke(width = 1.5f),
+        blendMode = BlendMode.SrcOver
     )
 }
 

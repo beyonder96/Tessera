@@ -231,11 +231,13 @@ fun PetzScreen(
             ) {
                 Crossfade(targetState = activePet, label = "PetzCrossfade", animationSpec = tween(700)) { currentPet ->
                 val scrollState = rememberScrollState()
+                val isDark = isDarkTheme()
+                val activePhotoUri = if (isDark) (currentPet.photoUriDark?.takeIf { it.isNotEmpty() } ?: currentPet.photoUri) else currentPet.photoUri
                 val currentPetAgeStr = calculateAge(currentPet.birthDate)
-                val currentPetImageModel: Any = if (currentPet.photoUri.startsWith("file://")) {
-                    File(Uri.parse(currentPet.photoUri).path ?: "")
+                val currentPetImageModel: Any = if (activePhotoUri.startsWith("file://")) {
+                    File(Uri.parse(activePhotoUri).path ?: "")
                 } else {
-                    currentPet.photoUri
+                    activePhotoUri
                 }
 
                 Box(modifier = Modifier.fillMaxSize()) {
@@ -249,7 +251,7 @@ fun PetzScreen(
                             .fillMaxWidth()
                             .height(450.dp)
                     ) {
-                        key(currentPet.photoUri) {
+                        key(activePhotoUri) {
                             AsyncImage(
                                 model = currentPetImageModel,
                                 contentDescription = currentPet.name,
@@ -316,8 +318,8 @@ fun PetzScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(24.dp))
-                                .background(Color.White.copy(alpha = 0.03f))
-                                .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(24.dp))
+                                .background(themedSubtleBackground())
+                                .border(0.5.dp, themedSubtleBorder(), RoundedCornerShape(24.dp))
                                 .padding(20.dp)
                         ) {
                             Row(
@@ -631,7 +633,8 @@ fun PetzScreen(
                                         onClick = { petToEdit = currentPet },
                                         modifier = Modifier
                                             .clip(CircleShape)
-                                            .background(Color.Black.copy(alpha = 0.3f))
+                                            .background(themedSubtleBackground())
+                                            .border(0.5.dp, themedSubtleBorder(), CircleShape)
                                     ) {
                                         Icon(Icons.Outlined.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.onBackground)
                                     }
@@ -640,7 +643,8 @@ fun PetzScreen(
                                         onClick = { showAddPetDialog = true },
                                         modifier = Modifier
                                             .clip(CircleShape)
-                                            .background(Color.Black.copy(alpha = 0.3f))
+                                            .background(themedSubtleBackground())
+                                            .border(0.5.dp, themedSubtleBorder(), CircleShape)
                                     ) {
                                         Icon(Icons.Default.Add, contentDescription = "Add Pet", tint = MaterialTheme.colorScheme.onBackground)
                                     }
@@ -664,7 +668,7 @@ fun PetzScreen(
                                 horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                key(currentPet.photoUri) {
+                                key(activePhotoUri) {
                                     AsyncImage(
                                         model = currentPetImageModel,
                                         contentDescription = currentPet.name,
@@ -967,19 +971,19 @@ fun OuraTimeline(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = event.title,
-                            color = if (event.isCompleted) Color.Gray else Color.White,
+                            color = if (event.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onBackground,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
                             text = event.time,
-                            color = Color.DarkGray,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 12.sp
                         )
                     }
 
                     IconButton(onClick = { viewModel.deletePetEvent(event) }) {
-                        Icon(Icons.Outlined.Delete, contentDescription = "Delete", tint = Color.DarkGray)
+                        Icon(Icons.Outlined.Delete, contentDescription = "Delete", tint = themedInactiveIcon())
                     }
                 }
             }
@@ -1018,14 +1022,7 @@ fun EditRoutineDialog(
                     value = title,
                     onValueChange = { title = it },
                     label = { Text("Atividade") },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = accentColor,
-                        unfocusedBorderColor = Color(0xFF333333),
-                        focusedLabelColor = accentColor,
-                        unfocusedLabelColor = Color.Gray
-                    ),
+                    colors = themedOutlinedTextFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -1047,13 +1044,7 @@ fun EditRoutineDialog(
                                 tint = accentColor
                             )
                         },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            disabledTextColor = Color.White,
-                            disabledBorderColor = Color(0xFF333333),
-                            disabledLabelColor = Color.Gray,
-                            disabledLeadingIconColor = Color.Gray,
-                            disabledTrailingIconColor = accentColor
-                        ),
+                        colors = themedOutlinedTextFieldColors(),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -1107,30 +1098,48 @@ fun EditPetDialog(
     onConfirm: (updatedPet: PetEntity) -> Unit,
     onDeleteClick: () -> Unit
 ) {
+    val isDark = isDarkTheme()
     var name by remember { mutableStateOf(pet.name) }
     var breed by remember { mutableStateOf(pet.breed) }
     var birthDate by remember { mutableStateOf(pet.birthDate) }
-    var photoString by remember { mutableStateOf(pet.photoUri) }
+    var photoLightString by remember { mutableStateOf(pet.photoUri) }
+    var photoDarkString by remember { mutableStateOf(pet.photoUriDark ?: pet.photoUri) }
     var rga by remember { mutableStateOf(pet.rga) }
     var microchip by remember { mutableStateOf(pet.microchip) }
     var sex by remember { mutableStateOf(pet.sex) }
     var isCastrated by remember { mutableStateOf(pet.isCastrated) }
 
     val context = LocalContext.current
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+    val lightLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
             try {
                 context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    val fileName = "pet_photo_${name.lowercase()}_${System.currentTimeMillis()}.jpg"
+                    val fileName = "pet_photo_light_${name.lowercase().ifEmpty { "pet" }}_${System.currentTimeMillis()}.jpg"
                     val profileFile = java.io.File(context.filesDir, fileName)
                     profileFile.outputStream().use { outputStream ->
                         inputStream.copyTo(outputStream)
                     }
-                    val localUri = Uri.fromFile(profileFile)
-                    photoString = localUri.toString()
+                    photoLightString = Uri.fromFile(profileFile).toString()
                 }
             } catch (e: Exception) {
-                Log.e("PetzScreen", "Erro ao salvar foto do pet", e)
+                Log.e("PetzScreen", "Erro ao salvar foto diurna do pet", e)
+            }
+        }
+    }
+
+    val darkLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val fileName = "pet_photo_dark_${name.lowercase().ifEmpty { "pet" }}_${System.currentTimeMillis()}.jpg"
+                    val profileFile = java.io.File(context.filesDir, fileName)
+                    profileFile.outputStream().use { outputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                    photoDarkString = Uri.fromFile(profileFile).toString()
+                }
+            } catch (e: Exception) {
+                Log.e("PetzScreen", "Erro ao salvar foto noturna do pet", e)
             }
         }
     }
@@ -1160,29 +1169,84 @@ fun EditPetDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                val imageModel: Any = if (photoString.startsWith("file://")) {
-                    File(Uri.parse(photoString).path ?: "")
-                } else {
-                    photoString
-                }
-
-                Box(
-                    modifier = Modifier
-                        .size(100.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
-                        .clickable { launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                    contentAlignment = Alignment.Center
+                // Dual Photo Pickers (Light / Dark)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (photoString.isNotEmpty()) {
-                        AsyncImage(
-                            model = imageModel,
-                            contentDescription = name,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        Icon(Icons.Outlined.Pets, contentDescription = "Add Photo", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(36.dp))
+                    // Light Photo Picker
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val lightImageModel: Any = if (photoLightString.startsWith("file://")) {
+                            File(Uri.parse(photoLightString).path ?: "")
+                        } else {
+                            photoLightString
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .size(88.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                                .border(2.dp, Color(0xFFF59E0B).copy(alpha = 0.6f), CircleShape)
+                                .clickable { lightLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (photoLightString.isNotEmpty()) {
+                                AsyncImage(
+                                    model = lightImageModel,
+                                    contentDescription = "Foto Modo Claro",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Icon(Icons.Outlined.LightMode, contentDescription = "Add Light Photo", tint = Color(0xFFF59E0B), modifier = Modifier.size(32.dp))
+                            }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Icon(Icons.Outlined.LightMode, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(13.dp))
+                            Text("Modo Claro", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
+                        }
+                    }
+
+                    // Dark Photo Picker
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val darkImageModel: Any = if (photoDarkString.startsWith("file://")) {
+                            File(Uri.parse(photoDarkString).path ?: "")
+                        } else {
+                            photoDarkString
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .size(88.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                                .border(2.dp, Color(0xFF6366F1).copy(alpha = 0.6f), CircleShape)
+                                .clickable { darkLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (photoDarkString.isNotEmpty()) {
+                                AsyncImage(
+                                    model = darkImageModel,
+                                    contentDescription = "Foto Modo Escuro",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Icon(Icons.Outlined.DarkMode, contentDescription = "Add Dark Photo", tint = Color(0xFF818CF8), modifier = Modifier.size(32.dp))
+                            }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Icon(Icons.Outlined.DarkMode, contentDescription = null, tint = Color(0xFF818CF8), modifier = Modifier.size(13.dp))
+                            Text("Modo Escuro", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
+                        }
                     }
                 }
 
@@ -1343,14 +1407,7 @@ fun EditPetDialog(
                             Text("Deve ter exatamente 7 dígitos numéricos.", color = MaterialTheme.colorScheme.error)
                         }
                     },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = primaryColor,
-                        unfocusedBorderColor = Color(0xFF333333),
-                        focusedLabelColor = primaryColor,
-                        unfocusedLabelColor = Color.Gray
-                    ),
+                    colors = themedOutlinedTextFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -1365,14 +1422,7 @@ fun EditPetDialog(
                             Text("Deve ter exatamente 15 dígitos numéricos.", color = MaterialTheme.colorScheme.error)
                         }
                     },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = primaryColor,
-                        unfocusedBorderColor = Color(0xFF333333),
-                        focusedLabelColor = primaryColor,
-                        unfocusedLabelColor = Color.Gray
-                    ),
+                    colors = themedOutlinedTextFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -1386,7 +1436,8 @@ fun EditPetDialog(
                                 name = name,
                                 breed = breed,
                                 birthDate = birthDate,
-                                photoUri = photoString,
+                                photoUri = photoLightString,
+                                photoUriDark = photoDarkString,
                                 rga = rga,
                                 microchip = microchip,
                                 sex = sex,
@@ -1449,14 +1500,7 @@ fun AddRoutineDialog(
                     value = title,
                     onValueChange = { title = it },
                     label = { Text("Atividade") },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = accentColor,
-                        unfocusedBorderColor = Color(0xFF333333),
-                        focusedLabelColor = accentColor,
-                        unfocusedLabelColor = Color.Gray
-                    ),
+                    colors = themedOutlinedTextFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -1478,13 +1522,7 @@ fun AddRoutineDialog(
                                 tint = accentColor
                             )
                         },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            disabledTextColor = Color.White,
-                            disabledBorderColor = Color(0xFF333333),
-                            disabledLabelColor = Color.Gray,
-                            disabledLeadingIconColor = Color.Gray,
-                            disabledTrailingIconColor = accentColor
-                        ),
+                        colors = themedOutlinedTextFieldColors(),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -1619,14 +1657,7 @@ fun EditHealthCardDialog(
                         value = label,
                         onValueChange = { label = it },
                         label = { Text(labelPlaceholder) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = PrimaryTeal,
-                            unfocusedBorderColor = Color(0xFF333333),
-                            focusedLabelColor = PrimaryTeal,
-                            unfocusedLabelColor = Color.Gray
-                        ),
+                        colors = themedOutlinedTextFieldColors(),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -1634,14 +1665,7 @@ fun EditHealthCardDialog(
                     value = value,
                     onValueChange = { value = it },
                     label = { Text(valuePlaceholder) },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = PrimaryTeal,
-                        unfocusedBorderColor = Color(0xFF333333),
-                        focusedLabelColor = PrimaryTeal,
-                        unfocusedLabelColor = Color.Gray
-                    ),
+                    colors = themedOutlinedTextFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -1845,7 +1869,7 @@ fun HealthDashboardRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(Color.White.copy(alpha = 0.02f))
+            .background(themedSubtleBackground())
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -1860,14 +1884,14 @@ fun HealthDashboardRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = label.uppercase(),
-                color = Color.Gray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.sp
             )
             Text(
                 text = value,
-                color = if (isWarning) Color(0xFFFF5252) else Color.White,
+                color = if (isWarning) Color(0xFFFF5252) else MaterialTheme.colorScheme.onBackground,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
@@ -1877,7 +1901,7 @@ fun HealthDashboardRow(
         Icon(
             imageVector = Icons.Default.ChevronRight,
             contentDescription = null,
-            tint = Color.DarkGray,
+            tint = themedInactiveIcon(),
             modifier = Modifier.size(16.dp)
         )
     }
@@ -1934,8 +1958,8 @@ fun PetHealthDashboard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
-            .background(Color(0xFF0F0F0F))
-            .border(0.5.dp, Color(0xFF222222), RoundedCornerShape(24.dp))
+            .background(themedCardBackground())
+            .border(0.5.dp, themedCardBorder(), RoundedCornerShape(24.dp))
             .padding(20.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1977,7 +2001,7 @@ fun PetHealthDashboard(
                     )
                     Text(
                         text = "VITALIDADE",
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 8.sp,
                         letterSpacing = 1.sp,
                         fontWeight = FontWeight.Bold
@@ -2108,8 +2132,8 @@ fun LiquidTabSelector(
         modifier = Modifier
             .height(IntrinsicSize.Min)
             .clip(RoundedCornerShape(30.dp))
-            .background(Color.Black.copy(alpha = 0.4f))
-            .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(30.dp))
+            .background(themedNavBarBackground())
+            .border(0.5.dp, themedNavBarBorder(), RoundedCornerShape(30.dp))
             .padding(4.dp)
     ) {
         val indicatorWidthDp = with(density) { (animW + kotlin.math.abs(stretch)).toDp() }
@@ -2121,22 +2145,10 @@ fun LiquidTabSelector(
                 .width(indicatorWidthDp)
                 .fillMaxHeight()
                 .clip(RoundedCornerShape(26.dp))
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.18f),
-                            Color.White.copy(alpha = 0.04f)
-                        )
-                    )
-                )
+                .background(themedSubtleBackground())
                 .border(
                     width = 1.dp,
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.35f),
-                            Color.White.copy(alpha = 0.08f)
-                        )
-                    ),
+                    color = themedSubtleBorder(),
                     shape = RoundedCornerShape(26.dp)
                 )
         )
@@ -2160,8 +2172,8 @@ fun LiquidTabSelector(
                         .clip(RoundedCornerShape(26.dp))
                         .clickable { onPetSelected(petItem.name) }
                         .padding(horizontal = 18.dp, vertical = 8.dp),
-                    color = if (isSelected) Color.White else Color.Gray,
-                    fontWeight = FontWeight.Medium,
+                    color = if (isSelected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                     fontSize = 14.sp
                 )
             }
@@ -2358,7 +2370,8 @@ fun AddPetDialog(
     var name by remember { mutableStateOf("") }
     var breed by remember { mutableStateOf("") }
     var birthDate by remember { mutableStateOf(System.currentTimeMillis()) }
-    var photoString by remember { mutableStateOf("") }
+    var photoLightString by remember { mutableStateOf("") }
+    var photoDarkString by remember { mutableStateOf("") }
     var rga by remember { mutableStateOf("") }
     var microchip by remember { mutableStateOf("") }
     var sex by remember { mutableStateOf(PetSex.MACHO) }
@@ -2367,20 +2380,36 @@ fun AddPetDialog(
     var notes by remember { mutableStateOf("") }
 
     val context = LocalContext.current
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+    val lightLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
             try {
                 context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    val fileName = "pet_photo_${name.lowercase().ifEmpty { "new" }}_${System.currentTimeMillis()}.jpg"
+                    val fileName = "pet_photo_light_${name.lowercase().ifEmpty { "new" }}_${System.currentTimeMillis()}.jpg"
                     val profileFile = java.io.File(context.filesDir, fileName)
                     profileFile.outputStream().use { outputStream ->
                         inputStream.copyTo(outputStream)
                     }
-                    val localUri = Uri.fromFile(profileFile)
-                    photoString = localUri.toString()
+                    photoLightString = Uri.fromFile(profileFile).toString()
                 }
             } catch (e: Exception) {
-                Log.e("PetzScreen", "Erro ao salvar foto do pet", e)
+                Log.e("PetzScreen", "Erro ao salvar foto diurna do pet", e)
+            }
+        }
+    }
+
+    val darkLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val fileName = "pet_photo_dark_${name.lowercase().ifEmpty { "new" }}_${System.currentTimeMillis()}.jpg"
+                    val profileFile = java.io.File(context.filesDir, fileName)
+                    profileFile.outputStream().use { outputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                    photoDarkString = Uri.fromFile(profileFile).toString()
+                }
+            } catch (e: Exception) {
+                Log.e("PetzScreen", "Erro ao salvar foto noturna do pet", e)
             }
         }
     }
@@ -2411,29 +2440,84 @@ fun AddPetDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                val imageModel: Any = if (photoString.startsWith("file://")) {
-                    File(Uri.parse(photoString).path ?: "")
-                } else {
-                    photoString
-                }
-
-                Box(
-                    modifier = Modifier
-                        .size(100.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF111111))
-                        .clickable { launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                    contentAlignment = Alignment.Center
+                // Dual Photo Pickers (Light / Dark)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (photoString.isNotEmpty()) {
-                        AsyncImage(
-                            model = imageModel,
-                            contentDescription = name,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        Icon(Icons.Outlined.Pets, contentDescription = "Add Photo", tint = Color.DarkGray, modifier = Modifier.size(36.dp))
+                    // Light Photo Picker
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val lightImageModel: Any = if (photoLightString.startsWith("file://")) {
+                            File(Uri.parse(photoLightString).path ?: "")
+                        } else {
+                            photoLightString
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .size(88.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                                .border(2.dp, Color(0xFFF59E0B).copy(alpha = 0.6f), CircleShape)
+                                .clickable { lightLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (photoLightString.isNotEmpty()) {
+                                AsyncImage(
+                                    model = lightImageModel,
+                                    contentDescription = "Foto Modo Claro",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Icon(Icons.Outlined.LightMode, contentDescription = "Add Light Photo", tint = Color(0xFFF59E0B), modifier = Modifier.size(32.dp))
+                            }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Icon(Icons.Outlined.LightMode, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(13.dp))
+                            Text("Modo Claro", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
+                        }
+                    }
+
+                    // Dark Photo Picker
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val darkImageModel: Any = if (photoDarkString.startsWith("file://")) {
+                            File(Uri.parse(photoDarkString).path ?: "")
+                        } else {
+                            photoDarkString
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .size(88.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                                .border(2.dp, Color(0xFF6366F1).copy(alpha = 0.6f), CircleShape)
+                                .clickable { darkLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (photoDarkString.isNotEmpty()) {
+                                AsyncImage(
+                                    model = darkImageModel,
+                                    contentDescription = "Foto Modo Escuro",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Icon(Icons.Outlined.DarkMode, contentDescription = "Add Dark Photo", tint = Color(0xFF818CF8), modifier = Modifier.size(32.dp))
+                            }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Icon(Icons.Outlined.DarkMode, contentDescription = null, tint = Color(0xFF818CF8), modifier = Modifier.size(13.dp))
+                            Text("Modo Escuro", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
+                        }
                     }
                 }
 
@@ -2631,7 +2715,8 @@ fun AddPetDialog(
                             name = name,
                             breed = breed,
                             birthDate = birthDate,
-                            photoUri = photoString,
+                            photoUri = photoLightString,
+                            photoUriDark = photoDarkString.ifEmpty { photoLightString },
                             rga = rga,
                             microchip = microchip,
                             sex = sex,

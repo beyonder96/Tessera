@@ -105,6 +105,7 @@ fun PremiumWeatherWidget(weatherState: TesseraViewModel.WeatherInfo?) {
         WeatherParticleEffects(
             description = rawDesc,
             isDay = isDay,
+            dayProgress = weatherState?.dayProgress ?: 0.5f,
             modifier = Modifier.fillMaxSize()
         )
 
