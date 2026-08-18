@@ -205,9 +205,7 @@ class MainActivity : FragmentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            MyApplicationTheme {
-                TesseraApp()
-            }
+            TesseraApp()
         }
     }
 
@@ -264,30 +262,36 @@ fun TesseraApp() {
     val viewModel: TesseraViewModel = viewModel(factory = TesseraViewModelFactory(repository, context))
     val petViewModel: PetViewModel = viewModel(factory = PetViewModelFactory(repository))
 
-    val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
-    var isFirstTime by remember { mutableStateOf(sharedPrefs.getBoolean("first_time_user", true)) }
+    val appTheme by viewModel.appTheme.collectAsState()
+    val currentGlassLevel by viewModel.glassmorphismLevel.collectAsState()
 
-    if (isFirstTime) {
-        OnboardingScreen(
-            viewModel = viewModel,
-            onCompleted = {
-                val editor = sharedPrefs.edit()
-                editor.putBoolean("first_time_user", false)
-                editor.apply()
-                isFirstTime = false
+    CompositionLocalProvider(
+        LocalGlassmorphismLevel provides currentGlassLevel
+    ) {
+        MyApplicationTheme(appTheme = appTheme) {
+            val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE) }
+            var isFirstTime by remember { mutableStateOf(sharedPrefs.getBoolean("first_time_user", true)) }
+
+            if (isFirstTime) {
+                OnboardingScreen(
+                    viewModel = viewModel,
+                    onCompleted = {
+                        val editor = sharedPrefs.edit()
+                        editor.putBoolean("first_time_user", false)
+                        editor.apply()
+                        isFirstTime = false
+                    }
+                )
+                return@MyApplicationTheme
             }
-        )
-        return
-    }
 
+            var isBiometricEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("biometric_enabled", false)) }
+            var isUnlocked by remember { mutableStateOf(!isBiometricEnabled) }
 
-    var isBiometricEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("biometric_enabled", false)) }
-    var isUnlocked by remember { mutableStateOf(!isBiometricEnabled) }
-
-    if (!isUnlocked) {
-        LockScreen(onUnlocked = { isUnlocked = true })
-        return
-    }
+            if (!isUnlocked) {
+                LockScreen(onUnlocked = { isUnlocked = true })
+                return@MyApplicationTheme
+            }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -506,18 +510,11 @@ fun TesseraApp() {
     var isFabExpanded by remember { mutableStateOf(false) }
     var fabHoveredItem by remember { mutableStateOf<String?>(null) }
 
-    val appTheme by viewModel.appTheme.collectAsState()
-    val currentGlassLevel by viewModel.glassmorphismLevel.collectAsState()
-
     var homeScrollOffset by remember { mutableStateOf(0) }
-    CompositionLocalProvider(
-        LocalGlassmorphismLevel provides currentGlassLevel
-    ) {
-        MyApplicationTheme(appTheme = appTheme) {
-            Scaffold(
-                containerColor = MaterialTheme.colorScheme.background,
-                contentWindowInsets = WindowInsets(0, 0, 0, 0)
-            ) { innerPadding ->
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+    ) { innerPadding ->
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -723,16 +720,36 @@ fun TesseraApp() {
                                 .padding(vertical = 24.dp, horizontal = 16.dp)
                         ) {
                             val titleAlpha by animateFloatAsState(if (isFabExpanded) 1f else 0f, tween(250))
-                            Text(
-                                text = "Módulos",
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = titleAlpha),
-                                fontSize = 18.sp,
-                                fontFamily = FontFamily.SansSerif,
-                                fontWeight = FontWeight.SemiBold,
-                                textAlign = TextAlign.Center
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Módulos",
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = titleAlpha),
+                                    fontSize = 16.sp,
+                                    fontFamily = FontFamily.SansSerif,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f))
+                                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                                ) {
+                                    Text(
+                                        text = "8 Ativos",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
                             
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(14.dp))
                             
                             com.example.ui.components.BentoBoxDashboard(
                                 viewModel = viewModel,
@@ -4204,10 +4221,10 @@ fun LockScreen(onUnlocked: () -> Unit) {
                 
                 Text(
                     text = "Tessera Protegido",
-                    fontFamily = FontFamily.Serif,
+                    fontFamily = FontFamily.SansSerif,
                     color = MaterialTheme.colorScheme.onBackground,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Light,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center
                 )
                 
@@ -4215,7 +4232,7 @@ fun LockScreen(onUnlocked: () -> Unit) {
                 
                 Text(
                     text = "Sua privacidade está resguardada. Use biometria para acessar seu painel.",
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 13.sp,
                     textAlign = TextAlign.Center,
                     lineHeight = 18.sp
@@ -4244,16 +4261,16 @@ fun LockScreen(onUnlocked: () -> Unit) {
                         },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = PrimaryTeal,
-                            contentColor = Color.Black
+                            contentColor = if (isDarkTheme()) Color.Black else Color.White
                         ),
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.fillMaxWidth().height(48.dp)
                     ) {
                         Text(
                             "TENTAR NOVAMENTE",
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                             fontSize = 12.sp,
-                            letterSpacing = 1.5.sp
+                            letterSpacing = 1.sp
                         )
                     }
                 }

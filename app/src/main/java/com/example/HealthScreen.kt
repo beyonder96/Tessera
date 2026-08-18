@@ -235,6 +235,27 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
+        try {
+            if (healthConnectManager.hasAllPermissions()) {
+                val end = Instant.now()
+                val start = end.minus(30, ChronoUnit.DAYS)
+                val hcWeights = healthConnectManager.readWeightRecords(start, end)
+                val hcSleeps = healthConnectManager.readSleepRecords(start, end)
+                val hcSteps = healthConnectManager.readStepsRecords(start, end)
+                
+                val localWeights = hcWeights.map { WeightRecord(weightKg = it.weight.inKilograms, timestamp = it.time.toEpochMilli(), source = "Health Connect") }
+                val localSleeps = hcSleeps.map { 
+                    val duration = ChronoUnit.MINUTES.between(it.startTime, it.endTime).toDouble() / 60.0
+                    SleepRecord(startTime = it.startTime.toEpochMilli(), endTime = it.endTime.toEpochMilli(), durationHours = duration, source = "Health Connect") 
+                }
+                val localSteps = hcSteps.map {
+                    StepsRecord(count = it.count, startTime = it.startTime.toEpochMilli(), endTime = it.endTime.toEpochMilli(), source = "Health Connect")
+                }
+                viewModel.syncHealthConnectData(localWeights, localSleeps, localSteps)
+            }
+        } catch (e: Exception) {
+            Log.w("HealthScreen", "Auto-sync Health Connect on launch: ${e.message}")
+        }
     }
 
     var showWeightDialog by remember { mutableStateOf(false) }
@@ -629,9 +650,54 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
         var stepDateMs by remember {
             mutableStateOf(Calendar.getInstance().timeInMillis)
         }
+        var isAutoFilledFromHc by remember { mutableStateOf(false) }
+        var isCheckingHc by remember { mutableStateOf(false) }
+
         val stepDateStr = remember(stepDateMs) {
             val cal = Calendar.getInstance().apply { timeInMillis = stepDateMs }
             String.format(Locale.getDefault(), "%02d/%02d/%04d", cal.get(Calendar.DAY_OF_MONTH), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.YEAR))
+        }
+
+        LaunchedEffect(stepDateMs) {
+            isCheckingHc = true
+            isAutoFilledFromHc = false
+            try {
+                if (healthProfile?.isHealthConnectEnabled == true || healthConnectManager.hasAllPermissions()) {
+                    val cal = Calendar.getInstance().apply { timeInMillis = stepDateMs }
+                    cal.set(Calendar.HOUR_OF_DAY, 0)
+                    cal.set(Calendar.MINUTE, 0)
+                    cal.set(Calendar.SECOND, 0)
+                    cal.set(Calendar.MILLISECOND, 0)
+                    val start = Instant.ofEpochMilli(cal.timeInMillis)
+
+                    cal.set(Calendar.HOUR_OF_DAY, 23)
+                    cal.set(Calendar.MINUTE, 59)
+                    cal.set(Calendar.SECOND, 59)
+                    cal.set(Calendar.MILLISECOND, 999)
+                    val end = Instant.ofEpochMilli(cal.timeInMillis)
+
+                    val hcSteps = healthConnectManager.readStepsRecords(start, end)
+                    val totalHc = hcSteps.sumOf { it.count }
+                    if (totalHc > 0) {
+                        inputSteps = totalHc.toString()
+                        isAutoFilledFromHc = true
+                    } else {
+                        val dbSteps = stepsRecords.filter { isSameDayLocal(it.endTime, stepDateMs) }.sumOf { it.count }
+                        if (dbSteps > 0) {
+                            inputSteps = dbSteps.toString()
+                        }
+                    }
+                } else {
+                    val dbSteps = stepsRecords.filter { isSameDayLocal(it.endTime, stepDateMs) }.sumOf { it.count }
+                    if (dbSteps > 0) {
+                        inputSteps = dbSteps.toString()
+                    }
+                }
+            } catch (e: Exception) {
+                // Ignore
+            } finally {
+                isCheckingHc = false
+            }
         }
 
         @OptIn(ExperimentalMaterial3Api::class)
@@ -679,15 +745,55 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
 
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    Text("QUANTIDADE DE PASSOS", color = Color(0xFF879391), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("QUANTIDADE DE PASSOS", color = Color(0xFF879391), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        if (isCheckingHc) {
+                            Text("Buscando no Health Connect...", color = PrimaryTeal, fontSize = 10.sp)
+                        }
+                    }
+
                     TextField(
                         value = inputSteps,
-                        onValueChange = { inputSteps = it },
+                        onValueChange = { 
+                            inputSteps = it 
+                            isAutoFilledFromHc = false
+                        },
                         placeholder = { Text("Ex: 8500", color = Color(0xFF55605E)) },
                         colors = themedTextFieldColors(),
                         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                         shape = RoundedCornerShape(12.dp)
                     )
+
+                    if (isAutoFilledFromHc) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(PrimaryTeal.copy(alpha = 0.12f))
+                                .border(0.5.dp, PrimaryTeal.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.CheckCircle,
+                                contentDescription = null,
+                                tint = PrimaryTeal,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Preenchido automaticamente via Google Health / Connect",
+                                color = PrimaryTeal,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
                     
                     Spacer(modifier = Modifier.height(24.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {

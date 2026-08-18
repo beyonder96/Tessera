@@ -51,6 +51,7 @@ class SupabaseMarketSyncManager(
     fun generateNewShareId(): String {
         val newId = UUID.randomUUID().toString().take(8)
         _activeShareId.value = newId
+        lastUploadedHash = null
         context.getSharedPreferences("tessera_supabase_prefs", Context.MODE_PRIVATE)
             .edit()
             .putString("market_share_id", newId)
@@ -79,6 +80,7 @@ class SupabaseMarketSyncManager(
     }
 
     fun triggerSync() {
+        lastUploadedHash = null
         scope.launch {
             val items = repository.pendingMarketItems.first()
             uploadListToSupabase(items)

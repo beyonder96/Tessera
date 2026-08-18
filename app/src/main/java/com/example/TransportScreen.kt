@@ -239,43 +239,66 @@ fun TransportScreen(
                                 .clip(RoundedCornerShape(16.dp))
                                 .background(themedCardBackground())
                                 .border(1.dp, themedCardBorder(), RoundedCornerShape(16.dp))
-                                .padding(20.dp),
+                                .padding(24.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = "Nenhuma linha selecionada.\nConfigure as linhas de metrô e trem a monitorar nas Configurações.",
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                                fontSize = 13.sp,
-                                textAlign = TextAlign.Center,
-                                lineHeight = 18.sp
-                            )
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Outlined.DirectionsTransit,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "Nenhuma linha selecionada",
+                                    color = MaterialTheme.colorScheme.onBackground,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 15.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Configure as linhas de metrô e trem a monitorar nas Configurações.",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 13.sp,
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 18.sp
+                                )
+                            }
                         }
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             todasLinhas.forEach { (empresa, line) ->
                                 val color = getMetroLineColor(line.nome, line.codigo)
-                                val statusTxt = line.status?.situacao ?: "Desconhecido"
+                                val statusTxt = line.status?.situacao ?: "Operação Normal"
                                 val isNormal = line.status?.operacaoNormal == true && 
-                                    (statusTxt.equals("Operação Normal", ignoreCase = true) || statusTxt.equals("Normal", ignoreCase = true))
+                                    (statusTxt.contains("Normal", ignoreCase = true))
+                                val isSlow = statusTxt.contains("Reduzida", ignoreCase = true) || statusTxt.contains("Lentidão", ignoreCase = true)
+                                val statusColor = when {
+                                    isNormal -> Color(0xFF10B981)
+                                    isSlow -> Color(0xFFF59E0B)
+                                    else -> Color(0xFFEF4444)
+                                }
                                 
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(86.dp)
+                                        .height(96.dp)
                                         .clip(RoundedCornerShape(16.dp))
                                         .background(themedCardBackground())
                                         .border(1.dp, themedCardBorder(), RoundedCornerShape(16.dp))
                                 ) {
-                                    // Animated Train Background
+                                    // Animated Metro/CPTM Train Background
                                     AnimatedMetroTrain(
-                                        lineColor = color.copy(alpha = 0.25f),
-                                        modifier = Modifier.fillMaxSize().padding(top = 20.dp)
+                                        lineColor = color,
+                                        modifier = Modifier.fillMaxSize().padding(top = 28.dp)
                                     )
                                     
-                                    // Color Band
+                                    // Subtle Left Accent Bar
                                     Box(
                                         modifier = Modifier
-                                            .width(6.dp)
+                                            .width(4.dp)
                                             .fillMaxHeight()
                                             .background(color)
                                             .align(Alignment.CenterStart)
@@ -284,42 +307,83 @@ fun TransportScreen(
                                     Row(
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .padding(start = 20.dp, end = 16.dp),
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
                                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                            // Line Code Badge
                                             Box(
                                                 modifier = Modifier
-                                                    .size(36.dp)
-                                                    .clip(CircleShape)
-                                                    .background(color.copy(alpha = 0.2f))
-                                                    .border(1.dp, color, CircleShape),
+                                                    .size(40.dp)
+                                                    .clip(RoundedCornerShape(10.dp))
+                                                    .background(color.copy(alpha = 0.16f))
+                                                    .border(1.dp, color.copy(alpha = 0.5f), RoundedCornerShape(10.dp)),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Text(
                                                     text = line.codigo,
                                                     color = MaterialTheme.colorScheme.onBackground,
                                                     fontWeight = FontWeight.Bold,
-                                                    fontSize = 14.sp
+                                                    fontSize = 15.sp
                                                 )
                                             }
-                                            Spacer(modifier = Modifier.width(16.dp))
+                                            Spacer(modifier = Modifier.width(14.dp))
                                             Column {
-                                                Text(line.nome, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                                                Spacer(modifier = Modifier.height(2.dp))
-                                                val statusDetailText = if (!line.status?.atualizadoHa.isNullOrBlank()) {
-                                                    "$statusTxt • ${line.status?.atualizadoHa}"
-                                                } else {
-                                                    statusTxt
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(
+                                                        text = line.nome,
+                                                        color = MaterialTheme.colorScheme.onBackground,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        fontSize = 15.sp
+                                                    )
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Text(
+                                                        text = if (empresa.nome.contains("cptm", ignoreCase = true)) "CPTM" else "METRÔ",
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Medium
+                                                    )
                                                 }
-                                                Text(statusDetailText, color = if (isNormal) Color(0xFF81C784) else Color(0xFFFF6B6B), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(6.dp)
+                                                            .clip(CircleShape)
+                                                            .background(statusColor)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Text(
+                                                        text = statusTxt,
+                                                        color = statusColor,
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                    if (!line.status?.atualizadoHa.isNullOrBlank()) {
+                                                        Text(
+                                                            text = " • ${line.status?.atualizadoHa}",
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                            fontSize = 11.sp
+                                                        )
+                                                    }
+                                                }
                                             }
                                         }
-                                        if (!isNormal) {
-                                            Icon(Icons.Outlined.Warning, contentDescription = "Alerta", tint = Color(0xFFFF6B6B))
-                                        } else {
-                                            Icon(Icons.Outlined.CheckCircle, contentDescription = "Normal", tint = Color(0xFF81C784), modifier = Modifier.size(20.dp))
+                                        
+                                        // Status Icon
+                                        Box(
+                                            modifier = Modifier
+                                                .size(28.dp)
+                                                .clip(CircleShape)
+                                                .background(statusColor.copy(alpha = 0.1f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (isNormal) {
+                                                Icon(Icons.Outlined.CheckCircle, contentDescription = "Normal", tint = statusColor, modifier = Modifier.size(16.dp))
+                                            } else {
+                                                Icon(Icons.Outlined.Warning, contentDescription = "Alerta", tint = statusColor, modifier = Modifier.size(16.dp))
+                                            }
                                         }
                                     }
                                 }
@@ -351,7 +415,7 @@ fun TransportScreen(
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Escolher Linha", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Buscar Linha", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
 
@@ -362,9 +426,41 @@ fun TransportScreen(
                 } else if (busError != null && savedBusLines.isEmpty()) {
                     Text(text = busError ?: "Erro desconhecido", color = Color(0xFFE57373), modifier = Modifier.padding(16.dp))
                 } else if (savedBusLines.isEmpty()) {
-                    Text("Nenhuma linha salva no momento.", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(themedCardBackground())
+                            .border(1.dp, themedCardBorder(), RoundedCornerShape(16.dp))
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Outlined.DirectionsBus,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Nenhuma linha adicionada",
+                                color = MaterialTheme.colorScheme.onBackground,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 15.sp,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Toque em 'Buscar Linha' acima para monitorar ônibus em tempo real.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 13.sp,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
                 } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         savedBusLines.forEach { bus ->
                             val busColor = getBusLineColor(bus.lineNumber)
                             val isOffline = bus.estimatedArrivalText.contains("Sem") || bus.estimatedArrivalText.contains("Offline")
@@ -372,10 +468,10 @@ fun TransportScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(24.dp))
+                                    .clip(RoundedCornerShape(16.dp))
                                     .background(themedCardBackground())
-                                    .border(1.dp, themedCardBorder(), RoundedCornerShape(24.dp))
-                                    .padding(20.dp)
+                                    .border(1.dp, themedCardBorder(), RoundedCornerShape(16.dp))
+                                    .padding(18.dp)
                             ) {
                                 Column {
                                     Row(
@@ -388,18 +484,19 @@ fun TransportScreen(
                                             Box(
                                                 modifier = Modifier
                                                     .clip(RoundedCornerShape(8.dp))
-                                                    .background(Brush.linearGradient(listOf(busColor.copy(alpha = 0.3f), busColor.copy(alpha = 0.1f))))
-                                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                                                    .background(busColor.copy(alpha = 0.16f))
+                                                    .border(1.dp, busColor.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                                                .padding(horizontal = 10.dp, vertical = 6.dp)
                                             ) {
-                                                Text(bus.lineNumber, color = busColor, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                                                Text(bus.lineNumber, color = busColor, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                             }
-                                            Spacer(modifier = Modifier.width(16.dp))
+                                            Spacer(modifier = Modifier.width(14.dp))
                                             Column {
                                                 Text(
                                                     text = bus.destination, 
                                                     color = MaterialTheme.colorScheme.onBackground, 
-                                                    fontWeight = FontWeight.Bold, 
-                                                    fontSize = 18.sp,
+                                                    fontWeight = FontWeight.SemiBold, 
+                                                    fontSize = 16.sp,
                                                     maxLines = 1,
                                                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                                 )
@@ -416,29 +513,30 @@ fun TransportScreen(
                                         
                                         IconButton(
                                             onClick = { viewModel.removeBusLine(bus.lineCode) },
-                                            modifier = Modifier.size(32.dp).padding(start = 8.dp)
+                                            modifier = Modifier.size(32.dp)
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Delete,
                                                 contentDescription = "Remover Linha",
-                                                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                                modifier = Modifier.size(18.dp)
                                             )
                                         }
                                     }
                                     
-                                    Spacer(modifier = Modifier.height(24.dp))
+                                    Spacer(modifier = Modifier.height(18.dp))
                                     
                                     // Arrival section with Pulsing Text and Progress Line
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.Bottom
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         // Simple Progress Bar indicating time
                                         Box(
                                             modifier = Modifier
                                                 .weight(1f)
-                                                .padding(end = 24.dp, bottom = 4.dp)
+                                                .padding(end = 20.dp)
                                                 .height(4.dp)
                                                 .clip(RoundedCornerShape(2.dp))
                                                 .background(themedSubtleBackground())
@@ -449,7 +547,7 @@ fun TransportScreen(
                                                     initialValue = 0f,
                                                     targetValue = 1f,
                                                     animationSpec = infiniteRepeatable(
-                                                        animation = tween(2000, easing = FastOutSlowInEasing),
+                                                        animation = tween(2400, easing = FastOutSlowInEasing),
                                                         repeatMode = RepeatMode.Restart
                                                     ),
                                                     label = "bus_progress_anim"
@@ -467,15 +565,14 @@ fun TransportScreen(
                                             }
                                         }
                                         
-                                        Column(horizontalAlignment = Alignment.End) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
                                             Text(
-                                                text = "CHEGA EM", 
-                                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f), 
-                                                fontSize = 10.sp, 
-                                                fontWeight = FontWeight.Bold, 
-                                                letterSpacing = 1.sp
+                                                text = "PREVISÃO: ", 
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant, 
+                                                fontSize = 11.sp, 
+                                                fontWeight = FontWeight.Medium, 
+                                                letterSpacing = 0.5.sp
                                             )
-                                            Spacer(modifier = Modifier.height(2.dp))
                                             PulsingArrivalText(text = bus.estimatedArrivalText, isOffline = isOffline, accentColor = busColor)
                                         }
                                     }
@@ -597,6 +694,8 @@ fun TransportScreen(
 
     // Bus Search Dialog
     if (showSearchDialog) {
+        var selectedFilter by remember { mutableStateOf("TODAS") } // "TODAS", "IDA", "VOLTA", "NOTURNAS"
+
         Dialog(onDismissRequest = { 
             showSearchDialog = false 
             searchQuery = ""
@@ -605,22 +704,43 @@ fun TransportScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.95f)
-                    .fillMaxHeight(0.7f)
-                    .clip(RoundedCornerShape(28.dp))
+                    .fillMaxHeight(0.75f)
+                    .clip(RoundedCornerShape(24.dp))
                     .background(themedOverlayBackground())
-                    .border(1.dp, themedCardBorder(), RoundedCornerShape(28.dp))
-                    .padding(24.dp)
+                    .border(1.dp, themedCardBorder(), RoundedCornerShape(24.dp))
+                    .padding(20.dp)
             ) {
                 Column(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Text(
-                        text = "Buscar Linha de Ônibus",
-                        color = MaterialTheme.colorScheme.onBackground,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Buscar Linha de Ônibus",
+                            color = MaterialTheme.colorScheme.onBackground,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        IconButton(
+                            onClick = {
+                                showSearchDialog = false
+                                searchQuery = ""
+                                viewModel.searchBusLines("")
+                            },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.CheckCircle,
+                                contentDescription = "Fechar",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
 
                     OutlinedTextField(
                         value = searchQuery,
@@ -628,11 +748,44 @@ fun TransportScreen(
                             searchQuery = it
                             viewModel.searchBusLines(it)
                         },
-                        placeholder = { Text("Ex: 8000, 715M, Lapa...") },
+                        placeholder = { Text("Número ou destino (ex: 8000, Lapa)", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
                         colors = themedOutlinedTextFieldColors()
                     )
+
+                    // Filter Chips Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val filterOptions = listOf("TODAS" to "Todas", "IDA" to "Ida", "VOLTA" to "Volta", "NOTURNAS" to "Noturnas")
+                        filterOptions.forEach { (key, label) ->
+                            val isSelected = selectedFilter == key
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(
+                                        if (isSelected) busAccentColor.copy(alpha = 0.18f) else themedSubtleBackground()
+                                    )
+                                    .border(
+                                        1.dp,
+                                        if (isSelected) busAccentColor.copy(alpha = 0.6f) else themedSubtleBorder(),
+                                        RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable { selectedFilter = key }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) busAccentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
 
                     if (isSearchingBus) {
                         Box(
@@ -641,33 +794,44 @@ fun TransportScreen(
                                 .weight(1f),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(color = busAccentColor)
+                            CircularProgressIndicator(color = busAccentColor, modifier = Modifier.size(32.dp))
                         }
                     } else {
+                        val filteredResults = remember(busSearchResults, selectedFilter) {
+                            when (selectedFilter) {
+                                "IDA" -> busSearchResults.filter { it.sl == 1 }
+                                "VOLTA" -> busSearchResults.filter { it.sl == 2 }
+                                "NOTURNAS" -> busSearchResults.filter { it.lt.startsWith("N", ignoreCase = true) }
+                                else -> busSearchResults
+                            }
+                        }
+
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            if (busSearchResults.isEmpty()) {
+                            if (filteredResults.isEmpty()) {
                                 item {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(top = 32.dp),
+                                            .padding(top = 36.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
-                                            text = if (searchQuery.isEmpty()) "Digite para buscar linhas..." else "Nenhuma linha encontrada.",
-                                            color = Color.Gray,
-                                            fontSize = 14.sp
+                                            text = if (searchQuery.isEmpty()) "Digite o número ou nome da linha..." else "Nenhuma linha encontrada para o filtro.",
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontSize = 13.sp,
+                                            textAlign = TextAlign.Center
                                         )
                                     }
                                 }
                             } else {
-                                items(busSearchResults) { result ->
+                                items(filteredResults) { result ->
                                     val dest = if (result.sl == 1) result.ts else result.tp
+                                    val lineColor = getBusLineColor(result.lt)
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -680,7 +844,7 @@ fun TransportScreen(
                                                 searchQuery = ""
                                                 viewModel.searchBusLines("")
                                             }
-                                            .padding(16.dp),
+                                            .padding(14.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
@@ -689,13 +853,13 @@ fun TransportScreen(
                                                 Box(
                                                     modifier = Modifier
                                                         .clip(RoundedCornerShape(6.dp))
-                                                        .background(busAccentColor.copy(alpha = 0.15f))
-                                                        .border(0.5.dp, busAccentColor.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                                                        .background(lineColor.copy(alpha = 0.16f))
+                                                        .border(0.5.dp, lineColor.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
                                                         .padding(horizontal = 8.dp, vertical = 4.dp)
                                                 ) {
-                                                    Text(result.lt, color = busAccentColor, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                                    Text(result.lt, color = lineColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                                 }
-                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Spacer(modifier = Modifier.width(10.dp))
                                                 Text(
                                                     text = dest,
                                                     color = MaterialTheme.colorScheme.onBackground,
@@ -707,7 +871,7 @@ fun TransportScreen(
                                             }
                                             Spacer(modifier = Modifier.height(4.dp))
                                             Text(
-                                                text = if (result.sl == 1) "Sentido Ida" else "Sentido Volta",
+                                                text = if (result.sl == 1) "Sentido Ida (Terminal Secundário)" else "Sentido Volta (Terminal Principal)",
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 fontSize = 11.sp
                                             )
@@ -715,7 +879,7 @@ fun TransportScreen(
                                         Icon(
                                             imageVector = Icons.Default.Add,
                                             contentDescription = "Adicionar",
-                                            tint = busAccentColor,
+                                            tint = lineColor,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
@@ -735,9 +899,10 @@ fun TransportScreen(
                             contentColor = MaterialTheme.colorScheme.onBackground
                         ),
                         border = BorderStroke(1.dp, themedButtonBorder()),
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Fechar", color = MaterialTheme.colorScheme.onBackground)
+                        Text("Fechar", color = MaterialTheme.colorScheme.onBackground, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                     }
                 }
             }
@@ -749,13 +914,22 @@ fun TransportScreen(
 fun AnimatedMetroTrain(lineColor: Color, modifier: Modifier = Modifier) {
     val infiniteTransition = rememberInfiniteTransition(label = "train")
     val translationX by infiniteTransition.animateFloat(
-        initialValue = -0.3f,
-        targetValue = 1.3f,
+        initialValue = -0.4f,
+        targetValue = 1.4f,
         animationSpec = infiniteRepeatable(
-            animation = tween(4500, easing = LinearEasing),
+            animation = tween(5200, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "train_move"
+    )
+    val lightPulse by infiniteTransition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "light_pulse"
     )
 
     val sysOnBackground = MaterialTheme.colorScheme.onBackground
@@ -763,51 +937,121 @@ fun AnimatedMetroTrain(lineColor: Color, modifier: Modifier = Modifier) {
         val w = size.width
         val h = size.height
         
-        val trainWidth = w * 0.45f
-        val trainHeight = h * 0.25f
-        val carWidth = trainWidth * 0.45f
-        val gap = trainWidth * 0.05f
+        val trainWidth = (w * 0.42f).coerceAtMost(260.dp.toPx())
+        val trainHeight = 16.dp.toPx()
+        val carCount = 3
+        val gap = 4.dp.toPx()
+        val carWidth = (trainWidth - (gap * (carCount - 1))) / carCount
         
         val startX = w * translationX
-        val yPos = h * 0.8f
+        val trackY = h * 0.72f
         
-        // draw track line
+        // Track line
         drawLine(
-            color = sysOnBackground.copy(alpha = 0.05f),
-            start = Offset(0f, yPos),
-            end = Offset(w, yPos),
-            strokeWidth = 1.dp.toPx()
+            color = sysOnBackground.copy(alpha = 0.08f),
+            start = Offset(0f, trackY),
+            end = Offset(w, trackY),
+            strokeWidth = 1.5.dp.toPx()
         )
         
-        // Train moving
+        // Station nodes along track
+        val nodeCount = 5
+        for (i in 0 until nodeCount) {
+            val nodeX = w * ((i + 0.5f) / nodeCount)
+            drawCircle(
+                color = sysOnBackground.copy(alpha = 0.12f),
+                radius = 2.dp.toPx(),
+                center = Offset(nodeX, trackY)
+            )
+        }
+        
+        // Train moving along track
         translate(left = startX) {
-            // First car
-            drawRoundRect(
-                color = lineColor,
-                topLeft = Offset(0f, yPos - trainHeight),
-                size = androidx.compose.ui.geometry.Size(carWidth, trainHeight),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx())
+            // Front Headlight beam
+            val frontX = trainWidth
+            val beamLength = 40.dp.toPx()
+            drawOval(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(Color(0xFFFFF9C4).copy(alpha = 0.45f * lightPulse), Color.Transparent),
+                    startX = frontX,
+                    endX = frontX + beamLength
+                ),
+                topLeft = Offset(frontX, trackY - trainHeight * 0.8f),
+                size = androidx.compose.ui.geometry.Size(beamLength, trainHeight * 0.7f)
             )
-            // Second car
-            drawRoundRect(
-                color = lineColor,
-                topLeft = Offset(carWidth + gap, yPos - trainHeight),
-                size = androidx.compose.ui.geometry.Size(carWidth, trainHeight),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx())
-            )
-            // Windows
-            drawRoundRect(
-                color = Color.Black.copy(alpha = 0.3f),
-                topLeft = Offset(carWidth * 0.2f, yPos - trainHeight + 2.dp.toPx()),
-                size = androidx.compose.ui.geometry.Size(carWidth * 0.6f, trainHeight * 0.4f),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx())
-            )
-            drawRoundRect(
-                color = Color.Black.copy(alpha = 0.3f),
-                topLeft = Offset(carWidth + gap + carWidth * 0.2f, yPos - trainHeight + 2.dp.toPx()),
-                size = androidx.compose.ui.geometry.Size(carWidth * 0.6f, trainHeight * 0.4f),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx())
-            )
+
+            // Draw each car
+            for (carIndex in 0 until carCount) {
+                val carX = carIndex * (carWidth + gap)
+                val isFrontCar = carIndex == carCount - 1
+                val isRearCar = carIndex == 0
+                
+                // Car Body
+                drawRoundRect(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            lineColor.copy(alpha = 0.35f),
+                            lineColor.copy(alpha = 0.18f)
+                        ),
+                        startY = trackY - trainHeight,
+                        endY = trackY
+                    ),
+                    topLeft = Offset(carX, trackY - trainHeight),
+                    size = androidx.compose.ui.geometry.Size(carWidth, trainHeight),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(if (isFrontCar) 5.dp.toPx() else 2.5.dp.toPx())
+                )
+                
+                // Roof Accent Line
+                drawLine(
+                    color = lineColor.copy(alpha = 0.7f),
+                    start = Offset(carX + 2.dp.toPx(), trackY - trainHeight + 1.dp.toPx()),
+                    end = Offset(carX + carWidth - 2.dp.toPx(), trackY - trainHeight + 1.dp.toPx()),
+                    strokeWidth = 1.dp.toPx()
+                )
+
+                // Window Bands
+                val windowY = trackY - trainHeight + 3.dp.toPx()
+                val windowH = trainHeight * 0.42f
+                val windowW = carWidth * 0.22f
+                
+                drawRoundRect(
+                    color = Color.Black.copy(alpha = 0.35f),
+                    topLeft = Offset(carX + carWidth * 0.2f, windowY),
+                    size = androidx.compose.ui.geometry.Size(windowW, windowH),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.5.dp.toPx())
+                )
+                drawRoundRect(
+                    color = Color.Black.copy(alpha = 0.35f),
+                    topLeft = Offset(carX + carWidth * 0.55f, windowY),
+                    size = androidx.compose.ui.geometry.Size(windowW, windowH),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.5.dp.toPx())
+                )
+
+                // Front Windshield / Headlight on Lead Car
+                if (isFrontCar) {
+                    drawRoundRect(
+                        color = Color.Black.copy(alpha = 0.5f),
+                        topLeft = Offset(carX + carWidth * 0.78f, windowY),
+                        size = androidx.compose.ui.geometry.Size(carWidth * 0.18f, windowH),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx())
+                    )
+                    // Headlight LED
+                    drawCircle(
+                        color = Color(0xFFFFF9C4),
+                        radius = 1.5.dp.toPx(),
+                        center = Offset(carX + carWidth - 1.dp.toPx(), trackY - trainHeight * 0.35f)
+                    )
+                }
+
+                // Rear Taillight on Rear Car
+                if (isRearCar) {
+                    drawCircle(
+                        color = Color(0xFFFF5252).copy(alpha = 0.85f),
+                        radius = 1.2.dp.toPx(),
+                        center = Offset(carX + 1.dp.toPx(), trackY - trainHeight * 0.35f)
+                    )
+                }
+            }
         }
     }
 }
@@ -816,7 +1060,7 @@ fun AnimatedMetroTrain(lineColor: Color, modifier: Modifier = Modifier) {
 fun PulsingArrivalText(text: String, isOffline: Boolean, accentColor: Color) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.5f,
+        initialValue = 0.65f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
             animation = tween(1200, easing = FastOutSlowInEasing),
@@ -827,15 +1071,9 @@ fun PulsingArrivalText(text: String, isOffline: Boolean, accentColor: Color) {
 
     Text(
         text = text,
-        color = if (isOffline) Color(0xFFFF6B6B) else accentColor.copy(alpha = alpha),
-        fontWeight = FontWeight.Black,
+        color = if (isOffline) Color(0xFFEF4444) else accentColor.copy(alpha = alpha),
+        fontWeight = FontWeight.SemiBold,
         fontFamily = FontFamily.SansSerif,
-        fontSize = 18.sp,
-        style = androidx.compose.ui.text.TextStyle(
-            shadow = androidx.compose.ui.graphics.Shadow(
-                color = if (isOffline) Color(0xFFFF6B6B).copy(alpha = 0.5f) else accentColor.copy(alpha = 0.5f),
-                blurRadius = if (isOffline) 0f else 8f * alpha
-            )
-        )
+        fontSize = 14.sp
     )
 }

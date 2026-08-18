@@ -266,7 +266,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {doc.transactions.map((tx) => {
-              const isIncome = tx.type === 'INCOME'
+              const isIncome = tx.type?.toUpperCase() === 'INCOME'
               return (
                 <div 
                   key={tx.id}

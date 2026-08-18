@@ -53,6 +53,7 @@ class SupabaseFinanceSyncManager(
     fun generateNewShareId(): String {
         val newId = UUID.randomUUID().toString().take(8)
         _activeShareId.value = newId
+        lastUploadedHash = null
         context.getSharedPreferences("tessera_supabase_prefs", Context.MODE_PRIVATE)
             .edit()
             .putString("finance_share_id", newId)
@@ -81,6 +82,7 @@ class SupabaseFinanceSyncManager(
     }
 
     fun triggerSync() {
+        lastUploadedHash = null
         scope.launch {
             val transactions = repository.allTransactions.first()
             uploadDashboardToSupabase(transactions)

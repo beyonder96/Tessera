@@ -57,7 +57,7 @@ object SupabaseClientProvider {
 
     suspend fun postOrUpdate(table: String, jsonBody: String): Result<String> {
         return try {
-            val url = "${getSupabaseUrl()}/rest/v1/$table"
+            val url = "${getSupabaseUrl()}/rest/v1/$table?on_conflict=id"
             val body = jsonBody.toRequestBody("application/json; charset=utf-8".toMediaType())
             val request = Request.Builder()
                 .url(url)

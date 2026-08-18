@@ -4,6 +4,8 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -28,6 +31,7 @@ import com.example.viewmodel.TesseraViewModel
 
 private data class ModuleItem(
     val title: String,
+    val subtitle: String,
     val route: String,
     val icon: ImageVector,
     val iconColor: Color
@@ -41,25 +45,25 @@ fun BentoBoxDashboard(
 ) {
     val itemsAlpha by animateFloatAsState(
         targetValue = if (isExpanded) 1f else 0f,
-        animationSpec = tween(300, easing = FastOutSlowInEasing),
-        label = "alpha"
+        animationSpec = tween(250, easing = FastOutSlowInEasing),
+        label = "bento_alpha"
     )
     val itemsOffset by animateDpAsState(
-        targetValue = if (isExpanded) 0.dp else 30.dp,
-        animationSpec = spring(dampingRatio = 0.85f, stiffness = 200f),
-        label = "offset"
+        targetValue = if (isExpanded) 0.dp else 24.dp,
+        animationSpec = spring(dampingRatio = 0.85f, stiffness = 300f),
+        label = "bento_offset"
     )
 
     val modules = remember {
         listOf(
-            ModuleItem("Finanças", "finance", Icons.Outlined.AccountBalanceWallet, Color(0xFF10B981)),
-            ModuleItem("Desejos", "wishes", Icons.Outlined.BookmarkBorder, Color(0xFFF59E0B)),
-            ModuleItem("Transporte", "transport", Icons.Outlined.DirectionsBus, Color(0xFF38BDF8)),
-            ModuleItem("Saúde", "health", Icons.Outlined.MonitorHeart, PrimaryTeal),
-            ModuleItem("Rotinas", "goals", Icons.Outlined.Flag, Color(0xFFF97316)),
-            ModuleItem("Meu Apê", "apartment", Icons.Outlined.Construction, SecondaryGold),
-            ModuleItem("Petz", "petz", Icons.Outlined.Pets, TertiaryPurple),
-            ModuleItem("Mercado", "market", Icons.Outlined.ShoppingCart, Color(0xFF34D399))
+            ModuleItem("Finanças", "Saldo & Contas", "finance", Icons.Outlined.AccountBalanceWallet, Color(0xFF10B981)),
+            ModuleItem("Saúde", "Passos & Sono", "health", Icons.Outlined.MonitorHeart, PrimaryTeal),
+            ModuleItem("Transporte", "Metrô & Ônibus", "transport", Icons.Outlined.DirectionsBus, Color(0xFF38BDF8)),
+            ModuleItem("Rotinas", "Hábitos & Metas", "goals", Icons.Outlined.Flag, Color(0xFFF97316)),
+            ModuleItem("Mercado", "Lista de Compras", "market", Icons.Outlined.ShoppingCart, Color(0xFF34D399)),
+            ModuleItem("Desejos", "Planejamento", "wishes", Icons.Outlined.BookmarkBorder, Color(0xFFF59E0B)),
+            ModuleItem("Meu Apê", "Reforma & Custos", "apartment", Icons.Outlined.Construction, SecondaryGold),
+            ModuleItem("Petz", "Cuidados & Vacinas", "petz", Icons.Outlined.Pets, TertiaryPurple)
         )
     }
 
@@ -77,8 +81,9 @@ fun BentoBoxDashboard(
             ) {
                 rowModules.forEach { module ->
                     Box(modifier = Modifier.weight(1f)) {
-                        MinimalModuleTile(
+                        ModernBentoModuleTile(
                             title = module.title,
+                            subtitle = module.subtitle,
                             icon = module.icon,
                             iconColor = module.iconColor,
                             onClick = { onNavigate(module.route) }
@@ -94,49 +99,90 @@ fun BentoBoxDashboard(
 }
 
 @Composable
-private fun MinimalModuleTile(
+private fun ModernBentoModuleTile(
     title: String,
+    subtitle: String,
     icon: ImageVector,
     iconColor: Color,
     onClick: () -> Unit
 ) {
     val shape = RoundedCornerShape(16.dp)
-    
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = tween(150, easing = FastOutSlowInEasing),
+        label = "pressScale"
+    )
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
             .clip(shape)
             .background(themedCardBackground())
             .border(1.dp, themedCardBorder(), shape)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+            .padding(14.dp),
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Box(
-            modifier = Modifier
-                .size(34.dp)
-                .clip(CircleShape)
-                .background(iconColor.copy(alpha = 0.12f)),
-            contentAlignment = Alignment.Center
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(iconColor.copy(alpha = 0.14f))
+                    .border(0.5.dp, iconColor.copy(alpha = 0.35f), RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = title,
+                    tint = iconColor,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+
             Icon(
-                imageVector = icon,
-                contentDescription = title,
-                tint = iconColor,
-                modifier = Modifier.size(18.dp)
+                imageVector = Icons.Outlined.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                modifier = Modifier.size(16.dp)
             )
         }
-        
-        Spacer(modifier = Modifier.width(12.dp))
-        
-        Text(
-            text = title,
-            color = MaterialTheme.colorScheme.onBackground,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            fontFamily = FontFamily.SansSerif,
-            maxLines = 1
-        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Column {
+            Text(
+                text = title,
+                color = MaterialTheme.colorScheme.onBackground,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                fontFamily = FontFamily.SansSerif,
+                maxLines = 1
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = subtitle,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Normal,
+                fontFamily = FontFamily.SansSerif,
+                maxLines = 1
+            )
+        }
     }
 }

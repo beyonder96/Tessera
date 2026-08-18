@@ -4,6 +4,13 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.33
+
+- **Animação Aerodinâmica de Trens & Filtros de Transporte:** Novo visual moderno e elegante em Canvas para as linhas de trem/metrô, status e horários organizados e chips rápidos de busca de ônibus (Ida, Volta, Noturnas N).
+- **Módulos em Bento Grid Minimalista:** Redesenho completo do painel de módulos na Home com grade de 8px, proporções refinadas, subtítulos contextuais funcionais e microinterações de toque.
+- **Preenchimento Automático de Passos (Google Health / Connect):** Consulta e preenchimento automático da contagem de passos do dia ao abrir o modal de registro ou alternar datas, com selo de confirmação do Health Connect.
+- **Correção de Compartilhamento Web & Modo Claro na Tela de Bloqueio:** Resolução do erro de "Resumo indisponível" no Supabase e suporte total ao modo claro na tela de bloqueio com tipografia sans-serif de alto contraste.
+
 ## 🚀 Novidades da Versão 2.0.32
 
 - **Seleção Dupla de Fotos para Pets (Modo Claro & Escuro):** Agora é possível escolher fotos separadas para cada pet (diurna e noturna), adaptando-se instantaneamente à mudança de tema do aplicativo ou sistema.
@@ -126,8 +133,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.32.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.32.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.33.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.33.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.
