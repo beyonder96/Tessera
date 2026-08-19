@@ -308,15 +308,12 @@ fun TesseraApp() {
                 val start = end.minus(30, java.time.temporal.ChronoUnit.DAYS)
                 val hcWeights = healthConnectManager.readWeightRecords(start, end)
                 val hcSleeps = healthConnectManager.readSleepRecords(start, end)
-                val hcSteps = healthConnectManager.readStepsRecords(start, end)
+                val localSteps = healthConnectManager.readDailyAggregatedSteps(30)
                 
                 val localWeights = hcWeights.map { com.example.data.WeightRecord(weightKg = it.weight.inKilograms, timestamp = it.time.toEpochMilli(), source = "Health Connect") }
                 val localSleeps = hcSleeps.map { 
                     val duration = java.time.temporal.ChronoUnit.MINUTES.between(it.startTime, it.endTime).toDouble() / 60.0
                     com.example.data.SleepRecord(startTime = it.startTime.toEpochMilli(), endTime = it.endTime.toEpochMilli(), durationHours = duration, source = "Health Connect") 
-                }
-                val localSteps = hcSteps.map {
-                    com.example.data.StepsRecord(count = it.count, startTime = it.startTime.toEpochMilli(), endTime = it.endTime.toEpochMilli(), source = "Health Connect")
                 }
                 viewModel.syncHealthConnectData(localWeights, localSleeps, localSteps)
 
@@ -3731,28 +3728,102 @@ fun MinimalNavButton(
     icon: ImageVector,
     contentDescription: String,
     isActive: Boolean,
-    activeColor: Color = Color(0xFFE85D04),
+    activeColor: Color = PrimaryTeal,
     onClick: () -> Unit
 ) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+    val scale by animateFloatAsState(
+        targetValue = if (isActive) 1.08f else 1.0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+        label = "nav_btn_scale"
+    )
+    val bgAlpha by animateFloatAsState(
+        targetValue = if (isActive) 0.14f else 0.0f,
+        animationSpec = tween(200, easing = FastOutSlowInEasing),
+        label = "nav_btn_bg"
+    )
+    val borderAlpha by animateFloatAsState(
+        targetValue = if (isActive) 0.38f else 0.0f,
+        animationSpec = tween(200, easing = FastOutSlowInEasing),
+        label = "nav_btn_border"
+    )
+
+    Box(
         modifier = Modifier
-            .size(48.dp)
-            .bounceClick { onClick() }
+            .size(44.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(activeColor.copy(alpha = bgAlpha))
+            .border(1.dp, activeColor.copy(alpha = borderAlpha), RoundedCornerShape(14.dp))
+            .bounceClick { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = if (isActive) activeColor else themedInactiveIcon(),
+                modifier = Modifier
+                    .size(21.dp)
+                    .graphicsLayer(scaleX = scale, scaleY = scale)
+            )
+            
+            Spacer(modifier = Modifier.height(2.dp))
+            
+            // Micro active capsule indicator
+            Box(
+                modifier = Modifier
+                    .width(if (isActive) 12.dp else 0.dp)
+                    .height(2.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(if (isActive) activeColor else Color.Transparent)
+            )
+        }
+    }
+}
+
+@Composable
+fun ModulesNavAnchorButton(
+    isExpanded: Boolean,
+    onClick: () -> Unit
+) {
+    val rotation by animateFloatAsState(
+        targetValue = if (isExpanded) 90f else 0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+        label = "modules_rotation"
+    )
+    val bgAlpha by animateFloatAsState(
+        targetValue = if (isExpanded) 0.20f else 0.06f,
+        animationSpec = tween(200),
+        label = "modules_bg"
+    )
+    val borderAlpha by animateFloatAsState(
+        targetValue = if (isExpanded) 0.5f else 0.15f,
+        animationSpec = tween(200),
+        label = "modules_border"
+    )
+
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(if (isExpanded) PrimaryTeal.copy(alpha = bgAlpha) else themedSubtleBackground())
+            .border(
+                1.dp,
+                if (isExpanded) PrimaryTeal.copy(alpha = borderAlpha) else themedSubtleBorder(),
+                RoundedCornerShape(14.dp)
+            )
+            .bounceClick { onClick() },
+        contentAlignment = Alignment.Center
     ) {
         Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = if (isActive) MaterialTheme.colorScheme.onBackground else themedInactiveIcon(),
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Box(
+            imageVector = if (isExpanded) Icons.Default.Close else Icons.Default.Menu,
+            contentDescription = if (isExpanded) "Fechar Menu" else "Central de Módulos",
+            tint = if (isExpanded) PrimaryTeal else MaterialTheme.colorScheme.onBackground,
             modifier = Modifier
-                .size(4.dp)
-                .clip(CircleShape)
-                .background(if (isActive) activeColor else Color.Transparent)
+                .size(20.dp)
+                .rotate(rotation)
         )
     }
 }
@@ -3785,19 +3856,21 @@ fun BottomNavBar(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 24.dp, vertical = 24.dp),
+            .padding(horizontal = 24.dp, vertical = 20.dp),
         contentAlignment = Alignment.BottomCenter
     ) {
+        // Liquid Glass Capsule Container
         Box(
             modifier = Modifier
                 .wrapContentSize()
-                .background(themedNavBarBackground(), RoundedCornerShape(40.dp))
-                .border(1.dp, themedNavBarBorder(), RoundedCornerShape(40.dp))
-                .padding(horizontal = 16.dp, vertical = 6.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(themedNavBarBackground())
+                .border(1.dp, themedNavBarBorder(), RoundedCornerShape(22.dp))
+                .padding(horizontal = 10.dp, vertical = 6.dp)
         ) {
             Row(
                 modifier = Modifier.wrapContentSize(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 when (displayedRoute) {
@@ -3812,12 +3885,14 @@ fun BottomNavBar(
                             icon = Icons.Default.ArrowDownward,
                             contentDescription = "Despesa",
                             isActive = false,
+                            activeColor = Color(0xFFEF5350),
                             onClick = { viewModel.triggerFinanceAction(TesseraViewModel.FinanceAction.ADD_EXPENSE) }
                         )
                         MinimalNavButton(
                             icon = Icons.Default.ArrowUpward,
                             contentDescription = "Receita",
                             isActive = false,
+                            activeColor = Color(0xFF10B981),
                             onClick = { viewModel.triggerFinanceAction(TesseraViewModel.FinanceAction.ADD_INCOME) }
                         )
                     }
@@ -3832,12 +3907,14 @@ fun BottomNavBar(
                             icon = Icons.Outlined.DirectionsWalk,
                             contentDescription = "Passos",
                             isActive = false,
+                            activeColor = PrimaryTeal,
                             onClick = { viewModel.triggerHealthAction(TesseraViewModel.HealthAction.ADD_STEPS) }
                         )
                         MinimalNavButton(
                             icon = Icons.Outlined.Bedtime,
                             contentDescription = "Sono",
                             isActive = false,
+                            activeColor = Color(0xFF818CF8),
                             onClick = { viewModel.triggerHealthAction(TesseraViewModel.HealthAction.ADD_SLEEP) }
                         )
                     }
@@ -3852,12 +3929,14 @@ fun BottomNavBar(
                             icon = Icons.Default.Add,
                             contentDescription = "Adicionar Desejo",
                             isActive = false,
+                            activeColor = PrimaryTeal,
                             onClick = { viewModel.triggerWishesAction(TesseraViewModel.WishesAction.ADD_WISH) }
                         )
                         MinimalNavButton(
                             icon = Icons.Default.Search,
                             contentDescription = "Pesquisar",
                             isActive = false,
+                            activeColor = PrimaryTeal,
                             onClick = { viewModel.triggerWishesAction(TesseraViewModel.WishesAction.SEARCH_WISHES) }
                         )
                     }
@@ -3866,30 +3945,38 @@ fun BottomNavBar(
                             icon = Icons.Outlined.LightMode,
                             contentDescription = "Hoje",
                             isActive = displayedRoute == "home",
+                            activeColor = PrimaryTeal,
                             onClick = { handleTabClick("home", 0) }
                         )
                         MinimalNavButton(
                             icon = Icons.Outlined.AccountBalanceWallet,
                             contentDescription = "Finanças",
                             isActive = displayedRoute == "finance",
+                            activeColor = PrimaryTeal,
                             onClick = { handleTabClick("finance", 1) }
                         )
                         MinimalNavButton(
                             icon = Icons.Outlined.Storefront,
                             contentDescription = "Mercado",
                             isActive = displayedRoute == "market",
+                            activeColor = PrimaryTeal,
                             onClick = { handleTabClick("market", 2) }
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.width(4.dp))
+                // Vertical Divider
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 3.dp)
+                        .width(1.dp)
+                        .height(22.dp)
+                        .background(themedSubtleBorder())
+                )
 
-                MinimalNavButton(
-                    icon = Icons.Default.Menu,
-                    contentDescription = "Mais",
-                    isActive = isExpanded,
-                    activeColor = MaterialTheme.colorScheme.onBackground,
+                // Modules Anchor Button with rotation & tactile feedback
+                ModulesNavAnchorButton(
+                    isExpanded = isExpanded,
                     onClick = { onExpandedChange(!isExpanded) }
                 )
             }

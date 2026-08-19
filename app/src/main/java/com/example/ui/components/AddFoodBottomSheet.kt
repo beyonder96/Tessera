@@ -44,8 +44,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 enum class AddFoodTab(val title: String) {
-    OPEN_FOOD("Open Food Facts"),
-    NLP_TEXT("Texto Livre (Edamam)"),
+    OPEN_FOOD("Scan"),
+    NLP_TEXT("Texto Livre"),
     MANUAL("Manual")
 }
 

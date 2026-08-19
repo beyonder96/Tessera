@@ -178,15 +178,12 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                 val start = end.minus(30, ChronoUnit.DAYS)
                 val hcWeights = healthConnectManager.readWeightRecords(start, end)
                 val hcSleeps = healthConnectManager.readSleepRecords(start, end)
-                val hcSteps = healthConnectManager.readStepsRecords(start, end)
+                val localSteps = healthConnectManager.readDailyAggregatedSteps(30)
                 
                 val localWeights = hcWeights.map { WeightRecord(weightKg = it.weight.inKilograms, timestamp = it.time.toEpochMilli(), source = "Health Connect") }
                 val localSleeps = hcSleeps.map { 
                     val duration = ChronoUnit.MINUTES.between(it.startTime, it.endTime).toDouble() / 60.0
                     SleepRecord(startTime = it.startTime.toEpochMilli(), endTime = it.endTime.toEpochMilli(), durationHours = duration, source = "Health Connect") 
-                }
-                val localSteps = hcSteps.map {
-                    StepsRecord(count = it.count, startTime = it.startTime.toEpochMilli(), endTime = it.endTime.toEpochMilli(), source = "Health Connect")
                 }
                 viewModel.syncHealthConnectData(localWeights, localSleeps, localSteps)
                 
@@ -661,8 +658,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                     cal.set(Calendar.MILLISECOND, 999)
                     val end = Instant.ofEpochMilli(cal.timeInMillis)
 
-                    val hcSteps = healthConnectManager.readStepsRecords(start, end)
-                    val totalHc = hcSteps.sumOf { it.count }
+                    val totalHc = healthConnectManager.readStepsTotal(start, end)
                     if (totalHc > 0) {
                         inputSteps = totalHc.toString()
                         isAutoFilledFromHc = true

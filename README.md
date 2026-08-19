@@ -4,6 +4,13 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.35
+
+- **Reformulação do Menu Flutuante (Liquid Glass Capsule):** Nova barra de navegação translúcida com curvatura acrílica, cápsulas ativas com física de mola elástica, micro-traço de LED nos atalhos, divisor vertical e botão âncora com rotação de 90° para a Central de Módulos.
+- **Animações e Status de Transporte Refinados:** Animação procedural `AnimatedMetroTrain` restabelecida na base dos cartões de metrô com layout compacto de status ao lado da operadora e horário em **cilindro acrílico translúcido**, além de nova animação exclusiva `AnimatedBusDrive` para linhas da SPTrans e espaçamento inferior ampliado para rolagem desobstruída.
+- **Desduplicação Nativa de Passos no Health Connect:** Implementada agregação oficial do Google Health Connect (`AggregateRequest` com `StepsRecord.COUNT_TOTAL`), eliminando contagens duplicadas entre múltiplos apps de saúde (Google Fit, Samsung Health, sensor nativo) e consolidando histórico diário no fuso local.
+- **Diagnóstico e Script SQL para Compartilhamento Web (Supabase):** Disponibilização do schema SQL e instruções de ativação em 1 clique para tempo real nas listas de compras e resumos financeiros.
+
 ## 🚀 Novidades da Versão 2.0.34
 
 - **Nova Aba Nutri & Scanner por Câmera:** Introduzida a nova aba Nutri dentro do módulo de Saúde, com integração às APIs Open Food Facts e Edamam, leitor de código de barras físico em tempo real com permissão de câmera, metas de calorias, 4 barras de macronutrientes e registro de refeições.
@@ -139,8 +146,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.34.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.34.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.35.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.35.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.

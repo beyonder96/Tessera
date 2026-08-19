@@ -6,11 +6,15 @@ import androidx.health.connect.client.records.HeightRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.WeightRecord
+import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.health.connect.client.units.Mass
 import androidx.health.connect.client.permission.HealthPermission
 import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
 import java.time.ZoneOffset
 
 class HealthConnectManager(private val context: Context) {
@@ -131,6 +135,44 @@ class HealthConnectManager(private val context: Context) {
         } catch (e: Exception) {
             emptyList()
         }
+    }
+
+    suspend fun readStepsTotal(start: Instant, end: Instant): Long {
+        return try {
+            val response = healthConnectClient.aggregate(
+                AggregateRequest(
+                    metrics = setOf(StepsRecord.COUNT_TOTAL),
+                    timeRangeFilter = TimeRangeFilter.between(start, end)
+                )
+            )
+            response[StepsRecord.COUNT_TOTAL] ?: 0L
+        } catch (e: Exception) {
+            val records = readStepsRecords(start, end)
+            records.sumOf { it.count }
+        }
+    }
+
+    suspend fun readDailyAggregatedSteps(days: Int = 30): List<com.example.data.StepsRecord> {
+        val result = mutableListOf<com.example.data.StepsRecord>()
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+        for (i in 0 until days) {
+            val date = today.minusDays(i.toLong())
+            val start = date.atStartOfDay(zone).toInstant()
+            val end = if (i == 0) Instant.now() else date.atTime(LocalTime.MAX).atZone(zone).toInstant()
+            val total = readStepsTotal(start, end)
+            if (total > 0) {
+                result.add(
+                    com.example.data.StepsRecord(
+                        count = total,
+                        startTime = start.toEpochMilli(),
+                        endTime = end.toEpochMilli(),
+                        source = "Health Connect"
+                    )
+                )
+            }
+        }
+        return result
     }
 
     suspend fun writeWeightRecord(weightKg: Double, timestamp: Long) {
