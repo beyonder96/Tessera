@@ -302,7 +302,7 @@ fun TesseraApp() {
     val healthConnectManager = remember { com.example.health.HealthConnectManager(context) }
 
     LaunchedEffect(healthProfile?.isHealthConnectEnabled) {
-        if (healthProfile?.isHealthConnectEnabled == true && healthConnectManager.hasAllPermissions()) {
+        if (healthProfile?.isHealthConnectEnabled == true && healthConnectManager.hasRequiredPermissions()) {
             try {
                 val end = java.time.Instant.now()
                 val start = end.minus(30, java.time.temporal.ChronoUnit.DAYS)
@@ -723,25 +723,36 @@ fun TesseraApp() {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                                    .padding(horizontal = 6.dp, vertical = 2.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = "Módulos",
-                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = titleAlpha),
-                                    fontSize = 16.sp,
-                                    fontFamily = FontFamily.SansSerif,
-                                    fontWeight = FontWeight.SemiBold
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(com.example.ui.theme.PrimaryTeal)
+                                    )
+                                    Text(
+                                        text = "Central de Módulos",
+                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = titleAlpha),
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f))
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(themedSubtleBackground())
+                                        .border(0.5.dp, themedSubtleBorder(), RoundedCornerShape(8.dp))
                                         .padding(horizontal = 8.dp, vertical = 3.dp)
                                 ) {
                                     Text(
-                                        text = "8 Ativos",
+                                        text = "8 Módulos",
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium

@@ -22,8 +22,8 @@ android {
     applicationId = "com.aistudio.tessera.xtrkna"
     minSdk = 26
     targetSdk = 35
-    versionCode = 86
-    versionName = "2.0.33"
+    versionCode = 87
+    versionName = "2.0.34"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     manifestPlaceholders["MAPS_API_KEY"] = "DUMMY_KEY"
@@ -127,6 +127,7 @@ dependencies {
   implementation(libs.moshi.kotlin)
   implementation(libs.okhttp)
   implementation(libs.play.services.location)
+  implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
   implementation(libs.maps.compose)
   implementation(libs.play.services.maps)
   implementation(libs.retrofit)

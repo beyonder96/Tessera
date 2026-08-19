@@ -28,13 +28,53 @@ class HealthConnectManager(private val context: Context) {
         HealthPermission.getWritePermission(StepsRecord::class)
     )
 
+    val readPermissions = setOf(
+        HealthPermission.getReadPermission(WeightRecord::class),
+        HealthPermission.getReadPermission(HeightRecord::class),
+        HealthPermission.getReadPermission(SleepSessionRecord::class),
+        HealthPermission.getReadPermission(StepsRecord::class)
+    )
+
+    suspend fun getGrantedPermissions(): Set<String> {
+        return try {
+            healthConnectClient.permissionController.getGrantedPermissions()
+        } catch (e: Exception) {
+            emptySet()
+        }
+    }
+
     suspend fun hasAllPermissions(): Boolean {
-        val granted = healthConnectClient.permissionController.getGrantedPermissions()
-        return granted.containsAll(permissions)
+        return try {
+            val granted = getGrantedPermissions()
+            granted.containsAll(permissions)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun hasRequiredPermissions(): Boolean {
+        return try {
+            val granted = getGrantedPermissions()
+            granted.any { it in readPermissions } || granted.containsAll(readPermissions)
+        } catch (e: Exception) {
+            false
+        }
     }
 
     fun checkAvailability(): Int {
-        return HealthConnectClient.getSdkStatus(context)
+        return try {
+            HealthConnectClient.getSdkStatus(context)
+        } catch (e: Exception) {
+            HealthConnectClient.SDK_UNAVAILABLE
+        }
+    }
+
+    fun isAvailable(): Boolean {
+        return checkAvailability() == HealthConnectClient.SDK_AVAILABLE
+    }
+
+    fun isProviderUpdateRequired(): Boolean {
+        return checkAvailability() == HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED
     }
 
     suspend fun readWeightRecords(start: Instant, end: Instant): List<WeightRecord> {

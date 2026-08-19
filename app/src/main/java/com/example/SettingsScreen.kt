@@ -48,6 +48,7 @@ import com.example.ui.components.themedCheckboxColors
 import androidx.compose.ui.draw.blur
 import com.example.data.AppDatabase
 import com.example.viewmodel.TesseraViewModel
+import com.example.health.HealthConnectManager
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
@@ -96,23 +97,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
 
     val coroutineScope = rememberCoroutineScope()
     val healthProfile by viewModel.healthProfile.collectAsState(initial = null)
-
-    val permissions = setOf(
-        HealthPermission.getReadPermission(HCWeightRecord::class),
-        HealthPermission.getWritePermission(HCWeightRecord::class),
-        HealthPermission.getReadPermission(SleepSessionRecord::class),
-        HealthPermission.getWritePermission(SleepSessionRecord::class),
-        HealthPermission.getReadPermission(HCStepsRecord::class),
-        HealthPermission.getWritePermission(HCStepsRecord::class),
-        HealthPermission.getReadPermission(HeightRecord::class)
-    )
-
-    val requiredReadPermissions = setOf(
-        HealthPermission.getReadPermission(HCWeightRecord::class),
-        HealthPermission.getReadPermission(HCStepsRecord::class),
-        HealthPermission.getReadPermission(SleepSessionRecord::class),
-        HealthPermission.getReadPermission(HeightRecord::class)
-    )
+    val healthConnectManager = remember { HealthConnectManager(context) }
 
     val requestPermissionActivityContract = remember { 
         try {
@@ -124,13 +109,15 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
 
     val requestPermissions = requestPermissionActivityContract?.let { contract ->
         rememberLauncherForActivityResult(contract) { granted ->
-            if (granted.containsAll(requiredReadPermissions) || granted.isNotEmpty()) {
+            if (granted.isNotEmpty()) {
                 viewModel.updateHealthProfile(
                     heightCm = healthProfile?.heightCm ?: 0.0,
                     targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
                     isHealthConnectEnabled = true
                 )
                 Toast.makeText(context, "Sincronização com Health Connect ativada!", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, "Nenhuma permissão concedida para o Health Connect", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -946,46 +933,57 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
 
                         Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x0AFFFFFF)))
 
+                        val toggleHealthConnect: () -> Unit = {
+                            val targetEnabled = healthProfile?.isHealthConnectEnabled != true
+                            if (targetEnabled) {
+                                coroutineScope.launch {
+                                    val availability = healthConnectManager.checkAvailability()
+                                    when (availability) {
+                                        HealthConnectClient.SDK_AVAILABLE -> {
+                                            val granted = healthConnectManager.getGrantedPermissions()
+                                            if (granted.isNotEmpty() && (healthConnectManager.hasRequiredPermissions() || granted.containsAll(healthConnectManager.readPermissions))) {
+                                                viewModel.updateHealthProfile(
+                                                    heightCm = healthProfile?.heightCm ?: 0.0,
+                                                    targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
+                                                    isHealthConnectEnabled = true
+                                                )
+                                                Toast.makeText(context, "Sincronização ativada!", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                requestPermissions?.launch(healthConnectManager.permissions)
+                                            }
+                                        }
+                                        HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> {
+                                            Toast.makeText(context, "O app Saúde Connect precisa de instalação ou atualização.", Toast.LENGTH_LONG).show()
+                                            val uriString = "market://details?id=com.google.android.apps.healthdata&url=healthconnect%3A%2F%2Fonboarding"
+                                            try {
+                                                context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse(uriString)))
+                                            } catch (e: Exception) {
+                                                try {
+                                                    context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata")))
+                                                } catch (e2: Exception) {
+                                                    Toast.makeText(context, "Não foi possível abrir a Play Store.", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        }
+                                        else -> {
+                                            Toast.makeText(context, "Health Connect não é compatível com este dispositivo.", Toast.LENGTH_LONG).show()
+                                        }
+                                    }
+                                }
+                            } else {
+                                viewModel.updateHealthProfile(
+                                    heightCm = healthProfile?.heightCm ?: 0.0,
+                                    targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
+                                    isHealthConnectEnabled = false
+                                )
+                                Toast.makeText(context, "Sincronização desativada", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .bounceClick {
-                                    val isEnabled = healthProfile?.isHealthConnectEnabled != true
-                                    if (isEnabled) {
-                                        coroutineScope.launch {
-                                            try {
-                                                val providerPackageName = "com.google.android.apps.healthdata"
-                                                val availabilityStatus = HealthConnectClient.getSdkStatus(context, providerPackageName)
-                                                if (availabilityStatus == HealthConnectClient.SDK_AVAILABLE) {
-                                                    val client = HealthConnectClient.getOrCreate(context)
-                                                    val granted = client.permissionController.getGrantedPermissions()
-                                                    if (granted.containsAll(requiredReadPermissions)) {
-                                                        viewModel.updateHealthProfile(
-                                                            heightCm = healthProfile?.heightCm ?: 0.0,
-                                                            targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
-                                                            isHealthConnectEnabled = true
-                                                        )
-                                                        Toast.makeText(context, "Sincronização ativada!", Toast.LENGTH_SHORT).show()
-                                                    } else {
-                                                        requestPermissions?.launch(permissions)
-                                                    }
-                                                } else {
-                                                    Toast.makeText(context, "Saúde Connect indisponível no sistema", Toast.LENGTH_LONG).show()
-                                                }
-                                            } catch (e: Exception) {
-                                                e.printStackTrace()
-                                                requestPermissions?.launch(permissions)
-                                            }
-                                        }
-                                    } else {
-                                        viewModel.updateHealthProfile(
-                                            heightCm = healthProfile?.heightCm ?: 0.0,
-                                            targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
-                                            isHealthConnectEnabled = false
-                                        )
-                                        Toast.makeText(context, "Sincronização desativada", Toast.LENGTH_SHORT).show()
-                                    }
-                                },
+                                .bounceClick { toggleHealthConnect() },
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -1006,42 +1004,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                             }
                             Switch(
                                 checked = healthProfile?.isHealthConnectEnabled == true,
-                                onCheckedChange = { isEnabled ->
-                                    if (isEnabled) {
-                                        coroutineScope.launch {
-                                            try {
-                                                val providerPackageName = "com.google.android.apps.healthdata"
-                                                val availabilityStatus = HealthConnectClient.getSdkStatus(context, providerPackageName)
-                                                if (availabilityStatus == HealthConnectClient.SDK_AVAILABLE) {
-                                                    val client = HealthConnectClient.getOrCreate(context)
-                                                    val granted = client.permissionController.getGrantedPermissions()
-                                                    if (granted.containsAll(requiredReadPermissions)) {
-                                                        viewModel.updateHealthProfile(
-                                                            heightCm = healthProfile?.heightCm ?: 0.0,
-                                                            targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
-                                                            isHealthConnectEnabled = true
-                                                        )
-                                                        Toast.makeText(context, "Sincronização ativada!", Toast.LENGTH_SHORT).show()
-                                                    } else {
-                                                        requestPermissions?.launch(permissions)
-                                                    }
-                                                } else {
-                                                    Toast.makeText(context, "Saúde Connect indisponível no sistema", Toast.LENGTH_LONG).show()
-                                                }
-                                            } catch (e: Exception) {
-                                                e.printStackTrace()
-                                                requestPermissions?.launch(permissions)
-                                            }
-                                        }
-                                    } else {
-                                        viewModel.updateHealthProfile(
-                                            heightCm = healthProfile?.heightCm ?: 0.0,
-                                            targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
-                                            isHealthConnectEnabled = false
-                                        )
-                                        Toast.makeText(context, "Sincronização desativada", Toast.LENGTH_SHORT).show()
-                                    }
-                                },
+                                onCheckedChange = { toggleHealthConnect() },
                                 colors = themedSwitchColors()
                             )
                         }

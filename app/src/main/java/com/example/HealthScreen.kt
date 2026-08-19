@@ -73,6 +73,11 @@ import com.example.data.SleepRecord
 import com.example.data.StepsRecord
 import com.example.data.WeightRecord
 import com.example.health.HealthConnectManager
+import androidx.compose.animation.Crossfade
+import com.example.ui.components.HealthTabSelector
+import com.example.ui.components.HealthSubTab
+import com.example.ui.screens.NutriScreen
+import com.example.ui.screens.GymScreen
 import com.example.ui.components.*
 import com.example.ui.theme.*
 import com.example.ui.components.isDarkTheme
@@ -132,6 +137,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val healthConnectManager = remember { HealthConnectManager(context) }
+    var selectedSubTab by rememberSaveable { mutableStateOf(HealthSubTab.GENERAL) }
 
     val healthProfile by viewModel.healthProfile.collectAsState(initial = null)
     val medications by viewModel.allMedications.collectAsState(initial = emptyList())
@@ -143,33 +149,12 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
         stepsRecords.filter { isSameDayLocal(it.endTime, System.currentTimeMillis()) }.sumOf { it.count }
     }
 
-    val permissions = setOf(
-        HealthPermission.getReadPermission(HCWeightRecord::class),
-        HealthPermission.getWritePermission(HCWeightRecord::class),
-        HealthPermission.getReadPermission(SleepSessionRecord::class),
-        HealthPermission.getWritePermission(SleepSessionRecord::class),
-        HealthPermission.getReadPermission(HCStepsRecord::class),
-        HealthPermission.getWritePermission(HCStepsRecord::class),
-        HealthPermission.getReadPermission(HeightRecord::class)
-    )
-
-    val requiredReadPermissions = setOf(
-        HealthPermission.getReadPermission(HCWeightRecord::class),
-        HealthPermission.getReadPermission(HCStepsRecord::class),
-        HealthPermission.getReadPermission(SleepSessionRecord::class),
-        HealthPermission.getReadPermission(HeightRecord::class)
-    )
-
     // Check system permissions on start. If they are already granted, enable Health Connect and trigger sync.
     LaunchedEffect(healthProfile) {
         try {
-            val providerPackageName = "com.google.android.apps.healthdata"
-            val availabilityStatus = HealthConnectClient.getSdkStatus(context, providerPackageName)
-            if (availabilityStatus == HealthConnectClient.SDK_AVAILABLE) {
-                val client = HealthConnectClient.getOrCreate(context)
-                val granted = client.permissionController.getGrantedPermissions()
-                // Se o usuário já concedeu as permissões de leitura essenciais, ativamos silenciosamente
-                if (granted.containsAll(requiredReadPermissions)) {
+            if (healthConnectManager.isAvailable()) {
+                val granted = healthConnectManager.getGrantedPermissions()
+                if (granted.isNotEmpty() && (healthConnectManager.hasRequiredPermissions() || granted.containsAll(healthConnectManager.readPermissions))) {
                     if (healthProfile != null && healthProfile?.isHealthConnectEnabled != true) {
                         viewModel.updateHealthProfile(
                             heightCm = healthProfile?.heightCm ?: 0.0,
@@ -187,7 +172,7 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
     val requestPermissionActivityContract = PermissionController.createRequestPermissionResultContract()
 
     val requestPermissions = rememberLauncherForActivityResult(requestPermissionActivityContract) { granted ->
-        if (granted.containsAll(requiredReadPermissions) || granted.isNotEmpty()) {
+        if (granted.isNotEmpty()) {
             coroutineScope.launch {
                 val end = Instant.now()
                 val start = end.minus(30, ChronoUnit.DAYS)
@@ -1089,13 +1074,20 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                     topBar = {}
                 ) { innerPadding ->
                     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
-                            contentPadding = PaddingValues(top = 96.dp, bottom = 140.dp)
-                        ) {
-                            item { Spacer(modifier = Modifier.height(8.dp)) }
+                        Crossfade(
+                            targetState = selectedSubTab,
+                            animationSpec = tween(300),
+                            label = "HealthSubTabCrossfade"
+                        ) { currentSubTab ->
+                            when (currentSubTab) {
+                                HealthSubTab.GENERAL -> {
+                                    LazyColumn(
+                                        state = listState,
+                                        modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
+                                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                                        contentPadding = PaddingValues(top = 96.dp, bottom = 140.dp)
+                                    ) {
+                                        item { Spacer(modifier = Modifier.height(8.dp)) }
                         
                         // IMC & Weight Card
                         item {
@@ -1110,35 +1102,37 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                                 AnimatedCardContainer(delayMillis = 150) {
                                     HealthConnectBanner { 
                                         coroutineScope.launch {
-                                            val providerPackageName = "com.google.android.apps.healthdata"
-                                            val availabilityStatus = HealthConnectClient.getSdkStatus(context, providerPackageName)
-                                            
-                                            if (availabilityStatus == HealthConnectClient.SDK_UNAVAILABLE || availabilityStatus == HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED) {
-                                                android.widget.Toast.makeText(context, "O app 'Saúde Connect' da Google não está instalado ou precisa de atualização. Redirecionando...", android.widget.Toast.LENGTH_LONG).show()
-                                                val uriString = "market://details?id=$providerPackageName&url=healthconnect%3A%2F%2Fonboarding"
-                                                try {
-                                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uriString)))
-                                                } catch (e: Exception) {
-                                                    android.widget.Toast.makeText(context, "Não foi possível abrir a Play Store.", android.widget.Toast.LENGTH_SHORT).show()
+                                            val availability = healthConnectManager.checkAvailability()
+                                            when (availability) {
+                                                HealthConnectClient.SDK_AVAILABLE -> {
+                                                    val granted = healthConnectManager.getGrantedPermissions()
+                                                    if (granted.isNotEmpty() && (healthConnectManager.hasRequiredPermissions() || granted.containsAll(healthConnectManager.readPermissions))) {
+                                                        android.widget.Toast.makeText(context, "Permissões já concedidas. Habilitando sincronização...", android.widget.Toast.LENGTH_SHORT).show()
+                                                        viewModel.updateHealthProfile(
+                                                            heightCm = healthProfile?.heightCm ?: 0.0,
+                                                            targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
+                                                            isHealthConnectEnabled = true
+                                                        )
+                                                    } else {
+                                                        requestPermissions.launch(healthConnectManager.permissions)
+                                                    }
                                                 }
-                                                return@launch
-                                            }
-                                            
-                                            try {
-                                                val client = HealthConnectClient.getOrCreate(context)
-                                                val granted = client.permissionController.getGrantedPermissions()
-                                                if (granted.containsAll(permissions)) {
-                                                    android.widget.Toast.makeText(context, "Permissões já concedidas. Habilitando sincronização...", android.widget.Toast.LENGTH_SHORT).show()
-                                                    viewModel.updateHealthProfile(
-                                                        heightCm = healthProfile?.heightCm ?: 0.0,
-                                                        targetWeightKg = healthProfile?.targetWeightKg ?: 0.0,
-                                                        isHealthConnectEnabled = true
-                                                    )
-                                                } else {
-                                                    requestPermissions.launch(permissions)
+                                                HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> {
+                                                    android.widget.Toast.makeText(context, "O app 'Saúde Connect' da Google precisa de instalação ou atualização.", android.widget.Toast.LENGTH_LONG).show()
+                                                    val uriString = "market://details?id=com.google.android.apps.healthdata&url=healthconnect%3A%2F%2Fonboarding"
+                                                    try {
+                                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uriString)))
+                                                    } catch (e: Exception) {
+                                                        try {
+                                                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata")))
+                                                        } catch (e2: Exception) {
+                                                            android.widget.Toast.makeText(context, "Não foi possível abrir a Play Store.", android.widget.Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    }
                                                 }
-                                            } catch (e: Exception) {
-                                                android.widget.Toast.makeText(context, "Erro ao abrir permissões: ${e.localizedMessage}", android.widget.Toast.LENGTH_LONG).show()
+                                                else -> {
+                                                    android.widget.Toast.makeText(context, "Health Connect não é compatível com este dispositivo.", android.widget.Toast.LENGTH_LONG).show()
+                                                }
                                             }
                                         }
                                     }
@@ -1224,102 +1218,28 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                             }
                         }
                     }
-                        
-                        // Custom Floating Glass Header Overlay
+                                }
+                                HealthSubTab.NUTRI -> {
+                                    NutriScreen(viewModel = viewModel)
+                                }
+                                HealthSubTab.GYM -> {
+                                    GymScreen(viewModel = viewModel)
+                                }
+                            }
+                        }
+
+                        // Floating Pill Selector at the top
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .statusBarsPadding()
-                                .padding(horizontal = 24.dp, vertical = 12.dp)
+                                .padding(top = 16.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            // 1. Barra Normal
-                            if (normalAlpha > 0.05f) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .graphicsLayer {
-                                            alpha = normalAlpha
-                                            scaleX = 0.92f + (normalAlpha * 0.08f)
-                                            scaleY = 0.92f + (normalAlpha * 0.08f)
-                                        },
-                                    horizontalArrangement = Arrangement.Start,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "Saúde",
-                                        fontFamily = FontFamily.Serif,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 28.sp,
-                                        color = MaterialTheme.colorScheme.onBackground
-                                    )
-                                }
-                            }
-
-                            // 2. Barra Compacta
-                            if (compactAlpha > 0.05f) {
-                                Row(
-                                    modifier = Modifier
-                                        .align(Alignment.TopCenter)
-                                        .graphicsLayer {
-                                            alpha = compactAlpha
-                                            translationY = (1f - compactAlpha) * (-20f)
-                                        }
-                                        .clip(RoundedCornerShape(32.dp))
-                                        .background(themedNavBarBackground())
-                                        .border(1.dp, PrimaryTeal.copy(alpha = 0.5f), RoundedCornerShape(32.dp))
-                                        .padding(horizontal = 24.dp, vertical = 12.dp),
-                                    horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Favorite,
-                                        contentDescription = null,
-                                        tint = Color(0xFFFF5252),
-                                        modifier = Modifier
-                                            .size(20.dp)
-                                            .graphicsLayer(
-                                                scaleX = heartScale,
-                                                scaleY = heartScale
-                                            )
-                                    )
-                                    
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    
-                                    val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
-                                    val shimmerOffset by infiniteTransition.animateFloat(
-                                        initialValue = -400f,
-                                        targetValue = 400f,
-                                        animationSpec = infiniteRepeatable(
-                                            animation = tween(2000, easing = LinearEasing),
-                                            repeatMode = RepeatMode.Restart
-                                        ),
-                                        label = "shimmerOffset"
-                                    )
-                                    
-                                    val nameGlowBrush = Brush.linearGradient(
-                                        colors = listOf(
-                                            MaterialTheme.colorScheme.onBackground,
-                                            MaterialTheme.colorScheme.onBackground,
-                                            MaterialTheme.colorScheme.onBackground,
-                                            PrimaryTeal,
-                                            MaterialTheme.colorScheme.onBackground
-                                        ),
-                                        start = Offset(shimmerOffset, 0f),
-                                        end = Offset(shimmerOffset + 150f, 150f)
-                                    )
-                                    
-                                    Text(
-                                        text = "SAÚDE",
-                                        style = TextStyle(
-                                            brush = nameGlowBrush,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 16.sp,
-                                            letterSpacing = 2.sp,
-                                            fontFamily = FontFamily.Serif
-                                        )
-                                    )
-                                }
-                            }
+                            HealthTabSelector(
+                                selectedTab = selectedSubTab,
+                                onTabSelected = { selectedSubTab = it }
+                            )
                         }
                     }
                 }

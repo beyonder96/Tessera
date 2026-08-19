@@ -273,4 +273,23 @@ interface TesseraDao {
 
     @Delete
     suspend fun deleteDebt(debt: Debt)
+
+    // Nutrition & Meal Records
+    @Query("SELECT * FROM meal_records ORDER BY timestamp DESC")
+    fun getAllMealRecords(): Flow<List<MealRecord>>
+
+    @Query("SELECT * FROM meal_records WHERE date = :date ORDER BY timestamp ASC")
+    fun getMealRecordsForDate(date: String): Flow<List<MealRecord>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMealRecord(meal: MealRecord): Long
+
+    @Update
+    suspend fun updateMealRecord(meal: MealRecord)
+
+    @Delete
+    suspend fun deleteMealRecord(meal: MealRecord)
+
+    @Query("DELETE FROM meal_records WHERE id = :id")
+    suspend fun deleteMealRecordById(id: Int)
 }

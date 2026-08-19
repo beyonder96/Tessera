@@ -552,6 +552,9 @@ class TesseraViewModel(
     val healthProfile: StateFlow<HealthProfile?> = repository.healthProfile
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    val allMealRecords: StateFlow<List<com.example.data.MealRecord>> = repository.allMealRecords
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     private fun getStartOfToday(): Long {
         val cal = Calendar.getInstance()
         cal.set(Calendar.HOUR_OF_DAY, 0)
@@ -1729,6 +1732,78 @@ class TesseraViewModel(
         viewModelScope.launch {
             val current = repository.healthProfile.first() ?: HealthProfile()
             repository.insertHealthProfile(current.copy(heightCm = heightCm, targetWeightKg = targetWeightKg, isHealthConnectEnabled = isHealthConnectEnabled))
+        }
+    }
+
+    fun updateNutritionGoals(
+        dailyCalories: Double,
+        dailyProtein: Double,
+        dailyCarbs: Double,
+        dailyFat: Double,
+        dailyFiber: Double
+    ) {
+        viewModelScope.launch {
+            val current = repository.healthProfile.first() ?: HealthProfile()
+            repository.insertHealthProfile(
+                current.copy(
+                    dailyCalorieGoal = dailyCalories,
+                    dailyProteinGoal = dailyProtein,
+                    dailyCarbGoal = dailyCarbs,
+                    dailyFatGoal = dailyFat,
+                    dailyFiberGoal = dailyFiber
+                )
+            )
+        }
+    }
+
+    fun addMealRecord(
+        mealType: String,
+        name: String,
+        calories: Double,
+        protein: Double = 0.0,
+        carbs: Double = 0.0,
+        fat: Double = 0.0,
+        fiber: Double = 0.0,
+        portion: String = "1 porção",
+        imageUrl: String? = null,
+        barcode: String? = null,
+        date: String
+    ) {
+        viewModelScope.launch {
+            repository.insertMealRecord(
+                com.example.data.MealRecord(
+                    mealType = mealType,
+                    name = name,
+                    calories = calories,
+                    protein = protein,
+                    carbs = carbs,
+                    fat = fat,
+                    fiber = fiber,
+                    portion = portion,
+                    imageUrl = imageUrl,
+                    barcode = barcode,
+                    timestamp = System.currentTimeMillis(),
+                    date = date
+                )
+            )
+        }
+    }
+
+    fun updateMealRecord(meal: com.example.data.MealRecord) {
+        viewModelScope.launch {
+            repository.updateMealRecord(meal)
+        }
+    }
+
+    fun deleteMealRecord(meal: com.example.data.MealRecord) {
+        viewModelScope.launch {
+            repository.deleteMealRecord(meal)
+        }
+    }
+
+    fun deleteMealRecordById(id: Int) {
+        viewModelScope.launch {
+            repository.deleteMealRecordById(id)
         }
     }
 

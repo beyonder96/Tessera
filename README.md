@@ -4,6 +4,12 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.34
+
+- **Nova Aba Nutri & Scanner por Câmera:** Introduzida a nova aba Nutri dentro do módulo de Saúde, com integração às APIs Open Food Facts e Edamam, leitor de código de barras físico em tempo real com permissão de câmera, metas de calorias, 4 barras de macronutrientes e registro de refeições.
+- **Redesign Enxuto do Transporte SP:** Interface de transporte simplificada, veloz e elegante com métricas em tempo real de Metrô & CPTM e chegadas de ônibus SPTrans com modal de busca ágil.
+- **Central de Módulos Bento Grid Moderna:** Reformulação completa do Hub geral de módulos com Bento Grid dinâmico, telemetria em tempo real (saldo financeiro, calorias do dia, rotinas ativas) e microinterações de toque amortecidas.
+
 ## 🚀 Novidades da Versão 2.0.33
 
 - **Animação Aerodinâmica de Trens & Filtros de Transporte:** Novo visual moderno e elegante em Canvas para as linhas de trem/metrô, status e horários organizados e chips rápidos de busca de ônibus (Ida, Volta, Noturnas N).
@@ -133,8 +139,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.33.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.33.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.34.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.34.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.

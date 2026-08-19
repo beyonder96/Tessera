@@ -237,6 +237,29 @@ class TesseraRepository(private val dao: TesseraDao) {
         dao.deleteDebt(debt)
     }
 
+    // Nutrition & Meal Records
+    val allMealRecords: Flow<List<MealRecord>> = dao.getAllMealRecords()
+
+    fun getMealRecordsForDate(date: String): Flow<List<MealRecord>> {
+        return dao.getMealRecordsForDate(date)
+    }
+
+    suspend fun insertMealRecord(meal: MealRecord): Long {
+        return dao.insertMealRecord(meal)
+    }
+
+    suspend fun updateMealRecord(meal: MealRecord) {
+        dao.updateMealRecord(meal)
+    }
+
+    suspend fun deleteMealRecord(meal: MealRecord) {
+        dao.deleteMealRecord(meal)
+    }
+
+    suspend fun deleteMealRecordById(id: Int) {
+        dao.deleteMealRecordById(id)
+    }
+
     private val bibleMoshi = com.squareup.moshi.Moshi.Builder()
         .add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory())
         .build()

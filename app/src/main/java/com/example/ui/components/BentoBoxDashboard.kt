@@ -22,20 +22,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
 import com.example.viewmodel.TesseraViewModel
-
-private data class ModuleItem(
-    val title: String,
-    val subtitle: String,
-    val route: String,
-    val icon: ImageVector,
-    val iconColor: Color
-)
+import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.*
 
 @Composable
 fun BentoBoxDashboard(
@@ -45,26 +40,36 @@ fun BentoBoxDashboard(
 ) {
     val itemsAlpha by animateFloatAsState(
         targetValue = if (isExpanded) 1f else 0f,
-        animationSpec = tween(250, easing = FastOutSlowInEasing),
+        animationSpec = tween(220, easing = FastOutSlowInEasing),
         label = "bento_alpha"
     )
     val itemsOffset by animateDpAsState(
-        targetValue = if (isExpanded) 0.dp else 24.dp,
-        animationSpec = spring(dampingRatio = 0.85f, stiffness = 300f),
+        targetValue = if (isExpanded) 0.dp else 20.dp,
+        animationSpec = spring(dampingRatio = 0.82f, stiffness = 320f),
         label = "bento_offset"
     )
 
-    val modules = remember {
-        listOf(
-            ModuleItem("Finanças", "Saldo & Contas", "finance", Icons.Outlined.AccountBalanceWallet, Color(0xFF10B981)),
-            ModuleItem("Saúde", "Passos & Sono", "health", Icons.Outlined.MonitorHeart, PrimaryTeal),
-            ModuleItem("Transporte", "Metrô & Ônibus", "transport", Icons.Outlined.DirectionsBus, Color(0xFF38BDF8)),
-            ModuleItem("Rotinas", "Hábitos & Metas", "goals", Icons.Outlined.Flag, Color(0xFFF97316)),
-            ModuleItem("Mercado", "Lista de Compras", "market", Icons.Outlined.ShoppingCart, Color(0xFF34D399)),
-            ModuleItem("Desejos", "Planejamento", "wishes", Icons.Outlined.BookmarkBorder, Color(0xFFF59E0B)),
-            ModuleItem("Meu Apê", "Reforma & Custos", "apartment", Icons.Outlined.Construction, SecondaryGold),
-            ModuleItem("Petz", "Cuidados & Vacinas", "petz", Icons.Outlined.Pets, TertiaryPurple)
-        )
+    // Observar dados em tempo real dos módulos
+    val transactions by viewModel.allTransactions.collectAsState()
+    val healthProfile by viewModel.healthProfile.collectAsState()
+    val mealRecords by viewModel.allMealRecords.collectAsState()
+    val marketItems by viewModel.pendingMarketItems.collectAsState()
+    val habits by viewModel.allHabits.collectAsState()
+    val purchaseGoals by viewModel.allPurchaseGoals.collectAsState()
+    val petEvents by viewModel.allPetEvents.collectAsState()
+    val metroStatus by viewModel.metroStatus.collectAsState()
+    val busLines by viewModel.savedBusLines.collectAsState()
+
+    // Métricas calculadas para micro-glance dos módulos
+    val todayStr = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()) }
+    val todayCalories = remember(mealRecords, todayStr) {
+        mealRecords.filter { it.date == todayStr }.sumOf { it.calories }.toInt()
+    }
+    val calGoal = healthProfile?.dailyCalorieGoal?.toInt() ?: 2000
+
+    val currencyFormatter = remember { NumberFormat.getCurrencyInstance(Locale("pt", "BR")) }
+    val currentBalance = remember(transactions) {
+        transactions.sumOf { if (it.isIncome) it.value else -it.value }
     }
 
     Column(
@@ -74,114 +79,390 @@ fun BentoBoxDashboard(
             .offset(y = itemsOffset)
             .alpha(itemsAlpha)
     ) {
-        modules.chunked(2).forEach { rowModules ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                rowModules.forEach { module ->
-                    Box(modifier = Modifier.weight(1f)) {
-                        ModernBentoModuleTile(
-                            title = module.title,
-                            subtitle = module.subtitle,
-                            icon = module.icon,
-                            iconColor = module.iconColor,
-                            onClick = { onNavigate(module.route) }
-                        )
-                    }
-                }
-                if (rowModules.size == 1) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-            }
+        // ROW 1: Finanças (Hero Tile Largo com Balanço)
+        BentoHeroWideTile(
+            title = "Finanças",
+            subtitle = "Saldo em Contas & Cartões",
+            metricText = currencyFormatter.format(currentBalance),
+            badgeText = "${transactions.size} transações",
+            icon = Icons.Outlined.AccountBalanceWallet,
+            accentColor = Color(0xFF10B981),
+            onClick = { onNavigate("finance") }
+        )
+
+        // ROW 2: Saúde & Nutrição + Transporte SP (Dois Bento Tiles Principais)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Saúde & Nutri
+            BentoMediumTile(
+                title = "Saúde & Nutri",
+                subtitle = if (todayCalories > 0) "$todayCalories / $calGoal kcal" else "Diário Nutricional",
+                badgeText = "Nutri & IMC",
+                icon = Icons.Outlined.MonitorHeart,
+                accentColor = PrimaryTeal,
+                modifier = Modifier.weight(1f),
+                onClick = { onNavigate("health") }
+            )
+
+            // Transporte
+            BentoMediumTile(
+                title = "Transporte",
+                subtitle = if (busLines.isNotEmpty()) "${busLines.size} linhas salvas" else "Metrô & Ônibus",
+                badgeText = "SP Tempo Real",
+                icon = Icons.Outlined.DirectionsTransit,
+                accentColor = Color(0xFF38BDF8),
+                modifier = Modifier.weight(1f),
+                onClick = { onNavigate("transport") }
+            )
+        }
+
+        // ROW 3: Rotinas & Mercado
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Rotinas & Metas
+            BentoMediumTile(
+                title = "Rotinas",
+                subtitle = if (habits.isNotEmpty()) "${habits.size} hábitos ativos" else "Hábitos diários",
+                badgeText = "Hábitos",
+                icon = Icons.Outlined.Flag,
+                accentColor = Color(0xFFF97316),
+                modifier = Modifier.weight(1f),
+                onClick = { onNavigate("goals") }
+            )
+
+            // Lista de Mercado
+            BentoMediumTile(
+                title = "Mercado",
+                subtitle = if (marketItems.isNotEmpty()) "${marketItems.size} itens pendentes" else "Lista de compras",
+                badgeText = "Compras",
+                icon = Icons.Outlined.ShoppingCart,
+                accentColor = Color(0xFF34D399),
+                modifier = Modifier.weight(1f),
+                onClick = { onNavigate("market") }
+            )
+        }
+
+        // ROW 4: Desejos, Petz & Meu Apê (Grid Compacto de 3 colunas)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            BentoCompactTile(
+                title = "Desejos",
+                subtitle = "${purchaseGoals.size} metas",
+                icon = Icons.Outlined.BookmarkBorder,
+                accentColor = Color(0xFFF59E0B),
+                modifier = Modifier.weight(1f),
+                onClick = { onNavigate("wishes") }
+            )
+
+            BentoCompactTile(
+                title = "Petz",
+                subtitle = if (petEvents.isNotEmpty()) "${petEvents.size} cuidados" else "Cuidados",
+                icon = Icons.Outlined.Pets,
+                accentColor = TertiaryPurple,
+                modifier = Modifier.weight(1f),
+                onClick = { onNavigate("petz") }
+            )
+
+            BentoCompactTile(
+                title = "Meu Apê",
+                subtitle = "Reforma",
+                icon = Icons.Outlined.Construction,
+                accentColor = SecondaryGold,
+                modifier = Modifier.weight(1f),
+                onClick = { onNavigate("apartment") }
+            )
         }
     }
 }
 
 @Composable
-private fun ModernBentoModuleTile(
+private fun BentoHeroWideTile(
     title: String,
     subtitle: String,
+    metricText: String,
+    badgeText: String,
     icon: ImageVector,
-    iconColor: Color,
+    accentColor: Color,
     onClick: () -> Unit
 ) {
-    val shape = RoundedCornerShape(16.dp)
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
+        targetValue = if (isPressed) 0.98f else 1f,
         animationSpec = tween(150, easing = FastOutSlowInEasing),
-        label = "pressScale"
+        label = "heroScale"
     )
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
             }
-            .clip(shape)
+            .clip(RoundedCornerShape(16.dp))
             .background(themedCardBackground())
-            .border(1.dp, themedCardBorder(), shape)
+            .border(1.dp, themedCardBorder(), RoundedCornerShape(16.dp))
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick
             )
-            .padding(14.dp),
-        verticalArrangement = Arrangement.SpaceBetween
+            .padding(14.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(accentColor.copy(alpha = 0.16f))
+                        .border(1.dp, accentColor.copy(alpha = 0.35f), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = title,
+                        tint = accentColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = title,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(accentColor.copy(alpha = 0.12f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = badgeText,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = accentColor
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = metricText,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = "Acessar →",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = accentColor
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BentoMediumTile(
+    title: String,
+    subtitle: String,
+    badgeText: String,
+    icon: ImageVector,
+    accentColor: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = tween(150, easing = FastOutSlowInEasing),
+        label = "mediumScale"
+    )
+
+    Box(
+        modifier = modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(RoundedCornerShape(16.dp))
+            .background(themedCardBackground())
+            .border(1.dp, themedCardBorder(), RoundedCornerShape(16.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+            .padding(13.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(accentColor.copy(alpha = 0.15f))
+                        .border(0.5.dp, accentColor.copy(alpha = 0.35f), RoundedCornerShape(10.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = title,
+                        tint = accentColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(themedSubtleBackground())
+                        .border(0.5.dp, themedSubtleBorder(), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = badgeText,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    )
+                }
+            }
+
+            Column {
+                Text(
+                    text = title,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(1.dp))
+                Text(
+                    text = subtitle,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BentoCompactTile(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    accentColor: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = tween(150, easing = FastOutSlowInEasing),
+        label = "compactScale"
+    )
+
+    Box(
+        modifier = modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(RoundedCornerShape(14.dp))
+            .background(themedCardBackground())
+            .border(1.dp, themedCardBorder(), RoundedCornerShape(14.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+            .padding(10.dp)
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Box(
                 modifier = Modifier
-                    .size(34.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(iconColor.copy(alpha = 0.14f))
-                    .border(0.5.dp, iconColor.copy(alpha = 0.35f), RoundedCornerShape(10.dp)),
+                    .size(30.dp)
+                    .clip(CircleShape)
+                    .background(accentColor.copy(alpha = 0.14f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = title,
-                    tint = iconColor,
-                    modifier = Modifier.size(18.dp)
+                    tint = accentColor,
+                    modifier = Modifier.size(16.dp)
                 )
             }
 
-            Icon(
-                imageVector = Icons.Outlined.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
-                modifier = Modifier.size(16.dp)
-            )
-        }
+            Spacer(modifier = Modifier.height(6.dp))
 
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Column {
             Text(
                 text = title,
-                color = MaterialTheme.colorScheme.onBackground,
-                fontSize = 14.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
-                fontFamily = FontFamily.SansSerif,
-                maxLines = 1
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
-            Spacer(modifier = Modifier.height(2.dp))
+
             Text(
                 text = subtitle,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Normal,
-                fontFamily = FontFamily.SansSerif,
-                maxLines = 1
+                fontSize = 10.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }

@@ -107,7 +107,37 @@ data class HealthProfile(
     @PrimaryKey val id: Int = 1, // Single row profile
     val heightCm: Double = 0.0,
     val targetWeightKg: Double = 0.0,
-    val isHealthConnectEnabled: Boolean = false
+    val isHealthConnectEnabled: Boolean = false,
+    val dailyCalorieGoal: Double = 2000.0,
+    val dailyProteinGoal: Double = 140.0,
+    val dailyCarbGoal: Double = 220.0,
+    val dailyFatGoal: Double = 60.0,
+    val dailyFiberGoal: Double = 30.0
+)
+
+enum class MealType(val title: String, val iconName: String) {
+    BREAKFAST("Café da Manhã", "Coffee"),
+    LUNCH("Almoço", "Restaurant"),
+    SNACK("Lanche", "Fastfood"),
+    DINNER("Jantar", "DinnerDining"),
+    SUPPER("Ceia & Snacks", "Nightlight")
+}
+
+@Entity(tableName = "meal_records")
+data class MealRecord(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val mealType: String, // BREAKFAST, LUNCH, SNACK, DINNER, SUPPER
+    val name: String,
+    val calories: Double,
+    val protein: Double = 0.0,
+    val carbs: Double = 0.0,
+    val fat: Double = 0.0,
+    val fiber: Double = 0.0,
+    val portion: String = "1 porção",
+    val imageUrl: String? = null,
+    val barcode: String? = null,
+    val timestamp: Long = System.currentTimeMillis(),
+    val date: String // YYYY-MM-DD
 )
 
 @Entity(tableName = "medications")
