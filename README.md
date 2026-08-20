@@ -4,6 +4,12 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.36
+
+- **Integração Wger Workout Manager & Catálogo de Academia:** Catálogo de musculação integrado à API Wger (`wger.de/api/v2`) com busca instantânea, carrossel de grupos musculares (*Peito, Costas, Pernas, Ombros, Braços, Abdômen, Panturrilhas*), fotos de execução, músculos primários/secundários, equipamentos e instruções detalhadas de postura com suporte a funcionamento 100% offline.
+- **Tessera Smart Audio Hub & Dashboard de Contexto:** Novo card reativo de mídia na Home escutando ativamente o `MediaSessionManager` do Android (Tidal, Spotify, YouTube Music, reprodutores locais) com controles de playback, barra de progresso linear e painel expansível de dossiê da faixa (letras com anotações editoriais do Genius, ficha técnica de estúdio via MusicBrainz e vídeos complementares do YouTube).
+- **Monitoramento ao Vivo de Trens & Metrô (ARTESP / CPTM):** Scraping em tempo real do portal CCM da ARTESP via Jsoup e integração à API oficial da CPTM com cache de 60s, fim dos falsos status normais e suporte a chave de desenvolvedor nas configurações.
+
 ## 🚀 Novidades da Versão 2.0.35
 
 - **Reformulação do Menu Flutuante (Liquid Glass Capsule):** Nova barra de navegação translúcida com curvatura acrílica, cápsulas ativas com física de mola elástica, micro-traço de LED nos atalhos, divisor vertical e botão âncora com rotação de 90° para a Central de Módulos.
@@ -146,8 +152,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.35.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.35.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.36.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.36.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.

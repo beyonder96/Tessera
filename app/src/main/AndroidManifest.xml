@@ -59,6 +59,17 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Tessera medication and reminder alarms" />
         </service>
+
+        <!-- Media Notification Listener Service -->
+        <service
+            android:name="com.example.media.TesseraMediaNotificationListener"
+            android:label="Tessera Media Hub"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
         
         <receiver
             android:name="com.example.notifications.BootReceiver"

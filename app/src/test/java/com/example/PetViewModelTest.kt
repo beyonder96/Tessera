@@ -93,6 +93,14 @@ class FakeTesseraDao : TesseraDao {
     override fun getAllDebts(): Flow<List<Debt>> = flowOf(emptyList())
     override suspend fun insertDebt(debt: Debt) {}
     override suspend fun deleteDebt(debt: Debt) {}
+
+    // MealRecord methods
+    override fun getAllMealRecords(): Flow<List<MealRecord>> = flowOf(emptyList())
+    override fun getMealRecordsForDate(date: String): Flow<List<MealRecord>> = flowOf(emptyList())
+    override suspend fun insertMealRecord(meal: MealRecord): Long = 0L
+    override suspend fun updateMealRecord(meal: MealRecord) {}
+    override suspend fun deleteMealRecord(meal: MealRecord) {}
+    override suspend fun deleteMealRecordById(id: Int) {}
 }
 
 class PetViewModelTest {

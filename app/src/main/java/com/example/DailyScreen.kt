@@ -276,7 +276,7 @@ fun DailyScreen(
     val todaySteps = stepsRecords.filter { it.startTime >= todayStart && it.endTime <= todayEnd }.sumOf { it.count }
     val latestWeight = weightRecords.lastOrNull()?.weightKg ?: 70.0
     val aptProgress = sharedPrefs.getFloat("apartment_progress", 0.75f)
-
+    var showMusicDashboard by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -459,6 +459,13 @@ fun DailyScreen(
                         } else {
                             BibleVerseWidget(null)
                         }
+
+                        // 3.4 SMART AUDIO HUB (PLAYER GLOBAL & LETRAS)
+                        com.example.ui.components.SmartMediaCard(
+                            viewModel = viewModel,
+                            onOpenDeepDive = { showMusicDashboard = true }
+                        )
+
                         // 3.5 VOLCANIC LAVA WIDGET
                         VolcanicLavaWidget()
 
@@ -469,6 +476,14 @@ fun DailyScreen(
                     }
                 }
             }
+        }
+
+        // MODAL EXPANDIDO DE CONTEXTO MUSICAL (DEEP DIVE)
+        if (showMusicDashboard) {
+            com.example.ui.components.MusicContextDashboardModal(
+                viewModel = viewModel,
+                onDismiss = { showMusicDashboard = false }
+            )
         }
     }
 }

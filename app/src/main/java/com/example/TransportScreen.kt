@@ -202,7 +202,7 @@ fun TransportScreen(
                         IconButton(
                             onClick = {
                                 isRefreshing = true
-                                viewModel.fetchMetroStatus()
+                                viewModel.fetchMetroStatus(forceRefresh = true)
                                 viewModel.fetchBusPredictions()
                                 isRefreshing = false
                             },
@@ -280,13 +280,31 @@ fun TransportScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "METRÔ & TREM",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.2.sp,
-                            color = PrimaryTeal
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "METRÔ & TREM",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.2.sp,
+                                color = PrimaryTeal
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(PrimaryTeal.copy(alpha = 0.12f))
+                                    .padding(horizontal = 5.dp, vertical = 1.dp)
+                            ) {
+                                Text(
+                                    text = "ARTESP / CPTM",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = PrimaryTeal
+                                )
+                            }
+                        }
 
                         if (monitoredMetroLines.isNotEmpty()) {
                             val normalCount = monitoredMetroLines.count { 
@@ -314,7 +332,48 @@ fun TransportScreen(
                     }
                 } else if (metroError != null && metroStatus.isEmpty()) {
                     item {
-                        Text(text = metroError ?: "Erro ao carregar linhas", color = Color(0xFFEF5350), fontSize = 12.sp)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(themedCardBackground())
+                                .border(1.dp, themedCardBorder(), RoundedCornerShape(16.dp))
+                                .padding(20.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Warning,
+                                    contentDescription = null,
+                                    tint = Color(0xFFEF4444),
+                                    modifier = Modifier.size(26.dp)
+                                )
+                                Text(
+                                    text = "Status temporariamente indisponível",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                                Text(
+                                    text = metroError ?: "Verifique sua conexão à internet.",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Button(
+                                    onClick = { viewModel.fetchMetroStatus(forceRefresh = true) },
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal),
+                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+                                ) {
+                                    Text("Tentar Novamente", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.Black)
+                                }
+                            }
+                        }
                     }
                 } else if (monitoredMetroLines.isEmpty()) {
                     item {
@@ -474,8 +533,8 @@ private fun MetroLineCompactCard(
 
     val cleanStatus = when {
         isNormal -> "Normal"
-        isSlow -> "Lentidão"
-        else -> statusTxt
+        isSlow -> "Velocidade Reduzida"
+        else -> line.status?.classificacao?.ifBlank { statusTxt } ?: statusTxt
     }
 
     val updatedTime = line.status?.atualizadoHa?.replace("Atualizado às ", "")?.replace("Atualizado há ", "") ?: ""
@@ -576,7 +635,7 @@ private fun MetroLineCompactCard(
                                         .background(themedSubtleBackground())
                                         .border(0.5.dp, themedSubtleBorder(), RoundedCornerShape(20.dp))
                                         .padding(horizontal = 7.dp, vertical = 2.dp)
-                                ) {
+                                    ) {
                                     Text(
                                         text = updatedTime,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
@@ -601,6 +660,26 @@ private fun MetroLineCompactCard(
                     } else {
                         Icon(Icons.Outlined.Warning, contentDescription = "Alerta", tint = statusColor, modifier = Modifier.size(15.dp))
                     }
+                }
+            }
+
+            // Se houver ocorrência ou lentidão, exibe o detalhamento explicativo
+            if (!isNormal && statusTxt.isNotBlank() && !statusTxt.equals("Operação Normal", ignoreCase = true)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(statusColor.copy(alpha = 0.08f))
+                        .border(0.5.dp, statusColor.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = statusTxt,
+                        color = statusColor,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        lineHeight = 15.sp
+                    )
                 }
             }
 

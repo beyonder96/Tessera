@@ -1195,6 +1195,105 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
 
                         Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x0AFFFFFF)))
 
+                        // Conexão ARTESP / Fonte de Dados
+                        val savedApiKey = remember { mutableStateOf(sharedPrefs.getString("artesp_api_key", "") ?: "") }
+                        var apiKeyInput by remember { mutableStateOf(savedApiKey.value) }
+
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Conexão Oficial ARTESP",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(if (savedApiKey.value.isNotBlank()) Color(0xFF10B981).copy(alpha = 0.15f) else PrimaryTeal.copy(alpha = 0.15f))
+                                        .border(0.5.dp, if (savedApiKey.value.isNotBlank()) Color(0xFF10B981).copy(alpha = 0.4f) else PrimaryTeal.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 7.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = if (savedApiKey.value.isNotBlank()) "API REST Ativa" else "Ao Vivo (Web)",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (savedApiKey.value.isNotBlank()) Color(0xFF10B981) else PrimaryTeal
+                                    )
+                                }
+                            }
+
+                            Text(
+                                text = "O Tessera coleta o status ao vivo de todas as 13 linhas no portal oficial da ARTESP e CPTM. Caso possua uma chave de API (Portal CCM), você pode inseri-la abaixo para conexão REST direta.",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                                lineHeight = 16.sp
+                            )
+
+                            OutlinedTextField(
+                                value = apiKeyInput,
+                                onValueChange = { apiKeyInput = it },
+                                label = { Text("Chave de API ARTESP (Opcional)", fontSize = 12.sp) },
+                                placeholder = { Text("Insira sua Api-Key do Portal CCM...", fontSize = 12.sp) },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = PrimaryTeal,
+                                    unfocusedBorderColor = themedSubtleBorder(),
+                                    focusedLabelColor = PrimaryTeal
+                                )
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (savedApiKey.value.isNotBlank()) {
+                                    TextButton(
+                                        onClick = {
+                                            sharedPrefs.edit().remove("artesp_api_key").apply()
+                                            savedApiKey.value = ""
+                                            apiKeyInput = ""
+                                            viewModel.fetchMetroStatus(forceRefresh = true)
+                                            Toast.makeText(context, "Chave removida. Usando leitura ao vivo do portal.", Toast.LENGTH_SHORT).show()
+                                        }
+                                    ) {
+                                        Text("Remover Chave", color = Color(0xFFEF4444), fontSize = 12.sp)
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
+
+                                Button(
+                                    onClick = {
+                                        val trimmed = apiKeyInput.trim()
+                                        if (trimmed.isNotBlank()) {
+                                            sharedPrefs.edit().putString("artesp_api_key", trimmed).apply()
+                                            savedApiKey.value = trimmed
+                                            Toast.makeText(context, "Chave salva com sucesso!", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            sharedPrefs.edit().remove("artesp_api_key").apply()
+                                            savedApiKey.value = ""
+                                            Toast.makeText(context, "Chave limpa.", Toast.LENGTH_SHORT).show()
+                                        }
+                                        viewModel.fetchMetroStatus(forceRefresh = true)
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal, contentColor = Color.Black),
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                                ) {
+                                    Text("Salvar Chave", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                        }
+
+                        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x0AFFFFFF)))
+
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(
                                 text = "Linhas a Monitorar",

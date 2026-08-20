@@ -1981,16 +1981,21 @@ class TesseraViewModel(
         }
     }
 
-    fun fetchMetroStatus() {
+    fun fetchMetroStatus(forceRefresh: Boolean = false) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoadingMetroStatus.value = true
             _metroError.value = null
             try {
-                val liveStatus = com.example.data.MetroCptmApi.getLiveMetroAndTrainStatus()
+                val prefs = applicationContext.getSharedPreferences("tessera_prefs", Context.MODE_PRIVATE)
+                val apiKey = prefs.getString("artesp_api_key", null)?.trim()?.ifBlank { null }
+                val liveStatus = com.example.data.MetroCptmApi.getLiveMetroAndTrainStatus(
+                    apiKey = apiKey,
+                    forceRefresh = forceRefresh
+                )
                 _metroStatus.value = liveStatus
             } catch (e: Exception) {
                 Log.e("TesseraViewModel", "Erro ao buscar status do metrô e trens", e)
-                _metroError.value = "Erro ao atualizar status das linhas"
+                _metroError.value = e.message ?: "Erro ao atualizar status das linhas"
             } finally {
                 _isLoadingMetroStatus.value = false
             }
@@ -2141,6 +2146,125 @@ class TesseraViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             refreshAIInsightsAndMetric()
         }
+
+        // Observa mudanças na mídia ativa para pre-fetch automático em background
+        viewModelScope.launch(Dispatchers.IO) {
+            com.example.media.MediaHubManager.activeMediaState.collect { mediaState ->
+                if (mediaState != null && mediaState.title.isNotBlank()) {
+                    com.example.data.media.MusicContextRepository.prefetchDossier(
+                        title = mediaState.title,
+                        artist = mediaState.artist,
+                        album = mediaState.album,
+                        durationMs = mediaState.durationMs,
+                        packageName = mediaState.packageName
+                    )
+                }
+            }
+        }
+    }
+
+    // ==========================================
+    // SMART MEDIA HUB & MUSIC DOSSIER
+    // ==========================================
+    val activeMediaState = com.example.media.MediaHubManager.activeMediaState
+
+    private val _musicDossier = MutableStateFlow<com.example.data.media.MusicContextDossier?>(null)
+    val musicDossier: StateFlow<com.example.data.media.MusicContextDossier?> = _musicDossier.asStateFlow()
+
+    private val _isLoadingMusicDossier = MutableStateFlow(false)
+    val isLoadingMusicDossier: StateFlow<Boolean> = _isLoadingMusicDossier.asStateFlow()
+
+    private val _musicDossierError = MutableStateFlow<String?>(null)
+    val musicDossierError: StateFlow<String?> = _musicDossierError.asStateFlow()
+
+    fun fetchMusicDossier(forceRefresh: Boolean = false) {
+        val currentMedia = activeMediaState.value ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            _isLoadingMusicDossier.value = true
+            _musicDossierError.value = null
+            try {
+                val dossier = com.example.data.media.MusicContextRepository.getMusicContextDossier(
+                    title = currentMedia.title,
+                    artist = currentMedia.artist,
+                    album = currentMedia.album,
+                    durationMs = currentMedia.durationMs,
+                    packageName = currentMedia.packageName,
+                    forceRefresh = forceRefresh
+                )
+                _musicDossier.value = dossier
+            } catch (e: Exception) {
+                Log.e("TesseraViewModel", "Erro ao carregar dossiê musical", e)
+                _musicDossierError.value = "Não foi possível carregar o dossiê da faixa."
+            } finally {
+                _isLoadingMusicDossier.value = false
+            }
+        }
+    }
+
+    fun playMedia() = com.example.media.MediaHubManager.play()
+    fun pauseMedia() = com.example.media.MediaHubManager.pause()
+    fun toggleMediaPlayPause() = com.example.media.MediaHubManager.togglePlayPause()
+    fun skipMediaNext() = com.example.media.MediaHubManager.skipToNext()
+    fun skipMediaPrevious() = com.example.media.MediaHubManager.skipToPrevious()
+    fun seekMediaTo(positionMs: Long) = com.example.media.MediaHubManager.seekTo(positionMs)
+
+    fun isMediaListenerPermissionGranted(context: Context): Boolean {
+        return com.example.media.MediaHubManager.isNotificationListenerGranted(context)
+    }
+
+    fun openMediaListenerSettings(context: Context) {
+        com.example.media.MediaHubManager.openNotificationListenerSettings(context)
+    }
+
+    // ==========================================
+    // WGER GYM WORKOUT & EXERCISE CATALOG
+    // ==========================================
+    val wgerCategoryFilters = com.example.data.wger.WgerRepository.categoryFilters
+
+    private val _selectedWgerCategory = MutableStateFlow<Int?>(null)
+    val selectedWgerCategory: StateFlow<Int?> = _selectedWgerCategory.asStateFlow()
+
+    private val _wgerSearchQuery = MutableStateFlow("")
+    val wgerSearchQuery: StateFlow<String> = _wgerSearchQuery.asStateFlow()
+
+    private val _wgerExercises = MutableStateFlow<List<com.example.data.wger.WgerExercise>>(emptyList())
+    val wgerExercises: StateFlow<List<com.example.data.wger.WgerExercise>> = _wgerExercises.asStateFlow()
+
+    private val _isLoadingWgerExercises = MutableStateFlow(false)
+    val isLoadingWgerExercises: StateFlow<Boolean> = _isLoadingWgerExercises.asStateFlow()
+
+    private val _wgerExerciseError = MutableStateFlow<String?>(null)
+    val wgerExerciseError: StateFlow<String?> = _wgerExerciseError.asStateFlow()
+
+    fun fetchWgerExercises(forceRefresh: Boolean = false) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isLoadingWgerExercises.value = true
+            _wgerExerciseError.value = null
+            try {
+                val list = com.example.data.wger.WgerRepository.getExercises(
+                    categoryId = _selectedWgerCategory.value,
+                    searchQuery = _wgerSearchQuery.value,
+                    forceRefresh = forceRefresh
+                )
+                _wgerExercises.value = list
+            } catch (e: Exception) {
+                Log.e("TesseraViewModel", "Erro ao carregar exercícios Wger", e)
+                _wgerExerciseError.value = "Falha ao carregar catálogo. Exibindo dados locais."
+                _wgerExercises.value = com.example.data.wger.WgerRepository.getFallbackExercises()
+            } finally {
+                _isLoadingWgerExercises.value = false
+            }
+        }
+    }
+
+    fun setWgerCategory(categoryId: Int?) {
+        _selectedWgerCategory.value = categoryId
+        fetchWgerExercises(forceRefresh = false)
+    }
+
+    fun setWgerSearchQuery(query: String) {
+        _wgerSearchQuery.value = query
+        fetchWgerExercises(forceRefresh = false)
     }
 
     override fun onCleared() {
