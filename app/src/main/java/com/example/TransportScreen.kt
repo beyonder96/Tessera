@@ -537,129 +537,91 @@ private fun MetroLineCompactCard(
         else -> line.status?.classificacao?.ifBlank { statusTxt } ?: statusTxt
     }
 
-    val updatedTime = line.status?.atualizadoHa?.replace("Atualizado às ", "")?.replace("Atualizado há ", "") ?: ""
+    val updatedTime = com.example.data.formatMetroTime(line.status?.atualizadoEm, line.status?.atualizadoHa)
+    val isCptm = empresa.nome.contains("cptm", ignoreCase = true)
+    val operadoraLabel = if (isCptm) "CPTM" else "Metrô"
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(14.dp))
             .background(themedCardBackground())
-            .border(1.dp, themedCardBorder(), RoundedCornerShape(16.dp))
-            .padding(14.dp)
+            .border(1.dp, themedCardBorder(), RoundedCornerShape(14.dp))
+            .padding(horizontal = 14.dp, vertical = 10.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Linha Única Horizontal Minimalista
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                // Esquerda: Badge do Número com Cor + Operadora (sem nome redundante da linha)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.weight(1f)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Line Number Badge
+                    // Badge número da linha
                     Box(
                         modifier = Modifier
-                            .size(34.dp)
+                            .size(28.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(color.copy(alpha = 0.18f))
-                            .border(1.dp, color.copy(alpha = 0.45f), RoundedCornerShape(8.dp)),
+                            .background(color.copy(alpha = 0.20f))
+                            .border(1.dp, color.copy(alpha = 0.55f), RoundedCornerShape(8.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = line.codigo,
                             color = MaterialTheme.colorScheme.onBackground,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
+                            fontSize = 13.sp
                         )
                     }
 
-                    Column {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Text(
-                                text = line.nome,
-                                color = MaterialTheme.colorScheme.onBackground,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-
-                            // Operadora Tag
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(themedSubtleBackground())
-                                    .border(0.5.dp, themedSubtleBorder(), RoundedCornerShape(6.dp))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = if (empresa.nome.contains("cptm", ignoreCase = true)) "CPTM" else "METRÔ",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(2.dp))
-
-                        // Status + Cilindro Acrílico de Horário
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(statusColor)
-                            )
-
-                            Text(
-                                text = cleanStatus,
-                                color = statusColor,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-
-                            if (updatedTime.isNotBlank()) {
-                                // Cilindro Acrílico
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(20.dp))
-                                        .background(themedSubtleBackground())
-                                        .border(0.5.dp, themedSubtleBorder(), RoundedCornerShape(20.dp))
-                                        .padding(horizontal = 7.dp, vertical = 2.dp)
-                                    ) {
-                                    Text(
-                                        text = updatedTime,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    // Operadora
+                    Text(
+                        text = operadoraLabel,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .size(26.dp)
-                        .clip(CircleShape)
-                        .background(statusColor.copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center
+                // Direita: Status (ponto luminoso + texto) + Horário (HH:mm)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    if (isNormal) {
-                        Icon(Icons.Outlined.CheckCircle, contentDescription = "Normal", tint = statusColor, modifier = Modifier.size(15.dp))
-                    } else {
-                        Icon(Icons.Outlined.Warning, contentDescription = "Alerta", tint = statusColor, modifier = Modifier.size(15.dp))
+                    // Ponto + Status
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(statusColor.copy(alpha = 0.12f))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(statusColor)
+                        )
+                        Text(
+                            text = cleanStatus,
+                            color = statusColor,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
+
+                    // Horário (ex: 11:38)
+                    Text(
+                        text = updatedTime,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
 

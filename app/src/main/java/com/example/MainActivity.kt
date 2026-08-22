@@ -517,7 +517,7 @@ fun TesseraApp() {
                         .fillMaxSize()
                         .background(MaterialTheme.colorScheme.background)
                 ) {
-                    val contentBlur by animateDpAsState(if (isFabExpanded) 32.dp else 0.dp, tween(300))
+                    val contentBlur by animateDpAsState(if (isFabExpanded) 48.dp else 0.dp, tween(300))
                     
                     LaunchedEffect(AppState.pendingHealthAction) {
                         val action = AppState.pendingHealthAction
@@ -706,80 +706,27 @@ fun TesseraApp() {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color(0x99000000)) // Mais transparência para ver o blur do fundo
+                        .background(Color(0xB3000000)) // Camada translúcida escurecida com foco na joia
                         .clickable(
                             interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                             indication = null
                         ) { isFabExpanded = false }
                 ) {
-                    val bottomOffset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 80.dp
+                    val bottomOffset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 60.dp
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 24.dp)
                             .padding(bottom = bottomOffset),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .then(GlassModifier)
-                                .padding(vertical = 24.dp, horizontal = 16.dp)
-                        ) {
-                            val titleAlpha by animateFloatAsState(if (isFabExpanded) 1f else 0f, tween(250))
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 6.dp, vertical = 2.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(8.dp)
-                                            .clip(CircleShape)
-                                            .background(com.example.ui.theme.PrimaryTeal)
-                                    )
-                                    Text(
-                                        text = "Central de Módulos",
-                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = titleAlpha),
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(themedSubtleBackground())
-                                        .border(0.5.dp, themedSubtleBorder(), RoundedCornerShape(8.dp))
-                                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                                ) {
-                                    Text(
-                                        text = "9 Módulos",
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
+                        com.example.ui.components.BentoBoxDashboard(
+                            viewModel = viewModel,
+                            isExpanded = isFabExpanded,
+                            onNavigate = { route -> 
+                                navigateAction(route)
+                                isFabExpanded = false
                             }
-                            
-                            Spacer(modifier = Modifier.height(14.dp))
-                            
-                            com.example.ui.components.BentoBoxDashboard(
-                                viewModel = viewModel,
-                                isExpanded = isFabExpanded,
-                                onNavigate = { route -> 
-                                    navigateAction(route)
-                                    isFabExpanded = false
-                                }
-                            )
-                        }
+                        )
                     }
                 }
             }
@@ -1205,68 +1152,84 @@ fun DailyScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScr
                                 matchedLines.forEach { (empresaNome, linha) ->
                                     val lineColor = getMetroLineColor(linha.nome, linha.codigo)
                                     val statusDetail = linha.status
-                                    val situacao = statusDetail?.situacao ?: "Sem informações"
+                                    val situacao = statusDetail?.situacao ?: "Operação Normal"
                                     val isNormal = statusDetail?.operacaoNormal ?: true
-                                    val atualizadoHa = statusDetail?.atualizadoHa ?: ""
+                                    val timeFormatted = com.example.data.formatMetroTime(statusDetail?.atualizadoEm, statusDetail?.atualizadoHa)
+                                    val isCptm = empresaNome.contains("cptm", ignoreCase = true)
+                                    val operadoraLabel = if (isCptm) "CPTM" else "Metrô"
+                                    val statusColor = if (isNormal) Color(0xFF10B981) else Color(0xFFF59E0B)
 
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .background(themedSubtleBackground(), RoundedCornerShape(16.dp))
-                                            .border(1.dp, themedSubtleBorder(), RoundedCornerShape(16.dp))
-                                            .padding(16.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                            .background(themedSubtleBackground(), RoundedCornerShape(14.dp))
+                                            .border(1.dp, themedSubtleBorder(), RoundedCornerShape(14.dp))
+                                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(6.dp, 40.dp)
-                                                .clip(RoundedCornerShape(3.dp))
-                                                .background(lineColor)
-                                        )
-                                        Spacer(modifier = Modifier.width(16.dp))
-                                        Column(modifier = Modifier.weight(1.3f)) {
-                                            Text(
-                                                text = linha.nome,
-                                                color = MaterialTheme.colorScheme.onBackground,
-                                                fontSize = 15.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                            Text(
-                                                text = empresaNome,
-                                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
-                                                fontSize = 11.sp
-                                            )
-                                        }
-                                        Column(
-                                            modifier = Modifier.weight(1f),
-                                            horizontalAlignment = Alignment.End,
-                                            verticalArrangement = Arrangement.Center
+                                        // Esquerda: Badge do Número com Cor + Operadora
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                                         ) {
                                             Box(
                                                 modifier = Modifier
+                                                    .size(28.dp)
                                                     .clip(RoundedCornerShape(8.dp))
-                                                    .background(
-                                                        if (isNormal) Color(0xFF34C759).copy(alpha = 0.15f)
-                                                        else Color(0xFFFF9500).copy(alpha = 0.15f)
-                                                    )
-                                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                                    .background(lineColor.copy(alpha = 0.20f))
+                                                    .border(1.dp, lineColor.copy(alpha = 0.55f), RoundedCornerShape(8.dp)),
+                                                contentAlignment = Alignment.Center
                                             ) {
                                                 Text(
-                                                    text = situacao,
-                                                    color = if (isNormal) Color(0xFF30D158) else Color(0xFFFF9F0A),
-                                                    fontSize = 11.sp,
+                                                    text = linha.codigo,
+                                                    color = MaterialTheme.colorScheme.onBackground,
                                                     fontWeight = FontWeight.Bold,
-                                                    textAlign = TextAlign.Center
+                                                    fontSize = 13.sp
                                                 )
                                             }
-                                            if (atualizadoHa.isNotEmpty()) {
-                                                Spacer(modifier = Modifier.height(4.dp))
+
+                                            Text(
+                                                text = operadoraLabel,
+                                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f),
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+
+                                        // Direita: Status (com ponto luminoso) + Horário (HH:mm)
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(statusColor.copy(alpha = 0.12f))
+                                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(6.dp)
+                                                        .clip(CircleShape)
+                                                        .background(statusColor)
+                                                )
                                                 Text(
-                                                    text = "há $atualizadoHa",
-                                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f),
-                                                    fontSize = 9.sp
+                                                    text = if (isNormal) "Normal" else situacao,
+                                                    color = statusColor,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.SemiBold
                                                 )
                                             }
+
+                                            Text(
+                                                text = timeFormatted,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
                                         }
                                     }
                                 }

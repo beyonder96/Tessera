@@ -2,57 +2,32 @@ package com.example.ui.components
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowForward
-import androidx.compose.material.icons.automirrored.outlined.MenuBook
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import com.example.viewmodel.TesseraViewModel
-import kotlinx.coroutines.launch
-import java.text.NumberFormat
-import java.text.SimpleDateFormat
-import java.util.*
 import kotlin.math.*
 
 data class InfinityStoneModule(
     val id: String,
     val stoneName: String,
     val moduleTitle: String,
-    val subtitle: String,
-    val metricHighlight: String,
-    val icon: ImageVector,
     val primaryColor: Color,
     val glowColor: Color,
     val coreColor: Color,
@@ -65,56 +40,24 @@ fun BentoBoxDashboard(
     isExpanded: Boolean,
     onNavigate: (String) -> Unit
 ) {
-    val coroutineScope = rememberCoroutineScope()
-
     val itemsAlpha by animateFloatAsState(
         targetValue = if (isExpanded) 1f else 0f,
-        animationSpec = tween(220, easing = FastOutSlowInEasing),
+        animationSpec = tween(250, easing = FastOutSlowInEasing),
         label = "bento_alpha"
     )
-    val itemsOffset by animateDpAsState(
-        targetValue = if (isExpanded) 0.dp else 20.dp,
-        animationSpec = spring(dampingRatio = 0.82f, stiffness = 320f),
-        label = "bento_offset"
+    val itemsScale by animateFloatAsState(
+        targetValue = if (isExpanded) 1f else 0.92f,
+        animationSpec = spring(dampingRatio = 0.85f, stiffness = 300f),
+        label = "bento_scale"
     )
 
-    // Observar dados em tempo real dos módulos
-    val transactions by viewModel.allTransactions.collectAsState()
-    val healthProfile by viewModel.healthProfile.collectAsState()
-    val mealRecords by viewModel.allMealRecords.collectAsState()
-    val marketItems by viewModel.pendingMarketItems.collectAsState()
-    val habits by viewModel.allHabits.collectAsState()
-    val purchaseGoals by viewModel.allPurchaseGoals.collectAsState()
-    val petEvents by viewModel.allPetEvents.collectAsState()
-    val metroStatus by viewModel.metroStatus.collectAsState()
-    val busLines by viewModel.savedBusLines.collectAsState()
-    val dailyVerse by viewModel.dailyVerse.collectAsState()
-
-    val todayStr = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()) }
-    val todayCalories = remember(mealRecords, todayStr) {
-        mealRecords.filter { it.date == todayStr }.sumOf { it.calories }.toInt()
-    }
-    val calGoal = healthProfile?.dailyCalorieGoal?.toInt() ?: 2000
-
-    val currencyFormatter = remember { NumberFormat.getCurrencyInstance(Locale("pt", "BR")) }
-    val currentBalance = remember(transactions) {
-        transactions.sumOf { if (it.isIncome) it.value else -it.value }
-    }
-
     // Estrutura das 9 Joias do Infinito do Tessera
-    val infinityStones = remember(
-        transactions, currentBalance, todayCalories, calGoal,
-        marketItems, habits, purchaseGoals, petEvents,
-        metroStatus, busLines, dailyVerse
-    ) {
+    val infinityStones = remember {
         listOf(
             InfinityStoneModule(
                 id = "reality",
                 stoneName = "Joia da Realidade",
                 moduleTitle = "Finanças",
-                subtitle = "${transactions.size} transações registradas",
-                metricHighlight = currencyFormatter.format(currentBalance),
-                icon = Icons.Outlined.AccountBalanceWallet,
                 primaryColor = Color(0xFFEF4444),
                 glowColor = Color(0xFFF87171),
                 coreColor = Color(0xFFFFE4E6),
@@ -124,9 +67,6 @@ fun BentoBoxDashboard(
                 id = "time",
                 stoneName = "Joia do Tempo",
                 moduleTitle = "Lista de Mercado",
-                subtitle = if (marketItems.isNotEmpty()) "${marketItems.size} itens na lista de compras" else "Lista vazia e pronta",
-                metricHighlight = if (marketItems.isNotEmpty()) "${marketItems.size} Itens" else "Concluído",
-                icon = Icons.Outlined.ShoppingCart,
                 primaryColor = Color(0xFF10B981),
                 glowColor = Color(0xFF34D399),
                 coreColor = Color(0xFFD1FAE5),
@@ -136,9 +76,6 @@ fun BentoBoxDashboard(
                 id = "power",
                 stoneName = "Joia do Poder",
                 moduleTitle = "Rotinas & Hábitos",
-                subtitle = if (habits.isNotEmpty()) "${habits.size} hábitos em progresso diário" else "Construa novas rotinas",
-                metricHighlight = if (habits.isNotEmpty()) "${habits.size} Ativos" else "0 Hábitos",
-                icon = Icons.Outlined.Flag,
                 primaryColor = Color(0xFFA855F7),
                 glowColor = Color(0xFFC084FC),
                 coreColor = Color(0xFFF3E8FF),
@@ -148,9 +85,6 @@ fun BentoBoxDashboard(
                 id = "space",
                 stoneName = "Joia do Espaço",
                 moduleTitle = "Transporte SP",
-                subtitle = if (busLines.isNotEmpty()) "${busLines.size} linhas salvas • Metrô & Ônibus" else "Metrô/CPTM & Ônibus ao vivo",
-                metricHighlight = "SP Ao Vivo",
-                icon = Icons.Outlined.DirectionsTransit,
                 primaryColor = Color(0xFF0284C7),
                 glowColor = Color(0xFF38BDF8),
                 coreColor = Color(0xFFE0F2FE),
@@ -160,9 +94,6 @@ fun BentoBoxDashboard(
                 id = "mind",
                 stoneName = "Joia da Mente",
                 moduleTitle = "Bíblia Sagrada",
-                subtitle = if (dailyVerse != null) "${dailyVerse?.book?.name} ${dailyVerse?.chapter}:${dailyVerse?.verse}" else "Leitor YouVersion & Versículos",
-                metricHighlight = if (dailyVerse != null) "${dailyVerse?.book?.name ?: "Bíblia"} ${dailyVerse?.chapter ?: 1}" else "Palavra",
-                icon = Icons.AutoMirrored.Outlined.MenuBook,
                 primaryColor = Color(0xFFEAB308),
                 glowColor = Color(0xFFFDE047),
                 coreColor = Color(0xFFFEF9C3),
@@ -172,9 +103,6 @@ fun BentoBoxDashboard(
                 id = "life",
                 stoneName = "Joia da Vida",
                 moduleTitle = "Saúde & Nutri",
-                subtitle = if (todayCalories > 0) "$todayCalories de $calGoal kcal meta" else "Diário alimentar e bio-métricas",
-                metricHighlight = if (todayCalories > 0) "$todayCalories kcal" else "Nutrição",
-                icon = Icons.Outlined.MonitorHeart,
                 primaryColor = Color(0xFF06B6D4),
                 glowColor = Color(0xFF22D3EE),
                 coreColor = Color(0xFFCFFAFE),
@@ -184,9 +112,6 @@ fun BentoBoxDashboard(
                 id = "soul",
                 stoneName = "Joia da Alma",
                 moduleTitle = "Desejos & Metas",
-                subtitle = if (purchaseGoals.isNotEmpty()) "${purchaseGoals.size} metas e sonhos na lista" else "Wishlist de metas",
-                metricHighlight = if (purchaseGoals.isNotEmpty()) "${purchaseGoals.size} Desejos" else "Wishlist",
-                icon = Icons.Outlined.BookmarkBorder,
                 primaryColor = Color(0xFFF97316),
                 glowColor = Color(0xFFFB923C),
                 coreColor = Color(0xFFFFEDD5),
@@ -196,9 +121,6 @@ fun BentoBoxDashboard(
                 id = "companion",
                 stoneName = "Joia do Afeto",
                 moduleTitle = "Petz",
-                subtitle = if (petEvents.isNotEmpty()) "${petEvents.size} cuidados e registros" else "Cuidados diários e saúde",
-                metricHighlight = if (petEvents.isNotEmpty()) "${petEvents.size} Cuidados" else "Pets",
-                icon = Icons.Outlined.Pets,
                 primaryColor = Color(0xFFEC4899),
                 glowColor = Color(0xFFF472B6),
                 coreColor = Color(0xFFFCE7F3),
@@ -208,9 +130,6 @@ fun BentoBoxDashboard(
                 id = "territory",
                 stoneName = "Joia da Fundação",
                 moduleTitle = "Meu Apê",
-                subtitle = "Reforma, compras e custos da casa",
-                metricHighlight = "Imóvel",
-                icon = Icons.Outlined.Construction,
                 primaryColor = Color(0xFFD97706),
                 glowColor = Color(0xFFF59E0B),
                 coreColor = Color(0xFFFEF3C7),
@@ -232,31 +151,33 @@ fun BentoBoxDashboard(
         label = "stoneTime"
     )
 
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .offset(y = itemsOffset)
-            .alpha(itemsAlpha)
+            .graphicsLayer {
+                scaleX = itemsScale
+                scaleY = itemsScale
+                this.alpha = itemsAlpha
+            },
+        contentAlignment = Alignment.Center
     ) {
-        // Carrossel Horizontal das Joias Cósmicas
+        // Carrossel Horizontal das Joias Cósmicas soltas no espaço
         HorizontalPager(
             state = pagerState,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(290.dp),
-            contentPadding = PaddingValues(horizontal = 48.dp),
-            pageSpacing = 16.dp
+                .wrapContentHeight(),
+            contentPadding = PaddingValues(horizontal = 64.dp),
+            pageSpacing = 0.dp
         ) { page ->
             val stone = infinityStones[page]
 
-            // Cálculo de Parallax / Escala 3D
+            // Cálculo de Parallax / Escala suave
             val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction).absoluteValue
-            val scale = lerp(1.04f, 0.82f, pageOffset.coerceIn(0f, 1f))
-            val alpha = lerp(1.0f, 0.38f, pageOffset.coerceIn(0f, 1f))
+            val scale = lerp(1.0f, 0.72f, pageOffset.coerceIn(0f, 1f))
+            val alpha = lerp(1.0f, 0.22f, pageOffset.coerceIn(0f, 1f))
 
-            InfinityStoneCard(
+            InfinityStoneItem(
                 stone = stone,
                 time = time,
                 scale = scale,
@@ -265,46 +186,14 @@ fun BentoBoxDashboard(
                 onClick = { onNavigate(stone.route) }
             )
         }
-
-        // Mini Seletor Cósmico de Joias (9 pontos iluminados)
-        Row(
-            modifier = Modifier
-                .clip(RoundedCornerShape(20.dp))
-                .background(themedSubtleBackground())
-                .border(0.5.dp, themedSubtleBorder(), RoundedCornerShape(20.dp))
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            infinityStones.forEachIndexed { index, item ->
-                val isSelected = pagerState.currentPage == index
-                val dotSize by animateDpAsState(
-                    targetValue = if (isSelected) 12.dp else 7.dp,
-                    animationSpec = tween(200),
-                    label = "dotSize"
-                )
-
-                Box(
-                    modifier = Modifier
-                        .size(dotSize)
-                        .clip(CircleShape)
-                        .background(if (isSelected) item.primaryColor else item.primaryColor.copy(alpha = 0.35f))
-                        .clickable {
-                            coroutineScope.launch {
-                                pagerState.animateScrollToPage(index)
-                            }
-                        }
-                )
-            }
-        }
     }
 }
 
 // ==============================================================================
-// CARD DA JOIA DO INFINITO
+// ITEM SOLTO DA JOIA DO INFINITO (Minimalismo Puro)
 // ==============================================================================
 @Composable
-private fun InfinityStoneCard(
+private fun InfinityStoneItem(
     stone: InfinityStoneModule,
     time: Float,
     scale: Float,
@@ -316,159 +205,68 @@ private fun InfinityStoneCard(
     val isPressed by interactionSource.collectIsPressedAsState()
 
     val clickScale by animateFloatAsState(
-        targetValue = if (isPressed) 0.96f else scale,
+        targetValue = if (isPressed) 0.94f else scale,
         animationSpec = tween(150),
         label = "clickScale"
     )
 
-    Box(
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
             .graphicsLayer {
                 scaleX = clickScale
                 scaleY = clickScale
                 this.alpha = alpha
             }
-            .clip(RoundedCornerShape(24.dp))
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        stone.primaryColor.copy(alpha = if (isFocused) 0.16f else 0.05f),
-                        Color(0xFF121216).copy(alpha = 0.85f),
-                        Color(0xFF08080A).copy(alpha = 0.95f)
-                    )
-                )
-            )
-            .border(
-                width = if (isFocused) 1.5.dp else 1.dp,
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        stone.primaryColor.copy(alpha = if (isFocused) 0.80f else 0.25f),
-                        stone.glowColor.copy(alpha = if (isFocused) 0.30f else 0.08f),
-                        Color.Transparent
-                    )
-                ),
-                shape = RoundedCornerShape(24.dp)
-            )
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick
             )
-            .padding(16.dp),
-        contentAlignment = Alignment.Center
+            .padding(vertical = 12.dp)
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier.fillMaxSize()
+        // Joia Cósmica solta no espaço ampliada
+        Box(
+            modifier = Modifier.size(320.dp),
+            contentAlignment = Alignment.Center
         ) {
-            // Top Badge
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(stone.primaryColor.copy(alpha = 0.14f))
-                    .border(0.5.dp, stone.primaryColor.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
-                    .padding(horizontal = 10.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(stone.primaryColor)
-                )
-                Text(
-                    text = stone.stoneName.uppercase(),
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = stone.glowColor,
-                    letterSpacing = 1.2.sp
-                )
-            }
-
-            // Canvas da Joia Cósmica com Raios e Flutuação
-            Box(
-                modifier = Modifier
-                    .size(110.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                InfinityStoneCanvas(
-                    primaryColor = stone.primaryColor,
-                    glowColor = stone.glowColor,
-                    coreColor = stone.coreColor,
-                    time = time,
-                    isFocused = isFocused
-                )
-
-                // Ícone do módulo no coração da gema
-                Icon(
-                    imageVector = stone.icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = Color.White.copy(alpha = 0.95f)
-                )
-            }
-
-            // Informações do Módulo
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Text(
-                    text = stone.moduleTitle,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = stone.metricHighlight,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = stone.glowColor
-                )
-                Text(
-                    text = stone.subtitle,
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center
-                )
-            }
-
-            // CTA Button
-            Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = stone.primaryColor.copy(alpha = if (isFocused) 0.18f else 0.08f),
-                border = BorderStroke(1.dp, stone.primaryColor.copy(alpha = if (isFocused) 0.6f else 0.2f))
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = "Acessar Módulo",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (isFocused) stone.glowColor else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
-                        contentDescription = null,
-                        modifier = Modifier.size(12.dp),
-                        tint = if (isFocused) stone.glowColor else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+            InfinityStoneCanvas(
+                primaryColor = stone.primaryColor,
+                glowColor = stone.glowColor,
+                coreColor = stone.coreColor,
+                time = time,
+                isFocused = isFocused
+            )
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Nome místico sutil da joia
+        Text(
+            text = stone.stoneName.uppercase(),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color = stone.glowColor.copy(alpha = if (isFocused) 0.95f else 0.35f),
+            letterSpacing = 2.5.sp
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // Nome do módulo em destaque limpo
+        Text(
+            text = stone.moduleTitle,
+            fontSize = 26.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White.copy(alpha = if (isFocused) 1.0f else 0.45f),
+            textAlign = TextAlign.Center
+        )
     }
 }
 
 // ==============================================================================
-// CANVAS DA JOIA CÓSMICA (Física de Raios, Flutuação e Brilho)
+// CANVAS DA JOIA CÓSMICA (Física de Raios, Flutuação e Brilho Cristalino)
 // ==============================================================================
 @Composable
 private fun InfinityStoneCanvas(
@@ -481,20 +279,20 @@ private fun InfinityStoneCanvas(
     Canvas(modifier = Modifier.fillMaxSize()) {
         val centerX = size.width / 2f
         // Levitação senoidal suave (flutuação vertical)
-        val floatOffset = sin(time * 0.06f) * 6f
+        val floatOffset = sin(time * 0.06f) * 10f
         val centerY = (size.height / 2f) + floatOffset
         val center = Offset(centerX, centerY)
 
         val pulse = (sin(time * 0.08f) + 1f) / 2f
-        val gemRadius = size.width * 0.22f
-        val haloRadius = size.width * 0.45f + (if (isFocused) pulse * 8f else 0f)
+        val gemRadius = size.width * 0.30f
+        val haloRadius = size.width * 0.48f + (if (isFocused) pulse * 14f else 0f)
 
         // 1. Halo Luminoso Externo (Glow Cósmico)
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    glowColor.copy(alpha = if (isFocused) 0.45f + pulse * 0.15f else 0.20f),
-                    primaryColor.copy(alpha = if (isFocused) 0.25f else 0.08f),
+                    glowColor.copy(alpha = if (isFocused) 0.52f + pulse * 0.16f else 0.25f),
+                    primaryColor.copy(alpha = if (isFocused) 0.32f else 0.10f),
                     Color.Transparent
                 ),
                 center = center,
@@ -508,7 +306,7 @@ private fun InfinityStoneCanvas(
         // 2. Raios Cósmicos Rotativos (Flares de Energia)
         if (isFocused) {
             val rayCount = 6
-            val rayLength = gemRadius * 1.85f
+            val rayLength = gemRadius * 1.75f
             val rotAngle = (time * 0.025f) % (2 * PI.toFloat())
             for (i in 0 until rayCount) {
                 val angle = rotAngle + (i * 2 * PI.toFloat() / rayCount)
@@ -520,8 +318,8 @@ private fun InfinityStoneCanvas(
                 drawLine(
                     brush = Brush.linearGradient(
                         colors = listOf(
-                            coreColor.copy(alpha = 0.8f + pulse * 0.2f),
-                            glowColor.copy(alpha = 0.3f),
+                            coreColor.copy(alpha = 0.90f + pulse * 0.10f),
+                            glowColor.copy(alpha = 0.40f),
                             Color.Transparent
                         ),
                         start = Offset(startX, startY),
@@ -529,7 +327,7 @@ private fun InfinityStoneCanvas(
                     ),
                     start = Offset(startX, startY),
                     end = Offset(endX, endY),
-                    strokeWidth = 2.5f,
+                    strokeWidth = 3.5f,
                     cap = StrokeCap.Round,
                     blendMode = BlendMode.SrcOver
                 )
@@ -540,14 +338,14 @@ private fun InfinityStoneCanvas(
         val particleCount = 8
         for (i in 0 until particleCount) {
             val pAngle = (time * 0.035f + (i * 2 * PI.toFloat() / particleCount))
-            val pDistance = gemRadius * (1.2f + sin(time * 0.05f + i) * 0.25f)
+            val pDistance = gemRadius * (1.25f + sin(time * 0.05f + i) * 0.25f)
             val px = center.x + cos(pAngle) * pDistance
             val py = center.y + sin(pAngle) * pDistance
             val pAlpha = (sin(time * 0.1f + i) + 1f) / 2f
 
             drawCircle(
-                color = coreColor.copy(alpha = (pAlpha * 0.7f).coerceIn(0.1f, 0.9f)),
-                radius = 2.2f,
+                color = coreColor.copy(alpha = (pAlpha * 0.75f).coerceIn(0.15f, 0.95f)),
+                radius = 3.5f,
                 center = Offset(px, py),
                 blendMode = BlendMode.SrcOver
             )

@@ -51,6 +51,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.PrimaryTeal
 
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import java.util.Locale
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShareOnlineModal(
@@ -58,6 +61,10 @@ fun ShareOnlineModal(
     subtitle: String,
     shareUrl: String,
     isSyncing: Boolean,
+    spendableBalance: Double? = null,
+    salaryValue: Double? = null,
+    committedValue: Double? = null,
+    committedPercentage: Double? = null,
     onDismiss: () -> Unit,
     onRegenerateLink: () -> Unit
 ) {
@@ -131,7 +138,97 @@ fun ShareOnlineModal(
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Spendable Card Preview (quando compartilhado pelo módulo financeiro)
+            spendableBalance?.let { spendable ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(PrimaryTeal.copy(alpha = 0.08f))
+                        .border(1.dp, PrimaryTeal.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
+                        .padding(16.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    Icons.Outlined.AccountBalanceWallet,
+                                    contentDescription = null,
+                                    tint = PrimaryTeal,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = "DISPONÍVEL PARA GASTAR",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = PrimaryTeal,
+                                    letterSpacing = 1.sp
+                                )
+                            }
+                            Text(
+                                text = "Livre no Mês",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Text(
+                            text = String.format(Locale("pt", "BR"), "R$ %,.2f", spendable),
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Serif,
+                            color = if (spendable < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onBackground
+                        )
+
+                        if (committedPercentage != null) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Orçamento Comprometido",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "${committedPercentage.toInt()}%",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(4.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth((committedPercentage.toFloat() / 100f).coerceIn(0f, 1f))
+                                        .height(4.dp)
+                                        .clip(CircleShape)
+                                        .background(if (committedPercentage > 90) MaterialTheme.colorScheme.error else PrimaryTeal)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+            }
 
             // Share URL Card
             Box(

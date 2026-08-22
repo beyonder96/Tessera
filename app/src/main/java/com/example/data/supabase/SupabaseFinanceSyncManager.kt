@@ -51,10 +51,10 @@ class SupabaseFinanceSyncManager(
     private var lastUploadedHash: Int? = null
     private var cachedSuggestionsJson = JSONArray()
 
-    private var currentSpendableBalance: Double = 0.0
-    private var currentSalaryValue: Double = 0.0
-    private var currentCommittedValue: Double = 0.0
-    private var currentCommittedPercentage: Double = 0.0
+    private var currentSpendableBalance: Double? = null
+    private var currentSalaryValue: Double? = null
+    private var currentCommittedValue: Double? = null
+    private var currentCommittedPercentage: Double? = null
 
     enum class SyncStatus {
         IDLE,
@@ -301,10 +301,14 @@ class SupabaseFinanceSyncManager(
                     txArray.put(obj)
                 }
 
-                val finalSpendable = if (currentSpendableBalance != 0.0) currentSpendableBalance else totalBalance
-                val finalSalary = if (currentSalaryValue != 0.0) currentSalaryValue else monthlyIncome
-                val finalCommitted = if (currentCommittedValue != 0.0) currentCommittedValue else monthlyExpense
-                val finalCommittedPercent = if (currentCommittedPercentage != 0.0) currentCommittedPercentage else if (finalSalary > 0) (finalCommitted / finalSalary) * 100 else 0.0
+                val accounts = repository.allBankAccounts.first()
+                val checkingBalance = accounts.filter { it.type == "Corrente" }.sumOf { it.balance }
+                val fallbackSpendable = if (accounts.isNotEmpty()) checkingBalance else totalBalance
+
+                val finalSpendable = currentSpendableBalance ?: fallbackSpendable
+                val finalSalary = currentSalaryValue ?: monthlyIncome
+                val finalCommitted = currentCommittedValue ?: monthlyExpense
+                val finalCommittedPercent = currentCommittedPercentage ?: if (finalSalary > 0) (finalCommitted / finalSalary) * 100 else 0.0
 
                 val payload = JSONObject().apply {
                     put("id", shareId)

@@ -90,6 +90,10 @@ fun BibleScreen(
         viewModel.loadCurrentChapter()
     }
 
+    val navBarBottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val navBarTotalHeight = navBarBottomInset + 84.dp
+    val listBottomPadding = navBarTotalHeight + if (selectedVerses.isNotEmpty()) 150.dp else 24.dp
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
@@ -100,7 +104,7 @@ fun BibleScreen(
                 .padding(innerPadding)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // Top App Bar
+                // Top App Bar com proteção de status bar / notch / câmera
                 BibleTopBar(
                     bookName = selectedBook.name,
                     chapter = selectedChapter,
@@ -133,7 +137,12 @@ fun BibleScreen(
                             } else {
                                 LazyColumn(
                                     modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)
+                                    contentPadding = PaddingValues(
+                                        start = 20.dp,
+                                        end = 20.dp,
+                                        top = 12.dp,
+                                        bottom = listBottomPadding
+                                    )
                                 ) {
                                     item {
                                         Column(
@@ -184,7 +193,7 @@ fun BibleScreen(
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(bottom = if (selectedVerses.isNotEmpty()) 100.dp else 40.dp),
+                                                .padding(bottom = 16.dp),
                                             horizontalArrangement = Arrangement.SpaceBetween
                                         ) {
                                             // Previous Chapter
@@ -238,7 +247,7 @@ fun BibleScreen(
                 }
             }
 
-            // Floating Bottom Action Bar for Selected Verses (YouVersion Style)
+            // Floating Bottom Action Bar for Selected Verses (Posicionada ACIMA da BottomNavBar)
             AnimatedVisibility(
                 visible = selectedVerses.isNotEmpty(),
                 enter = slideInVertically(initialOffsetY = { it }, animationSpec = tween(200)) + fadeIn(),
@@ -246,7 +255,8 @@ fun BibleScreen(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 20.dp)
+                    .padding(bottom = navBarTotalHeight + 8.dp)
+                    .padding(horizontal = 16.dp)
             ) {
                 BibleSelectionFloatingBar(
                     selectedCount = selectedVerses.size,
@@ -330,7 +340,8 @@ private fun BibleTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .statusBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {

@@ -4,6 +4,13 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.38
+
+- **Central de Módulos — Joias Cósmicas Minimalistas:** Redesign ultra-minimalista com remoção de contêineres e cards escuros pesados. As joias agora flutuam soltas no centro da tela com o dobro do tamanho (320dp), geometria cristalina pura sem ícones internos, halo luminoso, partículas orbitais e desfoque aprofundado de 48dp na tela de fundo.
+- **Correção do Compartilhamento Financeiro (Disponível para Gastar):** Sincronização em tempo real do valor livre no mês (`spendable_balance`) com o Supabase e novo card de prévia detalhado no modal de compartilhamento do app e na página web.
+- **Ajustes de Insets e Menu Flutuante na Bíblia Sagrada:** Adicionado `statusBarsPadding()` na barra superior para proteger contra sobreposição com a câmera/notch e barra de notificações. O menu flutuante contextual YouVersion agora fica suspenso elegantemente acima da barra de navegação inferior.
+- **Redesign Minimalista em Linha Única do Metrô:** Cards de monitoramento de metrô e CPTM simplificados em uma única linha horizontal com o badge colorido do número da linha, operadora, status ao vivo e horário exato de atualização no formato `HH:mm`.
+
 ## 🚀 Novidades da Versão 2.0.37
 
 - **Central de Módulos — Joias do Infinito Cósmicas (Marvel Style):** Novo Hub em carrossel horizontal interativo com 9 Joias geométricas desenhadas em Canvas, física de partículas orbitais, feixes de luz rotativos, levitação gravitacional suave e telemetria ao vivo para cada módulo.
@@ -160,8 +167,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.37.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.37.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.38.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.38.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.

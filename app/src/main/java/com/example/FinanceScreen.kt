@@ -1061,11 +1061,16 @@ fun FinanceScreen(
     }
 
     if (showShareFinanceModal) {
+        val shareRatio = if (salaryValue > 0.0) ((committedValue / salaryValue) * 100.0).coerceIn(0.0, 100.0) else 0.0
         com.example.ui.components.ShareOnlineModal(
             title = "Dashboard Financeiro Online",
             subtitle = "Compartilhe o link para visualizar o resumo financeiro em tempo real no navegador.",
             shareUrl = viewModel.supabaseFinanceSync.getShareUrl(),
             isSyncing = financeSyncStatus == com.example.data.supabase.SupabaseFinanceSyncManager.SyncStatus.SYNCING,
+            spendableBalance = freeValue,
+            salaryValue = salaryValue,
+            committedValue = committedValue,
+            committedPercentage = shareRatio,
             onDismiss = { showShareFinanceModal = false },
             onRegenerateLink = { viewModel.supabaseFinanceSync.generateNewShareId() }
         )

@@ -132,3 +132,17 @@ fun getMetroLineColor(lineName: String, lineCode: String): Color {
         else -> Color(0xFF808080)
     }
 }
+
+fun formatMetroTime(atualizadoEm: String?, atualizadoHa: String?): String {
+    val timeRegex = Regex("""\b([01]?\d|2[0-3]):[0-5]\d\b""")
+    if (!atualizadoEm.isNullOrBlank()) {
+        val match = timeRegex.find(atualizadoEm)
+        if (match != null) return match.value
+    }
+    if (!atualizadoHa.isNullOrBlank()) {
+        val match = timeRegex.find(atualizadoHa)
+        if (match != null) return match.value
+    }
+    val sdf = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+    return sdf.format(java.util.Date())
+}
