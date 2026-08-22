@@ -664,6 +664,18 @@ fun TesseraApp() {
                         }
                     )
                 }
+                composable("bible") {
+                    com.example.ui.screens.BibleScreen(
+                        viewModel = viewModel,
+                        onHomeClick = {
+                            navController.navigate("home") {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
+                }
             }
 
             Box(
@@ -749,7 +761,7 @@ fun TesseraApp() {
                                         .padding(horizontal = 8.dp, vertical = 3.dp)
                                 ) {
                                     Text(
-                                        text = "8 Módulos",
+                                        text = "9 Módulos",
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium
@@ -3732,27 +3744,37 @@ fun MinimalNavButton(
     onClick: () -> Unit
 ) {
     val scale by animateFloatAsState(
-        targetValue = if (isActive) 1.08f else 1.0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
-        label = "nav_btn_scale"
+        targetValue = if (isActive) 1.10f else 1.0f,
+        animationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow),
+        label = "ios_btn_scale"
     )
     val bgAlpha by animateFloatAsState(
-        targetValue = if (isActive) 0.14f else 0.0f,
-        animationSpec = tween(200, easing = FastOutSlowInEasing),
-        label = "nav_btn_bg"
+        targetValue = if (isActive) 0.16f else 0.0f,
+        animationSpec = tween(180, easing = FastOutSlowInEasing),
+        label = "ios_btn_bg"
     )
     val borderAlpha by animateFloatAsState(
-        targetValue = if (isActive) 0.38f else 0.0f,
-        animationSpec = tween(200, easing = FastOutSlowInEasing),
-        label = "nav_btn_border"
+        targetValue = if (isActive) 0.45f else 0.0f,
+        animationSpec = tween(180, easing = FastOutSlowInEasing),
+        label = "ios_btn_border"
     )
 
     Box(
         modifier = Modifier
-            .size(44.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .width(50.dp)
+            .height(44.dp)
+            .clip(RoundedCornerShape(22.dp))
             .background(activeColor.copy(alpha = bgAlpha))
-            .border(1.dp, activeColor.copy(alpha = borderAlpha), RoundedCornerShape(14.dp))
+            .border(
+                1.dp,
+                Brush.verticalGradient(
+                    listOf(
+                        activeColor.copy(alpha = borderAlpha),
+                        activeColor.copy(alpha = borderAlpha * 0.3f)
+                    )
+                ),
+                RoundedCornerShape(22.dp)
+            )
             .bounceClick { onClick() },
         contentAlignment = Alignment.Center
     ) {
@@ -3765,18 +3787,17 @@ fun MinimalNavButton(
                 contentDescription = contentDescription,
                 tint = if (isActive) activeColor else themedInactiveIcon(),
                 modifier = Modifier
-                    .size(21.dp)
+                    .size(22.dp)
                     .graphicsLayer(scaleX = scale, scaleY = scale)
             )
-            
+
             Spacer(modifier = Modifier.height(2.dp))
-            
-            // Micro active capsule indicator
+
+            // Micro ponto luminoso do iOS
             Box(
                 modifier = Modifier
-                    .width(if (isActive) 12.dp else 0.dp)
-                    .height(2.dp)
-                    .clip(RoundedCornerShape(2.dp))
+                    .size(if (isActive) 4.dp else 0.dp)
+                    .clip(CircleShape)
                     .background(if (isActive) activeColor else Color.Transparent)
             )
         }
@@ -3790,29 +3811,34 @@ fun ModulesNavAnchorButton(
 ) {
     val rotation by animateFloatAsState(
         targetValue = if (isExpanded) 90f else 0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
-        label = "modules_rotation"
+        animationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow),
+        label = "ios_modules_rotation"
     )
     val bgAlpha by animateFloatAsState(
-        targetValue = if (isExpanded) 0.20f else 0.06f,
-        animationSpec = tween(200),
-        label = "modules_bg"
+        targetValue = if (isExpanded) 0.22f else 0.08f,
+        animationSpec = tween(180),
+        label = "ios_modules_bg"
     )
     val borderAlpha by animateFloatAsState(
-        targetValue = if (isExpanded) 0.5f else 0.15f,
-        animationSpec = tween(200),
-        label = "modules_border"
+        targetValue = if (isExpanded) 0.60f else 0.18f,
+        animationSpec = tween(180),
+        label = "ios_modules_border"
     )
 
     Box(
         modifier = Modifier
             .size(44.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(CircleShape)
             .background(if (isExpanded) PrimaryTeal.copy(alpha = bgAlpha) else themedSubtleBackground())
             .border(
                 1.dp,
-                if (isExpanded) PrimaryTeal.copy(alpha = borderAlpha) else themedSubtleBorder(),
-                RoundedCornerShape(14.dp)
+                Brush.verticalGradient(
+                    listOf(
+                        if (isExpanded) PrimaryTeal.copy(alpha = borderAlpha) else Color.White.copy(alpha = borderAlpha),
+                        Color.Transparent
+                    )
+                ),
+                CircleShape
             )
             .bounceClick { onClick() },
         contentAlignment = Alignment.Center
@@ -3856,21 +3882,38 @@ fun BottomNavBar(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 24.dp, vertical = 20.dp),
+            .padding(horizontal = 20.dp, vertical = 18.dp),
         contentAlignment = Alignment.BottomCenter
     ) {
-        // Liquid Glass Capsule Container
+        // iOS Floating Frosted Glass Capsule Container
         Box(
             modifier = Modifier
                 .wrapContentSize()
-                .clip(RoundedCornerShape(22.dp))
-                .background(themedNavBarBackground())
-                .border(1.dp, themedNavBarBorder(), RoundedCornerShape(22.dp))
+                .clip(RoundedCornerShape(32.dp))
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            themedNavBarBackground(),
+                            themedNavBarBackground().copy(alpha = 0.95f)
+                        )
+                    )
+                )
+                .border(
+                    width = 1.dp,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.28f),
+                            Color.White.copy(alpha = 0.08f),
+                            Color.Transparent
+                        )
+                    ),
+                    shape = RoundedCornerShape(32.dp)
+                )
                 .padding(horizontal = 10.dp, vertical = 6.dp)
         ) {
             Row(
                 modifier = Modifier.wrapContentSize(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 when (displayedRoute) {
@@ -3965,13 +4008,21 @@ fun BottomNavBar(
                     }
                 }
 
-                // Vertical Divider
+                // Vertical Divider suave iOS
                 Box(
                     modifier = Modifier
-                        .padding(horizontal = 3.dp)
+                        .padding(horizontal = 2.dp)
                         .width(1.dp)
-                        .height(22.dp)
-                        .background(themedSubtleBorder())
+                        .height(26.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color.Transparent,
+                                    themedSubtleBorder().copy(alpha = 0.6f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
                 )
 
                 // Modules Anchor Button with rotation & tactile feedback

@@ -7,9 +7,11 @@ import com.example.data.Transaction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -18,12 +20,24 @@ import java.util.Calendar
 import java.util.Locale
 import java.util.UUID
 
+data class FinanceSuggestion(
+    val id: String,
+    val title: String,
+    val amount: Double,
+    val type: String,
+    val category: String,
+    val date: String,
+    val createdAt: String,
+    val status: String
+)
+
 class SupabaseFinanceSyncManager(
     private val context: Context,
     private val repository: TesseraRepository
 ) {
     private val scope = CoroutineScope(Dispatchers.IO)
-    private var syncJob: Job? = null
+    private var localSyncJob: Job? = null
+    private var remotePollJob: Job? = null
 
     private val _syncStatus = MutableStateFlow(SyncStatus.IDLE)
     val syncStatus: StateFlow<SyncStatus> = _syncStatus
@@ -31,7 +45,16 @@ class SupabaseFinanceSyncManager(
     private val _activeShareId = MutableStateFlow<String?>(null)
     val activeShareId: StateFlow<String?> = _activeShareId
 
+    private val _pendingSuggestions = MutableStateFlow<List<FinanceSuggestion>>(emptyList())
+    val pendingSuggestions: StateFlow<List<FinanceSuggestion>> = _pendingSuggestions
+
     private var lastUploadedHash: Int? = null
+    private var cachedSuggestionsJson = JSONArray()
+
+    private var currentSpendableBalance: Double = 0.0
+    private var currentSalaryValue: Double = 0.0
+    private var currentCommittedValue: Double = 0.0
+    private var currentCommittedPercentage: Double = 0.0
 
     enum class SyncStatus {
         IDLE,
@@ -62,36 +85,170 @@ class SupabaseFinanceSyncManager(
         return newId
     }
 
+    fun updateSpendableMetrics(
+        spendableBalance: Double,
+        salaryValue: Double,
+        committedValue: Double,
+        committedPercentage: Double
+    ) {
+        currentSpendableBalance = spendableBalance
+        currentSalaryValue = salaryValue
+        currentCommittedValue = committedValue
+        currentCommittedPercentage = committedPercentage
+        lastUploadedHash = null
+        triggerSync()
+    }
+
     fun startContinuousSync() {
-        if (syncJob?.isActive == true) return
         if (_activeShareId.value == null) {
             generateNewShareId()
         }
 
-        syncJob = scope.launch {
-            repository.allTransactions.collect { transactions ->
-                uploadDashboardToSupabase(transactions)
+        // 1. Observe local transactions and push to Supabase
+        if (localSyncJob?.isActive != true) {
+            localSyncJob = scope.launch {
+                repository.allTransactions.collect { transactions ->
+                    uploadDashboardToSupabase(transactions)
+                }
+            }
+        }
+
+        // 2. Poll remote suggestions from Supabase
+        if (remotePollJob?.isActive != true) {
+            remotePollJob = scope.launch {
+                while (isActive) {
+                    pullSuggestionsFromSupabase()
+                    delay(5000)
+                }
             }
         }
     }
 
     fun stopContinuousSync() {
-        syncJob?.cancel()
-        syncJob = null
+        localSyncJob?.cancel()
+        localSyncJob = null
+        remotePollJob?.cancel()
+        remotePollJob = null
         _syncStatus.value = SyncStatus.IDLE
     }
 
     fun triggerSync() {
         lastUploadedHash = null
         scope.launch {
+            pullSuggestionsFromSupabase()
             val transactions = repository.allTransactions.first()
             uploadDashboardToSupabase(transactions)
         }
     }
 
+    suspend fun pullSuggestionsFromSupabase() {
+        val shareId = _activeShareId.value ?: return
+        withContext(Dispatchers.IO) {
+            try {
+                val result = SupabaseClientProvider.getDocument("shared_finance_dashboards", shareId)
+                if (result.isSuccess) {
+                    val responseStr = result.getOrNull() ?: return@withContext
+                    val jsonArray = JSONArray(responseStr)
+                    if (jsonArray.length() == 0) return@withContext
+                    val docObj = jsonArray.getJSONObject(0)
+                    val suggestionsJson = docObj.optJSONArray("suggestions") ?: JSONArray()
+                    cachedSuggestionsJson = suggestionsJson
+
+                    val pendingList = mutableListOf<FinanceSuggestion>()
+                    for (i in 0 until suggestionsJson.length()) {
+                        val sugObj = suggestionsJson.getJSONObject(i)
+                        val status = sugObj.optString("status", "pending")
+                        if (status == "pending") {
+                            pendingList.add(
+                                FinanceSuggestion(
+                                    id = sugObj.optString("id", UUID.randomUUID().toString()),
+                                    title = sugObj.optString("title", "Sem título"),
+                                    amount = sugObj.optDouble("amount", 0.0),
+                                    type = sugObj.optString("type", "expense"),
+                                    category = sugObj.optString("category", "Geral"),
+                                    date = sugObj.optString("date", ""),
+                                    createdAt = sugObj.optString("created_at", ""),
+                                    status = status
+                                )
+                            )
+                        }
+                    }
+                    _pendingSuggestions.value = pendingList
+                }
+            } catch (e: Exception) {
+                Log.w("SupabaseFinanceSync", "Failed to pull suggestions: ${e.message}")
+            }
+        }
+    }
+
+    fun approveSuggestion(
+        suggestion: FinanceSuggestion,
+        accountOrCardName: String = "",
+        onApproveTransaction: (Transaction) -> Unit
+    ) {
+        scope.launch(Dispatchers.IO) {
+            val isIncome = suggestion.type.equals("income", ignoreCase = true)
+            val newTx = Transaction(
+                title = suggestion.title,
+                subtitle = "Via Web • ${suggestion.category}",
+                value = suggestion.amount,
+                isIncome = isIncome,
+                timestamp = System.currentTimeMillis(),
+                category = suggestion.category,
+                accountOrCardName = accountOrCardName,
+                isRealized = true,
+                isRecurrent = false,
+                recurrenceInterval = "Mensal"
+            )
+
+            // 1. Add locally to Room
+            onApproveTransaction(newTx)
+
+            // 2. Mark suggestion as approved in Supabase
+            updateRemoteSuggestionStatus(suggestion.id, "approved")
+        }
+    }
+
+    fun rejectSuggestion(suggestionId: String) {
+        scope.launch(Dispatchers.IO) {
+            updateRemoteSuggestionStatus(suggestionId, "rejected")
+        }
+    }
+
+    private suspend fun updateRemoteSuggestionStatus(suggestionId: String, newStatus: String) {
+        val shareId = _activeShareId.value ?: return
+        withContext(Dispatchers.IO) {
+            try {
+                val updatedArray = JSONArray()
+                for (i in 0 until cachedSuggestionsJson.length()) {
+                    val obj = cachedSuggestionsJson.getJSONObject(i)
+                    if (obj.optString("id") == suggestionId) {
+                        obj.put("status", newStatus)
+                    }
+                    updatedArray.put(obj)
+                }
+                cachedSuggestionsJson = updatedArray
+
+                // Update in-memory state
+                _pendingSuggestions.value = _pendingSuggestions.value.filter { it.id != suggestionId }
+
+                // Update Supabase
+                val payload = JSONObject().apply {
+                    put("id", shareId)
+                    put("suggestions", updatedArray)
+                    put("updated_at", java.time.Instant.now().toString())
+                }.toString()
+
+                SupabaseClientProvider.postOrUpdate("shared_finance_dashboards", payload)
+            } catch (e: Exception) {
+                Log.e("SupabaseFinanceSync", "Error updating suggestion status", e)
+            }
+        }
+    }
+
     private suspend fun uploadDashboardToSupabase(transactions: List<Transaction>) {
         val shareId = _activeShareId.value ?: return
-        val currentHash = transactions.hashCode()
+        val currentHash = (transactions.hashCode() * 31) + currentSpendableBalance.hashCode()
         if (currentHash == lastUploadedHash) return
 
         _syncStatus.value = SyncStatus.SYNCING
@@ -144,15 +301,23 @@ class SupabaseFinanceSyncManager(
                     txArray.put(obj)
                 }
 
+                val finalSpendable = if (currentSpendableBalance != 0.0) currentSpendableBalance else totalBalance
+                val finalSalary = if (currentSalaryValue != 0.0) currentSalaryValue else monthlyIncome
+                val finalCommitted = if (currentCommittedValue != 0.0) currentCommittedValue else monthlyExpense
+                val finalCommittedPercent = if (currentCommittedPercentage != 0.0) currentCommittedPercentage else if (finalSalary > 0) (finalCommitted / finalSalary) * 100 else 0.0
+
                 val payload = JSONObject().apply {
                     put("id", shareId)
                     put("title", "Resumo Financeiro Tessera")
                     put("month_label", monthLabel)
                     put("total_balance", totalBalance)
-                    put("monthly_income", monthlyIncome)
-                    put("monthly_expense", monthlyExpense)
+                    put("spendable_balance", finalSpendable)
+                    put("salary_value", finalSalary)
+                    put("committed_value", finalCommitted)
+                    put("committed_percentage", finalCommittedPercent)
                     put("categories", categoriesArray)
                     put("transactions", txArray)
+                    put("suggestions", cachedSuggestionsJson)
                     put("is_live", true)
                     put("updated_at", java.time.Instant.now().toString())
                 }.toString()
@@ -173,3 +338,4 @@ class SupabaseFinanceSyncManager(
         }
     }
 }
+

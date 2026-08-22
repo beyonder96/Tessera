@@ -4,6 +4,14 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.37
+
+- **Central de Módulos — Joias do Infinito Cósmicas (Marvel Style):** Novo Hub em carrossel horizontal interativo com 9 Joias geométricas desenhadas em Canvas, física de partículas orbitais, feixes de luz rotativos, levitação gravitacional suave e telemetria ao vivo para cada módulo.
+- **Importador Automático de Extratos em PDF:** Leitura e extração local de extratos bancários em PDF com detecção automática de datas, descrições, valores em reais, tipo (receita/despesa), categorização inteligente e seleção de conta.
+- **Menu Flutuante iOS Premium Glass Capsule:** Barra inferior de navegação reformulada para o padrão iOS Frosted Glass Capsule (58dp) com borda especular superior de reflexo de luz, pílulas ativas fluidas com física Spring e micro-ponto luminoso.
+- **Central da Bíblia Sagrada Completa (BIBLIAAPI v2 & Design YouVersion):** Leitor editorial moderno com seletor de livros/capítulos com busca instantânea, seletor de versões (NVT, NVI, ARA, ACF), marcação de versículos em 5 cores pastéis YouVersion, cópia de citações formatadas e compartilhamento nativo.
+- **Correção Solar no Widget de Clima:** Reposicionamento do arco solar para o quadrante direito do card, garantindo 100% de clareza visual e sem sobreposição com os dígitos de temperatura.
+
 ## 🚀 Novidades da Versão 2.0.36
 
 - **Integração Wger Workout Manager & Catálogo de Academia:** Catálogo de musculação integrado à API Wger (`wger.de/api/v2`) com busca instantânea, carrossel de grupos musculares (*Peito, Costas, Pernas, Ombros, Braços, Abdômen, Panturrilhas*), fotos de execução, músculos primários/secundários, equipamentos e instruções detalhadas de postura com suporte a funcionamento 100% offline.
@@ -152,8 +160,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.36.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.36.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.37.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.37.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.

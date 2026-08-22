@@ -79,33 +79,158 @@ class TesseraViewModel(
     private val _dailyVerse = MutableStateFlow<BibleVerseResponse?>(null)
     val dailyVerse: StateFlow<BibleVerseResponse?> = _dailyVerse.asStateFlow()
 
-    private fun loadDailyVerse() {
+    // ==========================================
+    // BÍBLIA SAGRADA (BIBLIAAPI v2)
+    // ==========================================
+    sealed interface ChapterUiState {
+        object Loading : ChapterUiState
+        data class Success(val chapterData: com.example.data.BibliaChapterData) : ChapterUiState
+        data class Error(val message: String) : ChapterUiState
+    }
+
+    private val biblePrefs = applicationContext.getSharedPreferences("tessera_bible_prefs", Context.MODE_PRIVATE)
+
+    val selectedBibleVersion = MutableStateFlow(biblePrefs.getString("selected_version", "NVT") ?: "NVT")
+    val selectedBibleBook = MutableStateFlow(
+        com.example.data.BibliaBookItem(
+            id = biblePrefs.getInt("selected_book_id", 19),
+            name = biblePrefs.getString("selected_book_name", "Salmos") ?: "Salmos",
+            abbrev = biblePrefs.getString("selected_book_abbrev", "sl") ?: "sl",
+            testament = biblePrefs.getString("selected_book_testament", "VT") ?: "VT"
+        )
+    )
+    val selectedBibleChapter = MutableStateFlow(biblePrefs.getInt("selected_chapter", 23))
+
+    private val _bibleVersions = MutableStateFlow<List<com.example.data.BibliaVersionItem>>(emptyList())
+    val bibleVersions: StateFlow<List<com.example.data.BibliaVersionItem>> = _bibleVersions.asStateFlow()
+
+    private val _bibleBooks = MutableStateFlow<List<com.example.data.BibliaBookItem>>(emptyList())
+    val bibleBooks: StateFlow<List<com.example.data.BibliaBookItem>> = _bibleBooks.asStateFlow()
+
+    private val _chapterUiState = MutableStateFlow<ChapterUiState>(ChapterUiState.Loading)
+    val chapterUiState: StateFlow<ChapterUiState> = _chapterUiState.asStateFlow()
+
+    private val _verseHighlights = MutableStateFlow<Map<String, String>>(emptyMap())
+    val verseHighlights: StateFlow<Map<String, String>> = _verseHighlights.asStateFlow()
+
+    fun loadBibleMetadata() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val versions = repository.getBibleVersions()
+            _bibleVersions.value = versions
+            val books = repository.getBibleBooks()
+            _bibleBooks.value = books
+        }
+    }
+
+    fun loadCurrentChapter() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _chapterUiState.value = ChapterUiState.Loading
+            val version = selectedBibleVersion.value
+            val bookAbbrev = selectedBibleBook.value.abbrev
+            val chapter = selectedBibleChapter.value
+
+            val result = repository.getBibleChapter(version, bookAbbrev, chapter)
+            result.onSuccess { data ->
+                _chapterUiState.value = ChapterUiState.Success(data)
+                loadHighlightsForCurrentChapter()
+            }.onFailure { err ->
+                _chapterUiState.value = ChapterUiState.Error(err.message ?: "Erro ao carregar capítulo")
+            }
+        }
+    }
+
+    fun selectBookAndChapter(book: com.example.data.BibliaBookItem, chapter: Int) {
+        selectedBibleBook.value = book
+        selectedBibleChapter.value = chapter
+        biblePrefs.edit()
+            .putInt("selected_book_id", book.id)
+            .putString("selected_book_name", book.name)
+            .putString("selected_book_abbrev", book.abbrev)
+            .putString("selected_book_testament", book.testament)
+            .putInt("selected_chapter", chapter)
+            .apply()
+        loadCurrentChapter()
+    }
+
+    fun selectBibleVersion(versionCode: String) {
+        selectedBibleVersion.value = versionCode
+        biblePrefs.edit().putString("selected_version", versionCode).apply()
+        loadCurrentChapter()
+        loadDailyVerse(forceRefresh = true)
+    }
+
+    fun nextChapter() {
+        val currentCap = selectedBibleChapter.value
+        selectBookAndChapter(selectedBibleBook.value, currentCap + 1)
+    }
+
+    fun previousChapter() {
+        val currentCap = selectedBibleChapter.value
+        if (currentCap > 1) {
+            selectBookAndChapter(selectedBibleBook.value, currentCap - 1)
+        }
+    }
+
+    private fun loadHighlightsForCurrentChapter() {
+        val allHighlights = biblePrefs.all.filterKeys { it.startsWith("hl_") }
+        val map = mutableMapOf<String, String>()
+        allHighlights.forEach { (k, v) ->
+            if (v is String) {
+                map[k.removePrefix("hl_")] = v
+            }
+        }
+        _verseHighlights.value = map
+    }
+
+    fun setVerseHighlight(bookAbbrev: String, chapter: Int, verseNumber: Int, colorHex: String) {
+        val key = "${bookAbbrev}_${chapter}_${verseNumber}"
+        biblePrefs.edit().putString("hl_$key", colorHex).apply()
+        _verseHighlights.value = _verseHighlights.value + (key to colorHex)
+    }
+
+    fun removeVerseHighlight(bookAbbrev: String, chapter: Int, verseNumber: Int) {
+        val key = "${bookAbbrev}_${chapter}_${verseNumber}"
+        biblePrefs.edit().remove("hl_$key").apply()
+        _verseHighlights.value = _verseHighlights.value - key
+    }
+
+    fun loadDailyVerse(forceRefresh: Boolean = false) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val prefs = applicationContext.getSharedPreferences("tessera_bible_prefs", Context.MODE_PRIVATE)
                 val today = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_YEAR)
                 val savedDay = prefs.getInt("saved_day", -1)
+                val currentVersion = selectedBibleVersion.value
+                val savedVersion = prefs.getString("verse_version", "NVT")
                 
-                if (savedDay == today) {
+                if (!forceRefresh && savedDay == today && savedVersion == currentVersion) {
                     val text = prefs.getString("verse_text", null)
                     val bookName = prefs.getString("verse_book_name", null)
                     val chapter = prefs.getInt("verse_chapter", -1)
                     val verse = prefs.getInt("verse_verse", -1)
+                    val bookAbbrev = prefs.getString("verse_book_abbrev", "sl") ?: "sl"
                     if (text != null && bookName != null) {
                         _dailyVerse.value = BibleVerseResponse(
-                            book = com.example.data.ABibliaBook(name = bookName, version = "nvt"), chapter = chapter, verse = verse, text = text
+                            book = com.example.data.ABibliaBook(name = bookName, version = currentVersion),
+                            chapter = chapter,
+                            verse = verse,
+                            text = text,
+                            bookAbbrev = bookAbbrev,
+                            versionCode = currentVersion
                         )
                         return@launch
                     }
                 }
                 
-                val response = repository.getRandomBibleVerse()
+                val response = repository.getRandomBibleVerse(currentVersion)
                 _dailyVerse.value = response
                 
                 prefs.edit()
                     .putInt("saved_day", today)
+                    .putString("verse_version", currentVersion)
                     .putString("verse_text", response.text)
                     .putString("verse_book_name", response.book?.name ?: "")
+                    .putString("verse_book_abbrev", response.bookAbbrev ?: "sl")
                     .putInt("verse_chapter", response.chapter ?: -1)
                     .putInt("verse_verse", response.verse ?: -1)
                     .apply()
@@ -1089,6 +1214,37 @@ class TesseraViewModel(
                 )
                 repository.insertTransaction(nextTx)
             }
+        }
+    }
+
+    fun importBatchTransactions(
+        accountName: String,
+        transactions: List<com.example.utils.ParsedStatementTransaction>
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val selected = transactions.filter { it.isSelected }
+            if (selected.isEmpty()) return@launch
+
+            for (item in selected) {
+                val mainTx = Transaction(
+                    title = item.title,
+                    subtitle = "Extrato PDF • $accountName",
+                    value = item.amount,
+                    isIncome = item.isIncome,
+                    timestamp = item.timestamp,
+                    category = item.category,
+                    accountOrCardName = accountName,
+                    isRealized = true,
+                    isRecurrent = false,
+                    recurrenceInterval = "Mensal",
+                    dueDate = item.timestamp
+                )
+                repository.insertTransaction(mainTx)
+                if (accountName.isNotEmpty()) {
+                    adjustBalances(accountName, item.amount, item.isIncome, true)
+                }
+            }
+            supabaseFinanceSync.triggerSync()
         }
     }
 

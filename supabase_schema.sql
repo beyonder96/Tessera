@@ -16,13 +16,23 @@ CREATE TABLE IF NOT EXISTS public.shared_finance_dashboards (
     title TEXT NOT NULL DEFAULT 'Resumo Financeiro',
     month_label TEXT NOT NULL DEFAULT '',
     total_balance NUMERIC NOT NULL DEFAULT 0,
-    monthly_income NUMERIC NOT NULL DEFAULT 0,
-    monthly_expense NUMERIC NOT NULL DEFAULT 0,
+    spendable_balance NUMERIC NOT NULL DEFAULT 0,
+    salary_value NUMERIC NOT NULL DEFAULT 0,
+    committed_value NUMERIC NOT NULL DEFAULT 0,
+    committed_percentage NUMERIC NOT NULL DEFAULT 0,
     categories JSONB NOT NULL DEFAULT '[]'::jsonb,
     transactions JSONB NOT NULL DEFAULT '[]'::jsonb,
+    suggestions JSONB NOT NULL DEFAULT '[]'::jsonb,
     is_live BOOLEAN NOT NULL DEFAULT true,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
+
+-- Migrações incrementais caso a tabela já tenha sido criada:
+ALTER TABLE public.shared_finance_dashboards ADD COLUMN IF NOT EXISTS spendable_balance NUMERIC NOT NULL DEFAULT 0;
+ALTER TABLE public.shared_finance_dashboards ADD COLUMN IF NOT EXISTS salary_value NUMERIC NOT NULL DEFAULT 0;
+ALTER TABLE public.shared_finance_dashboards ADD COLUMN IF NOT EXISTS committed_value NUMERIC NOT NULL DEFAULT 0;
+ALTER TABLE public.shared_finance_dashboards ADD COLUMN IF NOT EXISTS committed_percentage NUMERIC NOT NULL DEFAULT 0;
+ALTER TABLE public.shared_finance_dashboards ADD COLUMN IF NOT EXISTS suggestions JSONB NOT NULL DEFAULT '[]'::jsonb;
 
 -- 3. Habilita RLS (Row Level Security) e libera leitura e escrita pública/anônima
 ALTER TABLE public.shared_market_lists ENABLE ROW LEVEL SECURITY;
@@ -44,6 +54,24 @@ TO anon, authenticated
 USING (true) 
 WITH CHECK (true);
 
--- 4. Habilita Realtime do Supabase nas tabelas
-ALTER PUBLICATION supabase_realtime ADD TABLE public.shared_market_lists;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.shared_finance_dashboards;
+-- 4. Habilita Realtime do Supabase nas tabelas de forma segura (idempotente)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' 
+          AND schemaname = 'public' 
+          AND tablename = 'shared_market_lists'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.shared_market_lists;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' 
+          AND schemaname = 'public' 
+          AND tablename = 'shared_finance_dashboards'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.shared_finance_dashboards;
+    END IF;
+END $$;

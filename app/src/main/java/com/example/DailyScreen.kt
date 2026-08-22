@@ -454,11 +454,10 @@ fun DailyScreen(
                         com.example.ui.components.DetailedMatchWidget(viewModel = viewModel)
 
                         // 3.3 VERSÍCULO DO DIA WIDGET
-                        if (dailyVerse != null) {
-                            BibleVerseWidget(dailyVerse)
-                        } else {
-                            BibleVerseWidget(null)
-                        }
+                        BibleVerseWidget(
+                            dailyVerse = dailyVerse,
+                            onClick = { onNavigate("bible") }
+                        )
 
                         // 3.4 SMART AUDIO HUB (PLAYER GLOBAL & LETRAS)
                         com.example.ui.components.SmartMediaCard(
@@ -1282,7 +1281,10 @@ fun YouTubeMusicLauncherWidget() {
 }
 
 @Composable
-fun BibleVerseWidget(dailyVerse: com.example.data.BibleVerseResponse?) {
+fun BibleVerseWidget(
+    dailyVerse: com.example.data.BibleVerseResponse?,
+    onClick: (() -> Unit)? = null
+) {
     val bookName = dailyVerse?.book?.name ?: "Bíblia Sagrada"
     val referenceText = if (dailyVerse != null) "- $bookName ${dailyVerse.chapter}:${dailyVerse.verse} (${dailyVerse.book?.version?.uppercase() ?: "NVT"})" else "Carregando..."
     val verseText = dailyVerse?.text ?: "Buscando sabedoria diária..."
@@ -1291,6 +1293,7 @@ fun BibleVerseWidget(dailyVerse: com.example.data.BibleVerseResponse?) {
         modifier = Modifier
             .fillMaxWidth()
             .thermalCard(cornerRadius = 28.dp, elevation = 20.dp)
+            .clickable(enabled = onClick != null) { onClick?.invoke() }
             .padding(32.dp),
         contentAlignment = Alignment.Center
     ) {

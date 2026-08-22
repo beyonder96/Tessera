@@ -75,13 +75,13 @@ private fun DrawScope.drawAuraSolar(time: Float, dayProgress: Float) {
     val progress = dayProgress.coerceIn(0f, 1f)
     val pulse = (sin(time * 0.05f) + 1f) / 2f
 
-    // Posição em arco real (Nascer no canto esquerdo inferior -> Meio-dia no topo -> Pôr no canto direito inferior)
-    val arcX = size.width * (0.18f + 0.64f * progress)
-    val arcY = size.height * (0.80f - 0.52f * sin(progress * PI.toFloat()))
+    // Posição no quadrante direito do card (sem interferir na tipografia e graus da esquerda)
+    val arcX = size.width * (0.68f + 0.18f * (progress - 0.5f))
+    val arcY = size.height * (0.50f - 0.25f * sin(progress * PI.toFloat()))
     val centerOffset = Offset(arcX, arcY)
 
-    val coreRadius = size.height * 0.22f
-    val glowRadius = size.height * 0.55f + (pulse * size.height * 0.08f)
+    val coreRadius = size.height * 0.19f
+    val glowRadius = size.height * 0.42f + (pulse * size.height * 0.06f)
 
     // Halo luminoso externo solar
     drawCircle(

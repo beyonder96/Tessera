@@ -7,9 +7,11 @@ import com.example.data.TesseraRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -21,7 +23,8 @@ class SupabaseMarketSyncManager(
     private val repository: TesseraRepository
 ) {
     private val scope = CoroutineScope(Dispatchers.IO)
-    private var syncJob: Job? = null
+    private var localSyncJob: Job? = null
+    private var remotePollJob: Job? = null
 
     private val _syncStatus = MutableStateFlow(SyncStatus.IDLE)
     val syncStatus: StateFlow<SyncStatus> = _syncStatus
@@ -30,6 +33,7 @@ class SupabaseMarketSyncManager(
     val activeShareId: StateFlow<String?> = _activeShareId
 
     private var lastUploadedHash: Int? = null
+    private var isUpdatingFromRemote = false
 
     enum class SyncStatus {
         IDLE,
@@ -61,35 +65,145 @@ class SupabaseMarketSyncManager(
     }
 
     fun startContinuousSync() {
-        if (syncJob?.isActive == true) return
         if (_activeShareId.value == null) {
             generateNewShareId()
         }
 
-        syncJob = scope.launch {
-            repository.pendingMarketItems.collect { items ->
-                uploadListToSupabase(items)
+        // 1. Observe local changes and push to Supabase
+        if (localSyncJob?.isActive != true) {
+            localSyncJob = scope.launch {
+                repository.pendingMarketItems.collect { items ->
+                    if (!isUpdatingFromRemote) {
+                        uploadListToSupabase(items)
+                    }
+                }
+            }
+        }
+
+        // 2. Poll remote changes from Supabase (to pull items added on Web)
+        if (remotePollJob?.isActive != true) {
+            remotePollJob = scope.launch {
+                while (isActive) {
+                    delay(5000)
+                    pullFromSupabase()
+                }
             }
         }
     }
 
     fun stopContinuousSync() {
-        syncJob?.cancel()
-        syncJob = null
+        localSyncJob?.cancel()
+        localSyncJob = null
+        remotePollJob?.cancel()
+        remotePollJob = null
         _syncStatus.value = SyncStatus.IDLE
     }
 
     fun triggerSync() {
         lastUploadedHash = null
         scope.launch {
+            pullFromSupabase()
             val items = repository.pendingMarketItems.first()
             uploadListToSupabase(items)
         }
     }
 
+    suspend fun pullFromSupabase() {
+        val shareId = _activeShareId.value ?: return
+        withContext(Dispatchers.IO) {
+            try {
+                val result = SupabaseClientProvider.getDocument("shared_market_lists", shareId)
+                if (result.isSuccess) {
+                    val responseStr = result.getOrNull() ?: return@withContext
+                    val jsonArray = JSONArray(responseStr)
+                    if (jsonArray.length() == 0) return@withContext
+                    val docObj = jsonArray.getJSONObject(0)
+                    val itemsJson = docObj.optJSONArray("items") ?: return@withContext
+
+                    val remoteItems = mutableListOf<MarketItem>()
+                    for (i in 0 until itemsJson.length()) {
+                        val itemObj = itemsJson.getJSONObject(i)
+                        val name = itemObj.optString("name", "")
+                        if (name.isBlank()) continue
+                        val isChecked = itemObj.optBoolean("isChecked", false)
+                        val isBought = itemObj.optBoolean("isBought", false)
+                        val price = itemObj.optDouble("price", 0.0)
+                        val quantity = itemObj.optDouble("quantity", 1.0)
+                        val unit = itemObj.optString("unit", "un")
+                        val category = itemObj.optString("category", "Geral")
+
+                        remoteItems.add(
+                            MarketItem(
+                                name = name,
+                                isChecked = isChecked,
+                                isBought = isBought,
+                                orderIndex = i,
+                                price = price,
+                                quantity = quantity,
+                                unit = unit,
+                                category = category
+                            )
+                        )
+                    }
+
+                    mergeRemoteItems(remoteItems)
+                }
+            } catch (e: Exception) {
+                Log.w("SupabaseMarketSync", "Failed to pull from Supabase: ${e.message}")
+            }
+        }
+    }
+
+    private suspend fun mergeRemoteItems(remoteItems: List<MarketItem>) {
+        if (remoteItems.isEmpty()) return
+        val localItems = repository.pendingMarketItems.first()
+
+        val inserts = mutableListOf<MarketItem>()
+        val updates = mutableListOf<MarketItem>()
+
+        remoteItems.forEach { remoteItem ->
+            val existing = localItems.find { it.name.equals(remoteItem.name, ignoreCase = true) }
+            if (existing != null) {
+                if (existing.isChecked != remoteItem.isChecked ||
+                    existing.price != remoteItem.price ||
+                    existing.quantity != remoteItem.quantity ||
+                    existing.unit != remoteItem.unit ||
+                    existing.isBought != remoteItem.isBought
+                ) {
+                    updates.add(
+                        existing.copy(
+                            isChecked = remoteItem.isChecked,
+                            price = remoteItem.price,
+                            quantity = remoteItem.quantity,
+                            unit = remoteItem.unit,
+                            isBought = remoteItem.isBought
+                        )
+                    )
+                }
+            } else {
+                inserts.add(remoteItem)
+            }
+        }
+
+        if (inserts.isNotEmpty() || updates.isNotEmpty()) {
+            isUpdatingFromRemote = true
+            try {
+                repository.syncMarketItems(inserts, updates, emptyList())
+                val updatedLocal = repository.pendingMarketItems.first()
+                lastUploadedHash = computeHash(updatedLocal)
+            } finally {
+                isUpdatingFromRemote = false
+            }
+        }
+    }
+
+    private fun computeHash(items: List<MarketItem>): Int {
+        return items.map { "${it.name}|${it.isChecked}|${it.isBought}|${it.price}|${it.quantity}|${it.category}" }.hashCode()
+    }
+
     private suspend fun uploadListToSupabase(items: List<MarketItem>) {
         val shareId = _activeShareId.value ?: return
-        val currentHash = items.map { "${it.name}|${it.isChecked}|${it.isBought}|${it.price}|${it.quantity}|${it.category}" }.hashCode()
+        val currentHash = computeHash(items)
 
         if (currentHash == lastUploadedHash) return
 
@@ -134,3 +248,4 @@ class SupabaseMarketSyncManager(
         }
     }
 }
+

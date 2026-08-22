@@ -52,6 +52,12 @@ import com.example.ui.components.themedTextFieldColors
 import com.example.ui.components.themedSubtleBackground
 import com.example.viewmodel.TesseraViewModel
 import android.content.Context
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.example.utils.BankStatementPdfParser
+import com.example.utils.ParsedStatementTransaction
+import com.example.ui.components.ImportBankStatementBottomSheet
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.vector.ImageVector
 import kotlinx.coroutines.launch
@@ -102,6 +108,30 @@ fun FinanceScreen(
     var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
     var showShareFinanceModal by remember { mutableStateOf(false) }
     val financeSyncStatus by viewModel.supabaseFinanceSync.syncStatus.collectAsStateWithLifecycle()
+    val pendingSuggestions by viewModel.supabaseFinanceSync.pendingSuggestions.collectAsStateWithLifecycle()
+
+    var showImportStatementModal by remember { mutableStateOf(false) }
+    var isParsingPdf by remember { mutableStateOf(false) }
+    var parsedPdfTransactions by remember { mutableStateOf<List<ParsedStatementTransaction>>(emptyList()) }
+    val coroutineScope = rememberCoroutineScope()
+
+    val pdfPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            isParsingPdf = true
+            coroutineScope.launch {
+                val parsed = BankStatementPdfParser.parsePdfStatement(context, uri)
+                isParsingPdf = false
+                if (parsed.isNotEmpty()) {
+                    parsedPdfTransactions = parsed
+                    showImportStatementModal = true
+                } else {
+                    android.widget.Toast.makeText(context, "Nenhum lançamento identificado no PDF.", android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
 
     if (showDebtsPanel) {
         DebtsScreen(
@@ -275,6 +305,16 @@ fun FinanceScreen(
 
     val freeValue = checkingBalance + if (sumInvestmentsToSpendable) (savingsBalance + investmentBalance) else 0.0
 
+    LaunchedEffect(freeValue, salaryValue, committedValue) {
+        val ratio = if (salaryValue > 0.0) ((committedValue / salaryValue) * 100.0).coerceIn(0.0, 100.0) else 0.0
+        viewModel.supabaseFinanceSync.updateSpendableMetrics(
+            spendableBalance = freeValue,
+            salaryValue = salaryValue,
+            committedValue = committedValue,
+            committedPercentage = ratio
+        )
+    }
+
     val scrollState = rememberScrollState()
     val isCompact = scrollState.value > 150
     val normalAlpha by animateFloatAsState(targetValue = if (isCompact) 0f else 1f, animationSpec = tween(250), label = "normalAlpha")
@@ -294,6 +334,112 @@ fun FinanceScreen(
             ) {
                 Spacer(modifier = Modifier.height(72.dp))
 
+                // Pending Web Suggestions Section
+                if (pendingSuggestions.isNotEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(PremiumGlassModifier)
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary)
+                                )
+                                Text(
+                                    text = "SUGESTÕES DA WEB (${pendingSuggestions.size})",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    letterSpacing = 1.sp
+                                )
+                            }
+                            Text(
+                                text = "Aprovação pendente",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        pendingSuggestions.forEach { sug ->
+                            val isInc = sug.type.equals("income", ignoreCase = true)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = sug.title,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "${sug.category} • ${sug.date} • ${if (isInc) "+" else "-"} R$ ${String.format(Locale("pt", "BR"), "%,.2f", sug.amount)}",
+                                        fontSize = 11.sp,
+                                        color = if (isInc) Color(0xFF10B981) else MaterialTheme.colorScheme.error,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(
+                                        onClick = { viewModel.supabaseFinanceSync.rejectSuggestion(sug.id) },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Recusar",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+
+                                    Button(
+                                        onClick = {
+                                            val defaultAccount = bankAccounts.firstOrNull()?.name ?: creditCards.firstOrNull()?.name ?: ""
+                                            viewModel.supabaseFinanceSync.approveSuggestion(sug, defaultAccount) { newTx ->
+                                                viewModel.addTransaction(
+                                                    title = newTx.title,
+                                                    subtitle = newTx.subtitle,
+                                                    value = newTx.value,
+                                                    isIncome = newTx.isIncome,
+                                                    category = newTx.category,
+                                                    accountOrCardName = newTx.accountOrCardName
+                                                )
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Text(
+                                            text = "Aprovar",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.Black
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -810,6 +956,15 @@ fun FinanceScreen(
                             )
                         }
                         Spacer(modifier = Modifier.width(6.dp))
+                        IconButton(onClick = { pdfPickerLauncher.launch("application/pdf") }, modifier = Modifier.size(28.dp)) {
+                            Icon(
+                                imageVector = Icons.Outlined.ReceiptLong,
+                                contentDescription = "Importar Extrato PDF",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
                         IconButton(onClick = { showShareFinanceModal = true }, modifier = Modifier.size(28.dp)) {
                             Icon(
                                 imageVector = Icons.Default.Share,
@@ -858,6 +1013,51 @@ fun FinanceScreen(
                 }
             }
         }
+    }
+
+    if (isParsingPdf) {
+        Dialog(onDismissRequest = {}) {
+            Box(
+                modifier = Modifier
+                    .size(150.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, themedCardBorder(), RoundedCornerShape(20.dp))
+                    .padding(20.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(36.dp),
+                        strokeWidth = 3.dp
+                    )
+                    Text(
+                        text = "Lendo Extrato PDF...",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
+    }
+
+    if (showImportStatementModal) {
+        ImportBankStatementBottomSheet(
+            initialTransactions = parsedPdfTransactions,
+            bankAccounts = bankAccounts,
+            creditCards = creditCards,
+            onConfirmImport = { accountName, selectedList ->
+                viewModel.importBatchTransactions(accountName, selectedList)
+                showImportStatementModal = false
+                android.widget.Toast.makeText(context, "${selectedList.size} lançamentos importados para $accountName!", android.widget.Toast.LENGTH_SHORT).show()
+            },
+            onDismiss = { showImportStatementModal = false }
+        )
     }
 
     if (showShareFinanceModal) {

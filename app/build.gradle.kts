@@ -22,8 +22,8 @@ android {
     applicationId = "com.aistudio.tessera.xtrkna"
     minSdk = 26
     targetSdk = 35
-    versionCode = 89
-    versionName = "2.0.36"
+    versionCode = 90
+    versionName = "2.0.37"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     manifestPlaceholders["MAPS_API_KEY"] = "DUMMY_KEY"
@@ -175,6 +175,9 @@ dependencies {
   
   // HTML Parser (Jsoup)
   implementation("org.jsoup:jsoup:1.17.2")
+
+  // PDF Text Extraction for Bank Statements (PdfBox Android)
+  implementation("com.tom-roush:pdfbox-android:2.0.27.0")
 }
 
 abstract class CopyApkTask : org.gradle.api.DefaultTask() {

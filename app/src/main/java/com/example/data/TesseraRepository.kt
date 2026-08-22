@@ -260,49 +260,62 @@ class TesseraRepository(private val dao: TesseraDao) {
         dao.deleteMealRecordById(id)
     }
 
+    private val bibliaApiKey = "bapi_cyd65a70b4cmbin97bcojzs3vmq7cpxnhyo2lgfjogiup9d5"
+
+    private val bibliaOkHttpClient = okhttp3.OkHttpClient.Builder()
+        .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+        .addInterceptor { chain ->
+            val original = chain.request()
+            val request = original.newBuilder()
+                .header("Authorization", "Bearer $bibliaApiKey")
+                .header("Accept", "application/json")
+                .build()
+            chain.proceed(request)
+        }
+        .build()
+
     private val bibleMoshi = com.squareup.moshi.Moshi.Builder()
         .add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory())
         .build()
 
     private val bibleRetrofit = retrofit2.Retrofit.Builder()
-        .baseUrl("https://bible-api.com/")
-        .client(
-            okhttp3.OkHttpClient.Builder()
-                .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-                .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-                .build()
-        )
+        .baseUrl("https://bibliaapi.com.br/api/v2/")
+        .client(bibliaOkHttpClient)
         .addConverterFactory(retrofit2.converter.moshi.MoshiConverterFactory.create(bibleMoshi))
         .build()
 
     private val bibleApi = bibleRetrofit.create(BibleApi::class.java)
 
     private val offlineVerses = listOf(
-        BibleVerseResponse(book = ABibliaBook(name = "Salmos", version = "Almeida"), chapter = 23, verse = 1, text = "O Senhor é o meu pastor, nada me faltará."),
-        BibleVerseResponse(book = ABibliaBook(name = "Filipenses", version = "Almeida"), chapter = 4, verse = 13, text = "Posso todas as coisas naquele que me fortalece."),
-        BibleVerseResponse(book = ABibliaBook(name = "Josué", version = "Almeida"), chapter = 1, verse = 9, text = "Não to mandei eu? Esforça-te, e tem bom ânimo; não temas, nem te espantes; porque o Senhor teu Deus é contigo, por onde quer que andares."),
-        BibleVerseResponse(book = ABibliaBook(name = "Jeremias", version = "Almeida"), chapter = 29, verse = 11, text = "Porque eu bem sei os pensamentos que tenho a vosso respeito, diz o Senhor; pensamentos de paz, e não de mal, para vos dar um fim e uma esperança."),
-        BibleVerseResponse(book = ABibliaBook(name = "Provérbios", version = "Almeida"), chapter = 3, verse = 5, text = "Confia no Senhor de todo o teu coração, e não te estribes no teu próprio entendimento."),
-        BibleVerseResponse(book = ABibliaBook(name = "Isaías", version = "Almeida"), chapter = 41, verse = 10, text = "Não temas, porque eu sou contigo; não te assombres, porque eu sou o teu Deus; eu te fortaleço, e te ajudo, e te sustento com a destra da minha justiça."),
-        BibleVerseResponse(book = ABibliaBook(name = "Mateus", version = "Almeida"), chapter = 11, verse = 28, text = "Vinde a mim, todos os que estais cansados e oprimidos, e eu vos aliviarei."),
-        BibleVerseResponse(book = ABibliaBook(name = "Romanos", version = "Almeida"), chapter = 8, verse = 28, text = "E sabemos que todas as coisas conspiram para o bem daqueles que amam a Deus.")
+        BibleVerseResponse(book = ABibliaBook(name = "Salmos", version = "NVT"), chapter = 23, verse = 1, text = "O SENHOR é meu pastor, e nada me faltará.", bookAbbrev = "sl", versionCode = "NVT"),
+        BibleVerseResponse(book = ABibliaBook(name = "Filipenses", version = "NVT"), chapter = 4, verse = 13, text = "Posso todas as coisas por meio de Cristo, que me dá forças.", bookAbbrev = "fp", versionCode = "NVT"),
+        BibleVerseResponse(book = ABibliaBook(name = "Josué", version = "NVT"), chapter = 1, verse = 9, text = "Esta é minha ordem: Seja forte e corajoso! Não tenha medo nem desanime, pois o SENHOR, seu Deus, estará com você por onde você andar.", bookAbbrev = "js", versionCode = "NVT"),
+        BibleVerseResponse(book = ABibliaBook(name = "Jeremias", version = "NVT"), chapter = 29, verse = 11, text = "Porque eu sei os planos que tenho para vocês, diz o SENHOR. São planos de bem, e não de mal, para lhes dar um futuro e uma esperança.", bookAbbrev = "jr", versionCode = "NVT"),
+        BibleVerseResponse(book = ABibliaBook(name = "Provérbios", version = "NVT"), chapter = 3, verse = 5, text = "Confie no SENHOR de todo o coração; não dependa de seu próprio entendimento.", bookAbbrev = "pv", versionCode = "NVT"),
+        BibleVerseResponse(book = ABibliaBook(name = "Isaías", version = "NVT"), chapter = 41, verse = 10, text = "Não tenha medo, pois estou com você; não desanime, pois sou o seu Deus. Eu o fortalecerei e o ajudarei; eu o sustentarei com minha mão direita vitoriosa.", bookAbbrev = "is", versionCode = "NVT"),
+        BibleVerseResponse(book = ABibliaBook(name = "Mateus", version = "NVT"), chapter = 11, verse = 28, text = "Venham a mim todos vocês que estão cansados e sobrecarregados, e eu lhes darei descanso.", bookAbbrev = "mt", versionCode = "NVT"),
+        BibleVerseResponse(book = ABibliaBook(name = "Romanos", version = "NVT"), chapter = 8, verse = 28, text = "E sabemos que Deus faz todas as coisas cooperarem para o bem daqueles que o amam e que são chamados de acordo com seu propósito.", bookAbbrev = "rm", versionCode = "NVT")
     )
 
-    suspend fun getRandomBibleVerse(): BibleVerseResponse {
+    suspend fun getRandomBibleVerse(version: String = "NVT"): BibleVerseResponse {
         return try {
-            val response = bibleApi.getRandomVerse()
-            val firstVerse = response.verses?.firstOrNull()
-            val bookName = firstVerse?.bookName ?: response.reference?.split(" ")?.firstOrNull() ?: "Bíblia"
-            val chapter = firstVerse?.chapter ?: 1
-            val verseNum = firstVerse?.verse ?: 1
-            val cleanText = (response.text ?: firstVerse?.text ?: "").trim()
-            
+            val response = bibleApi.getRandomVerse(version)
+            val verseData = response.data
+            val cleanText = (verseData.text ?: "").trim()
+            val bookName = verseData.book?.name ?: verseData.reference?.split(" ")?.firstOrNull() ?: "Bíblia"
+            val chapter = verseData.chapter ?: 1
+            val verseNum = verseData.verse ?: 1
+            val bookAbbrev = verseData.book?.abbrev ?: "sl"
+
             if (cleanText.isNotBlank()) {
                 BibleVerseResponse(
-                    book = ABibliaBook(name = bookName, version = response.translationName ?: "Almeida"),
+                    book = ABibliaBook(name = bookName, version = verseData.version ?: version),
                     chapter = chapter,
                     verse = verseNum,
-                    text = cleanText
+                    text = cleanText,
+                    bookAbbrev = bookAbbrev,
+                    versionCode = verseData.version ?: version
                 )
             } else {
                 offlineVerses.random()
@@ -311,4 +324,110 @@ class TesseraRepository(private val dao: TesseraDao) {
             offlineVerses.random()
         }
     }
+
+    suspend fun getBibleVersions(): List<BibliaVersionItem> {
+        return try {
+            val response = bibleApi.getVersions()
+            if (response.data.isNotEmpty()) response.data else defaultVersionsList
+        } catch (e: Exception) {
+            defaultVersionsList
+        }
+    }
+
+    suspend fun getBibleBooks(): List<BibliaBookItem> {
+        return try {
+            val response = bibleApi.getBooks()
+            if (response.data.isNotEmpty()) response.data else defaultBooksList
+        } catch (e: Exception) {
+            defaultBooksList
+        }
+    }
+
+    suspend fun getBibleChapter(version: String, bookAbbrev: String, chapter: Int): Result<BibliaChapterData> {
+        return try {
+            val response = bibleApi.getChapter(version, bookAbbrev, chapter)
+            Result.success(response.data)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    private val defaultVersionsList = listOf(
+        BibliaVersionItem("NVT", "Nova Versão Transformadora - 2016", "Mundo Cristão", "pt-BR"),
+        BibliaVersionItem("NVI", "Nova Versão Internacional - 2000", "Biblica", "pt-BR"),
+        BibliaVersionItem("ACF", "Almeida Corrigida e Fiel - 1994", "SBTB", "pt-BR"),
+        BibliaVersionItem("ARA", "Almeida Revista e Atualizada - 1993", "SBB", "pt-BR"),
+        BibliaVersionItem("ARC", "Almeida Revista e Corrigida - 1995", "SBB", "pt-BR"),
+        BibliaVersionItem("NAA", "Nova Almeida Atualizada - 2017", "SBB", "pt-BR"),
+        BibliaVersionItem("NTLH", "Nova Tradução na Linguagem de Hoje - 1988", "SBB", "pt-BR")
+    )
+
+    private val defaultBooksList = listOf(
+        BibliaBookItem(1, "Gênesis", "gn", "VT"),
+        BibliaBookItem(2, "Êxodo", "ex", "VT"),
+        BibliaBookItem(3, "Levítico", "lv", "VT"),
+        BibliaBookItem(4, "Números", "nm", "VT"),
+        BibliaBookItem(5, "Deuteronômio", "dt", "VT"),
+        BibliaBookItem(6, "Josué", "js", "VT"),
+        BibliaBookItem(7, "Juízes", "jz", "VT"),
+        BibliaBookItem(8, "Rute", "rt", "VT"),
+        BibliaBookItem(9, "1 Samuel", "1sm", "VT"),
+        BibliaBookItem(10, "2 Samuel", "2sm", "VT"),
+        BibliaBookItem(11, "1 Reis", "1rs", "VT"),
+        BibliaBookItem(12, "2 Reis", "2rs", "VT"),
+        BibliaBookItem(13, "1 Crônicas", "1cr", "VT"),
+        BibliaBookItem(14, "2 Crônicas", "2cr", "VT"),
+        BibliaBookItem(15, "Esdras", "ed", "VT"),
+        BibliaBookItem(16, "Neemias", "ne", "VT"),
+        BibliaBookItem(17, "Ester", "et", "VT"),
+        BibliaBookItem(18, "Jó", "job", "VT"),
+        BibliaBookItem(19, "Salmos", "sl", "VT"),
+        BibliaBookItem(20, "Provérbios", "pv", "VT"),
+        BibliaBookItem(21, "Eclesiastes", "ec", "VT"),
+        BibliaBookItem(22, "Cânticos", "ct", "VT"),
+        BibliaBookItem(23, "Isaías", "is", "VT"),
+        BibliaBookItem(24, "Jeremias", "jr", "VT"),
+        BibliaBookItem(25, "Lamentações", "lm", "VT"),
+        BibliaBookItem(26, "Ezequiel", "ez", "VT"),
+        BibliaBookItem(27, "Daniel", "dn", "VT"),
+        BibliaBookItem(28, "Oséias", "os", "VT"),
+        BibliaBookItem(29, "Joel", "jl", "VT"),
+        BibliaBookItem(30, "Amós", "am", "VT"),
+        BibliaBookItem(31, "Obadias", "ob", "VT"),
+        BibliaBookItem(32, "Jonas", "jn", "VT"),
+        BibliaBookItem(33, "Miquéias", "mq", "VT"),
+        BibliaBookItem(34, "Naum", "na", "VT"),
+        BibliaBookItem(35, "Habacuque", "hc", "VT"),
+        BibliaBookItem(36, "Sofonias", "sf", "VT"),
+        BibliaBookItem(37, "Ageu", "ag", "VT"),
+        BibliaBookItem(38, "Zacarias", "zc", "VT"),
+        BibliaBookItem(39, "Malaquias", "ml", "VT"),
+        BibliaBookItem(40, "Mateus", "mt", "NT"),
+        BibliaBookItem(41, "Marcos", "mc", "NT"),
+        BibliaBookItem(42, "Lucas", "lc", "NT"),
+        BibliaBookItem(43, "João", "jo", "NT"),
+        BibliaBookItem(44, "Atos dos Apóstolos", "atos", "NT"),
+        BibliaBookItem(45, "Romanos", "rm", "NT"),
+        BibliaBookItem(46, "1 Coríntios", "1co", "NT"),
+        BibliaBookItem(47, "2 Coríntios", "2co", "NT"),
+        BibliaBookItem(48, "Gálatas", "gl", "NT"),
+        BibliaBookItem(49, "Efésios", "ef", "NT"),
+        BibliaBookItem(50, "Filipenses", "fp", "NT"),
+        BibliaBookItem(51, "Colossenses", "cl", "NT"),
+        BibliaBookItem(52, "1 Tessalonicenses", "1ts", "NT"),
+        BibliaBookItem(53, "2 Tessalonicenses", "2ts", "NT"),
+        BibliaBookItem(54, "1 Timóteo", "1tm", "NT"),
+        BibliaBookItem(55, "2 Timóteo", "2tm", "NT"),
+        BibliaBookItem(56, "Tito", "tt", "NT"),
+        BibliaBookItem(57, "Filemom", "fm", "NT"),
+        BibliaBookItem(58, "Hebreus", "hb", "NT"),
+        BibliaBookItem(59, "Tiago", "tg", "NT"),
+        BibliaBookItem(60, "1 Pedro", "1pe", "NT"),
+        BibliaBookItem(61, "2 Pedro", "2pe", "NT"),
+        BibliaBookItem(62, "1 João", "1jo", "NT"),
+        BibliaBookItem(63, "2 João", "2jo", "NT"),
+        BibliaBookItem(64, "3 João", "3jo", "NT"),
+        BibliaBookItem(65, "Judas", "jd", "NT"),
+        BibliaBookItem(66, "Apocalipse", "ap", "NT")
+    )
 }
