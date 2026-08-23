@@ -105,6 +105,23 @@ fun MusicContextDashboardModal(
             return@ModalBottomSheet
         }
 
+        var livePositionMs by remember(media.currentPositionMs, media.isPlaying, media.lastPositionUpdateTime) {
+            mutableLongStateOf(media.getCalculatedPositionMs())
+        }
+        var isUserSeeking by remember { mutableStateOf(false) }
+        var seekProgress by remember { mutableFloatStateOf(0f) }
+
+        LaunchedEffect(media.isPlaying, media.currentPositionMs, media.lastPositionUpdateTime, isUserSeeking, media.durationMs) {
+            if (media.isPlaying && !isUserSeeking) {
+                while (true) {
+                    livePositionMs = media.getCalculatedPositionMs()
+                    kotlinx.coroutines.delay(200L)
+                }
+            } else if (!isUserSeeking) {
+                livePositionMs = media.currentPositionMs
+            }
+        }
+
         LazyColumn(
             state = listState,
             modifier = Modifier
@@ -228,17 +245,31 @@ fun MusicContextDashboardModal(
                         }
                     }
 
-                    // Scrubber / Linha do tempo
-                    val progress = if (media.durationMs > 0) {
-                        (media.currentPositionMs.toFloat() / media.durationMs.toFloat()).coerceIn(0f, 1f)
+                    // Scrubber / Linha do tempo contínua
+                    val displayProgress = if (isUserSeeking) {
+                        seekProgress
+                    } else if (media.durationMs > 0) {
+                        (livePositionMs.toFloat() / media.durationMs.toFloat()).coerceIn(0f, 1f)
                     } else 0f
+
+                    val displayPosition = if (isUserSeeking && media.durationMs > 0) {
+                        (seekProgress * media.durationMs).toLong()
+                    } else {
+                        livePositionMs
+                    }
 
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Slider(
-                            value = progress,
+                            value = displayProgress,
                             onValueChange = { newProgress ->
-                                val targetPos = (newProgress * media.durationMs).toLong()
+                                isUserSeeking = true
+                                seekProgress = newProgress
+                            },
+                            onValueChangeFinished = {
+                                val targetPos = (seekProgress * media.durationMs).toLong()
                                 viewModel.seekMediaTo(targetPos)
+                                isUserSeeking = false
+                                livePositionMs = targetPos
                             },
                             colors = SliderDefaults.colors(
                                 thumbColor = PrimaryTeal,
@@ -253,7 +284,7 @@ fun MusicContextDashboardModal(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(formatDuration(media.currentPositionMs), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(formatDuration(displayPosition), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(formatDuration(media.durationMs), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
@@ -350,8 +381,11 @@ fun MusicContextDashboardModal(
                         item {
                             LyricsAndFactsSection(
                                 dossier = currentDossier,
-                                currentPositionMs = media.currentPositionMs,
-                                onSeek = { pos -> viewModel.seekMediaTo(pos) },
+                                currentPositionMs = livePositionMs,
+                                onSeek = { pos ->
+                                    viewModel.seekMediaTo(pos)
+                                    livePositionMs = pos
+                                },
                                 onRetry = { viewModel.fetchMusicDossier(forceRefresh = true) }
                             )
                         }
@@ -541,13 +575,29 @@ private fun LyricsAndFactsSection(
     } else {
         // Encontra a linha ativa se a letra for sincronizada
         val isSynced = lyricsInfo?.isSynced == true
-        var activeLineIndex = -1
-        if (isSynced) {
-            for (i in lines.indices) {
-                val t = lines[i].timestampMs
-                if (t != null && t <= currentPositionMs) {
-                    activeLineIndex = i
+        var activeLineIndex by remember { mutableIntStateOf(-1) }
+
+        LaunchedEffect(currentPositionMs, lines, isSynced) {
+            if (isSynced) {
+                var foundIndex = -1
+                for (i in lines.indices) {
+                    val t = lines[i].timestampMs
+                    if (t != null && t <= currentPositionMs) {
+                        foundIndex = i
+                    }
                 }
+                if (foundIndex != activeLineIndex) {
+                    activeLineIndex = foundIndex
+                }
+            }
+        }
+
+        val lyricsScrollState = rememberLazyListState()
+
+        LaunchedEffect(activeLineIndex) {
+            if (isSynced && activeLineIndex >= 0) {
+                val targetScroll = (activeLineIndex - 2).coerceAtLeast(0)
+                lyricsScrollState.animateScrollToItem(targetScroll)
             }
         }
 
@@ -560,81 +610,110 @@ private fun LyricsAndFactsSection(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            lines.forEachIndexed { index, line ->
-                val isActive = isSynced && index == activeLineIndex
-                var isExpanded by remember { mutableStateOf(false) }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (isActive) PrimaryTeal.copy(alpha = 0.12f) else Color.Transparent)
-                        .clickable {
-                            if (line.timestampMs != null) {
-                                onSeek(line.timestampMs)
-                            }
-                            if (line.hasAnnotation) {
-                                isExpanded = !isExpanded
-                            }
-                        }
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 200.dp, max = 420.dp)
+            ) {
+                LazyColumn(
+                    state = lyricsScrollState,
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = line.text,
-                            fontSize = if (isActive) 14.sp else 13.sp,
-                            fontWeight = if (isActive || line.hasAnnotation) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (isActive) PrimaryTeal else if (line.hasAnnotation) PrimaryTeal else MaterialTheme.colorScheme.onBackground.copy(alpha = if (isSynced && !isActive) 0.6f else 0.9f),
-                            lineHeight = 22.sp,
-                            modifier = Modifier.weight(1f)
-                        )
+                    items(lines.size) { index ->
+                        val line = lines[index]
+                        val isActive = isSynced && index == activeLineIndex
+                        var isExpanded by remember { mutableStateOf(false) }
 
-                        if (line.hasAnnotation) {
-                            Box(
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clip(CircleShape)
-                                    .background(PrimaryTeal.copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Outlined.Lightbulb, contentDescription = "Fato", tint = PrimaryTeal, modifier = Modifier.size(10.dp))
-                            }
-                        }
-                    }
-
-                    if (isExpanded && line.annotationText != null) {
-                        Box(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(top = 4.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(themedSubtleBackground())
-                                .border(BorderStroke(0.5.dp, PrimaryTeal.copy(alpha = 0.4f)), RoundedCornerShape(8.dp))
-                                .padding(8.dp)
-                        ) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Icon(Icons.Outlined.Info, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(12.dp))
-                                Text(
-                                    text = line.annotationText,
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f),
-                                    lineHeight = 16.sp
+                                .background(if (isActive) PrimaryTeal.copy(alpha = 0.14f) else Color.Transparent)
+                                .border(
+                                    width = if (isActive) 1.dp else 0.dp,
+                                    color = if (isActive) PrimaryTeal.copy(alpha = 0.35f) else Color.Transparent,
+                                    shape = RoundedCornerShape(8.dp)
                                 )
+                                .clickable {
+                                    if (line.timestampMs != null) {
+                                        onSeek(line.timestampMs)
+                                    }
+                                    if (line.hasAnnotation) {
+                                        isExpanded = !isExpanded
+                                    }
+                                }
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = line.text,
+                                    fontSize = if (isActive) 15.sp else 13.sp,
+                                    fontWeight = if (isActive) FontWeight.Bold else if (line.hasAnnotation) FontWeight.SemiBold else FontWeight.Normal,
+                                    color = if (isActive) PrimaryTeal else if (line.hasAnnotation) PrimaryTeal else MaterialTheme.colorScheme.onBackground.copy(alpha = if (isSynced && !isActive) 0.5f else 0.9f),
+                                    lineHeight = 22.sp,
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                if (line.hasAnnotation) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .clip(CircleShape)
+                                            .background(PrimaryTeal.copy(alpha = 0.15f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Outlined.Lightbulb, contentDescription = "Fato", tint = PrimaryTeal, modifier = Modifier.size(10.dp))
+                                    }
+                                }
+                            }
+
+                            if (isExpanded && line.annotationText != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 4.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(themedSubtleBackground())
+                                        .border(BorderStroke(0.5.dp, PrimaryTeal.copy(alpha = 0.4f)), RoundedCornerShape(8.dp))
+                                        .padding(8.dp)
+                                ) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Icon(Icons.Outlined.Info, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(12.dp))
+                                        Text(
+                                            text = line.annotationText,
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f),
+                                            lineHeight = 16.sp
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                if (isSynced) {
+                    Text(
+                        text = "● Sincronizado ao vivo",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = PrimaryTeal
+                    )
+                } else {
+                    Spacer(modifier = Modifier.width(1.dp))
+                }
                 Text(
                     text = "Fonte: Lrclib / Catálogo Editorial",
                     fontSize = 10.sp,

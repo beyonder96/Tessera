@@ -131,6 +131,12 @@ class TesseraMediaNotificationListener : NotificationListenerService() {
         val duration = metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L
         val position = playbackState?.position ?: 0L
         val isPlaying = playbackState?.state == PlaybackState.STATE_PLAYING
+        val lastUpdateTime = if (playbackState != null && playbackState.lastPositionUpdateTime > 0L) {
+            playbackState.lastPositionUpdateTime
+        } else {
+            android.os.SystemClock.elapsedRealtime()
+        }
+        val playbackSpeed = playbackState?.playbackSpeed ?: 1.0f
 
         val bitmap = metadata?.getBitmap(MediaMetadata.METADATA_KEY_ART)
             ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
@@ -153,7 +159,9 @@ class TesseraMediaNotificationListener : NotificationListenerService() {
             isPlaying = isPlaying,
             artworkBitmap = bitmap,
             artworkUri = artUri,
-            lastUpdatedTimestamp = System.currentTimeMillis()
+            lastUpdatedTimestamp = System.currentTimeMillis(),
+            lastPositionUpdateTime = lastUpdateTime,
+            playbackSpeed = playbackSpeed
         )
 
         MediaHubManager.updateMediaState(state)

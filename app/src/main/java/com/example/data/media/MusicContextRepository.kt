@@ -307,7 +307,7 @@ object MusicContextRepository {
 
     private fun parseSyncedLyrics(synced: String): List<LyricLine> {
         val list = mutableListOf<LyricLine>()
-        val lrcRegex = Regex("""^\[(\d{2}):(\d{2})\.?(\d{2,3})?\](.*)$""")
+        val lrcRegex = Regex("""^\[(\d{1,2}):(\d{2})[.:]?(\d{1,3})?\]\s*(.*)$""")
 
         synced.lines().forEach { rawLine ->
             val trimmed = rawLine.trim()
@@ -316,7 +316,12 @@ object MusicContextRepository {
                 val min = match.groupValues[1].toLongOrNull() ?: 0L
                 val sec = match.groupValues[2].toLongOrNull() ?: 0L
                 val msStr = match.groupValues[3]
-                val ms = if (msStr.length == 2) (msStr.toLongOrNull() ?: 0L) * 10 else (msStr.toLongOrNull() ?: 0L)
+                val ms = when (msStr.length) {
+                    1 -> (msStr.toLongOrNull() ?: 0L) * 100
+                    2 -> (msStr.toLongOrNull() ?: 0L) * 10
+                    3 -> msStr.toLongOrNull() ?: 0L
+                    else -> 0L
+                }
                 val totalMs = (min * 60 * 1000L) + (sec * 1000L) + ms
                 val text = match.groupValues[4].trim()
 

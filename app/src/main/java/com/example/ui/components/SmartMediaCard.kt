@@ -105,9 +105,25 @@ fun SmartMediaCard(
         exit = fadeOut(tween(150)) + shrinkVertically(tween(150))
     ) {
         val media = activeMedia ?: return@AnimatedVisibility
+
+        var livePositionMs by remember(media.currentPositionMs, media.isPlaying, media.lastPositionUpdateTime) {
+            mutableLongStateOf(media.getCalculatedPositionMs())
+        }
+
+        LaunchedEffect(media.isPlaying, media.currentPositionMs, media.lastPositionUpdateTime, media.durationMs) {
+            if (media.isPlaying) {
+                while (true) {
+                    livePositionMs = media.getCalculatedPositionMs()
+                    kotlinx.coroutines.delay(250L)
+                }
+            } else {
+                livePositionMs = media.currentPositionMs
+            }
+        }
+
         val isPlaying = media.isPlaying
         val progress = if (media.durationMs > 0) {
-            (media.currentPositionMs.toFloat() / media.durationMs.toFloat()).coerceIn(0f, 1f)
+            (livePositionMs.toFloat() / media.durationMs.toFloat()).coerceIn(0f, 1f)
         } else 0f
 
         Box(

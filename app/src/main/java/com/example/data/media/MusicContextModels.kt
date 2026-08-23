@@ -9,16 +9,26 @@ import android.net.Uri
 data class ActiveMediaState(
     val title: String,
     val artist: String,
-    val album: String,
-    val packageName: String,
-    val appDisplayName: String,
-    val durationMs: Long,
-    val currentPositionMs: Long,
-    val isPlaying: Boolean,
+    val album: String = "",
+    val packageName: String = "",
+    val appDisplayName: String = "",
+    val durationMs: Long = 0L,
+    val currentPositionMs: Long = 0L,
+    val isPlaying: Boolean = false,
     val artworkBitmap: Bitmap? = null,
     val artworkUri: Uri? = null,
-    val lastUpdatedTimestamp: Long = System.currentTimeMillis()
-)
+    val lastUpdatedTimestamp: Long = System.currentTimeMillis(),
+    val lastPositionUpdateTime: Long = android.os.SystemClock.elapsedRealtime(),
+    val playbackSpeed: Float = 1.0f
+) {
+    fun getCalculatedPositionMs(): Long {
+        if (!isPlaying) return currentPositionMs
+        val elapsed = android.os.SystemClock.elapsedRealtime() - lastPositionUpdateTime
+        if (elapsed <= 0) return currentPositionMs
+        val calculated = currentPositionMs + (elapsed * playbackSpeed).toLong()
+        return if (durationMs > 0) calculated.coerceIn(0L, durationMs) else calculated.coerceAtLeast(0L)
+    }
+}
 
 /**
  * Verso de uma letra com anotação contextual opcional (ex: fatos de bastidores do Genius).
