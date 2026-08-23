@@ -4,6 +4,10 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.41
+
+- **Correção e Aprimoramento na Importação de Extratos em PDF:** Identificação de débitos e créditos com precisão matemática em extratos bancários brasileiros (Itaú, Nubank, Santander, etc.), suporte a detecção de sinais, exclusão estrita de linhas de `SALDO DO DIA`, fechamentos diários e avisos legais, além de extração correta de colunas duplas (valor da transação vs saldo) e novo botão interativo de alternância com 1 toque (`Entrada ⇄` / `Saída ⇄`) no modal de importação.
+
 ## 🚀 Novidades da Versão 2.0.40
 
 - **Parcelamento de Fatura no Cartão de Crédito:** Nova funcionalidade de parcelar faturas de cartão de crédito com suporte a entrada opcional (debitada de conta bancária selecionada), definição flexível do valor por parcela ou taxa de juros (% a.m.), quitação da fatura atual e agendamento automático das parcelas futuras.
@@ -177,8 +181,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.40.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.40.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.41.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.41.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.
