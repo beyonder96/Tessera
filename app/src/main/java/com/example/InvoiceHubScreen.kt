@@ -41,6 +41,7 @@ fun InvoiceHubScreen(
     onBack: () -> Unit
 ) {
     val creditCards by viewModel.allCreditCards.collectAsStateWithLifecycle()
+    val allBankAccounts by viewModel.allBankAccounts.collectAsStateWithLifecycle()
     val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
     val card = creditCards.find { it.name == cardName }
 
@@ -102,6 +103,7 @@ fun InvoiceHubScreen(
     }
     
     var showPayInvoiceDialog by remember { mutableStateOf(false) }
+    var showInstallmentBottomSheet by remember { mutableStateOf(false) }
 
     if (showPayInvoiceDialog) {
         AlertDialog(
@@ -122,6 +124,27 @@ fun InvoiceHubScreen(
                     Text("Cancelar", color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.7f))
                 }
             }
+        )
+    }
+
+    if (showInstallmentBottomSheet) {
+        InstallmentInvoiceBottomSheet(
+            card = card,
+            bankAccounts = allBankAccounts,
+            currencyFormat = currencyFormat,
+            onConfirm = { downPayment, debitAccountName, installmentsCount, installmentAmount, totalWithInterest, firstDueDate ->
+                viewModel.installmentInvoice(
+                    card = card,
+                    downPayment = downPayment,
+                    debitAccountName = debitAccountName,
+                    installmentsCount = installmentsCount,
+                    installmentAmount = installmentAmount,
+                    totalWithInterest = totalWithInterest,
+                    firstDueDate = firstDueDate
+                )
+                showInstallmentBottomSheet = false
+            },
+            onDismiss = { showInstallmentBottomSheet = false }
         )
     }
 
@@ -162,17 +185,50 @@ fun InvoiceHubScreen(
                 }
 
                 item {
-                    Button(
-                        onClick = { showPayInvoiceDialog = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal, contentColor = Color.Black),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth().height(56.dp).bounceClick {
-                            showPayInvoiceDialog = true
-                        }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Icon(Icons.Outlined.CheckCircle, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Pagar Fatura", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Button(
+                            onClick = { showPayInvoiceDialog = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal, contentColor = Color.Black),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(54.dp)
+                                .bounceClick {
+                                    showPayInvoiceDialog = true
+                                }
+                        ) {
+                            Icon(Icons.Outlined.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Pagar Fatura", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = { showInstallmentBottomSheet = true },
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = themedCardBackground(),
+                                contentColor = PrimaryTeal
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, PrimaryTeal.copy(alpha = 0.5f)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(54.dp)
+                                .bounceClick {
+                                    showInstallmentBottomSheet = true
+                                }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Payment,
+                                contentDescription = null,
+                                tint = PrimaryTeal,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Parcelar", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = PrimaryTeal)
+                        }
                     }
                 }
 

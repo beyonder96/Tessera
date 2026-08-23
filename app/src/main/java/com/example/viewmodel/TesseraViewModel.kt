@@ -1493,6 +1493,75 @@ class TesseraViewModel(
     fun payInvoice(cardId: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.payInvoice(cardId)
+            supabaseFinanceSync.triggerSync()
+        }
+    }
+
+    fun installmentInvoice(
+        card: CreditCard,
+        downPayment: Double,
+        debitAccountName: String?,
+        installmentsCount: Int,
+        installmentAmount: Double,
+        totalWithInterest: Double,
+        firstDueDate: Long = 0L
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val baseTime = if (firstDueDate > 0L) firstDueDate else {
+                val cal = Calendar.getInstance()
+                cal.add(Calendar.MONTH, 1)
+                cal.timeInMillis
+            }
+
+            // 1. Processa a entrada à vista, se houver
+            if (downPayment > 0.0) {
+                val downPaymentTx = Transaction(
+                    title = "Entrada Parcelamento • ${card.name}",
+                    subtitle = "Entrada à vista da fatura",
+                    value = downPayment,
+                    isIncome = false,
+                    timestamp = System.currentTimeMillis(),
+                    category = "Cartão de Crédito",
+                    accountOrCardName = debitAccountName ?: "",
+                    isRealized = true,
+                    isRecurrent = false,
+                    dueDate = System.currentTimeMillis()
+                )
+                repository.insertTransaction(downPaymentTx)
+
+                if (!debitAccountName.isNullOrEmpty()) {
+                    adjustBalances(debitAccountName, downPayment, isIncome = false, isRealized = true)
+                }
+            }
+
+            // 2. Quita/Zera a fatura atual do cartão
+            repository.payInvoice(card.id)
+
+            // 3. Gera as parcelas futuras
+            val interestTotal = (installmentAmount * installmentsCount) - (card.usedLimit - downPayment)
+            for (i in 1..installmentsCount) {
+                val cal = Calendar.getInstance()
+                cal.timeInMillis = baseTime
+                cal.add(Calendar.MONTH, i - 1)
+                val installmentDueDate = cal.timeInMillis
+
+                val installmentTx = Transaction(
+                    title = "Parcelamento Fatura • ${card.name} ($i/$installmentsCount)",
+                    subtitle = "Parcela $i de $installmentsCount" + if (interestTotal > 0.01) " • Juros totais: R$ ${String.format(java.util.Locale("pt", "BR"), "%.2f", interestTotal)}" else "",
+                    value = installmentAmount,
+                    isIncome = false,
+                    timestamp = installmentDueDate,
+                    category = "Cartão de Crédito",
+                    accountOrCardName = card.name,
+                    isRealized = false,
+                    isRecurrent = false,
+                    dueDate = installmentDueDate
+                )
+                repository.insertTransaction(installmentTx)
+            }
+
+            // 4. Sincroniza em tempo real
+            supabaseFinanceSync.triggerSync()
         }
     }
 
