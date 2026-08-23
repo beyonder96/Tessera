@@ -268,69 +268,82 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
       )}
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-        <div>
-          <div className="live-badge" style={{ marginBottom: 8 }}>
+      <div style={{ marginBottom: 20 }}>
+        {/* Top bar com Badge e Botões de Controle */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <div className="live-badge">
             <div className="live-dot" />
             Ao Vivo
           </div>
-          <h1 className="header-title">{doc.title || 'Resumo Financeiro'}</h1>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button 
+              className="btn btn-outline" 
+              onClick={() => setIsPrivacyMode(!isPrivacyMode)}
+              style={{ padding: '8px 10px', height: 36 }}
+              title="Alternar privacidade"
+            >
+              {isPrivacyMode ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+            <button 
+              className="btn btn-outline" 
+              onClick={handleShare} 
+              style={{ padding: '8px 12px', height: 36 }}
+            >
+              <Share2 size={14} />
+              {copied ? 'Copiado!' : 'Compartilhar'}
+            </button>
+          </div>
+        </div>
+
+        {/* Título e Subtítulo sem quebras forçadas */}
+        <div>
+          <h1 className="header-title" style={{ fontSize: 24, fontWeight: 700, letterSpacing: -0.5, color: 'var(--text-primary)', marginBottom: 4 }}>
+            {doc.title || 'Resumo Financeiro'}
+          </h1>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
             {doc.month_label} • Atualizado em tempo real
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button 
-            className="btn btn-primary"
-            onClick={() => setIsModalOpen(true)}
-            style={{ padding: '8px 14px' }}
-          >
-            <Plus size={16} /> Sugerir Lançamento
-          </button>
-          <button 
-            className="btn btn-outline" 
-            onClick={() => setIsPrivacyMode(!isPrivacyMode)}
-            style={{ padding: '8px 10px' }}
-            title="Alternar privacidade"
-          >
-            {isPrivacyMode ? <EyeOff size={16} /> : <Eye size={16} />}
-          </button>
-          <button className="btn btn-outline" onClick={handleShare} style={{ padding: '8px 12px' }}>
-            <Share2 size={14} />
-            {copied ? 'Copiado!' : 'Compartilhar'}
-          </button>
-        </div>
+        {/* Botão de Sugerir Lançamento */}
+        <button 
+          className="btn btn-primary"
+          onClick={() => setIsModalOpen(true)}
+          style={{ width: '100%', marginTop: 14, height: 42 }}
+        >
+          <Plus size={16} /> Sugerir Lançamento
+        </button>
       </div>
 
-      {/* 1. HERO CARD: QUANTO PODEMOS GASTAR (Primeiro elemento visual) */}
-      <div className="card" style={{ marginBottom: 16, padding: '28px 24px', background: 'linear-gradient(180deg, var(--bg-card) 0%, rgba(19, 22, 32, 0.95) 100%)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+      {/* 1. HERO CARD: DISPONÍVEL PARA GASTAR (Harmônico em Dark/Light Mode) */}
+      <div className="card" style={{ marginBottom: 16, padding: '24px 20px', background: 'var(--bg-card)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Wallet size={16} color="var(--accent)" />
-            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, color: 'var(--accent)', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.2, color: 'var(--accent)', textTransform: 'uppercase' }}>
               Disponível para Gastar
             </span>
           </div>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Livre no mês</span>
+          <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)' }}>Livre no mês</span>
         </div>
 
         <div style={{ 
-          fontSize: 38, 
-          fontFamily: 'var(--font-serif)', 
+          fontSize: 36, 
           fontWeight: 700, 
-          letterSpacing: -0.5, 
+          letterSpacing: -0.8, 
           color: isSpendableNegative && !isPrivacyMode ? 'var(--danger)' : 'var(--text-primary)',
-          marginBottom: 16 
+          marginBottom: 16,
+          fontVariantNumeric: 'tabular-nums'
         }}>
           {formatCurrency(spendableValue)}
         </div>
 
         {/* Budget Commitment Progress */}
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
-            <span style={{ color: 'var(--text-secondary)' }}>Orçamento Comprometido</span>
-            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, marginBottom: 6 }}>
+            <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Orçamento Comprometido</span>
+            <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
               {isPrivacyMode ? '•••' : `${Math.round(committedPercent)}%`}
             </span>
           </div>
@@ -349,23 +362,23 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
       </div>
 
       {/* Income & Expense Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
-        <div className="card" style={{ padding: 18 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+        <div className="card" style={{ padding: '16px 18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
             <TrendingUp size={14} color="var(--success)" />
             <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)' }}>Receitas do Mês</span>
           </div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--success)' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--success)', fontVariantNumeric: 'tabular-nums' }}>
             {formatCurrency(salaryValue)}
           </div>
         </div>
 
-        <div className="card" style={{ padding: 18 }}>
+        <div className="card" style={{ padding: '16px 18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
             <TrendingDown size={14} color="var(--danger)" />
             <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)' }}>Despesas Comprometidas</span>
           </div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--danger)' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--danger)', fontVariantNumeric: 'tabular-nums' }}>
             {formatCurrency(committedValue)}
           </div>
         </div>
@@ -373,10 +386,10 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
 
       {/* Pending Suggestions Waiting for Approval */}
       {pendingSuggestions.length > 0 && (
-        <div className="card" style={{ marginBottom: 24, border: '1px solid var(--border-active)', background: 'var(--bg-surface)' }}>
+        <div className="card" style={{ marginBottom: 20, border: '1px solid var(--border-active)', background: 'var(--bg-surface)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             <Clock size={16} color="var(--accent)" />
-            <h2 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--accent)' }}>
+            <h2 style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.2, color: 'var(--accent)' }}>
               Sugestões Enviadas ({pendingSuggestions.length} aguardando aprovação no app)
             </h2>
           </div>
@@ -400,7 +413,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{sug.title}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{sug.category} • {sug.date} • Aguardando aprovação</div>
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: isIncome ? 'var(--success)' : 'var(--text-primary)' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: isIncome ? 'var(--success)' : 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
                     {isIncome ? '+' : '-'} {formatCurrency(sug.amount)}
                   </div>
                 </div>
@@ -412,31 +425,34 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
 
       {/* Category Breakdown */}
       {doc.categories && doc.categories.length > 0 && (
-        <div className="card" style={{ marginBottom: 24 }}>
-          <h2 style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-muted)', marginBottom: 16 }}>
+        <div className="card" style={{ marginBottom: 20 }}>
+          <h2 style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.2, color: 'var(--text-muted)', marginBottom: 16 }}>
             Gastos por Categoria
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {doc.categories.map((cat, idx) => (
-              <div key={idx}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cat.name}</span>
-                  <span style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>
-                    {formatCurrency(cat.amount)} ({cat.percentage}%)
-                  </span>
+            {doc.categories.map((cat, idx) => {
+              const roundedPct = Math.round(cat.percentage || 0)
+              return (
+                <div key={idx}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, marginBottom: 6 }}>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cat.name}</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+                      {formatCurrency(cat.amount)} <span style={{ color: 'var(--text-muted)', fontSize: 12, fontWeight: 500 }}>({roundedPct}%)</span>
+                    </span>
+                  </div>
+                  <div style={{ width: '100%', height: 6, background: 'var(--bg-surface-hover)', borderRadius: 999, overflow: 'hidden' }}>
+                    <div 
+                      style={{ 
+                        width: `${Math.min(cat.percentage, 100)}%`, 
+                        height: '100%', 
+                        background: 'var(--accent)', 
+                        borderRadius: 999 
+                      }} 
+                    />
+                  </div>
                 </div>
-                <div style={{ width: '100%', height: 6, background: 'var(--bg-surface-hover)', borderRadius: 999, overflow: 'hidden' }}>
-                  <div 
-                    style={{ 
-                      width: `${cat.percentage}%`, 
-                      height: '100%', 
-                      background: 'var(--accent)', 
-                      borderRadius: 999 
-                    }} 
-                  />
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}

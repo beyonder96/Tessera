@@ -149,7 +149,7 @@ body {
 
 /* Header */
 .header-title {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: 24px;
   font-weight: 700;
   color: var(--text-primary);
