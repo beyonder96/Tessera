@@ -1246,6 +1246,7 @@ class TesseraViewModel(
                 )
                 repository.insertTransaction(nextTx)
             }
+            supabaseFinanceSync.triggerSync()
         }
     }
 
@@ -1336,6 +1337,7 @@ class TesseraViewModel(
                     }
                 }
             }
+            supabaseFinanceSync.triggerSync()
         }
     }
 
@@ -1348,6 +1350,7 @@ class TesseraViewModel(
             if (newTransaction.accountOrCardName.isNotEmpty()) {
                 adjustBalances(newTransaction.accountOrCardName, newTransaction.value, newTransaction.isIncome, newTransaction.isRealized)
             }
+            supabaseFinanceSync.triggerSync()
         }
     }
 
@@ -1361,6 +1364,7 @@ class TesseraViewModel(
                 }
             }
             repository.deleteTransaction(transaction)
+            supabaseFinanceSync.triggerSync()
         }
     }
 
@@ -1388,6 +1392,7 @@ class TesseraViewModel(
                 timestamp = nextDueDate // Set timestamp to the due date so it sorts or shows up in the future
             )
             repository.insertTransaction(nextTx)
+            supabaseFinanceSync.triggerSync()
         }
     }
 

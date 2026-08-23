@@ -63,9 +63,11 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    async function loadDashboard() {
-      setLoading(true)
-      setError(null)
+    async function loadDashboard(isInitial = false) {
+      if (isInitial) {
+        setLoading(true)
+        setError(null)
+      }
       try {
         const { data, error: sbError } = await supabase
           .from('shared_finance_dashboards')
@@ -84,7 +86,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
       } catch (err: unknown) {
         console.error('Error fetching finance dashboard:', err)
         const cached = localStorage.getItem(`tessera_finance_${dashboardId}`)
-        if (cached) {
+        if (cached && isInitial) {
           try {
             setDoc(JSON.parse(cached) as FinanceDashboardDoc)
             setError(null)
@@ -94,14 +96,36 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
             // ignore
           }
         }
-        const message = err instanceof Error ? err.message : 'Resumo financeiro não encontrado ou link expirado.'
-        setError(message)
+        if (isInitial) {
+          const message = err instanceof Error ? err.message : 'Resumo financeiro não encontrado ou link expirado.'
+          setError(message)
+        }
       } finally {
-        setLoading(false)
+        if (isInitial) {
+          setLoading(false)
+        }
       }
     }
 
-    loadDashboard()
+    loadDashboard(true)
+
+    // Listener para quando o usuário volta para a aba do navegador
+    const handleFocus = () => loadDashboard(false)
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        loadDashboard(false)
+      }
+    }
+
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    // Polling a cada 4 segundos como garantia extra
+    const pollInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadDashboard(false)
+      }
+    }, 4000)
 
     // Realtime Subscription
     const channel = supabase
@@ -125,6 +149,9 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
       .subscribe()
 
     return () => {
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibility)
+      clearInterval(pollInterval)
       supabase.removeChannel(channel)
     }
   }, [dashboardId])

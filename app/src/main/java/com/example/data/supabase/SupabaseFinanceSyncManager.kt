@@ -2,6 +2,9 @@ package com.example.data.supabase
 
 import android.content.Context
 import android.util.Log
+import com.example.data.BankAccount
+import com.example.data.BenefitCard
+import com.example.data.CreditCard
 import com.example.data.TesseraRepository
 import com.example.data.Transaction
 import kotlinx.coroutines.CoroutineScope
@@ -10,6 +13,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -104,12 +109,17 @@ class SupabaseFinanceSyncManager(
             generateNewShareId()
         }
 
-        // 1. Observe local transactions and push to Supabase
+        // 1. Observe local transactions, accounts and cards and push to Supabase in real-time
         if (localSyncJob?.isActive != true) {
             localSyncJob = scope.launch {
-                repository.allTransactions.collect { transactions ->
-                    uploadDashboardToSupabase(transactions)
-                }
+                combine(
+                    repository.allTransactions,
+                    repository.allBankAccounts,
+                    repository.allCreditCards,
+                    repository.allBenefitCards
+                ) { transactions, accounts, cards, benefits ->
+                    uploadDashboardToSupabase(transactions, accounts, cards, benefits)
+                }.collect()
             }
         }
 
@@ -137,7 +147,10 @@ class SupabaseFinanceSyncManager(
         scope.launch {
             pullSuggestionsFromSupabase()
             val transactions = repository.allTransactions.first()
-            uploadDashboardToSupabase(transactions)
+            val accounts = repository.allBankAccounts.first()
+            val cards = repository.allCreditCards.first()
+            val benefits = repository.allBenefitCards.first()
+            uploadDashboardToSupabase(transactions, accounts, cards, benefits)
         }
     }
 
@@ -246,54 +259,99 @@ class SupabaseFinanceSyncManager(
         }
     }
 
-    private suspend fun uploadDashboardToSupabase(transactions: List<Transaction>) {
+    private suspend fun uploadDashboardToSupabase(
+        transactions: List<Transaction>,
+        accounts: List<BankAccount>,
+        cards: List<CreditCard>,
+        benefits: List<BenefitCard>
+    ) {
         val shareId = _activeShareId.value ?: return
+
+        // Intervalo do mês atual
+        val calendar = Calendar.getInstance()
+        val monthName = calendar.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale("pt", "BR")) ?: "Mês Atual"
+        val year = calendar.get(Calendar.YEAR)
+        val monthLabel = "$monthName de $year".replaceFirstChar { it.uppercase() }
+
+        val currentMonthStart = Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+
+        val currentMonthEnd = Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
+            set(Calendar.HOUR_OF_DAY, 23)
+            set(Calendar.MINUTE, 59)
+            set(Calendar.SECOND, 59)
+            set(Calendar.MILLISECOND, 999)
+        }.timeInMillis
+
+        val currentMonthTransactions = transactions.filter { it.timestamp in currentMonthStart..currentMonthEnd }
+
+        var totalBalance = 0.0
+        val categoryMap = mutableMapOf<String, Double>()
+
+        transactions.forEach { tx ->
+            if (tx.isIncome) {
+                totalBalance += tx.value
+            } else {
+                totalBalance -= tx.value
+            }
+        }
+
+        val calculatedIncome = currentMonthTransactions.filter { tx ->
+            tx.isIncome &&
+            tx.category != "Transferência" &&
+            benefits.none { card -> card.name == tx.accountOrCardName }
+        }.sumOf { it.value }
+
+        val calculatedExpense = currentMonthTransactions.filter { tx ->
+            !tx.isIncome &&
+            tx.category != "Transferência" &&
+            benefits.none { card -> card.name == tx.accountOrCardName }
+        }.sumOf { it.value }
+
+        currentMonthTransactions.filter { !it.isIncome && it.category != "Transferência" }.forEach { tx ->
+            categoryMap[tx.category] = (categoryMap[tx.category] ?: 0.0) + tx.value
+        }
+
+        val checkingBalance = accounts.filter { it.type == "Corrente" }.sumOf { it.balance }
+        val fallbackSpendable = if (accounts.isNotEmpty()) checkingBalance else totalBalance
+
+        val finalSpendable = currentSpendableBalance ?: fallbackSpendable
+        val finalSalary = currentSalaryValue ?: calculatedIncome
+        val finalCommitted = currentCommittedValue ?: calculatedExpense
+        val finalCommittedPercent = currentCommittedPercentage ?: if (finalSalary > 0) ((finalCommitted / finalSalary) * 100.0).coerceIn(0.0, 100.0) else 0.0
+
         val currentHash = (transactions.hashCode() * 31) +
-                (currentSpendableBalance?.hashCode() ?: 0) * 17 +
-                (currentSalaryValue?.hashCode() ?: 0) * 13 +
-                (currentCommittedValue?.hashCode() ?: 0) * 7 +
-                (currentCommittedPercentage?.hashCode() ?: 0)
+                (accounts.hashCode() * 19) +
+                (finalSpendable.hashCode() * 17) +
+                (finalSalary.hashCode() * 13) +
+                (finalCommitted.hashCode() * 7) +
+                finalCommittedPercent.hashCode()
+
         if (currentHash == lastUploadedHash) return
 
         _syncStatus.value = SyncStatus.SYNCING
         withContext(Dispatchers.IO) {
             try {
-                val calendar = Calendar.getInstance()
-                val monthName = calendar.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale("pt", "BR")) ?: "Mês Atual"
-                val year = calendar.get(Calendar.YEAR)
-                val monthLabel = "$monthName de $year".replaceFirstChar { it.uppercase() }
-
-                // Cálculos de saldo, receitas e despesas
-                var totalBalance = 0.0
-                var monthlyIncome = 0.0
-                var monthlyExpense = 0.0
-                val categoryMap = mutableMapOf<String, Double>()
-
-                transactions.forEach { tx ->
-                    if (tx.isIncome) {
-                        totalBalance += tx.value
-                        monthlyIncome += tx.value
-                    } else {
-                        totalBalance -= tx.value
-                        monthlyExpense += tx.value
-                        categoryMap[tx.category] = (categoryMap[tx.category] ?: 0.0) + tx.value
-                    }
-                }
-
                 // Categorias JSON
                 val categoriesArray = JSONArray()
                 categoryMap.entries.sortedByDescending { it.value }.take(8).forEach { entry ->
                     val catObj = JSONObject().apply {
                         put("name", entry.key)
                         put("amount", entry.value)
-                        put("percentage", if (monthlyExpense > 0) (entry.value / monthlyExpense) * 100 else 0.0)
+                        put("percentage", if (calculatedExpense > 0) (entry.value / calculatedExpense) * 100 else 0.0)
                     }
                     categoriesArray.put(catObj)
                 }
 
-                // Últimas 20 transações JSON
+                // Últimas 30 transações JSON
                 val txArray = JSONArray()
-                transactions.take(20).forEach { tx ->
+                transactions.take(30).forEach { tx ->
                     val obj = JSONObject().apply {
                         put("id", tx.id)
                         put("title", tx.title)
@@ -304,15 +362,6 @@ class SupabaseFinanceSyncManager(
                     }
                     txArray.put(obj)
                 }
-
-                val accounts = repository.allBankAccounts.first()
-                val checkingBalance = accounts.filter { it.type == "Corrente" }.sumOf { it.balance }
-                val fallbackSpendable = if (accounts.isNotEmpty()) checkingBalance else totalBalance
-
-                val finalSpendable = currentSpendableBalance ?: fallbackSpendable
-                val finalSalary = currentSalaryValue ?: monthlyIncome
-                val finalCommitted = currentCommittedValue ?: monthlyExpense
-                val finalCommittedPercent = currentCommittedPercentage ?: if (finalSalary > 0) (finalCommitted / finalSalary) * 100 else 0.0
 
                 val payload = JSONObject().apply {
                     put("id", shareId)
