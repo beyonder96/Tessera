@@ -1,5 +1,7 @@
 package com.example.ui.components
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -10,9 +12,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -28,6 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -37,9 +42,10 @@ import coil.compose.AsyncImage
 import com.example.data.media.*
 import com.example.ui.theme.PrimaryTeal
 import com.example.viewmodel.TesseraViewModel
+import java.net.URLEncoder
 
 enum class MusicDashboardTab(val title: String) {
-    LYRICS("Letras & Fatos"),
+    LYRICS("Letras"),
     CREDITS("Ficha Técnica"),
     VIDEOS("Audiovisual")
 }
@@ -55,6 +61,9 @@ fun MusicContextDashboardModal(
     val isLoading by viewModel.isLoadingMusicDossier.collectAsState()
 
     var selectedTab by remember { mutableStateOf(MusicDashboardTab.LYRICS) }
+    val listState = rememberLazyListState()
+
+    val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     LaunchedEffect(activeMedia?.title, activeMedia?.artist) {
         if (activeMedia != null) {
@@ -97,14 +106,19 @@ fun MusicContextDashboardModal(
         }
 
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.92f)
-                .padding(horizontal = 20.dp),
+                .navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(bottom = 32.dp)
+            contentPadding = PaddingValues(
+                start = 20.dp,
+                end = 20.dp,
+                top = 4.dp,
+                bottom = navBarBottom + 28.dp
+            )
         ) {
-            // HEADER SUPERIOR
+            // 1. HEADER SUPERIOR
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -150,66 +164,68 @@ fun MusicContextDashboardModal(
                 }
             }
 
-            // HERO PLAYER COMPACTO
+            // 2. HERO PLAYER COMPACTO
             item {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(20.dp))
+                        .clip(RoundedCornerShape(18.dp))
                         .background(themedCardBackground())
-                        .border(1.dp, themedCardBorder(), RoundedCornerShape(20.dp))
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                        .border(1.dp, themedCardBorder(), RoundedCornerShape(18.dp))
+                        .padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Capa Centralizada
-                    Box(
-                        modifier = Modifier
-                            .size(100.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(themedSubtleBackground())
-                            .border(0.5.dp, themedSubtleBorder(), RoundedCornerShape(14.dp)),
-                        contentAlignment = Alignment.Center
+                    // Linha Superior: Capa + Metadados
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        if (media.artworkBitmap != null) {
-                            Image(
-                                bitmap = media.artworkBitmap.asImageBitmap(),
-                                contentDescription = media.title,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else if (media.artworkUri != null) {
-                            AsyncImage(
-                                model = media.artworkUri,
-                                contentDescription = media.title,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Icon(Icons.Outlined.MusicNote, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(36.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(themedSubtleBackground())
+                                .border(0.5.dp, themedSubtleBorder(), RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (media.artworkBitmap != null) {
+                                Image(
+                                    bitmap = media.artworkBitmap.asImageBitmap(),
+                                    contentDescription = media.title,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else if (media.artworkUri != null) {
+                                AsyncImage(
+                                    model = media.artworkUri,
+                                    contentDescription = media.title,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Icon(Icons.Outlined.MusicNote, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(24.dp))
+                            }
                         }
-                    }
 
-                    // Título e Artista
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = media.title,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = if (media.album.isNotBlank()) "${media.artist} • ${media.album}" else media.artist,
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = media.title,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onBackground,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = if (media.album.isNotBlank()) "${media.artist} • ${media.album}" else media.artist,
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
 
                     // Scrubber / Linha do tempo
@@ -231,7 +247,7 @@ fun MusicContextDashboardModal(
                             ),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(20.dp)
+                                .height(18.dp)
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -242,22 +258,25 @@ fun MusicContextDashboardModal(
                         }
                     }
 
-                    // Botões de Playback
+                    // Controles de Playback
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(
                             onClick = { viewModel.skipMediaPrevious() },
-                            modifier = Modifier.size(38.dp)
+                            modifier = Modifier.size(36.dp)
                         ) {
-                            Icon(Icons.Default.SkipPrevious, contentDescription = "Anterior", modifier = Modifier.size(22.dp))
+                            Icon(Icons.Default.SkipPrevious, contentDescription = "Anterior", modifier = Modifier.size(20.dp))
                         }
+
+                        Spacer(modifier = Modifier.width(16.dp))
 
                         IconButton(
                             onClick = { viewModel.toggleMediaPlayPause() },
                             modifier = Modifier
-                                .size(48.dp)
+                                .size(44.dp)
                                 .clip(CircleShape)
                                 .background(PrimaryTeal)
                         ) {
@@ -265,21 +284,23 @@ fun MusicContextDashboardModal(
                                 if (media.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                                 contentDescription = if (media.isPlaying) "Pausar" else "Play",
                                 tint = Color.Black,
-                                modifier = Modifier.size(26.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         }
 
+                        Spacer(modifier = Modifier.width(16.dp))
+
                         IconButton(
                             onClick = { viewModel.skipMediaNext() },
-                            modifier = Modifier.size(38.dp)
+                            modifier = Modifier.size(36.dp)
                         ) {
-                            Icon(Icons.Default.SkipNext, contentDescription = "Próxima", modifier = Modifier.size(22.dp))
+                            Icon(Icons.Default.SkipNext, contentDescription = "Próxima", modifier = Modifier.size(20.dp))
                         }
                     }
                 }
             }
 
-            // BARRA DE SEGMENTOS (3 ABAS)
+            // 3. BARRA DE SEGMENTOS (3 ABAS)
             item {
                 Row(
                     modifier = Modifier
@@ -317,24 +338,22 @@ fun MusicContextDashboardModal(
                 }
             }
 
-            // CONTEÚDO MODULAR DAS ABAS
+            // 4. CONTEÚDO MODULAR DAS ABAS
             if (isLoading && dossier == null) {
                 item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(140.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = PrimaryTeal, modifier = Modifier.size(24.dp))
-                    }
+                    MusicSkeletonLoading()
                 }
             } else {
                 val currentDossier = dossier
                 when (selectedTab) {
                     MusicDashboardTab.LYRICS -> {
                         item {
-                            LyricsAndFactsSection(dossier = currentDossier, onSeek = { pos -> viewModel.seekMediaTo(pos) })
+                            LyricsAndFactsSection(
+                                dossier = currentDossier,
+                                currentPositionMs = media.currentPositionMs,
+                                onSeek = { pos -> viewModel.seekMediaTo(pos) },
+                                onRetry = { viewModel.fetchMusicDossier(forceRefresh = true) }
+                            )
                         }
                     }
                     MusicDashboardTab.CREDITS -> {
@@ -349,7 +368,7 @@ fun MusicContextDashboardModal(
                             }
                         } else {
                             items(currentDossier!!.relatedVideos) { video ->
-                                VideoCompactCard(video = video)
+                                VideoActionCard(video = video, fallbackQuery = "${media.artist} ${media.title}")
                             }
                         }
                     }
@@ -362,9 +381,33 @@ fun MusicContextDashboardModal(
 @Composable
 private fun LyricsAndFactsSection(
     dossier: MusicContextDossier?,
-    onSeek: (Long) -> Unit
+    currentPositionMs: Long,
+    onSeek: (Long) -> Unit,
+    onRetry: () -> Unit
 ) {
-    if (dossier == null) return
+    if (dossier == null) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Letra não encontrada para esta faixa.",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                TextButton(onClick = onRetry) {
+                    Text("Tentar novamente", color = PrimaryTeal, fontSize = 12.sp)
+                }
+            }
+        }
+        return
+    }
 
     // EDGE CASE 1: PODCAST
     if (dossier.isPodcast) {
@@ -418,7 +461,7 @@ private fun LyricsAndFactsSection(
         return
     }
 
-    // EDGE CASE 2: INSTRUMENTAL / LO-FI
+    // EDGE CASE 2: INSTRUMENTAL
     if (dossier.isInstrumental) {
         Box(
             modifier = Modifier
@@ -441,59 +484,112 @@ private fun LyricsAndFactsSection(
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    text = "Esta composição não possui vocais ou letra catalogada no Genius.",
+                    text = "Esta composição não possui vocais ou letra catalogada.",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                     textAlign = TextAlign.Center
                 )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(themedSubtleBackground())
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text("BPM: ${dossier.technicalCredits?.bpm ?: 110}", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = PrimaryTeal)
-                    Text("Tom: ${dossier.technicalCredits?.key ?: "A Minor"}", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = PrimaryTeal)
-                }
             }
         }
         return
     }
 
-    // LETRAS COM ANOTAÇÕES EDITORIAIS
-    val lines = dossier.lyricsInfo?.lines ?: emptyList()
+    // LETRAS REAIS (SINCRONIZADAS OU COMPLETAS)
+    val lyricsInfo = dossier.lyricsInfo
+    val lines = lyricsInfo?.lines ?: emptyList()
+
     if (lines.isEmpty()) {
-        Text(
-            text = dossier.lyricsInfo?.plainLyrics ?: "Letra indisponível para esta faixa.",
-            fontSize = 13.sp,
-            lineHeight = 22.sp,
-            color = MaterialTheme.colorScheme.onBackground
-        )
+        val rawLyrics = lyricsInfo?.plainLyrics
+        if (rawLyrics.isNullOrBlank()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Letra não encontrada para esta faixa.",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    TextButton(onClick = onRetry) {
+                        Text("Tentar novamente", color = PrimaryTeal, fontSize = 12.sp)
+                    }
+                }
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(themedCardBackground())
+                    .border(1.dp, themedCardBorder(), RoundedCornerShape(16.dp))
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = rawLyrics,
+                    fontSize = 13.sp,
+                    lineHeight = 22.sp,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
+        }
     } else {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            lines.forEach { line ->
+        // Encontra a linha ativa se a letra for sincronizada
+        val isSynced = lyricsInfo?.isSynced == true
+        var activeLineIndex = -1
+        if (isSynced) {
+            for (i in lines.indices) {
+                val t = lines[i].timestampMs
+                if (t != null && t <= currentPositionMs) {
+                    activeLineIndex = i
+                }
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(themedCardBackground())
+                .border(1.dp, themedCardBorder(), RoundedCornerShape(16.dp))
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            lines.forEachIndexed { index, line ->
+                val isActive = isSynced && index == activeLineIndex
                 var isExpanded by remember { mutableStateOf(false) }
 
-                Column(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isActive) PrimaryTeal.copy(alpha = 0.12f) else Color.Transparent)
+                        .clickable {
+                            if (line.timestampMs != null) {
+                                onSeek(line.timestampMs)
+                            }
+                            if (line.hasAnnotation) {
+                                isExpanded = !isExpanded
+                            }
+                        }
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(6.dp))
-                            .clickable(enabled = line.hasAnnotation) { isExpanded = !isExpanded }
-                            .padding(vertical = 3.dp, horizontal = 4.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
                             text = line.text,
-                            fontSize = 13.sp,
-                            fontWeight = if (line.hasAnnotation) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (line.hasAnnotation) PrimaryTeal else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.85f),
-                            lineHeight = 20.sp,
+                            fontSize = if (isActive) 14.sp else 13.sp,
+                            fontWeight = if (isActive || line.hasAnnotation) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (isActive) PrimaryTeal else if (line.hasAnnotation) PrimaryTeal else MaterialTheme.colorScheme.onBackground.copy(alpha = if (isSynced && !isActive) 0.6f else 0.9f),
+                            lineHeight = 22.sp,
                             modifier = Modifier.weight(1f)
                         )
 
@@ -510,19 +606,18 @@ private fun LyricsAndFactsSection(
                         }
                     }
 
-                    // Caixa Retrátil de Anotação Editorial
                     if (isExpanded && line.annotationText != null) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 4.dp, horizontal = 6.dp)
+                                .padding(top = 4.dp)
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(themedSubtleBackground())
                                 .border(BorderStroke(0.5.dp, PrimaryTeal.copy(alpha = 0.4f)), RoundedCornerShape(8.dp))
-                                .padding(10.dp)
+                                .padding(8.dp)
                         ) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Icon(Icons.Outlined.Info, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(14.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Icon(Icons.Outlined.Info, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(12.dp))
                                 Text(
                                     text = line.annotationText,
                                     fontSize = 11.sp,
@@ -534,6 +629,18 @@ private fun LyricsAndFactsSection(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                Text(
+                    text = "Fonte: Lrclib / Catálogo Editorial",
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+            }
         }
     }
 }
@@ -541,7 +648,14 @@ private fun LyricsAndFactsSection(
 @Composable
 private fun TechnicalCreditsSection(credits: TrackTechnicalCredits?) {
     if (credits == null) {
-        Text("Ficha técnica indisponível.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Ficha técnica indisponível.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         return
     }
 
@@ -552,7 +666,7 @@ private fun TechnicalCreditsSection(credits: TrackTechnicalCredits?) {
             .background(themedCardBackground())
             .border(1.dp, themedCardBorder(), RoundedCornerShape(16.dp))
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
             text = "CRÉDITOS DE GRAVAÇÃO (MUSICBRAINZ)",
@@ -617,39 +731,36 @@ private fun CreditItem(label: String, value: String) {
 }
 
 @Composable
-private fun VideoCompactCard(video: TrackVideoMedia) {
+private fun VideoActionCard(video: TrackVideoMedia, fallbackQuery: String) {
+    val context = LocalContext.current
+    val query = video.youtubeQuery.ifBlank { fallbackQuery }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(themedCardBackground())
             .border(1.dp, themedCardBorder(), RoundedCornerShape(12.dp))
-            .padding(10.dp),
+            .clickable {
+                try {
+                    val encoded = URLEncoder.encode(query, "UTF-8")
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/results?search_query=$encoded"))
+                    context.startActivity(intent)
+                } catch (_: Exception) {
+                }
+            }
+            .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Box(
             modifier = Modifier
-                .size(width = 72.dp, height = 48.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(themedSubtleBackground()),
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(PrimaryTeal.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center
         ) {
-            AsyncImage(
-                model = video.thumbnailUrl,
-                contentDescription = video.title,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-            Box(
-                modifier = Modifier
-                    .size(20.dp)
-                    .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.65f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
-            }
+            Icon(Icons.Outlined.SmartDisplay, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
         }
 
         Column(modifier = Modifier.weight(1f)) {
@@ -659,12 +770,14 @@ private fun VideoCompactCard(video: TrackVideoMedia) {
                     .background(PrimaryTeal.copy(alpha = 0.12f))
                     .padding(horizontal = 4.dp, vertical = 1.dp)
             ) {
-                Text(video.category.displayName, fontSize = 8.sp, fontWeight = FontWeight.Bold, color = PrimaryTeal)
+                Text(video.category.displayName, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = PrimaryTeal)
             }
             Spacer(modifier = Modifier.height(2.dp))
-            Text(video.title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(video.channelTitle, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+            Text(video.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(video.channelTitle, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
         }
+
+        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Abrir no YouTube", tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
     }
 }
 
@@ -677,6 +790,49 @@ private fun EmptyVideosState() {
         contentAlignment = Alignment.Center
     ) {
         Text("Nenhum vídeo adicional disponível.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun MusicSkeletonLoading() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(themedCardBackground())
+            .border(1.dp, themedCardBorder(), RoundedCornerShape(16.dp))
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            CircularProgressIndicator(color = PrimaryTeal, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+            Text("Buscando letra e créditos oficiais...", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.8f)
+                .height(12.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(themedSubtleBorder())
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.6f)
+                .height(12.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(themedSubtleBorder())
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .height(12.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(themedSubtleBorder())
+        )
     }
 }
 

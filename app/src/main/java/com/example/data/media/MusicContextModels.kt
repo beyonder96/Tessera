@@ -25,18 +25,20 @@ data class ActiveMediaState(
  */
 data class LyricLine(
     val text: String,
+    val timestampMs: Long? = null,
     val hasAnnotation: Boolean = false,
     val annotationText: String? = null
 )
 
 /**
- * Informações de Letras e Anotações Editoriais (Genius).
+ * Informações de Letras e Anotações Editoriais.
  */
 data class TrackLyricsInfo(
     val plainLyrics: String,
     val lines: List<LyricLine> = emptyList(),
     val sourceUrl: String? = null,
-    val isInstrumental: Boolean = false
+    val isInstrumental: Boolean = false,
+    val isSynced: Boolean = false
 )
 
 /**
@@ -55,14 +57,15 @@ data class TrackTechnicalCredits(
 )
 
 /**
- * Vídeo complementar (YouTube).
+ * Vídeo complementar / Atalho de Busca (YouTube).
  */
 data class TrackVideoMedia(
     val id: String,
     val title: String,
-    val thumbnailUrl: String,
+    val thumbnailUrl: String? = null,
     val category: VideoCategory,
-    val channelTitle: String
+    val channelTitle: String,
+    val youtubeQuery: String = ""
 )
 
 enum class VideoCategory(val displayName: String) {

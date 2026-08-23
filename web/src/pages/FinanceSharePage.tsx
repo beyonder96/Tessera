@@ -233,10 +233,16 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
     )
   }
 
-  const spendableValue = doc.spendable_balance ?? doc.total_balance
-  const salaryValue = doc.salary_value ?? doc.monthly_income ?? 0
-  const committedValue = doc.committed_value ?? doc.monthly_expense ?? 0
-  const committedPercent = doc.committed_percentage ?? (salaryValue > 0 ? (committedValue / salaryValue) * 100 : 0)
+  const parseNum = (val: unknown, fallback: number = 0): number => {
+    if (val === undefined || val === null) return fallback
+    const n = typeof val === 'number' ? val : parseFloat(String(val))
+    return isNaN(n) ? fallback : n
+  }
+
+  const spendableValue = parseNum(doc.spendable_balance, parseNum(doc.total_balance, 0))
+  const salaryValue = parseNum(doc.salary_value, parseNum(doc.monthly_income, 0))
+  const committedValue = parseNum(doc.committed_value, parseNum(doc.monthly_expense, 0))
+  const committedPercent = parseNum(doc.committed_percentage, salaryValue > 0 ? (committedValue / salaryValue) * 100 : 0)
   const isSpendableNegative = spendableValue < 0
   const pendingSuggestions = (doc.suggestions || []).filter(s => s.status === 'pending')
 

@@ -279,25 +279,33 @@ fun FinanceScreen(
         }.timeInMillis
     }
 
-    val currentMonthTransactions = remember(allTransactions, currentMonthStart) {
-        allTransactions.filter { it.timestamp >= currentMonthStart }
+    val currentMonthEnd = remember {
+        Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
+            set(Calendar.HOUR_OF_DAY, 23)
+            set(Calendar.MINUTE, 59)
+            set(Calendar.SECOND, 59)
+            set(Calendar.MILLISECOND, 999)
+        }.timeInMillis
     }
 
-    val salaryValue = remember(currentMonthTransactions, creditCards, benefitCards) {
+    val currentMonthTransactions = remember(allTransactions, currentMonthStart, currentMonthEnd) {
+        allTransactions.filter { it.timestamp in currentMonthStart..currentMonthEnd }
+    }
+
+    val salaryValue = remember(currentMonthTransactions, benefitCards) {
         val incomeSum = currentMonthTransactions.filter { tx -> 
             tx.isIncome && 
             tx.category != "Transferência" &&
-            creditCards.none { card -> card.name == tx.accountOrCardName } &&
             benefitCards.none { card -> card.name == tx.accountOrCardName }
         }.sumOf { it.value }
         if (incomeSum > 0.0) incomeSum else 0.0
     }
 
-    val committedValue = remember(currentMonthTransactions, creditCards, benefitCards) {
+    val committedValue = remember(currentMonthTransactions, benefitCards) {
         val expenseSum = currentMonthTransactions.filter { tx ->
             !tx.isIncome &&
             tx.category != "Transferência" &&
-            creditCards.none { card -> card.name == tx.accountOrCardName } &&
             benefitCards.none { card -> card.name == tx.accountOrCardName }
         }.sumOf { it.value }
         if (expenseSum > 0.0) expenseSum else 0.0
@@ -488,13 +496,14 @@ fun FinanceScreen(
                         // Breakdown of salary vs committed
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             val ratio = if (salaryValue > 0.0) (committedValue / salaryValue).toFloat().coerceIn(0f, 1f) else 0f
+                            val committedPercent = if (salaryValue > 0.0) ((committedValue / salaryValue) * 100.0) else 0.0
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text("Orçamento Comprometido", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(
-                                    text = if (isPrivacyModeEnabled) "•••" else "${(ratio * 100).toInt()}%",
+                                    text = if (isPrivacyModeEnabled) "•••" else "${Math.round(committedPercent)}%",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onBackground

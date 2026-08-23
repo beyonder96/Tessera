@@ -248,7 +248,11 @@ class SupabaseFinanceSyncManager(
 
     private suspend fun uploadDashboardToSupabase(transactions: List<Transaction>) {
         val shareId = _activeShareId.value ?: return
-        val currentHash = (transactions.hashCode() * 31) + currentSpendableBalance.hashCode()
+        val currentHash = (transactions.hashCode() * 31) +
+                (currentSpendableBalance?.hashCode() ?: 0) * 17 +
+                (currentSalaryValue?.hashCode() ?: 0) * 13 +
+                (currentCommittedValue?.hashCode() ?: 0) * 7 +
+                (currentCommittedPercentage?.hashCode() ?: 0)
         if (currentHash == lastUploadedHash) return
 
         _syncStatus.value = SyncStatus.SYNCING

@@ -11,6 +11,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -80,6 +81,9 @@ fun BibleScreen(
     val versions by viewModel.bibleVersions.collectAsStateWithLifecycle()
     val books by viewModel.bibleBooks.collectAsStateWithLifecycle()
     val highlights by viewModel.verseHighlights.collectAsStateWithLifecycle()
+    val targetScrollVerse by viewModel.targetScrollVerse.collectAsStateWithLifecycle()
+
+    val listState = rememberLazyListState()
 
     var showBookPicker by remember { mutableStateOf(false) }
     var showVersionPicker by remember { mutableStateOf(false) }
@@ -88,6 +92,20 @@ fun BibleScreen(
     LaunchedEffect(Unit) {
         viewModel.loadBibleMetadata()
         viewModel.loadCurrentChapter()
+    }
+
+    LaunchedEffect(chapterState, targetScrollVerse) {
+        if (chapterState is TesseraViewModel.ChapterUiState.Success && targetScrollVerse != null) {
+            val verses = (chapterState as TesseraViewModel.ChapterUiState.Success).chapterData.verses
+            val target = targetScrollVerse
+            if (target != null && verses.isNotEmpty()) {
+                val targetIndex = verses.indexOfFirst { it.number == target }
+                if (targetIndex >= 0) {
+                    kotlinx.coroutines.delay(120)
+                    listState.animateScrollToItem(targetIndex + 1)
+                }
+            }
+        }
     }
 
     val navBarBottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -136,6 +154,7 @@ fun BibleScreen(
                                 BibleEmptyState()
                             } else {
                                 LazyColumn(
+                                    state = listState,
                                     modifier = Modifier.fillMaxSize(),
                                     contentPadding = PaddingValues(
                                         start = 20.dp,
@@ -170,14 +189,17 @@ fun BibleScreen(
 
                                     items(verses, key = { it.number }) { verse ->
                                         val isSelected = selectedVerses.any { it.number == verse.number }
+                                        val isTargetVerse = targetScrollVerse == verse.number
                                         val highlightKey = "${selectedBook.abbrev}_${selectedChapter}_${verse.number}"
                                         val highlightColorHex = highlights[highlightKey]
 
                                         BibleVerseRow(
                                             verse = verse,
                                             isSelected = isSelected,
+                                            isTargetVerse = isTargetVerse,
                                             highlightColorHex = highlightColorHex,
                                             onClick = {
+                                                viewModel.clearTargetScrollVerse()
                                                 if (isSelected) {
                                                     selectedVerses.removeAll { it.number == verse.number }
                                                 } else {
@@ -416,6 +438,7 @@ private fun BibleTopBar(
 private fun BibleVerseRow(
     verse: BibliaVerseItem,
     isSelected: Boolean,
+    isTargetVerse: Boolean = false,
     highlightColorHex: String?,
     onClick: () -> Unit
 ) {
@@ -434,7 +457,14 @@ private fun BibleVerseRow(
 
     val backgroundColor = when {
         isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+        isTargetVerse -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
         highlightColorHex != null -> highlightColor
+        else -> Color.Transparent
+    }
+
+    val borderColor = when {
+        isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+        isTargetVerse -> MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
         else -> Color.Transparent
     }
 
@@ -445,8 +475,8 @@ private fun BibleVerseRow(
             .clip(RoundedCornerShape(8.dp))
             .background(backgroundColor)
             .border(
-                width = if (isSelected) 1.dp else 0.dp,
-                color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else Color.Transparent,
+                width = if (isSelected || isTargetVerse) 1.dp else 0.dp,
+                color = borderColor,
                 shape = RoundedCornerShape(8.dp)
             )
             .clickable(onClick = onClick)

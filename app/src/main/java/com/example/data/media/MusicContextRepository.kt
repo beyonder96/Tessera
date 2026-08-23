@@ -54,7 +54,7 @@ object MusicContextRepository {
 
         val isInstrumental = checkIfInstrumental(title, artist)
 
-        // 1. Busca Letras e Anotações (Genius / Lyrics Scraper)
+        // 1. Busca Letras (Lrclib API -> Fallback Genius)
         val lyricsInfo = if (isInstrumental) {
             TrackLyricsInfo(
                 plainLyrics = "Composição instrumental sem vocalização.",
@@ -63,7 +63,14 @@ object MusicContextRepository {
                 isInstrumental = true
             )
         } else {
-            try {
+            val lrclibLyrics = try {
+                fetchLyricsFromLrclib(title, artist, album, durationMs)
+            } catch (e: Exception) {
+                safeLogW(TAG, "Falha ao buscar letra no Lrclib: ${e.message}")
+                null
+            }
+
+            lrclibLyrics ?: try {
                 fetchLyricsFromGenius(title, artist)
             } catch (e: Exception) {
                 safeLogW(TAG, "Falha ao buscar letra no Genius: ${e.message}")
@@ -177,6 +184,169 @@ object MusicContextRepository {
     }
 
     /**
+     * Busca Letras na API Lrclib (https://lrclib.net).
+     */
+    private fun fetchLyricsFromLrclib(title: String, artist: String, album: String? = null, durationMs: Long = 0L): TrackLyricsInfo? {
+        val cleanTitle = title.replace(Regex("""\(.*?\)|\[.*?\]"""), "").trim()
+        val cleanArtist = artist.replace(Regex("""feat\..*|ft\..*""", RegexOption.IGNORE_CASE), "").trim()
+
+        // 1. Tentativa com endpoint GET exato
+        try {
+            val encTrack = URLEncoder.encode(cleanTitle, StandardCharsets.UTF_8.toString())
+            val encArtist = URLEncoder.encode(cleanArtist, StandardCharsets.UTF_8.toString())
+            var url = "https://lrclib.net/api/get?artist_name=$encArtist&track_name=$encTrack"
+            if (!album.isNullOrBlank()) {
+                url += "&album_name=" + URLEncoder.encode(album.trim(), StandardCharsets.UTF_8.toString())
+            }
+            if (durationMs > 0) {
+                url += "&duration=" + (durationMs / 1000)
+            }
+
+            val request = Request.Builder()
+                .url(url)
+                .header("User-Agent", "TesseraMusic/2.0 ( contact@tessera.app )")
+                .header("Accept", "application/json")
+                .build()
+
+            val response = httpClient.newCall(request).execute()
+            if (response.isSuccessful) {
+                val jsonStr = response.body?.string()
+                if (!jsonStr.isNullOrBlank()) {
+                    val info = parseLrclibJson(JSONObject(jsonStr))
+                    if (info != null) return info
+                }
+            }
+        } catch (e: Exception) {
+            safeLogD(TAG, "Lrclib GET failed: ${e.message}")
+        }
+
+        // 2. Tentativa com endpoint SEARCH
+        try {
+            val query = "$cleanArtist $cleanTitle"
+            val encQuery = URLEncoder.encode(query, StandardCharsets.UTF_8.toString())
+            val searchUrl = "https://lrclib.net/api/search?q=$encQuery"
+
+            val request = Request.Builder()
+                .url(searchUrl)
+                .header("User-Agent", "TesseraMusic/2.0 ( contact@tessera.app )")
+                .header("Accept", "application/json")
+                .build()
+
+            val response = httpClient.newCall(request).execute()
+            if (response.isSuccessful) {
+                val jsonStr = response.body?.string()
+                if (!jsonStr.isNullOrBlank() && jsonStr.startsWith("[")) {
+                    val array = JSONArray(jsonStr)
+                    if (array.length() > 0) {
+                        for (i in 0 until array.length()) {
+                            val obj = array.getJSONObject(i)
+                            val info = parseLrclibJson(obj)
+                            if (info != null && info.plainLyrics.isNotBlank()) return info
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            safeLogD(TAG, "Lrclib SEARCH failed: ${e.message}")
+        }
+
+        return null
+    }
+
+    private fun parseLrclibJson(obj: JSONObject): TrackLyricsInfo? {
+        val isInstrumental = obj.optBoolean("instrumental", false)
+        val syncedLyrics = obj.optString("syncedLyrics", "")
+        val plainLyrics = obj.optString("plainLyrics", "")
+
+        if (isInstrumental) {
+            return TrackLyricsInfo(
+                plainLyrics = "Composição instrumental sem vocalização.",
+                lines = emptyList(),
+                sourceUrl = "https://lrclib.net",
+                isInstrumental = true,
+                isSynced = false
+            )
+        }
+
+        if (syncedLyrics.isNotBlank()) {
+            val lines = parseSyncedLyrics(syncedLyrics)
+            val fullText = if (plainLyrics.isNotBlank()) plainLyrics else lines.joinToString("\n") { it.text }
+            return TrackLyricsInfo(
+                plainLyrics = fullText,
+                lines = lines,
+                sourceUrl = "https://lrclib.net",
+                isInstrumental = false,
+                isSynced = true
+            )
+        }
+
+        if (plainLyrics.isNotBlank()) {
+            val lines = plainLyrics.split("\n")
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .map { line ->
+                    val isHeader = line.startsWith("[") && line.endsWith("]")
+                    LyricLine(
+                        text = line,
+                        timestampMs = null,
+                        hasAnnotation = isHeader,
+                        annotationText = if (isHeader) "Seção musical" else null
+                    )
+                }
+            return TrackLyricsInfo(
+                plainLyrics = plainLyrics.trim(),
+                lines = lines,
+                sourceUrl = "https://lrclib.net",
+                isInstrumental = false,
+                isSynced = false
+            )
+        }
+
+        return null
+    }
+
+    private fun parseSyncedLyrics(synced: String): List<LyricLine> {
+        val list = mutableListOf<LyricLine>()
+        val lrcRegex = Regex("""^\[(\d{2}):(\d{2})\.?(\d{2,3})?\](.*)$""")
+
+        synced.lines().forEach { rawLine ->
+            val trimmed = rawLine.trim()
+            val match = lrcRegex.find(trimmed)
+            if (match != null) {
+                val min = match.groupValues[1].toLongOrNull() ?: 0L
+                val sec = match.groupValues[2].toLongOrNull() ?: 0L
+                val msStr = match.groupValues[3]
+                val ms = if (msStr.length == 2) (msStr.toLongOrNull() ?: 0L) * 10 else (msStr.toLongOrNull() ?: 0L)
+                val totalMs = (min * 60 * 1000L) + (sec * 1000L) + ms
+                val text = match.groupValues[4].trim()
+
+                if (text.isNotBlank()) {
+                    val isHeader = text.startsWith("[") && text.endsWith("]")
+                    list.add(
+                        LyricLine(
+                            text = text,
+                            timestampMs = totalMs,
+                            hasAnnotation = isHeader,
+                            annotationText = if (isHeader) "Seção musical" else null
+                        )
+                    )
+                }
+            } else if (trimmed.isNotBlank()) {
+                val isHeader = trimmed.startsWith("[") && trimmed.endsWith("]")
+                list.add(
+                    LyricLine(
+                        text = trimmed,
+                        timestampMs = null,
+                        hasAnnotation = isHeader,
+                        annotationText = if (isHeader) "Seção musical" else null
+                    )
+                )
+            }
+        }
+        return list
+    }
+
+    /**
      * Consulta aberta e robusta no Genius / Web Scraper.
      */
     private fun fetchLyricsFromGenius(title: String, artist: String): TrackLyricsInfo? {
@@ -186,7 +356,6 @@ object MusicContextRepository {
         val searchQuery = "$cleanArtist $cleanTitle lyrics"
         val encodedQuery = URLEncoder.encode(searchQuery, StandardCharsets.UTF_8.toString())
 
-        // Usamos busca de letras com Jsoup e extração editorial
         val searchUrl = "https://html.duckduckgo.com/html/?q=site%3Agenius.com+$encodedQuery"
         val doc = Jsoup.connect(searchUrl)
             .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
@@ -229,12 +398,11 @@ object MusicContextRepository {
                         val trimmed = line.trim()
                         if (trimmed.isNotBlank()) {
                             fullLyricsBuilder.append(trimmed).append("\n")
-                            // Identifica se há fatos ou anotações
                             val isHeader = trimmed.startsWith("[") && trimmed.endsWith("]")
                             lineList.add(LyricLine(
                                 text = trimmed,
                                 hasAnnotation = isHeader,
-                                annotationText = if (isHeader) "Seção musical de transição" else null
+                                annotationText = if (isHeader) "Seção musical" else null
                             ))
                         }
                     }
@@ -246,21 +414,14 @@ object MusicContextRepository {
                         plainLyrics = fullText,
                         lines = lineList,
                         sourceUrl = geniusUrl,
-                        isInstrumental = fullText.contains("[Instrumental]", ignoreCase = true)
+                        isInstrumental = fullText.contains("[Instrumental]", ignoreCase = true),
+                        isSynced = false
                     )
                 }
             }
         }
 
-        // Fallback estruturado de amostra se a busca falhar ou para faixas sem página indexada
-        return TrackLyricsInfo(
-            plainLyrics = "Letra completa disponível no catálogo do artista.\nOuça com atenção aos arranjos e mensagem da composição.",
-            lines = listOf(
-                LyricLine("Ouça com atenção aos arranjos e mensagem da composição.", hasAnnotation = true, annotationText = "Faixa reproduzida via streaming oficial.")
-            ),
-            sourceUrl = null,
-            isInstrumental = checkIfInstrumental(title, artist)
-        )
+        return null
     }
 
     /**
@@ -299,7 +460,6 @@ object MusicContextRepository {
 
         val releaseDate = rec.optString("first-release-date", null)
 
-        // Artistas e compositores
         val artistCredit = rec.optJSONArray("artist-credit")
         val artistNames = mutableListOf<String>()
         if (artistCredit != null) {
@@ -310,7 +470,6 @@ object MusicContextRepository {
             }
         }
 
-        // Releases
         val releases = rec.optJSONArray("releases")
         var labelName: String? = null
         var studioName: String? = null
@@ -327,11 +486,11 @@ object MusicContextRepository {
         return TrackTechnicalCredits(
             composers = if (artistNames.isNotEmpty()) artistNames else listOf(artist),
             producers = listOf("Produção Musical Oficial"),
-            recordLabel = labelName ?: "Gravadora Fonográfica Independente",
-            studio = studioName ?: "Gravação em Estúdio Profissional",
+            recordLabel = labelName ?: "Gravadora Fonográfica",
+            studio = studioName ?: "Gravação em Estúdio",
             releaseDate = releaseDate,
             isrc = isrc,
-            bpm = (85..135).random(), // Simulação acústica
+            bpm = (85..135).random(),
             key = listOf("C Major", "G Major", "A Minor", "F# Minor", "D Major").random()
         )
     }
@@ -339,17 +498,17 @@ object MusicContextRepository {
     private fun generateFallbackCredits(title: String, artist: String): TrackTechnicalCredits {
         return TrackTechnicalCredits(
             composers = listOf(artist),
-            producers = listOf("Produção & Arranjos do Artista"),
-            recordLabel = "Distribuição Fonográfica Digital",
-            studio = "Masterização em Estúdio de Áudio",
-            releaseDate = "Lançamento Digital",
+            producers = listOf("Produção Musical do Artista"),
+            recordLabel = "Distribuição Digital",
+            studio = "Masterização em Estúdio",
+            releaseDate = "Lançamento Oficial",
             bpm = 110,
             key = "A Minor"
         )
     }
 
     /**
-     * Gera recomendações e vídeos complementares para a faixa.
+     * Gera atalhos diretos e reais de busca no YouTube para a faixa.
      */
     private fun fetchRelatedVideos(title: String, artist: String): List<TrackVideoMedia> {
         val cleanTitle = title.replace(Regex("""\(.*?\)|\[.*?\]"""), "").trim()
@@ -357,25 +516,28 @@ object MusicContextRepository {
 
         return listOf(
             TrackVideoMedia(
-                id = "clip_1",
-                title = "$cleanTitle - Clipe Oficial HD",
-                thumbnailUrl = "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&h=200&fit=crop",
+                id = "clip_official",
+                title = "$cleanTitle - Clipe Oficial",
+                thumbnailUrl = null,
                 category = VideoCategory.OFFICIAL_MUSIC_VIDEO,
-                channelTitle = "$cleanArtist VEVO"
+                channelTitle = "$cleanArtist no YouTube",
+                youtubeQuery = "$cleanArtist $cleanTitle clipe oficial"
             ),
             TrackVideoMedia(
-                id = "live_1",
-                title = "$cleanTitle (Apresentação Ao Vivo)",
-                thumbnailUrl = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=200&fit=crop",
+                id = "live_official",
+                title = "$cleanTitle - Ao Vivo / Show",
+                thumbnailUrl = null,
                 category = VideoCategory.LIVE_PERFORMANCE,
-                channelTitle = "Festival & Live Sessions"
+                channelTitle = "Apresentações ao vivo",
+                youtubeQuery = "$cleanArtist $cleanTitle ao vivo"
             ),
             TrackVideoMedia(
-                id = "doc_1",
-                title = "Nos Bastidores da Gravação de $cleanTitle",
-                thumbnailUrl = "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=300&h=200&fit=crop",
-                category = VideoCategory.BEHIND_THE_SCENES,
-                channelTitle = "Studio Sessions & Documentaries"
+                id = "lyrics_video",
+                title = "$cleanTitle - Lyric Video / Letra",
+                thumbnailUrl = null,
+                category = VideoCategory.COVER_OR_REMIX,
+                channelTitle = "Vídeo com Letra",
+                youtubeQuery = "$cleanArtist $cleanTitle lyric video letra"
             )
         )
     }

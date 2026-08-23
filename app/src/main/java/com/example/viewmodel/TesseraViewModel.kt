@@ -113,6 +113,8 @@ class TesseraViewModel(
     private val _verseHighlights = MutableStateFlow<Map<String, String>>(emptyMap())
     val verseHighlights: StateFlow<Map<String, String>> = _verseHighlights.asStateFlow()
 
+    val targetScrollVerse = MutableStateFlow<Int?>(null)
+
     fun loadBibleMetadata() {
         viewModelScope.launch(Dispatchers.IO) {
             val versions = repository.getBibleVersions()
@@ -150,6 +152,36 @@ class TesseraViewModel(
             .putInt("selected_chapter", chapter)
             .apply()
         loadCurrentChapter()
+    }
+
+    fun openBibleAtVerse(bookName: String, bookAbbrev: String, chapter: Int, verse: Int, version: String = "NVT") {
+        val cleanAbbrev = bookAbbrev.lowercase().trim()
+        val books = _bibleBooks.value
+        val matchingBook = books.find { 
+            it.abbrev.equals(cleanAbbrev, ignoreCase = true) || it.name.equals(bookName, ignoreCase = true) 
+        } ?: com.example.data.BibliaBookItem(
+            id = 0,
+            name = bookName,
+            abbrev = cleanAbbrev,
+            testament = if (listOf("gn","ex","lv","nm","dt","js","jz","rt","1sm","2sm","1rs","2rs","1cr","2cr","ed","ne","et","job","sl","pv","ec","ct","is","jr","lm","ez","dn","os","jl","am","ob","jn","mq","na","hc","sf","ag","zc","ml").contains(cleanAbbrev)) "VT" else "NT"
+        )
+        selectedBibleVersion.value = version
+        selectedBibleBook.value = matchingBook
+        selectedBibleChapter.value = chapter
+        targetScrollVerse.value = verse
+        biblePrefs.edit()
+            .putInt("selected_book_id", matchingBook.id)
+            .putString("selected_book_name", matchingBook.name)
+            .putString("selected_book_abbrev", matchingBook.abbrev)
+            .putString("selected_book_testament", matchingBook.testament)
+            .putInt("selected_chapter", chapter)
+            .putString("selected_version", version)
+            .apply()
+        loadCurrentChapter()
+    }
+
+    fun clearTargetScrollVerse() {
+        targetScrollVerse.value = null
     }
 
     fun selectBibleVersion(versionCode: String) {

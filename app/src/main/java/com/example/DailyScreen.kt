@@ -456,7 +456,23 @@ fun DailyScreen(
                         // 3.3 VERSÍCULO DO DIA WIDGET
                         BibleVerseWidget(
                             dailyVerse = dailyVerse,
-                            onClick = { onNavigate("bible") }
+                            onClick = {
+                                dailyVerse?.let { v ->
+                                    val bookName = v.book?.name ?: "Salmos"
+                                    val bookAbbrev = v.bookAbbrev ?: "sl"
+                                    val chapter = v.chapter ?: 23
+                                    val verse = v.verse ?: 1
+                                    val version = v.versionCode ?: "NVT"
+                                    viewModel.openBibleAtVerse(
+                                        bookName = bookName,
+                                        bookAbbrev = bookAbbrev,
+                                        chapter = chapter,
+                                        verse = verse,
+                                        version = version
+                                    )
+                                }
+                                onNavigate("bible")
+                            }
                         )
 
                         // 3.4 SMART AUDIO HUB (PLAYER GLOBAL & LETRAS)
@@ -467,9 +483,6 @@ fun DailyScreen(
 
                         // 3.5 VOLCANIC LAVA WIDGET
                         VolcanicLavaWidget()
-
-                        // 3.6 YOUTUBE MUSIC LAUNCHER
-                        YouTubeMusicLauncherWidget()
 
                         // 4. CONNECTIVITY FLOATING DOCK/PILL (Removed)
                     }
@@ -1225,59 +1238,6 @@ fun VolcanicLavaWidget() {
         }
     }
 }
-}
-
-@Composable
-fun YouTubeMusicLauncherWidget() {
-    val context = LocalContext.current
-    
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(80.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(themedCardBackground())
-            .border(1.dp, themedCardBorder(), RoundedCornerShape(24.dp))
-            .clickable {
-                val pm = context.packageManager
-                val intent = pm.getLaunchIntentForPackage("com.google.android.apps.youtube.music")
-                if (intent != null) {
-                    context.startActivity(intent)
-                } else {
-                    val webIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://music.youtube.com"))
-                    context.startActivity(webIntent)
-                }
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(Brush.linearGradient(listOf(Color(0xFFFF0000), Color(0xFFCC0000))))
-                    .border(2.dp, Color(0xFFFF0000).copy(alpha = 0.5f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = androidx.compose.material.icons.Icons.Filled.PlayArrow,
-                    contentDescription = "YouTube Music",
-                    tint = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.size(32.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = "Abrir YT Music",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f)
-            )
-        }
-    }
 }
 
 @Composable
