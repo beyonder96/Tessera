@@ -134,6 +134,19 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
   }
 
+  const formatDate = (rawDate: unknown): string => {
+    if (!rawDate) return ''
+    try {
+      if (typeof rawDate === 'number' || (!isNaN(Number(rawDate)) && String(rawDate).length > 8)) {
+        const d = new Date(Number(rawDate))
+        return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+      }
+      return String(rawDate)
+    } catch {
+      return String(rawDate)
+    }
+  }
+
   const handleShare = () => {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(window.location.href)
@@ -280,18 +293,20 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
             <button 
               className="btn btn-outline" 
               onClick={() => setIsPrivacyMode(!isPrivacyMode)}
-              style={{ padding: '8px 10px', height: 36 }}
-              title="Alternar privacidade"
+              style={{ width: 36, height: 36, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-md)' }}
+              title={isPrivacyMode ? 'Mostrar valores' : 'Ocultar valores'}
+              aria-label="Alternar privacidade"
             >
               {isPrivacyMode ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
             <button 
               className="btn btn-outline" 
               onClick={handleShare} 
-              style={{ padding: '8px 12px', height: 36 }}
+              style={{ width: 36, height: 36, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-md)' }}
+              title={copied ? 'Link copiado!' : 'Copiar link'}
+              aria-label="Compartilhar"
             >
-              <Share2 size={14} />
-              {copied ? 'Copiado!' : 'Compartilhar'}
+              {copied ? <CheckCircle2 size={16} color="var(--accent)" /> : <Share2 size={16} />}
             </button>
           </div>
         </div>
@@ -460,7 +475,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
       {/* Recent Transactions List */}
       {doc.transactions && doc.transactions.length > 0 && (
         <div>
-          <h2 style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-muted)', marginBottom: 12 }}>
+          <h2 style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.2, color: 'var(--text-muted)', marginBottom: 12 }}>
             Últimas Movimentações
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -473,36 +488,63 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '12px 16px',
+                    gap: 12,
+                    padding: '12px 14px',
                     background: 'var(--bg-card)',
                     border: '1px solid var(--border)',
+                    borderLeft: isIncome ? '3px solid var(--success)' : '3px solid var(--danger)',
                     borderRadius: 'var(--radius-md)',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
                     <div style={{ 
                       width: 32, 
                       height: 32, 
-                      borderRadius: '50%', 
+                      flexShrink: 0,
+                      borderRadius: 'var(--radius-sm)', 
                       background: isIncome ? 'var(--success-subtle)' : 'var(--danger-subtle)',
+                      border: `1px solid ${isIncome ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center'
                     }}>
                       {isIncome ? <ArrowDownLeft size={16} color="var(--success)" /> : <ArrowUpRight size={16} color="var(--danger)" />}
                     </div>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ 
+                        fontSize: 13, 
+                        fontWeight: 600, 
+                        color: 'var(--text-primary)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
                         {tx.title}
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                        {tx.category} • {tx.date}
+                      <div style={{ 
+                        fontSize: 11, 
+                        color: 'var(--text-muted)', 
+                        marginTop: 2,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        <span style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>{tx.category}</span>
+                        {tx.date ? ` • ${formatDate(tx.date)}` : ''}
                       </div>
                     </div>
                   </div>
 
-                  <div style={{ fontSize: 14, fontWeight: 700, color: isIncome ? 'var(--success)' : 'var(--text-primary)' }}>
-                    {isIncome ? '+' : '-'} {formatCurrency(tx.amount)}
+                  <div style={{ 
+                    fontSize: 13, 
+                    fontWeight: 700, 
+                    color: isIncome ? 'var(--success)' : 'var(--danger)',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    textAlign: 'right',
+                    fontVariantNumeric: 'tabular-nums'
+                  }}>
+                    {isIncome ? '+ ' : '- '}{formatCurrency(tx.amount)}
                   </div>
                 </div>
               )
