@@ -256,6 +256,11 @@ fun ImportBankStatementBottomSheet(
                             if (index != -1) {
                                 transactions[index] = transactions[index].copy(isSelected = !item.isSelected)
                             }
+                        },
+                        onToggleIncome = {
+                            if (index != -1) {
+                                transactions[index] = transactions[index].copy(isIncome = !item.isIncome)
+                            }
                         }
                     )
                 }
@@ -291,7 +296,8 @@ fun ImportBankStatementBottomSheet(
 @Composable
 private fun ParsedTransactionRow(
     item: ParsedStatementTransaction,
-    onToggleSelected: () -> Unit
+    onToggleSelected: () -> Unit,
+    onToggleIncome: () -> Unit
 ) {
     val currencyFormatter = remember { NumberFormat.getCurrencyInstance(Locale("pt", "BR")) }
 
@@ -351,11 +357,30 @@ private fun ParsedTransactionRow(
             }
         }
 
-        Text(
-            text = "${if (item.isIncome) "+" else "-"} ${currencyFormatter.format(item.amount)}",
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            color = if (item.isIncome) Color(0xFF10B981) else MaterialTheme.colorScheme.error
-        )
+        Column(
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = "${if (item.isIncome) "+" else "-"} ${currencyFormatter.format(item.amount)}",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (item.isIncome) Color(0xFF10B981) else MaterialTheme.colorScheme.error
+            )
+            Surface(
+                onClick = onToggleIncome,
+                shape = RoundedCornerShape(4.dp),
+                color = if (item.isIncome) Color(0xFF10B981).copy(alpha = 0.12f) else MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
+                border = BorderStroke(0.5.dp, if (item.isIncome) Color(0xFF10B981).copy(alpha = 0.3f) else MaterialTheme.colorScheme.error.copy(alpha = 0.3f))
+            ) {
+                Text(
+                    text = if (item.isIncome) "Entrada ⇄" else "Saída ⇄",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (item.isIncome) Color(0xFF10B981) else MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                )
+            }
+        }
     }
 }
