@@ -278,4 +278,81 @@ class BankStatementPdfParserTest {
         assertEquals(12.90, spotify.amount, 0.01)
         assertEquals("Lazer", spotify.category)
     }
+
+    @Test
+    fun testParseTesseraExportedPdfWithCategories() {
+        val tesseraExportLines = listOf(
+            "Extrato Tessera - Agosto 2026",
+            "Data Título Categoria Conta/Cartão Valor",
+            "----------------------------------------------------------",
+            "01/08/2026 Salário Mensal Salário Nubank +R$ 5.000,00",
+            "03/08/2026 Aluguel Apartamento Moradia Itaú -R$ 1.800,00",
+            "05/08/2026 Supermercado Pão Açúcar Alimentação C6 Carbon -R$ 450,20",
+            "10/08/2026 Consulta Médica Saúde Nubank -R$ 250,00",
+            "15/08/2026 Ração Golden Petz Inter -R$ 189,90"
+        )
+
+        val transactions = BankStatementPdfParser.extractTransactionsFromLines(tesseraExportLines)
+
+        assertEquals(5, transactions.size)
+
+        // 1. Salário
+        val t1 = transactions[0]
+        assertEquals("Salário Mensal", t1.title)
+        assertEquals("Salário", t1.category)
+        assertTrue(t1.isIncome)
+        assertEquals(5000.00, t1.amount, 0.01)
+
+        // 2. Aluguel
+        val t2 = transactions[1]
+        assertEquals("Aluguel Apartamento", t2.title)
+        assertEquals("Moradia", t2.category)
+        assertFalse(t2.isIncome)
+        assertEquals(1800.00, t2.amount, 0.01)
+
+        // 3. Supermercado
+        val t3 = transactions[2]
+        assertEquals("Supermercado Pão Açúcar", t3.title)
+        assertEquals("Alimentação", t3.category)
+        assertFalse(t3.isIncome)
+        assertEquals(450.20, t3.amount, 0.01)
+
+        // 4. Consulta Médica
+        val t4 = transactions[3]
+        assertEquals("Consulta Médica", t4.title)
+        assertEquals("Saúde", t4.category)
+        assertFalse(t4.isIncome)
+        assertEquals(250.00, t4.amount, 0.01)
+
+        // 5. Petz
+        val t5 = transactions[4]
+        assertEquals("Ração Golden", t5.title)
+        assertEquals("Petz", t5.category)
+        assertFalse(t5.isIncome)
+        assertEquals(189.90, t5.amount, 0.01)
+    }
+
+    @Test
+    fun testPixExpenseDoesNotBecomeTransfer() {
+        val lines = listOf(
+            "02/08/2026 PIX PAGTO MERCADINHO VILA -45,00",
+            "03/08/2026 PIX ENVIADO JOAO SILVA -120,00"
+        )
+
+        val transactions = BankStatementPdfParser.extractTransactionsFromLines(lines)
+        assertEquals(2, transactions.size)
+
+        // PIX Mercadinho deve ser Alimentação
+        val t1 = transactions[0]
+        assertFalse(t1.isIncome)
+        assertEquals(45.00, t1.amount, 0.01)
+        assertEquals("Alimentação", t1.category)
+
+        // PIX genérico para pessoa sem loja conhecida deve ser "Outros" (e não "Transferência"),
+        // para não sumir do cálculo de gastos comprometidos
+        val t2 = transactions[1]
+        assertFalse(t2.isIncome)
+        assertEquals(120.00, t2.amount, 0.01)
+        assertNotEquals("Transferência", t2.category)
+    }
 }

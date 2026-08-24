@@ -292,4 +292,20 @@ interface TesseraDao {
 
     @Query("DELETE FROM meal_records WHERE id = :id")
     suspend fun deleteMealRecordById(id: Int)
+
+    // Water Intake Records
+    @Query("SELECT * FROM water_records ORDER BY timestamp DESC")
+    fun getAllWaterRecords(): Flow<List<WaterRecord>>
+
+    @Query("SELECT * FROM water_records WHERE date = :date ORDER BY timestamp ASC")
+    fun getWaterRecordsForDate(date: String): Flow<List<WaterRecord>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertWaterRecord(record: WaterRecord): Long
+
+    @Delete
+    suspend fun deleteWaterRecord(record: WaterRecord)
+
+    @Query("DELETE FROM water_records WHERE id = :id")
+    suspend fun deleteWaterRecordById(id: Int)
 }

@@ -36,6 +36,7 @@ import com.example.data.BankAccount
 import com.example.data.BenefitCard
 import com.example.data.CreditCard
 import com.example.data.Transaction
+import com.example.utils.CategoryUtils
 import com.example.utils.toDoubleCleanOrZero
 import java.text.SimpleDateFormat
 import java.util.*
@@ -122,17 +123,8 @@ fun AddTransactionBottomSheet(
     
     var showNewCategoryDialog by remember { mutableStateOf(false) }
     
-    val defaultCategories = listOf(
-        "Alimentação" to Icons.Outlined.Restaurant,
-        "Transporte" to Icons.Outlined.DirectionsCar,
-        "Saúde" to Icons.Outlined.MedicalServices,
-        "Lazer" to Icons.Outlined.Movie,
-        "Salário" to Icons.Outlined.AttachMoney,
-        "Outros" to Icons.Outlined.Receipt
-    )
-
-    val allCategories: List<Pair<String, ImageVector>> = remember(customCategories) {
-        defaultCategories + customCategories
+    val allCategories: List<Pair<String, ImageVector>> = remember(context, customCategories) {
+        CategoryUtils.getAllCategories(context).map { it.name to it.icon }
     }
 
     ModalBottomSheet(

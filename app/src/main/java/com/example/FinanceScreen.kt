@@ -56,6 +56,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import com.example.utils.BankStatementPdfParser
+import com.example.utils.CategoryUtils
 import com.example.utils.ParsedStatementTransaction
 import com.example.ui.components.ImportBankStatementBottomSheet
 import androidx.compose.ui.platform.LocalContext
@@ -121,13 +122,13 @@ fun FinanceScreen(
         if (uri != null) {
             isParsingPdf = true
             coroutineScope.launch {
-                val parsed = BankStatementPdfParser.parsePdfStatement(context, uri)
+                val parsed = BankStatementPdfParser.parseStatement(context, uri)
                 isParsingPdf = false
                 if (parsed.isNotEmpty()) {
                     parsedPdfTransactions = parsed
                     showImportStatementModal = true
                 } else {
-                    android.widget.Toast.makeText(context, "Nenhum lançamento identificado no PDF.", android.widget.Toast.LENGTH_LONG).show()
+                    android.widget.Toast.makeText(context, "Nenhum lançamento identificado no extrato.", android.widget.Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -965,10 +966,10 @@ fun FinanceScreen(
                             )
                         }
                         Spacer(modifier = Modifier.width(6.dp))
-                        IconButton(onClick = { pdfPickerLauncher.launch("application/pdf") }, modifier = Modifier.size(28.dp)) {
+                        IconButton(onClick = { pdfPickerLauncher.launch("*/*") }, modifier = Modifier.size(28.dp)) {
                             Icon(
                                 imageVector = Icons.Outlined.ReceiptLong,
-                                contentDescription = "Importar Extrato PDF",
+                                contentDescription = "Importar Extrato (PDF / CSV)",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -1045,7 +1046,7 @@ fun FinanceScreen(
                         strokeWidth = 3.dp
                     )
                     Text(
-                        text = "Lendo Extrato PDF...",
+                        text = "Lendo Extrato...",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -2197,14 +2198,7 @@ fun RecentTransactionsSection(
 
 @Composable
 fun TransactionItem(transaction: Transaction, bankAccounts: List<BankAccount>, creditCards: List<CreditCard>) {
-    val icon = when (transaction.category.lowercase()) {
-        "alimentação", "comida", "mercado" -> Icons.Outlined.Restaurant
-        "transporte", "uber", "carro" -> Icons.Outlined.DirectionsCar
-        "saúde", "farmácia" -> Icons.Outlined.MedicalServices
-        "lazer", "entretenimento" -> Icons.Outlined.Movie
-        "salário", "renda" -> Icons.Outlined.AttachMoney
-        else -> Icons.Outlined.Receipt
-    }
+    val icon = CategoryUtils.getCategoryIcon(transaction.category)
     
     val color = if (transaction.isIncome) Color(0xFF71D7CD) else MaterialTheme.colorScheme.onBackground
     val sign = if (transaction.isIncome) "+" else "-"

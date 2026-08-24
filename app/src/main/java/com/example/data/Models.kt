@@ -112,7 +112,16 @@ data class HealthProfile(
     val dailyProteinGoal: Double = 140.0,
     val dailyCarbGoal: Double = 220.0,
     val dailyFatGoal: Double = 60.0,
-    val dailyFiberGoal: Double = 30.0
+    val dailyFiberGoal: Double = 30.0,
+    val dailyWaterGoalMl: Int = 2000
+)
+
+@Entity(tableName = "water_records")
+data class WaterRecord(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val amountMl: Int,
+    val timestamp: Long = System.currentTimeMillis(),
+    val date: String // YYYY-MM-DD
 )
 
 enum class MealType(val title: String, val iconName: String) {

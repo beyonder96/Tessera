@@ -357,7 +357,7 @@ private suspend fun generatePdf(context: Context, uri: Uri, transactions: List<T
                 
                 canvas.drawText(dateStr, margin, yPosition, textPaint)
                 canvas.drawText(if (tx.title.length > 25) tx.title.substring(0, 22) + "..." else tx.title, margin + 80f, yPosition, textPaint)
-                canvas.drawText(if (tx.category.length > 15) tx.category.substring(0, 12) + "..." else tx.category, margin + 250f, yPosition, textPaint)
+                canvas.drawText(if (tx.category.length > 20) tx.category.substring(0, 18) + "..." else tx.category, margin + 250f, yPosition, textPaint)
                 canvas.drawText(if (tx.accountOrCardName.length > 15) tx.accountOrCardName.substring(0, 12) + "..." else tx.accountOrCardName, margin + 350f, yPosition, textPaint)
                 canvas.drawText(valStr, margin + 450f, yPosition, textPaint)
                 

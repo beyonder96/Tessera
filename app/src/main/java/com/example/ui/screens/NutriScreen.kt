@@ -38,6 +38,9 @@ import com.example.viewmodel.TesseraViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
+import androidx.compose.foundation.lazy.LazyRow
+import com.example.data.WaterRecord
+
 @Composable
 fun NutriScreen(
     viewModel: TesseraViewModel,
@@ -45,6 +48,7 @@ fun NutriScreen(
 ) {
     val healthProfile by viewModel.healthProfile.collectAsState()
     val allMealRecords by viewModel.allMealRecords.collectAsState()
+    val allWaterRecords by viewModel.allWaterRecords.collectAsState()
 
     var currentDateCalendar by remember { mutableStateOf(Calendar.getInstance()) }
     val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
@@ -60,6 +64,7 @@ fun NutriScreen(
         today.get(Calendar.DAY_OF_YEAR) == currentDateCalendar.get(Calendar.DAY_OF_YEAR)
     }
 
+    // Refeições do dia
     val dayMeals = remember(allMealRecords, currentDateStr) {
         allMealRecords.filter { it.date == currentDateStr }
     }
@@ -76,8 +81,17 @@ fun NutriScreen(
     val fatGoal = healthProfile?.dailyFatGoal ?: 60.0
     val fiberGoal = healthProfile?.dailyFiberGoal ?: 30.0
 
+    // Consumo de água do dia
+    val dayWaterRecords = remember(allWaterRecords, currentDateStr) {
+        allWaterRecords.filter { it.date == currentDateStr }
+    }
+    val totalWaterMl = remember(dayWaterRecords) { dayWaterRecords.sumOf { it.amountMl } }
+    val waterGoalMl = healthProfile?.dailyWaterGoalMl ?: 2000
+
     var activeMealTypeToAdd by remember { mutableStateOf<MealType?>(null) }
     var showEditGoalsDialog by remember { mutableStateOf(false) }
+    var showCustomWaterDialog by remember { mutableStateOf(false) }
+    var showEditWaterGoalDialog by remember { mutableStateOf(false) }
 
     if (activeMealTypeToAdd != null) {
         AddFoodBottomSheet(
@@ -95,10 +109,32 @@ fun NutriScreen(
             currentCarbs = carbGoal,
             currentFat = fatGoal,
             currentFiber = fiberGoal,
+            currentWater = waterGoalMl,
             onDismiss = { showEditGoalsDialog = false },
-            onSave = { cal, prot, carbs, fat, fib ->
-                viewModel.updateNutritionGoals(cal, prot, carbs, fat, fib)
+            onSave = { cal, prot, carbs, fat, fib, water ->
+                viewModel.updateNutritionGoals(cal, prot, carbs, fat, fib, water)
                 showEditGoalsDialog = false
+            }
+        )
+    }
+
+    if (showCustomWaterDialog) {
+        AddCustomWaterDialog(
+            onDismiss = { showCustomWaterDialog = false },
+            onConfirm = { amount ->
+                viewModel.addWaterRecord(amount, currentDateStr)
+                showCustomWaterDialog = false
+            }
+        )
+    }
+
+    if (showEditWaterGoalDialog) {
+        EditWaterGoalDialog(
+            currentGoalMl = waterGoalMl,
+            onDismiss = { showEditWaterGoalDialog = false },
+            onSave = { newGoal ->
+                viewModel.updateWaterGoal(newGoal)
+                showEditWaterGoalDialog = false
             }
         )
     }
@@ -155,6 +191,19 @@ fun NutriScreen(
                     Icon(Icons.Default.ChevronRight, contentDescription = "Próximo dia", tint = MaterialTheme.colorScheme.onBackground)
                 }
             }
+        }
+
+        // Daily Water Tracking Card
+        item {
+            DailyWaterTrackerCard(
+                totalWaterMl = totalWaterMl,
+                waterGoalMl = waterGoalMl,
+                records = dayWaterRecords,
+                onAddWater = { amount -> viewModel.addWaterRecord(amount, currentDateStr) },
+                onDeleteRecord = { record -> viewModel.deleteWaterRecord(record) },
+                onEditGoal = { showEditWaterGoalDialog = true },
+                onCustomAdd = { showCustomWaterDialog = true }
+            )
         }
 
         // Daily Calories & Macros Summary Card
@@ -511,20 +560,364 @@ private fun MealItemRow(
 }
 
 @Composable
+private fun DailyWaterTrackerCard(
+    totalWaterMl: Int,
+    waterGoalMl: Int,
+    records: List<WaterRecord>,
+    onAddWater: (Int) -> Unit,
+    onDeleteRecord: (WaterRecord) -> Unit,
+    onEditGoal: () -> Unit,
+    onCustomAdd: () -> Unit
+) {
+    val progress = (totalWaterMl.toFloat() / waterGoalMl.coerceAtLeast(1)).coerceIn(0f, 1f)
+    val remainingMl = (waterGoalMl - totalWaterMl).coerceAtLeast(0)
+    val percent = ((totalWaterMl.toFloat() / waterGoalMl.coerceAtLeast(1)) * 100).toInt()
+    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(themedCardBackground())
+            .border(1.dp, themedCardBorder(), RoundedCornerShape(20.dp))
+            .padding(18.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF38BDF8).copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.WaterDrop,
+                            contentDescription = null,
+                            tint = Color(0xFF38BDF8),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "HIDRATAÇÃO DIÁRIA",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.2.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                text = "${totalWaterMl} ml",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Text(
+                                text = " / ${waterGoalMl} ml",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                modifier = Modifier.padding(bottom = 2.dp, start = 4.dp)
+                            )
+                        }
+                    }
+                }
+
+                IconButton(
+                    onClick = onEditGoal,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(themedSubtleBackground())
+                        .border(0.5.dp, themedSubtleBorder(), CircleShape)
+                ) {
+                    Icon(
+                        Icons.Outlined.Tune,
+                        contentDescription = "Definir Meta de Água",
+                        tint = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            // Progress Bar
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp)),
+                    color = Color(0xFF38BDF8),
+                    trackColor = Color(0xFF38BDF8).copy(alpha = 0.15f)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = if (totalWaterMl >= waterGoalMl) "🎉 Meta de hidratação atingida!" else "Restam $remainingMl ml",
+                        fontSize = 11.sp,
+                        color = if (totalWaterMl >= waterGoalMl) Color(0xFF38BDF8) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "$percent% da meta",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                }
+            }
+
+            // Quick Add Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                WaterQuickAddButton("+150ml", modifier = Modifier.weight(1f)) { onAddWater(150) }
+                WaterQuickAddButton("+250ml", modifier = Modifier.weight(1f)) { onAddWater(250) }
+                WaterQuickAddButton("+500ml", modifier = Modifier.weight(1f)) { onAddWater(500) }
+                WaterQuickAddButton("+1L", modifier = Modifier.weight(1f)) { onAddWater(1000) }
+                WaterQuickAddButton("+ Outro", isOutlined = true, modifier = Modifier.weight(1.1f)) { onCustomAdd() }
+            }
+
+            // Logs of the day
+            if (records.isNotEmpty()) {
+                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(themedSubtleBorder()))
+
+                Text(
+                    text = "Registros de hoje",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(records) { record ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(themedSubtleBackground())
+                                .border(0.5.dp, themedSubtleBorder(), RoundedCornerShape(10.dp))
+                                .padding(start = 8.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
+                        ) {
+                            Text(
+                                text = "${record.amountMl}ml",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF38BDF8)
+                            )
+                            Text(
+                                text = "(${timeFormat.format(Date(record.timestamp))})",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            )
+                            IconButton(
+                                onClick = { onDeleteRecord(record) },
+                                modifier = Modifier.size(20.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DeleteOutline,
+                                    contentDescription = "Remover",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(13.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WaterQuickAddButton(
+    text: String,
+    modifier: Modifier = Modifier,
+    isOutlined: Boolean = false,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (isOutlined) Color.Transparent else Color(0xFF38BDF8).copy(alpha = 0.12f))
+            .border(
+                1.dp,
+                if (isOutlined) themedSubtleBorder() else Color(0xFF38BDF8).copy(alpha = 0.3f),
+                RoundedCornerShape(12.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (isOutlined) MaterialTheme.colorScheme.onBackground else Color(0xFF38BDF8)
+        )
+    }
+}
+
+@Composable
+private fun AddCustomWaterDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit
+) {
+    var text by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Registrar Água", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Informe a quantidade consumida em mililitros (ml):", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it.filter { char -> char.isDigit() } },
+                    label = { Text("Quantidade (ml)") },
+                    placeholder = { Text("Ex: 350") },
+                    colors = themedTextFieldColors(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val amount = text.toIntOrNull()
+                    if (amount != null && amount > 0) {
+                        onConfirm(amount)
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF38BDF8), contentColor = Color.Black)
+            ) {
+                Text("ADICIONAR", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("CANCELAR", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        containerColor = themedCardBackground(),
+        shape = RoundedCornerShape(20.dp)
+    )
+}
+
+@Composable
+private fun EditWaterGoalDialog(
+    currentGoalMl: Int,
+    onDismiss: () -> Unit,
+    onSave: (Int) -> Unit
+) {
+    var goalText by remember { mutableStateOf(currentGoalMl.toString()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Meta Diária de Água", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Defina sua meta diária de hidratação:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(
+                    value = goalText,
+                    onValueChange = { goalText = it.filter { char -> char.isDigit() } },
+                    label = { Text("Meta diária (ml)") },
+                    placeholder = { Text("Ex: 2000") },
+                    colors = themedTextFieldColors(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(1500, 2000, 2500, 3000).forEach { preset ->
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (goalText == preset.toString()) Color(0xFF38BDF8).copy(alpha = 0.2f) else themedSubtleBackground())
+                                .border(
+                                    1.dp,
+                                    if (goalText == preset.toString()) Color(0xFF38BDF8) else themedSubtleBorder(),
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .clickable { goalText = preset.toString() }
+                                .padding(vertical = 6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "${preset / 1000.0}L",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (goalText == preset.toString()) Color(0xFF38BDF8) else MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val g = goalText.toIntOrNull() ?: currentGoalMl
+                    if (g > 0) {
+                        onSave(g)
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF38BDF8), contentColor = Color.Black)
+            ) {
+                Text("SALVAR", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("CANCELAR", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        containerColor = themedCardBackground(),
+        shape = RoundedCornerShape(20.dp)
+    )
+}
+
+@Composable
 private fun EditGoalsDialog(
     currentCalories: Double,
     currentProtein: Double,
     currentCarbs: Double,
     currentFat: Double,
     currentFiber: Double,
+    currentWater: Int,
     onDismiss: () -> Unit,
-    onSave: (Double, Double, Double, Double, Double) -> Unit
+    onSave: (Double, Double, Double, Double, Double, Int) -> Unit
 ) {
     var calText by remember { mutableStateOf(currentCalories.toInt().toString()) }
     var protText by remember { mutableStateOf(currentProtein.toInt().toString()) }
     var carbsText by remember { mutableStateOf(currentCarbs.toInt().toString()) }
     var fatText by remember { mutableStateOf(currentFat.toInt().toString()) }
     var fiberText by remember { mutableStateOf(currentFiber.toInt().toString()) }
+    var waterText by remember { mutableStateOf(currentWater.toString()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -533,14 +926,26 @@ private fun EditGoalsDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
-                    value = calText,
-                    onValueChange = { calText = it },
-                    label = { Text("Meta Calórica Diária (kcal)") },
-                    colors = themedTextFieldColors(),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = calText,
+                        onValueChange = { calText = it },
+                        label = { Text("Calorias (kcal)") },
+                        modifier = Modifier.weight(1f),
+                        colors = themedTextFieldColors(),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = waterText,
+                        onValueChange = { waterText = it },
+                        label = { Text("Água (ml)") },
+                        modifier = Modifier.weight(1f),
+                        colors = themedTextFieldColors(),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true
+                    )
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = protText,
@@ -591,7 +996,8 @@ private fun EditGoalsDialog(
                     val cb = carbsText.toDoubleOrNull() ?: currentCarbs
                     val f = fatText.toDoubleOrNull() ?: currentFat
                     val fb = fiberText.toDoubleOrNull() ?: currentFiber
-                    onSave(c, p, cb, f, fb)
+                    val w = waterText.toIntOrNull() ?: currentWater
+                    onSave(c, p, cb, f, fb, w)
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal, contentColor = Color.Black)
             ) {

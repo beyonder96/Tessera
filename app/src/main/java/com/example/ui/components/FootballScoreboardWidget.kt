@@ -110,209 +110,228 @@ fun DetailedMatchWidget(
             if (page == 0) {
                 Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
                     // Header Area
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val leagueText = match?.matchDetail?.leagueName?.takeIf { it.isNotBlank() } ?: "PRÓXIMA PARTIDA"
-                Text(
-                    text = leagueText.uppercase(),
-                    color = Color(0xFFA1A1AA),
-                    fontSize = 13.sp,
-                    fontFamily = FontFamily.SansSerif,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 2.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
-                )
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color(0xFFF97316), strokeWidth = 2.dp)
-                    }
-
-                    val isMatchLive = match?.matchDetail?.statusShort in listOf("LIVE", "1H", "2H", "HT", "IN_PLAY")
-
-                    // Live / Scheduled Pill Indicator
-                    Box(
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
-                            .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f), CircleShape)
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        val leagueText = formatLeagueName(match?.matchDetail?.leagueName)
+                        Text(
+                            text = leagueText.uppercase(),
+                            color = Color(0xFFA1A1AA),
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.SansSerif,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.2.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f).padding(end = 8.dp)
+                        )
+
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text(
-                                text = if (isMatchLive) "LIVE" else "PRÓXIMO JOGO",
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.5.sp
-                            )
+                            if (isLoading) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color(0xFFF97316), strokeWidth = 2.dp)
+                            }
+
+                            val isMatchLive = match?.matchDetail?.statusShort in listOf("LIVE", "1H", "2H", "HT", "IN_PLAY")
+
+                            // Live / Scheduled Pill Indicator
                             Box(
                                 modifier = Modifier
-                                    .size(8.dp)
                                     .clip(CircleShape)
-                                    .background(if (isMatchLive) Color(0xFFEF4444).copy(alpha = pulseAlpha) else Color(0xFF10B981))
-                            )
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                                    .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f), CircleShape)
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = if (isMatchLive) "LIVE" else "PRÓXIMO JOGO",
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 1.5.sp
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(if (isMatchLive) Color(0xFFEF4444).copy(alpha = pulseAlpha) else Color(0xFF10B981))
+                                    )
+                                }
+                            }
+
+                            IconButton(
+                                onClick = { viewModel.fetchFootballScores() },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Refresh",
+                                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                     }
 
-                    IconButton(
-                        onClick = { viewModel.fetchFootballScores() },
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Refresh",
-                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            }
-
-            if (match == null) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(140.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = if (isLoading) "Carregando placar ao vivo..." else "Nenhuma partida em andamento no momento.",
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
-                        fontSize = 13.sp
-                    )
-                }
-            } else {
-                val m = match!!
-
-                // Main Scoreboard Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // Home Team
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        TeamLogo(
-                            logoUrl = m.matchDetail.homeTeamLogo,
-                            teamName = m.matchDetail.homeTeamName,
-                            size = 72
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = m.matchDetail.homeTeamName.uppercase(),
-                            color = MaterialTheme.colorScheme.onBackground,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 2.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    // Score Display Center
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(horizontal = 8.dp)
-                    ) {
-                        Text(
-                            text = if (m.matchDetail.dateFormatted.isNotBlank()) "MATCH-DAY • ${m.matchDetail.dateFormatted.uppercase()}" else "MATCH-DAY",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 2.sp
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        // Score Numbers with Vertical Heat Gradient
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                    if (match == null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(140.dp),
+                            contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = m.matchDetail.homeGoals?.toString() ?: "0",
-                                fontSize = 80.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.SansSerif,
-                                style = TextStyle(
-                                    brush = scoreGradient,
-                                    letterSpacing = (-0.05).em
-                                )
-                            )
-                            Text(
-                                text = ":",
-                                color = Color(0xFF52525B),
-                                fontSize = 48.sp,
-                                fontWeight = FontWeight.Light,
-                                modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = 12.dp)
-                            )
-                            Text(
-                                text = m.matchDetail.awayGoals?.toString() ?: "0",
-                                fontSize = 80.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.SansSerif,
-                                style = TextStyle(
-                                    brush = scoreGradient,
-                                    letterSpacing = (-0.05).em
-                                )
+                                text = if (isLoading) "Carregando placar ao vivo..." else "Nenhuma partida em andamento no momento.",
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                                fontSize = 13.sp
                             )
                         }
+                    } else {
+                        val m = match!!
 
-                        // Match Status / Time
-                        val statusText = when {
-                            m.matchDetail.statusShort == "LIVE" || m.matchDetail.statusShort == "IN_PLAY" || m.matchDetail.statusShort == "2H" -> "2ND HALF 74'"
-                            m.matchDetail.statusShort == "1H" -> "1ST HALF"
-                            m.matchDetail.statusShort == "HT" -> "INTERVALO"
-                            m.matchDetail.statusShort == "FT" -> "FIM DE JOGO"
-                            else -> m.matchDetail.statusShort.ifEmpty { "EM ANDAMENTO" }
+                        // Main Scoreboard Section
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            // Match-Day Date Header
+                            Text(
+                                text = if (m.matchDetail.dateFormatted.isNotBlank()) "MATCH-DAY • ${m.matchDetail.dateFormatted.uppercase()}" else "MATCH-DAY",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 2.sp
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Scoreboard Row: Home Logo, Placar (0 : 0), Away Logo alinhados na mesma linha
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                // Home Logo
+                                Box(
+                                    modifier = Modifier.weight(1f),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    TeamLogo(
+                                        logoUrl = m.matchDetail.homeTeamLogo,
+                                        teamName = m.matchDetail.homeTeamName,
+                                        size = 68
+                                    )
+                                }
+
+                                // Placar Central
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center,
+                                    modifier = Modifier.padding(horizontal = 4.dp)
+                                ) {
+                                    Text(
+                                        text = m.matchDetail.homeGoals?.toString() ?: "0",
+                                        fontSize = 72.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.SansSerif,
+                                        style = TextStyle(
+                                            brush = scoreGradient,
+                                            letterSpacing = (-0.05).em
+                                        )
+                                    )
+                                    Text(
+                                        text = ":",
+                                        color = Color(0xFF52525B),
+                                        fontSize = 44.sp,
+                                        fontWeight = FontWeight.Light,
+                                        modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 8.dp)
+                                    )
+                                    Text(
+                                        text = m.matchDetail.awayGoals?.toString() ?: "0",
+                                        fontSize = 72.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.SansSerif,
+                                        style = TextStyle(
+                                            brush = scoreGradient,
+                                            letterSpacing = (-0.05).em
+                                        )
+                                    )
+                                }
+
+                                // Away Logo
+                                Box(
+                                    modifier = Modifier.weight(1f),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    TeamLogo(
+                                        logoUrl = m.matchDetail.awayTeamLogo,
+                                        teamName = m.matchDetail.awayTeamName,
+                                        size = 68
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Linha de Nomes dos Times e Status (NS / AO VIVO)
+                            val statusText = when {
+                                m.matchDetail.statusShort == "LIVE" || m.matchDetail.statusShort == "IN_PLAY" || m.matchDetail.statusShort == "2H" -> "2ND HALF 74'"
+                                m.matchDetail.statusShort == "1H" -> "1ST HALF"
+                                m.matchDetail.statusShort == "HT" -> "INTERVALO"
+                                m.matchDetail.statusShort == "FT" -> "FIM DE JOGO"
+                                else -> m.matchDetail.statusShort.ifEmpty { "EM ANDAMENTO" }
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                // Nome Time Casa Completo
+                                Text(
+                                    text = m.matchDetail.homeTeamName.uppercase(),
+                                    color = MaterialTheme.colorScheme.onBackground,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                // Status da Partida (NS, AO VIVO, etc.)
+                                Text(
+                                    text = statusText.uppercase(),
+                                    color = Color(0xFFF97316),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 2.sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(horizontal = 8.dp)
+                                )
+
+                                // Nome Time Visitante Completo
+                                Text(
+                                    text = m.matchDetail.awayTeamName.uppercase(),
+                                    color = MaterialTheme.colorScheme.onBackground,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
-
-                        Text(
-                            text = statusText.uppercase(),
-                            color = Color(0xFFF97316),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 2.sp
-                        )
-                    }
-
-                    // Away Team
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        TeamLogo(
-                            logoUrl = m.matchDetail.awayTeamLogo,
-                            teamName = m.matchDetail.awayTeamName,
-                            size = 72
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = m.matchDetail.awayTeamName.uppercase(),
-                            color = MaterialTheme.colorScheme.onBackground,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 2.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
 
                 // Tabs Selector
                 Row(
@@ -672,5 +691,38 @@ fun StandingsCard(
                 }
             }
         }
+    }
+}
+
+private fun formatLeagueName(rawName: String?): String {
+    if (rawName.isNullOrBlank()) return "PRÓXIMA PARTIDA"
+    val clean = rawName.trim()
+    return when {
+        clean.contains("Brazilian Serie A", ignoreCase = true) ||
+        clean.contains("Brasileiro Serie A", ignoreCase = true) ||
+        clean.contains("Brasileirao", ignoreCase = true) -> "Brasileirão Série A"
+
+        clean.contains("Brazilian Serie B", ignoreCase = true) ||
+        clean.contains("Brasileiro Serie B", ignoreCase = true) -> "Brasileirão Série B"
+
+        clean.contains("Copa do Brasil", ignoreCase = true) -> "Copa do Brasil"
+
+        clean.contains("Libertadores", ignoreCase = true) -> "Libertadores"
+
+        clean.contains("Sudamericana", ignoreCase = true) ||
+        clean.contains("Sul-Americana", ignoreCase = true) -> "Sul-Americana"
+
+        clean.contains("Champions League", ignoreCase = true) -> "Champions League"
+
+        clean.contains("Premier League", ignoreCase = true) -> "Premier League"
+
+        clean.contains("La Liga", ignoreCase = true) -> "La Liga"
+
+        clean.contains("Serie A", ignoreCase = true) -> "Série A"
+
+        clean.contains("Paulista", ignoreCase = true) -> "Paulistão"
+        clean.contains("Carioca", ignoreCase = true) -> "Carioca"
+
+        else -> clean
     }
 }

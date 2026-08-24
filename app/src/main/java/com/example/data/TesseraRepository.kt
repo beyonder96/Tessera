@@ -260,6 +260,25 @@ class TesseraRepository(private val dao: TesseraDao) {
         dao.deleteMealRecordById(id)
     }
 
+    // Water Intake Records
+    val allWaterRecords: Flow<List<WaterRecord>> = dao.getAllWaterRecords()
+
+    fun getWaterRecordsForDate(date: String): Flow<List<WaterRecord>> {
+        return dao.getWaterRecordsForDate(date)
+    }
+
+    suspend fun insertWaterRecord(record: WaterRecord): Long {
+        return dao.insertWaterRecord(record)
+    }
+
+    suspend fun deleteWaterRecord(record: WaterRecord) {
+        dao.deleteWaterRecord(record)
+    }
+
+    suspend fun deleteWaterRecordById(id: Int) {
+        dao.deleteWaterRecordById(id)
+    }
+
     private val bibliaApiKey = "bapi_cyd65a70b4cmbin97bcojzs3vmq7cpxnhyo2lgfjogiup9d5"
 
     private val bibliaOkHttpClient = okhttp3.OkHttpClient.Builder()

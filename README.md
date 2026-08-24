@@ -4,6 +4,13 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.42
+
+- **Sistema de Registro de Hidratação com Metas (Aba Nutrição):** Novo módulo completo de consumo de água diária na aba Nutri da Central de Saúde, com cálculo automático de meta diária em ml, barra de progresso em tempo real, botões de registro rápido (+150ml, +250ml, +500ml, +1L e quantidade personalizada), histórico de lançamentos do dia com horário e diálogo intuitivo para personalização de metas.
+- **Remoção de Academia da Aba Saúde:** Navegação simplificada e minimalista na Central de Saúde focada nas sub-abas **Geral** e **Nutri**.
+- **Categorização Inteligente em Extratos Bancários:** Atribuição e persistência correta de categorias em lançamentos importados de extratos bancários (PDF e CSV) e cálculo preciso do percentual de orçamento comprometido do mês.
+- **Alinhamento Visual do Placar de Futebol:** Escudos dos clubes alinhados na mesma linha horizontal do placar, nomes das equipes exibidos por completo e cabeçalho de campeonatos formatado sem cortes.
+
 ## 🚀 Novidades da Versão 2.0.41
 
 - **Correção e Aprimoramento na Importação de Extratos em PDF:** Identificação de débitos e créditos com precisão matemática em extratos bancários brasileiros (Itaú, Nubank, Santander, etc.), suporte a detecção de sinais, exclusão estrita de linhas de `SALDO DO DIA`, fechamentos diários e avisos legais, além de extração correta de colunas duplas (valor da transação vs saldo) e novo botão interativo de alternância com 1 toque (`Entrada ⇄` / `Saída ⇄`) no modal de importação.
@@ -181,8 +188,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.41.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.41.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.42.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.42.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.

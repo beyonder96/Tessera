@@ -712,6 +712,9 @@ class TesseraViewModel(
     val allMealRecords: StateFlow<List<com.example.data.MealRecord>> = repository.allMealRecords
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val allWaterRecords: StateFlow<List<com.example.data.WaterRecord>> = repository.allWaterRecords
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     private fun getStartOfToday(): Long {
         val cal = Calendar.getInstance()
         cal.set(Calendar.HOUR_OF_DAY, 0)
@@ -2002,7 +2005,8 @@ class TesseraViewModel(
         dailyProtein: Double,
         dailyCarbs: Double,
         dailyFat: Double,
-        dailyFiber: Double
+        dailyFiber: Double,
+        dailyWaterGoalMl: Int? = null
     ) {
         viewModelScope.launch {
             val current = repository.healthProfile.first() ?: HealthProfile()
@@ -2012,9 +2016,41 @@ class TesseraViewModel(
                     dailyProteinGoal = dailyProtein,
                     dailyCarbGoal = dailyCarbs,
                     dailyFatGoal = dailyFat,
-                    dailyFiberGoal = dailyFiber
+                    dailyFiberGoal = dailyFiber,
+                    dailyWaterGoalMl = dailyWaterGoalMl ?: current.dailyWaterGoalMl
                 )
             )
+        }
+    }
+
+    fun updateWaterGoal(dailyWaterGoalMl: Int) {
+        viewModelScope.launch {
+            val current = repository.healthProfile.first() ?: HealthProfile()
+            repository.insertHealthProfile(current.copy(dailyWaterGoalMl = dailyWaterGoalMl))
+        }
+    }
+
+    fun addWaterRecord(amountMl: Int, date: String) {
+        viewModelScope.launch {
+            repository.insertWaterRecord(
+                com.example.data.WaterRecord(
+                    amountMl = amountMl,
+                    timestamp = System.currentTimeMillis(),
+                    date = date
+                )
+            )
+        }
+    }
+
+    fun deleteWaterRecord(record: com.example.data.WaterRecord) {
+        viewModelScope.launch {
+            repository.deleteWaterRecord(record)
+        }
+    }
+
+    fun deleteWaterRecordById(id: Int) {
+        viewModelScope.launch {
+            repository.deleteWaterRecordById(id)
         }
     }
 

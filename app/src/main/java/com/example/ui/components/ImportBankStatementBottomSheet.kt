@@ -1,9 +1,11 @@
 package com.example.ui.components
 
+import android.content.Context
 import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,12 +20,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.BankAccount
 import com.example.data.CreditCard
+import com.example.utils.CategoryItem
+import com.example.utils.CategoryUtils
 import com.example.utils.ParsedStatementTransaction
 import java.text.NumberFormat
 import java.util.*
@@ -37,7 +42,13 @@ fun ImportBankStatementBottomSheet(
     onConfirmImport: (String, List<ParsedStatementTransaction>) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val transactions = remember { mutableStateListOf<ParsedStatementTransaction>().apply { addAll(initialTransactions) } }
+    val context = LocalContext.current
+    val allCategories = remember(context) { CategoryUtils.getAllCategories(context) }
+
+    val transactions = remember {
+        mutableStateListOf<ParsedStatementTransaction>().apply { addAll(initialTransactions) }
+    }
+
     val allAccountNames = remember(bankAccounts, creditCards) {
         val list = mutableListOf<String>()
         bankAccounts.forEach { list.add(it.name) }
@@ -49,6 +60,10 @@ fun ImportBankStatementBottomSheet(
     var selectedAccount by remember { mutableStateOf(allAccountNames.firstOrNull() ?: "Conta Principal") }
     var showAccountDropdown by remember { mutableStateOf(false) }
 
+    // Estado para seleção de categoria de uma transação específica ou em lote
+    var transactionForCategoryChange by remember { mutableStateOf<ParsedStatementTransaction?>(null) }
+    var isBulkCategoryChange by remember { mutableStateOf(false) }
+
     val currencyFormatter = remember { NumberFormat.getCurrencyInstance(Locale("pt", "BR")) }
 
     val selectedCount = transactions.count { it.isSelected }
@@ -57,6 +72,15 @@ fun ImportBankStatementBottomSheet(
     }
     val totalExpense = remember(transactions) {
         transactions.filter { it.isSelected && !it.isIncome }.sumOf { it.amount }
+    }
+
+    // Agrupamento das despesas selecionadas por categoria para feedback de orçamento
+    val categoryTotals = remember(transactions) {
+        transactions.filter { it.isSelected && !it.isIncome }
+            .groupBy { it.category }
+            .mapValues { entry -> entry.value.sumOf { it.amount } }
+            .toList()
+            .sortedByDescending { it.second }
     }
 
     ModalBottomSheet(
@@ -96,7 +120,7 @@ fun ImportBankStatementBottomSheet(
                     }
                     Column {
                         Text(
-                            text = "Importar Extrato PDF",
+                            text = "Importar Extrato",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -184,7 +208,7 @@ fun ImportBankStatementBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Card Resumo Financeiro
             Row(
@@ -208,61 +232,137 @@ fun ImportBankStatementBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            // Preview rápido de categorias
+            if (categoryTotals.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(categoryTotals) { (catName, amount) ->
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = themedSubtleBackground(),
+                            border = BorderStroke(0.5.dp, themedCardBorder())
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = CategoryUtils.getCategoryIcon(catName),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(12.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "$catName: ${currencyFormatter.format(amount)}",
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
 
-            // Toolbar da Lista (Selecionar Todos / Desmarcar)
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Toolbar da Lista (Selecionar Todos / Desmarcar / Categorizar em Lote)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "LANÇAMENTOS ($selectedCount selecionados)",
+                    text = "LANÇAMENTOS ($selectedCount)",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     letterSpacing = 1.sp
                 )
 
-                TextButton(
-                    onClick = {
-                        val allSelected = transactions.all { it.isSelected }
-                        transactions.indices.forEach { i ->
-                            transactions[i] = transactions[i].copy(isSelected = !allSelected)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (selectedCount > 0) {
+                        TextButton(
+                            onClick = { isBulkCategoryChange = true },
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Category,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Categorizar ($selectedCount)",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
                         }
-                    },
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = if (transactions.all { it.isSelected }) "Desmarcar Todos" else "Selecionar Todos",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    }
+
+                    TextButton(
+                        onClick = {
+                            val allSelected = transactions.all { it.isSelected }
+                            transactions.indices.forEach { i ->
+                                transactions[i] = transactions[i].copy(isSelected = !allSelected)
+                            }
+                        },
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = if (transactions.all { it.isSelected }) "Desmarcar Todos" else "Marcar Todos",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
 
             // Lista de Lançamentos
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f, fill = false)
-                    .heightIn(max = 340.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(transactions, key = { it.id }) { item ->
-                    val index = transactions.indexOfFirst { it.id == item.id }
-                    ParsedTransactionRow(
-                        item = item,
-                        onToggleSelected = {
-                            if (index != -1) {
-                                transactions[index] = transactions[index].copy(isSelected = !item.isSelected)
-                            }
-                        },
-                        onToggleIncome = {
-                            if (index != -1) {
-                                transactions[index] = transactions[index].copy(isIncome = !item.isIncome)
-                            }
-                        }
+            if (transactions.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Nenhum lançamento encontrado no extrato.",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .heightIn(max = 340.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(transactions, key = { it.id }) { item ->
+                        val index = transactions.indexOfFirst { it.id == item.id }
+                        ParsedTransactionRow(
+                            item = item,
+                            onToggleSelected = {
+                                if (index != -1) {
+                                    transactions[index] = transactions[index].copy(isSelected = !item.isSelected)
+                                }
+                            },
+                            onToggleIncome = {
+                                if (index != -1) {
+                                    transactions[index] = transactions[index].copy(isIncome = !item.isIncome)
+                                }
+                            },
+                            onChangeCategoryClick = {
+                                transactionForCategoryChange = item
+                            }
+                        )
+                    }
                 }
             }
 
@@ -291,15 +391,55 @@ fun ImportBankStatementBottomSheet(
             }
         }
     }
+
+    // Modal para Seleção Individual de Categoria
+    if (transactionForCategoryChange != null) {
+        val currentTx = transactionForCategoryChange!!
+        CategorySelectionDialog(
+            title = "Alterar Categoria",
+            subtitle = currentTx.title,
+            currentCategory = currentTx.category,
+            categories = allCategories,
+            onSelectCategory = { newCategory ->
+                val index = transactions.indexOfFirst { it.id == currentTx.id }
+                if (index != -1) {
+                    transactions[index] = transactions[index].copy(category = newCategory)
+                }
+                transactionForCategoryChange = null
+            },
+            onDismiss = { transactionForCategoryChange = null }
+        )
+    }
+
+    // Modal para Seleção em Lote de Categoria
+    if (isBulkCategoryChange) {
+        CategorySelectionDialog(
+            title = "Categorizar em Lote",
+            subtitle = "Aplicar para $selectedCount lançamentos selecionados",
+            currentCategory = "",
+            categories = allCategories,
+            onSelectCategory = { newCategory ->
+                transactions.indices.forEach { i ->
+                    if (transactions[i].isSelected) {
+                        transactions[i] = transactions[i].copy(category = newCategory)
+                    }
+                }
+                isBulkCategoryChange = false
+            },
+            onDismiss = { isBulkCategoryChange = false }
+        )
+    }
 }
 
 @Composable
 private fun ParsedTransactionRow(
     item: ParsedStatementTransaction,
     onToggleSelected: () -> Unit,
-    onToggleIncome: () -> Unit
+    onToggleIncome: () -> Unit,
+    onChangeCategoryClick: () -> Unit
 ) {
     val currencyFormatter = remember { NumberFormat.getCurrencyInstance(Locale("pt", "BR")) }
+    val categoryIcon = CategoryUtils.getCategoryIcon(item.category)
 
     Row(
         modifier = Modifier
@@ -349,11 +489,56 @@ private fun ParsedTransactionRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = "${item.dateFormatted} • ${item.category}",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Spacer(modifier = Modifier.height(3.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = item.dateFormatted,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "•",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                    // Chip Clicável de Categoria
+                    Surface(
+                        onClick = onChangeCategoryClick,
+                        shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Icon(
+                                imageVector = categoryIcon,
+                                contentDescription = null,
+                                modifier = Modifier.size(11.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = item.category,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowDown,
+                                contentDescription = null,
+                                modifier = Modifier.size(11.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -383,4 +568,121 @@ private fun ParsedTransactionRow(
             }
         }
     }
+}
+
+@Composable
+private fun CategorySelectionDialog(
+    title: String,
+    subtitle: String,
+    currentCategory: String,
+    categories: List<CategoryItem>,
+    onSelectCategory: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    val filteredCategories = remember(searchQuery, categories) {
+        if (searchQuery.isBlank()) categories
+        else categories.filter { it.name.contains(searchQuery, ignoreCase = true) }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(16.dp),
+        title = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(text = title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                if (subtitle.isNotBlank()) {
+                    Text(
+                        text = subtitle,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 320.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Buscar categoria...", fontSize = 12.sp) },
+                    singleLine = true,
+                    leadingIcon = {
+                        Icon(imageVector = Icons.Outlined.Search, contentDescription = null, modifier = Modifier.size(16.dp))
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = themedCardBorder()
+                    )
+                )
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(filteredCategories) { cat ->
+                        val isSelected = cat.name.equals(currentCategory, ignoreCase = true)
+                        Surface(
+                            onClick = { onSelectCategory(cat.name) },
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent,
+                            border = BorderStroke(
+                                width = if (isSelected) 1.dp else 0.5.dp,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else themedCardBorder()
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = cat.icon,
+                                    contentDescription = null,
+                                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    text = cat.name,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            }
+        }
+    )
 }

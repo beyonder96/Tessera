@@ -8,6 +8,9 @@ import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.text.PDFTextStripper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.text.SimpleDateFormat
 import java.util.*
 import java.util.regex.Pattern
 
@@ -18,7 +21,8 @@ data class ParsedStatementTransaction(
     val timestamp: Long,
     val amount: Double,
     val isIncome: Boolean,
-    val category: String,
+    var category: String,
+    val accountOrCardName: String = "",
     var isSelected: Boolean = true
 )
 
@@ -34,6 +38,32 @@ object BankStatementPdfParser {
         val startIndex: Int,
         val endIndex: Int
     )
+
+    private val KNOWN_CATEGORIES = listOf(
+        "Alimentação", "Transporte", "Moradia", "Saúde", "Lazer",
+        "Educação", "Petz", "Salário", "Investimentos", "Compras",
+        "Reembolso", "Outros", "Transferência", "Receitas", "Ajuste"
+    )
+
+    /**
+     * Identifica e processa extratos em PDF ou CSV a partir do URI fornecido.
+     */
+    suspend fun parseStatement(context: Context, uri: Uri): List<ParsedStatementTransaction> = withContext(Dispatchers.IO) {
+        val mimeType = context.contentResolver.getType(uri)?.lowercase(Locale.getDefault()) ?: ""
+        val uriStr = uri.toString().lowercase(Locale.getDefault())
+
+        if (mimeType.contains("csv") || uriStr.endsWith(".csv") || mimeType.contains("text/comma-separated-values")) {
+            val csvResult = parseCsvStatement(context, uri)
+            if (csvResult.isNotEmpty()) return@withContext csvResult
+        }
+
+        // Tenta processar como PDF por padrão
+        val pdfResult = parsePdfStatement(context, uri)
+        if (pdfResult.isNotEmpty()) return@withContext pdfResult
+
+        // Se falhou como PDF, tenta ler como CSV (caso o MIME tenha vindo genérico como text/plain)
+        return@withContext parseCsvStatement(context, uri)
+    }
 
     suspend fun parsePdfStatement(context: Context, uri: Uri): List<ParsedStatementTransaction> = withContext(Dispatchers.IO) {
         val resultList = mutableListOf<ParsedStatementTransaction>()
@@ -53,17 +83,138 @@ object BankStatementPdfParser {
         return@withContext resultList
     }
 
+    suspend fun parseCsvStatement(context: Context, uri: Uri): List<ParsedStatementTransaction> = withContext(Dispatchers.IO) {
+        val transactions = mutableListOf<ParsedStatementTransaction>()
+        try {
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                BufferedReader(InputStreamReader(inputStream)).use { reader ->
+                    val lines = reader.readLines()
+                    if (lines.isEmpty()) return@withContext transactions
+
+                    // Detecta delimitador (, ou ;)
+                    val firstLine = lines.firstOrNull { it.isNotBlank() } ?: return@withContext transactions
+                    val delimiter = if (firstLine.count { it == ';' } > firstLine.count { it == ',' }) ";" else ","
+
+                    // Detecta índices das colunas a partir do cabeçalho
+                    var dateIdx = -1
+                    var titleIdx = -1
+                    var categoryIdx = -1
+                    var accountIdx = -1
+                    var valueIdx = -1
+                    var typeIdx = -1
+
+                    val headerTokens = splitCsvLine(firstLine, delimiter).map { unaccent(it).trim().lowercase(Locale.getDefault()) }
+                    headerTokens.forEachIndexed { index, header ->
+                        when {
+                            header.contains("data") || header.contains("date") -> if (dateIdx == -1) dateIdx = index
+                            header.contains("titulo") || header.contains("title") || header.contains("descricao") || header.contains("historico") -> if (titleIdx == -1) titleIdx = index
+                            header.contains("categoria") || header.contains("category") -> if (categoryIdx == -1) categoryIdx = index
+                            header.contains("conta") || header.contains("cartao") || header.contains("account") -> if (accountIdx == -1) accountIdx = index
+                            header.contains("valor") || header.contains("value") || header.contains("amount") -> if (valueIdx == -1) valueIdx = index
+                            header.contains("tipo") || header.contains("type") -> if (typeIdx == -1) typeIdx = index
+                        }
+                    }
+
+                    val hasHeader = dateIdx != -1 || titleIdx != -1 || valueIdx != -1
+                    val startIndex = if (hasHeader) 1 else 0
+
+                    val currentYear = Calendar.getInstance().get(Calendar.YEAR)
+                    val dateRegex = Pattern.compile("""\b(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2,4}))?\b""")
+
+                    for (i in startIndex until lines.size) {
+                        val rawLine = lines[i].trim()
+                        if (rawLine.isBlank()) continue
+
+                        val tokens = splitCsvLine(rawLine, delimiter)
+                        if (tokens.size < 2) continue
+
+                        var dateStr = if (dateIdx in tokens.indices) tokens[dateIdx] else tokens[0]
+                        var titleStr = if (titleIdx in tokens.indices) tokens[titleIdx] else tokens.getOrNull(1) ?: ""
+                        var categoryStr = if (categoryIdx in tokens.indices) tokens[categoryIdx] else ""
+                        val accountStr = if (accountIdx in tokens.indices) tokens[accountIdx] else ""
+                        var valueRaw = if (valueIdx in tokens.indices) tokens[valueIdx] else tokens.lastOrNull() ?: ""
+                        val typeStr = if (typeIdx in tokens.indices) tokens[typeIdx] else ""
+
+                        val dateMatcher = dateRegex.matcher(dateStr)
+                        if (!dateMatcher.find()) continue
+
+                        val day = dateMatcher.group(1)?.toIntOrNull() ?: continue
+                        val month = dateMatcher.group(2)?.toIntOrNull() ?: continue
+                        val yearGroup = dateMatcher.group(3)
+                        val year = when {
+                            yearGroup == null -> currentYear
+                            yearGroup.length == 2 -> 2000 + (yearGroup.toIntOrNull() ?: 26)
+                            else -> yearGroup.toIntOrNull() ?: currentYear
+                        }
+
+                        val timestamp = parseDateToTimestamp(day, month, year)
+                        val cleanAmount = parseAmount(valueRaw)
+                        if (cleanAmount <= 0.0) continue
+
+                        val isIncome = when {
+                            typeStr.contains("receita", ignoreCase = true) || typeStr.contains("entrada", ignoreCase = true) || typeStr.contains("income", ignoreCase = true) || typeStr.equals("C", ignoreCase = true) -> true
+                            typeStr.contains("despesa", ignoreCase = true) || typeStr.contains("saida", ignoreCase = true) || typeStr.contains("expense", ignoreCase = true) || typeStr.equals("D", ignoreCase = true) -> false
+                            valueRaw.startsWith("+") -> true
+                            valueRaw.startsWith("-") -> false
+                            else -> determineIsIncome(titleStr, MoneyMatch(valueRaw, null, cleanAmount, false, false, 0, 0), false)
+                        }
+
+                        if (categoryStr.isBlank()) {
+                            categoryStr = inferCategory(titleStr, isIncome)
+                        }
+
+                        transactions.add(
+                            ParsedStatementTransaction(
+                                title = cleanDescription(titleStr),
+                                dateFormatted = String.format(Locale.getDefault(), "%02d/%02d", day, month),
+                                timestamp = timestamp,
+                                amount = cleanAmount,
+                                isIncome = isIncome,
+                                category = categoryStr,
+                                accountOrCardName = accountStr.trim(),
+                                isSelected = true
+                            )
+                        )
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro ao processar extrato em CSV", e)
+        }
+        return@withContext transactions
+    }
+
+    private fun splitCsvLine(line: String, delimiter: String): List<String> {
+        val result = mutableListOf<String>()
+        var inQuotes = false
+        val current = StringBuilder()
+
+        for (ch in line) {
+            when {
+                ch == '"' -> inQuotes = !inQuotes
+                ch.toString() == delimiter && !inQuotes -> {
+                    result.add(current.toString().trim().replace("^\"|\"$".toRegex(), ""))
+                    current.setLength(0)
+                }
+                else -> current.append(ch)
+            }
+        }
+        result.add(current.toString().trim().replace("^\"|\"$".toRegex(), ""))
+        return result
+    }
+
     fun extractTransactionsFromLines(lines: List<String>): List<ParsedStatementTransaction> {
         val transactions = mutableListOf<ParsedStatementTransaction>()
 
-        // Padrões de Data comuns em extratos brasileiros: DD/MM/YYYY, DD/MM/YY, DD/MM
         val dateRegex = Pattern.compile("""\b(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2,4}))?\b""")
-        // Padrão de valor em reais com suporte a sinais e indicadores (evita capturar números de documento como 121.0000BANCO)
         val moneyRegex = Pattern.compile("""(?<![\d.])([-+]?\s*(?:R\$\s*)?[-+]?\s*(?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d{2}|\.\d{2}(?![\d/])))\s*([DCdc\-+])?(?![a-zA-Z0-9])""")
 
         val currentYear = Calendar.getInstance().get(Calendar.YEAR)
 
-        // Verifica se o extrato utiliza notação explícita de sinal negativo para despesas (como Itaú, Nubank, Inter)
+        // Verifica se é um extrato exportado pelo Tessera
+        val isTesseraExport = lines.any { unaccent(it).contains("extrato tessera") }
+
+        // Verifica se o extrato utiliza notação explícita de sinal negativo para despesas
         val hasExplicitNegativeInDoc = lines.any { rawLine ->
             val l = rawLine.trim()
             !isHeaderOrSummaryLine(l) && (
@@ -80,7 +231,6 @@ object BankStatementPdfParser {
             val dateMatcher = dateRegex.matcher(line)
             if (!dateMatcher.find()) continue
 
-            // A data deve estar no início da linha (geralmente nos primeiros 15 caracteres)
             if (dateMatcher.start() > 15) continue
 
             val day = dateMatcher.group(1)?.toIntOrNull() ?: continue
@@ -94,11 +244,9 @@ object BankStatementPdfParser {
 
             val timestamp = parseDateToTimestamp(day, month, year)
 
-            // Remove a data inicial da linha para processar descrição e valor
             val lineWithoutDate = line.substring(dateMatcher.end()).trim()
             if (lineWithoutDate.isBlank()) continue
 
-            // Extrai todas as ocorrências de valores monetários na linha
             val moneyMatcher = moneyRegex.matcher(lineWithoutDate)
             val matches = mutableListOf<MoneyMatch>()
 
@@ -129,7 +277,6 @@ object BankStatementPdfParser {
 
             if (matches.isEmpty()) continue
 
-            // O primeiro valor após a descrição é o montante da transação (o segundo, se existir, é o saldo do dia)
             val txMatch = matches.first()
 
             val descPart = if (txMatch.startIndex > 0) {
@@ -138,12 +285,21 @@ object BankStatementPdfParser {
                 lineWithoutDate.substring(txMatch.endIndex).trim()
             }
 
-            val cleanTitle = cleanDescription(descPart)
+            // Extração inteligente de Título, Categoria e Conta
+            val (extractedTitle, extractedCategory, extractedAccount) = parseTitleCategoryAndAccount(
+                descPart,
+                isTesseraExport
+            )
+
+            val cleanTitle = cleanDescription(extractedTitle)
             if (cleanTitle.length < 2 || isIgnorableTitle(cleanTitle)) continue
 
-            // Determinar se é Receita ou Despesa com base no sinal, indicadores e palavras-chave
             val isIncome = determineIsIncome(cleanTitle, txMatch, hasExplicitNegativeInDoc)
-            val category = inferCategory(cleanTitle, isIncome)
+            val finalCategory = if (extractedCategory.isNotBlank()) {
+                extractedCategory
+            } else {
+                inferCategory(cleanTitle, isIncome)
+            }
 
             transactions.add(
                 ParsedStatementTransaction(
@@ -152,7 +308,8 @@ object BankStatementPdfParser {
                     timestamp = timestamp,
                     amount = txMatch.amount,
                     isIncome = isIncome,
-                    category = category,
+                    category = finalCategory,
+                    accountOrCardName = extractedAccount,
                     isSelected = true
                 )
             )
@@ -161,22 +318,67 @@ object BankStatementPdfParser {
         return transactions
     }
 
+    /**
+     * Tenta identificar se no texto descritivo existem colunas separadas de Categoria e Conta/Cartão,
+     * especialmente em PDFs exportados pelo Tessera.
+     */
+    private fun parseTitleCategoryAndAccount(
+        rawDesc: String,
+        isTesseraExport: Boolean
+    ): Triple<String, String, String> {
+        val trimmed = rawDesc.trim()
+
+        data class CategoryMatchCandidate(
+            val title: String,
+            val category: String,
+            val account: String,
+            val start: Int
+        )
+
+        val candidates = mutableListOf<CategoryMatchCandidate>()
+
+        for (cat in KNOWN_CATEGORIES) {
+            val catPattern = Pattern.compile("""\b${Pattern.quote(cat)}\b""", Pattern.CASE_INSENSITIVE)
+            val matcher = catPattern.matcher(trimmed)
+            while (matcher.find()) {
+                val start = matcher.start()
+                val end = matcher.end()
+
+                val before = trimmed.substring(0, start).trim()
+                val after = trimmed.substring(end).trim()
+                val cleanBefore = cleanDescription(before)
+
+                if (cleanBefore.length >= 2) {
+                    candidates.add(CategoryMatchCandidate(cleanBefore, cat, after, start))
+                }
+            }
+        }
+
+        if (candidates.isNotEmpty()) {
+            val best = candidates.maxByOrNull { it.start }!!
+            return Triple(best.title, best.category, best.account)
+        }
+
+        return Triple(trimmed, "", "")
+    }
+
     private fun isHeaderOrSummaryLine(line: String): Boolean {
         val lower = unaccent(line).trim()
         if (lower.isBlank()) return true
 
-        // Cabeçalhos, seções e metadados de extrato
         if (lower.startsWith("extrato") || lower.contains("periodo de visualizacao") || lower.contains("emitido em:") ||
             lower.contains("data lancamentos valor") || lower.contains("data lancamento historico") || lower.contains("data historico doc") ||
+            lower.contains("data titulo categoria") || lower.contains("conta/cartao valor") ||
             lower.contains("agencia:") || lower.contains("conta:") || lower.contains("cpf:") || lower.contains("cnpj:") ||
             lower.contains("pagina ") || lower.contains("saldo em conta") || lower.contains("limite da conta") ||
             lower.contains("total contratado") || lower.contains("o uso do limite") || lower.contains("aviso!") ||
             lower.contains("consultas, informacoes") || lower.contains("portabilidade") || lower.contains("ouvidoria:") ||
             lower.contains("deficiente auditivo") || lower.contains("fale conosco") || lower.contains("central de atendimento") ||
-            lower.contains("sac:") || lower.contains("tarifa bancaria") || lower.contains("rendimento bruto")
+            lower.contains("sac:") || lower.startsWith("tarifa bancaria") || lower.startsWith("rendimento bruto") ||
+            lower.startsWith("fatura:") || lower.contains("resumo da fatura") || lower.contains("total da fatura") ||
+            lower.contains("fatura fechada")
         ) return true
 
-        // Linhas de saldo e fechamentos diários
         if (lower.startsWith("saldo") || lower.startsWith("sdo ") || lower.startsWith("sdo.") ||
             lower.contains("saldo do dia") || lower.contains("sdo do dia") || lower.contains("saldo anterior") ||
             lower.contains("saldo final") || lower.contains("saldo atual") || lower.contains("saldo disponivel") ||
@@ -218,7 +420,6 @@ object BankStatementPdfParser {
                 .replace("-", "")
 
             if (normalized.contains(",") && normalized.contains(".")) {
-                // Formato brasileiro padrão: 1.234,56
                 normalized.replace(".", "").replace(",", ".").toDouble()
             } else if (normalized.contains(",")) {
                 normalized.replace(",", ".").toDouble()
@@ -237,11 +438,9 @@ object BankStatementPdfParser {
     ): Boolean {
         val lowerTitle = unaccent(title)
 
-        // 1. Sinais e indicadores explícitos no próprio valor
         if (txMatch.isNegativeRaw) return false
         if (txMatch.isPositiveRaw) return true
 
-        // 2. Palavras-chave fortes de ENTRADA / RECEITA
         if (lowerTitle.contains("salario") || lowerTitle.contains("remuneracao") || lowerTitle.contains("prov/salario") ||
             lowerTitle.contains("rendimento") || lowerTitle.contains("rend pago") || lowerTitle.contains("estorno") ||
             lowerTitle.contains("reembolso") || lowerTitle.contains("devolucao") || lowerTitle.contains("dev pix") ||
@@ -254,7 +453,6 @@ object BankStatementPdfParser {
             return true
         }
 
-        // 3. Palavras-chave fortes de SAÍDA / DESPESA
         if (lowerTitle.contains("enviado") || lowerTitle.contains("enviada") || lowerTitle.contains("compra") ||
             lowerTitle.contains("pagamento") || lowerTitle.contains("pagto") || lowerTitle.contains("debito") ||
             lowerTitle.contains("saque") || lowerTitle.contains("tarifa") || lowerTitle.contains("iof") ||
@@ -264,13 +462,10 @@ object BankStatementPdfParser {
             return false
         }
 
-        // 4. Se o extrato possui valores com sinal negativo explícito para débitos (como Itaú/Nubank/Inter),
-        // qualquer transação sem sinal negativo é uma Entrada (Receita).
         if (hasExplicitNegativeInDoc) {
             return true
         }
 
-        // Fallback padrão se não há como determinar
         return false
     }
 
@@ -278,12 +473,13 @@ object BankStatementPdfParser {
         val lower = unaccent(title)
         if (isIncome) {
             return when {
-                lower.contains("salario") || lower.contains("remuneracao") || lower.contains("folha") -> "Salário"
+                lower.contains("salario") || lower.contains("remuneracao") || lower.contains("folha") || lower.contains("ordenado") -> "Salário"
                 lower.contains("rendimento") || lower.contains("dividendo") || lower.contains("juros") ||
                         lower.contains("cdi") || lower.contains("rend pago") || lower.contains("aplic aut") -> "Investimentos"
                 lower.contains("estorno") || lower.contains("reembolso") || lower.contains("devolucao") ||
                         lower.contains("dev pix") || lower.contains("est on") -> "Reembolso"
-                else -> "Receitas"
+                lower.contains("transf entre contas") || lower.contains("propria") -> "Transferência"
+                else -> "Salário"
             }
         }
 
@@ -292,23 +488,28 @@ object BankStatementPdfParser {
                     lower.contains("consulta") || lower.contains("laboratorio") || lower.contains("medico") ||
                     lower.contains("dentista") || lower.contains("drogasil") || lower.contains("raia") ||
                     lower.contains("panvel") || lower.contains("pague menos") || lower.contains("exame") ||
-                    lower.contains("metro farma") -> "Saúde"
+                    lower.contains("metro farma") || lower.contains("ultrafarma") || lower.contains("unimed") ||
+                    lower.contains("clinica") -> "Saúde"
 
-            lower.contains("mercado") || lower.contains("supermercado") || lower.contains("padaria") ||
+            lower.contains("mercad") || lower.contains("supermercado") || lower.contains("padaria") ||
+                    lower.contains("mercearia") || lower.contains("sacolao") ||
                     lower.contains("hortifruti") || lower.contains("acougue") || lower.contains("restaurante") ||
                     lower.contains("ifood") || lower.contains("rappi") || lower.contains("burger") || lower.contains("pizza") ||
                     lower.contains("lanchonete") || lower.contains("cafe") || lower.contains("chocolat") ||
                     lower.contains("pao de acucar") || lower.contains("carrefour") || lower.contains("extra") ||
                     lower.contains("assai") || lower.contains("atacadao") || lower.contains("99food") ||
                     lower.contains("boteco") || lower.contains("emporiopdoce") || lower.contains("doce sonho") ||
-                    lower.contains("paes e doces") -> "Alimentação"
+                    lower.contains("paes e doces") || lower.contains("mcdonald") || lower.contains("habib") ||
+                    lower.contains("subway") || lower.contains("bar") || lower.contains("churrascaria") ||
+                    lower.contains("sorvete") || lower.contains("acai") -> "Alimentação"
 
             lower.contains("uber") || lower.contains("99app") || lower.contains("99") ||
                     lower.contains("combustivel") || lower.contains("posto") || lower.contains("gasolina") ||
                     lower.contains("etanol") || lower.contains("estacionamento") || lower.contains("pedagio") ||
                     lower.contains("sem parar") || lower.contains("veloe") || lower.contains("conectcar") ||
                     lower.contains("metro") || lower.contains("cptm") || lower.contains("onibus") ||
-                    lower.contains("sptrans") || lower.contains("ipiranga") || lower.contains("shell") -> "Transporte"
+                    lower.contains("sptrans") || lower.contains("ipiranga") || lower.contains("shell") ||
+                    lower.contains("auto posto") || lower.contains("estapar") -> "Transporte"
 
             lower.contains("aluguel") || lower.contains("condominio") || lower.contains("enel") ||
                     lower.contains("luz") || lower.contains("energia") || lower.contains("cpfl") ||
@@ -316,28 +517,45 @@ object BankStatementPdfParser {
                     lower.contains("agua") || lower.contains("sanepar") || lower.contains("copasa") ||
                     lower.contains("comgas") || lower.contains("ultragaz") || lower.contains("botijao") ||
                     lower.contains("conta de gas") || lower.contains("gas encanado") || lower.contains("internet") ||
-                    lower.contains("claro") || lower.contains("vivo") || lower.contains("tim") || lower.contains("iptu") -> "Moradia"
+                    lower.contains("claro") || lower.contains("vivo") || lower.contains("tim") || lower.contains("iptu") ||
+                    lower.contains("light") || lower.contains("neoenergia") -> "Moradia"
 
             lower.contains("netflix") || lower.contains("spotify") || lower.contains("cinema") ||
                     lower.contains("steam") || lower.contains("playstation") || lower.contains("xbox") ||
                     lower.contains("nintendo") || lower.contains("jogos") || lower.contains("disney") ||
                     lower.contains("prime") || lower.contains("hbomax") || lower.contains("max") ||
-                    lower.contains("ingresso") || lower.contains("show") || lower.contains("lojas americ") ||
-                    lower.contains("vivara") || lower.contains("sesc") -> "Lazer"
+                    lower.contains("ingresso") || lower.contains("show") || lower.contains("sympla") ||
+                    lower.contains("eventim") || lower.contains("sesc") || lower.contains("deezer") ||
+                    lower.contains("apple.com/bill") || lower.contains("crunchyroll") || lower.contains("youtube") -> "Lazer"
 
             lower.contains("pet") || lower.contains("veterinario") || lower.contains("cobasi") ||
                     lower.contains("petz") || lower.contains("petlove") || lower.contains("racao") -> "Petz"
 
-            lower.contains("pix") || lower.contains("ted") || lower.contains("doc") ||
-                    lower.contains("transferencia") -> "Transferência"
+            lower.contains("escola") || lower.contains("faculdade") || lower.contains("universidade") ||
+                    lower.contains("curso") || lower.contains("udemy") || lower.contains("alura") ||
+                    lower.contains("fiap") || lower.contains("livraria") || lower.contains("saraiva") ||
+                    lower.contains("livro") || lower.contains("educacao") -> "Educação"
 
+            lower.contains("zara") || lower.contains("riachuelo") || lower.contains("renner") ||
+                    lower.contains("c&a") || lower.contains("shein") || lower.contains("shopee") ||
+                    lower.contains("mercado livre") || lower.contains("amazon") || lower.contains("aliexpress") ||
+                    lower.contains("magalu") || lower.contains("magazine") || lower.contains("centauro") ||
+                    lower.contains("nike") || lower.contains("adidas") || lower.contains("decathlon") ||
+                    lower.contains("vestuario") || lower.contains("calcados") || lower.contains("lojas americ") -> "Compras"
+
+            // Apenas marca como Transferência se for explicitamente entre contas próprias
+            lower.contains("transf entre contas") || lower.contains("transferencia entre contas") ||
+                    lower.contains("aplicacao poupanca") || lower.contains("investimento cdi") -> "Transferência"
+
+            // Qualquer outro pagamento/PIX/TED de saída não identificado é categorizado como "Outros"
+            // garantindo que seja contabilizado no total de gastos comprometidos
             else -> "Outros"
         }
     }
 
     private fun unaccent(text: String): String {
         val temp = java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD)
-        return temp.replace(Regex("""\p{InCombiningDiacriticalMarks}+"""), "").lowercase()
+        return temp.replace(Regex("""\p{InCombiningDiacriticalMarks}+"""), "").lowercase(Locale.getDefault())
     }
 
     private fun parseDateToTimestamp(day: Int, month: Int, year: Int): Long {

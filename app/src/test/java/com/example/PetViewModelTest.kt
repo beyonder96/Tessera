@@ -101,6 +101,13 @@ class FakeTesseraDao : TesseraDao {
     override suspend fun updateMealRecord(meal: MealRecord) {}
     override suspend fun deleteMealRecord(meal: MealRecord) {}
     override suspend fun deleteMealRecordById(id: Int) {}
+
+    // WaterRecord methods
+    override fun getAllWaterRecords(): Flow<List<WaterRecord>> = flowOf(emptyList())
+    override fun getWaterRecordsForDate(date: String): Flow<List<WaterRecord>> = flowOf(emptyList())
+    override suspend fun insertWaterRecord(record: WaterRecord): Long = 0L
+    override suspend fun deleteWaterRecord(record: WaterRecord) {}
+    override suspend fun deleteWaterRecordById(id: Int) {}
 }
 
 class PetViewModelTest {
