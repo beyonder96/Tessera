@@ -1576,8 +1576,9 @@ class TesseraViewModel(
 
     fun addMarketItem(name: String, category: String = "Geral", price: Double = 0.0, quantity: Double = 1.0, unit: String = "un", isChecked: Boolean = false, inMarket: Boolean = false) {
         viewModelScope.launch {
+            val resolvedChecked = if (inMarket) true else isChecked
             repository.insertMarketItem(
-                MarketItem(name = name, isChecked = isChecked, isBought = false, orderIndex = 0, category = category, price = price, quantity = quantity, unit = unit, inMarket = inMarket)
+                MarketItem(name = name, isChecked = resolvedChecked, isBought = false, orderIndex = 0, category = category, price = price, quantity = quantity, unit = unit, inMarket = inMarket)
             )
         }
     }
@@ -1596,7 +1597,8 @@ class TesseraViewModel(
 
     fun updateMarketItemDetails(item: MarketItem, price: Double, quantity: Double, unit: String) {
         viewModelScope.launch {
-            repository.updateMarketItem(item.copy(price = price, quantity = quantity, unit = unit))
+            val autoCheck = if (price > 0.0 && !item.isChecked) true else item.isChecked
+            repository.updateMarketItem(item.copy(price = price, quantity = quantity, unit = unit, isChecked = autoCheck))
         }
     }
     fun clearCompletedMarketItems() {

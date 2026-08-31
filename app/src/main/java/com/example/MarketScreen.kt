@@ -198,13 +198,15 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
             AddMarketItemDialog(
                 onDismiss = { showAddDialog = false },
                 onConfirm = { name, category, quantity, unit, price ->
+                    val isMarketTab = (selectedTab == 1)
                     viewModel.addMarketItem(
                         name = name,
                         category = category,
                         price = price,
                         quantity = quantity,
                         unit = unit,
-                        inMarket = (selectedTab == 1)
+                        isChecked = isMarketTab,
+                        inMarket = isMarketTab
                     )
                     showAddDialog = false
                 }
@@ -653,8 +655,23 @@ fun ShoppingItemInteractiveCard(
     onUpdate: (Double, Double, String) -> Unit,
     onDelete: () -> Unit
 ) {
-    var priceText by remember(item.price) { mutableStateOf(if (item.price > 0) item.price.toString() else "") }
-    var qty by remember(item.quantity) { mutableStateOf(item.quantity) }
+    var priceText by remember(item.id) {
+        mutableStateOf(
+            if (item.price > 0) {
+                if (item.price % 1.0 == 0.0) item.price.toInt().toString() else item.price.toString()
+            } else ""
+        )
+    }
+    var qty by remember(item.id, item.quantity) { mutableStateOf(item.quantity) }
+
+    LaunchedEffect(item.price) {
+        val currentParsed = parseDoubleSafely(priceText)
+        if (currentParsed != item.price) {
+            priceText = if (item.price > 0) {
+                if (item.price % 1.0 == 0.0) item.price.toInt().toString() else item.price.toString()
+            } else ""
+        }
+    }
 
     Box(
         modifier = PremiumGlassModifier

@@ -4,6 +4,10 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.43
+
+- **Soma Automática no Modo Mercado (Carrinho):** Correção completa no cálculo e totalizador do Modo Mercado ("NO MERCADO"). Itens adicionados diretamente no carrinho passam a ser contabilizados imediatamente no total, com promoção automática para ativo ao precificar produtos e estabilização de digitação de valores decimais e com vírgula no card interativo.
+
 ## 🚀 Novidades da Versão 2.0.42
 
 - **Sistema de Registro de Hidratação com Metas (Aba Nutrição):** Novo módulo completo de consumo de água diária na aba Nutri da Central de Saúde, com cálculo automático de meta diária em ml, barra de progresso em tempo real, botões de registro rápido (+150ml, +250ml, +500ml, +1L e quantidade personalizada), histórico de lançamentos do dia com horário e diálogo intuitivo para personalização de metas.
@@ -188,8 +192,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.42.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.42.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.43.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.43.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.
