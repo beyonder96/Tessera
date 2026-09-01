@@ -74,6 +74,133 @@ object CategoryUtils {
         }
     }
 
+    /**
+     * Tenta sugerir uma categoria baseando-se no título e/ou subtítulo do lançamento bancário.
+     * Retorna o nome da categoria ou null se não houver correspondência clara.
+     */
+    fun suggestCategory(title: String, subtitle: String = ""): String? {
+        val fullText = unaccent("$title $subtitle").trim().lowercase(Locale.getDefault())
+        if (fullText.isBlank()) return null
+
+        return when {
+            // Alimentação
+            fullText.contains("ifood") || fullText.contains("rappi") || fullText.contains("mcdonald") ||
+                    fullText.contains("burger king") || fullText.contains("habib") || fullText.contains("subway") ||
+                    fullText.contains("starbucks") || fullText.contains("outback") || fullText.contains("coco bambu") ||
+                    fullText.contains("madero") || fullText.contains("restaurante") || fullText.contains("churrascaria") ||
+                    fullText.contains("pizzaria") || fullText.contains("sushi") || fullText.contains("burger") ||
+                    fullText.contains("padaria") || fullText.contains("panificadora") || fullText.contains("cafe") ||
+                    fullText.contains("cafeteria") || fullText.contains("supermercado") || fullText.contains("mercado") ||
+                    fullText.contains("carrefour") || fullText.contains("pao de acucar") || fullText.contains("assai") ||
+                    fullText.contains("atacadao") || fullText.contains("sams club") || fullText.contains("dia%") ||
+                    fullText.contains("extra") || fullText.contains("st marche") || fullText.contains("sonda") ||
+                    fullText.contains("hortifruti") || fullText.contains("sacolao") || fullText.contains("acougue") ||
+                    fullText.contains("confeitaria") || fullText.contains("doceria") || fullText.contains("sorveteria") ||
+                    fullText.contains("lanchonete") || fullText.contains("cacau show") || fullText.contains("bauducco") -> "Alimentação"
+
+            // Transporte
+            fullText.contains("uber") || fullText.contains("99app") || fullText.contains("99 app") ||
+                    fullText.contains("99pop") || fullText.contains("99 taxi") || fullText.contains("cabify") ||
+                    fullText.contains("indrive") || fullText.contains("posto") || fullText.contains("shell") ||
+                    fullText.contains("ipiranga") || fullText.contains("petrobras") || fullText.contains("br mania") ||
+                    fullText.contains("combustivel") || fullText.contains("gasolina") || fullText.contains("etanol") ||
+                    fullText.contains("estacionamento") || fullText.contains("estapar") || fullText.contains("indigo") ||
+                    fullText.contains("sem parar") || fullText.contains("veloe") || fullText.contains("taggy") ||
+                    fullText.contains("conectcar") || fullText.contains("pedagio") || fullText.contains("bilhete unico") ||
+                    fullText.contains("sptrans") || fullText.contains("metro") || fullText.contains("cptm") ||
+                    fullText.contains("autopass") || fullText.contains("top sp") || fullText.contains("latam") ||
+                    fullText.contains("gol linhas") || fullText.contains("azul linhas") || fullText.contains("buser") ||
+                    fullText.contains("clickbus") || fullText.contains("auto pecas") || fullText.contains("mecanica") ||
+                    fullText.contains("oficina") || fullText.contains("borracharia") || fullText.contains("lava rapido") ||
+                    fullText.contains("ipva") || fullText.contains("detran") -> "Transporte"
+
+            // Saúde
+            fullText.contains("drogasil") || fullText.contains("droga raia") || fullText.contains("raiadrogasil") ||
+                    fullText.contains("pague menos") || fullText.contains("panvel") || fullText.contains("dpsp") ||
+                    fullText.contains("drogaria") || fullText.contains("farmacia") || fullText.contains("medicamento") ||
+                    fullText.contains("laboratorio") || fullText.contains("fleury") || fullText.contains("delboni") ||
+                    fullText.contains("lavoisier") || fullText.contains("pardini") || fullText.contains("consulta") ||
+                    fullText.contains("medico") || fullText.contains("clinica") || fullText.contains("hospital") ||
+                    fullText.contains("pronto socorro") || fullText.contains("unimed") || fullText.contains("amil") ||
+                    fullText.contains("bradesco saude") || fullText.contains("sulamerica") || fullText.contains("notredame") ||
+                    fullText.contains("odontoprev") || fullText.contains("dentista") || fullText.contains("odonto") ||
+                    fullText.contains("psicolog") || fullText.contains("terapia") || fullText.contains("fisioterapia") ||
+                    fullText.contains("nutricion") || fullText.contains("otica") -> "Saúde"
+
+            // Moradia
+            fullText.contains("enel") || fullText.contains("light ") || fullText.contains("copel") ||
+                    fullText.contains("cemig") || fullText.contains("celesc") || fullText.contains("equatorial") ||
+                    fullText.contains("sabesp") || fullText.contains("copasa") || fullText.contains("corsan") ||
+                    fullText.contains("sanepar") || fullText.contains("comgas") || fullText.contains("ultragaz") ||
+                    fullText.contains("luz ") || fullText.contains("energia") || fullText.contains("agua ") ||
+                    fullText.contains("saneamento") || fullText.contains("gas ") || fullText.contains("aluguel") ||
+                    fullText.contains("condominio") || fullText.contains("quintoandar") || fullText.contains("lello") ||
+                    fullText.contains("claro") || fullText.contains("vivo ") || fullText.contains("tim ") ||
+                    fullText.contains("oi ") || fullText.contains("internet") || fullText.contains("banda larga") ||
+                    fullText.contains("iptu") || fullText.contains("diarista") -> "Moradia"
+
+            // Lazer
+            fullText.contains("netflix") || fullText.contains("spotify") || fullText.contains("amazon prime") ||
+                    fullText.contains("prime video") || fullText.contains("disney") || fullText.contains("hbo") ||
+                    fullText.contains("star+") || fullText.contains("youtube premium") || fullText.contains("deezer") ||
+                    fullText.contains("apple music") || fullText.contains("cinema") || fullText.contains("cinemark") ||
+                    fullText.contains("cinepolis") || fullText.contains("ingresso.com") || fullText.contains("teatro") ||
+                    fullText.contains("sympla") || fullText.contains("eventim") || fullText.contains("steam") ||
+                    fullText.contains("playstation") || fullText.contains("psn") || fullText.contains("xbox") ||
+                    fullText.contains("nintendo") || fullText.contains("riot games") || fullText.contains("blizzard") ||
+                    fullText.contains("epic games") || fullText.contains("airbnb") || fullText.contains("booking") ||
+                    fullText.contains("decolar") || fullText.contains("hotel") || fullText.contains("parque") -> "Lazer"
+
+            // Educação
+            fullText.contains("udemy") || fullText.contains("coursera") || fullText.contains("alura") ||
+                    fullText.contains("domestika") || fullText.contains("rocketseat") || fullText.contains("faculdade") ||
+                    fullText.contains("universidade") || fullText.contains("puc") || fullText.contains("estacio") ||
+                    fullText.contains("fiap") || fullText.contains("colegio") || fullText.contains("escola") ||
+                    fullText.contains("idiomas") || fullText.contains("wizard") || fullText.contains("cna") ||
+                    fullText.contains("fisk") || fullText.contains("livraria") || fullText.contains("kindle") ||
+                    fullText.contains("mensalidade escolar") -> "Educação"
+
+            // Petz
+            fullText.contains("petz") || fullText.contains("cobasi") || fullText.contains("petlove") ||
+                    fullText.contains("veterinario") || fullText.contains("racao") || fullText.contains("banho e tosa") ||
+                    fullText.contains("pet shop") || fullText.contains("petshop") -> "Petz"
+
+            // Salário
+            fullText.contains("folha de pagamento") || fullText.contains("salario") || fullText.contains("vencimento") ||
+                    fullText.contains("remuneracao") || fullText.contains("pro labore") || fullText.contains("pro-labore") ||
+                    fullText.contains("proventos") || fullText.contains("rendimento salarial") || fullText.contains("adiantamento salarial") ||
+                    fullText.contains("plr") || fullText.contains("decimo terceiro") || fullText.contains("13o salario") -> "Salário"
+
+            // Investimentos
+            fullText.contains("nu invest") || fullText.contains("nuinvest") || fullText.contains("xp invest") ||
+                    fullText.contains("rico corretora") || fullText.contains("btg pactual") || fullText.contains("inter dtvm") ||
+                    fullText.contains("clear corretora") || fullText.contains("tesouro direto") || fullText.contains("cdi") ||
+                    fullText.contains("dividendo") || fullText.contains("juros sobre capital") || fullText.contains("resgate cdb") ||
+                    fullText.contains("rendimento poupanca") || fullText.contains("aplicacao financeira") -> "Investimentos"
+
+            // Compras
+            fullText.contains("amazon") || fullText.contains("mercado livre") || fullText.contains("mercadolivre") ||
+                    fullText.contains("shopee") || fullText.contains("shein") || fullText.contains("aliexpress") ||
+                    fullText.contains("magalu") || fullText.contains("magazine luiza") || fullText.contains("americanas") ||
+                    fullText.contains("casas bahia") || fullText.contains("ponto frio") || fullText.contains("leroy merlin") ||
+                    fullText.contains("telhanorte") || fullText.contains("c&a") || fullText.contains("renner") ||
+                    fullText.contains("riachuelo") || fullText.contains("zara") || fullText.contains("decathlon") ||
+                    fullText.contains("centauro") || fullText.contains("nike") || fullText.contains("adidas") ||
+                    fullText.contains("kalunga") || fullText.contains("fast shop") || fullText.contains("kabum") ||
+                    fullText.contains("pichau") || fullText.contains("terabyte") -> "Compras"
+
+            // Reembolso
+            fullText.contains("reembolso") || fullText.contains("estorno") || fullText.contains("devolucao") ||
+                    fullText.contains("cashback") || fullText.contains("chargeback") -> "Reembolso"
+
+            // Transferência
+            fullText.contains("transferencia") || fullText.contains("ted ") || fullText.contains("doc ") ||
+                    fullText.contains("tef ") || fullText.contains("pix ") -> "Transferência"
+
+            else -> null
+        }
+    }
+
     fun getAllCategories(context: Context): List<CategoryItem> {
         val sharedPrefs = context.getSharedPreferences("tessera_prefs", Context.MODE_PRIVATE)
         val customSet = sharedPrefs.getStringSet("custom_categories", emptySet()) ?: emptySet()

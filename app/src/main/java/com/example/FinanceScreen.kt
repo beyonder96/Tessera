@@ -836,6 +836,90 @@ fun FinanceScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // Quantidade de transações sem classificação no mês atual
+            val unclassifiedMonthCount = remember(currentMonthTransactions) {
+                currentMonthTransactions.count {
+                    it.category.isBlank() || it.category.equals("Outros", ignoreCase = true) || it.category.equals("Sem Categoria", ignoreCase = true)
+                }
+            }
+
+            var showCompleteTransactions by remember { mutableStateOf(false) }
+            var startWithUnclassifiedFilter by remember { mutableStateOf(false) }
+
+            // Banner Inteligente de Lançamentos Pendentes de Classificação
+            if (unclassifiedMonthCount > 0) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFFF59E0B).copy(alpha = 0.12f),
+                    border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.35f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFF59E0B).copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Category,
+                                    contentDescription = null,
+                                    tint = Color(0xFFF59E0B),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "Classificação Pendente",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "$unclassifiedMonthCount ${if (unclassifiedMonthCount == 1) "lançamento sem categoria" else "lançamentos sem categoria"} neste mês",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                startWithUnclassifiedFilter = true
+                                showCompleteTransactions = true
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFF59E0B)
+                            ),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.height(34.dp)
+                        ) {
+                            Text(
+                                text = "Classificar",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black
+                            )
+                        }
+                    }
+                }
+            }
+
             // Gastos e Despesas em Geral
             RecentTransactionsSection(
                 transactions = filteredTransactions,
@@ -848,19 +932,38 @@ fun FinanceScreen(
             )
             
             Spacer(modifier = Modifier.height(16.dp))
-            var showCompleteTransactions by remember { mutableStateOf(false) }
             OutlinedButton(
-                onClick = { showCompleteTransactions = true },
+                onClick = { 
+                    startWithUnclassifiedFilter = false
+                    showCompleteTransactions = true 
+                },
                 modifier = Modifier.fillMaxWidth().height(48.dp),
                 shape = RoundedCornerShape(12.dp),
                 border = androidx.compose.foundation.BorderStroke(1.dp, themedButtonBorder())
             ) {
-                Text("Transações Completas", color = MaterialTheme.colorScheme.onBackground, fontSize = 14.sp)
+                Text("Extrato Completo", color = MaterialTheme.colorScheme.onBackground, fontSize = 14.sp)
             }
             if (showCompleteTransactions) {
                 com.example.ui.components.CompleteTransactionsModal(
                     transactions = filteredTransactions,
-                    onDismiss = { showCompleteTransactions = false }
+                    initialFilterUnclassified = startWithUnclassifiedFilter,
+                    onDismiss = { 
+                        showCompleteTransactions = false 
+                        startWithUnclassifiedFilter = false
+                    },
+                    onTransactionClick = { tx ->
+                        editingTransaction = tx
+                        showAddDialog = true
+                    },
+                    onBulkUpdateCategory = { txs, newCat ->
+                        viewModel.bulkUpdateCategory(txs, newCat)
+                    },
+                    onBulkDelete = { txs ->
+                        viewModel.bulkDeleteTransactions(txs)
+                    },
+                    onAutoCategorize = { txs ->
+                        viewModel.autoCategorizeTransactions(txs)
+                    }
                 )
             }
             

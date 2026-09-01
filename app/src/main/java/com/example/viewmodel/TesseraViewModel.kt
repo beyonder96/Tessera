@@ -1371,6 +1371,52 @@ class TesseraViewModel(
         }
     }
 
+    fun bulkUpdateCategory(transactions: List<Transaction>, newCategory: String) {
+        if (transactions.isEmpty() || newCategory.isBlank()) return
+        viewModelScope.launch {
+            val ids = transactions.map { it.id }
+            repository.updateTransactionsCategory(ids, newCategory)
+            supabaseFinanceSync.triggerSync()
+        }
+    }
+
+    fun bulkDeleteTransactions(transactions: List<Transaction>) {
+        if (transactions.isEmpty()) return
+        viewModelScope.launch {
+            transactions.forEach { tx ->
+                if (tx.accountOrCardName.isNotEmpty()) {
+                    try {
+                        rollbackBalances(tx.accountOrCardName, tx.value, tx.isIncome, tx.isRealized)
+                    } catch (e: Exception) {
+                        Log.e("TesseraViewModel", "Erro ao fazer rollback do balanço", e)
+                    }
+                }
+            }
+            repository.deleteTransactions(transactions)
+            supabaseFinanceSync.triggerSync()
+        }
+    }
+
+    suspend fun autoCategorizeTransactions(transactions: List<Transaction>): Int {
+        var updatedCount = 0
+        val updates = mutableListOf<Transaction>()
+        transactions.forEach { tx ->
+            val isUnclassified = tx.category.isBlank() || tx.category.equals("Outros", ignoreCase = true) || tx.category.equals("Sem Categoria", ignoreCase = true)
+            if (isUnclassified) {
+                val suggested = com.example.utils.CategoryUtils.suggestCategory(tx.title, tx.subtitle)
+                if (suggested != null && !suggested.equals(tx.category, ignoreCase = true)) {
+                    updates.add(tx.copy(category = suggested))
+                    updatedCount++
+                }
+            }
+        }
+        if (updates.isNotEmpty()) {
+            repository.insertTransactions(updates)
+            supabaseFinanceSync.triggerSync()
+        }
+        return updatedCount
+    }
+
     fun realizeRecurrentTransaction(transaction: Transaction) {
         viewModelScope.launch {
             if (transaction.accountOrCardName.isNotEmpty()) {

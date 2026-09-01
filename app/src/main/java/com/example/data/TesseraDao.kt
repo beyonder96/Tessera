@@ -11,8 +11,17 @@ interface TesseraDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTransaction(transaction: Transaction)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTransactions(transactions: List<Transaction>)
+
     @Delete
     suspend fun deleteTransaction(transaction: Transaction)
+
+    @Delete
+    suspend fun deleteTransactions(transactions: List<Transaction>)
+
+    @Query("UPDATE transactions SET category = :category WHERE id IN (:ids)")
+    suspend fun updateTransactionsCategory(ids: List<Int>, category: String)
 
     @Query("SELECT * FROM market_items WHERE isBought = 0 AND inMarket = 0 ORDER BY orderIndex ASC")
     fun getPendingMarketItems(): Flow<List<MarketItem>>

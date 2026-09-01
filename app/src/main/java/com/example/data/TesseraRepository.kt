@@ -13,8 +13,20 @@ class TesseraRepository(private val dao: TesseraDao) {
         dao.insertTransaction(transaction)
     }
 
+    suspend fun insertTransactions(transactions: List<Transaction>) {
+        dao.insertTransactions(transactions)
+    }
+
     suspend fun deleteTransaction(transaction: Transaction) {
         dao.deleteTransaction(transaction)
+    }
+
+    suspend fun deleteTransactions(transactions: List<Transaction>) {
+        dao.deleteTransactions(transactions)
+    }
+
+    suspend fun updateTransactionsCategory(ids: List<Int>, category: String) {
+        dao.updateTransactionsCategory(ids, category)
     }
 
     suspend fun insertMarketItem(item: MarketItem) {
