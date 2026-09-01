@@ -4,6 +4,11 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.45
+
+- **Ajuste Fino no Orçamento Comprometido:** Contabilização de despesas e parcelas futuras com vencimento no mês atual (`dueDate`), contas fixas recorrentes e parcelas de dívidas ativas, mantendo isolamento de faturas cheias de cartão e transferências internas.
+- **Filtro Rigoroso no Painel de Parcelados:** Validação estrita de despesas parceladas por subtítulo `Parcela` ou indicador numérico `(X/Y)`, impedindo que lançamentos de extrato contendo datas ou códigos com barra `/` sejam indevidamente listados como parcelas.
+
 ## 🚀 Novidades da Versão 2.0.44
 
 - **Classificação e Exclusão em Lote no Extrato Completo:** Modo de seleção múltipla para classificar ou excluir dezenas de transações simultaneamente com estorno automático de saldos e controle inteligente de checkboxes.
@@ -199,8 +204,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.44.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.44.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.45.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.45.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.

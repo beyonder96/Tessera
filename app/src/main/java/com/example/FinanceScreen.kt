@@ -84,6 +84,7 @@ fun FinanceScreen(
     val bankAccounts by viewModel.allBankAccounts.collectAsStateWithLifecycle()
     val creditCards by viewModel.allCreditCards.collectAsStateWithLifecycle()
     val benefitCards by viewModel.allBenefitCards.collectAsStateWithLifecycle()
+    val debts by viewModel.allDebts.collectAsStateWithLifecycle()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var showTransferDialog by remember { mutableStateOf(false) }
@@ -290,26 +291,54 @@ fun FinanceScreen(
         }.timeInMillis
     }
 
+    // Transações que pertencem ao mês atual (por data do lançamento timestamp ou data de vencimento dueDate)
     val currentMonthTransactions = remember(allTransactions, currentMonthStart, currentMonthEnd) {
-        allTransactions.filter { it.timestamp in currentMonthStart..currentMonthEnd }
+        allTransactions.filter { tx ->
+            val inTimestamp = tx.timestamp in currentMonthStart..currentMonthEnd
+            val inDueDate = tx.dueDate > 0L && tx.dueDate in currentMonthStart..currentMonthEnd
+            inTimestamp || inDueDate
+        }
     }
 
     val salaryValue = remember(currentMonthTransactions, benefitCards) {
         val incomeSum = currentMonthTransactions.filter { tx -> 
             tx.isIncome && 
-            tx.category != "Transferência" &&
+            !tx.category.trim().equals("Transferência", ignoreCase = true) &&
+            !tx.category.trim().equals("Transferencia", ignoreCase = true) &&
             benefitCards.none { card -> card.name == tx.accountOrCardName }
         }.sumOf { it.value }
         if (incomeSum > 0.0) incomeSum else 0.0
     }
 
-    val committedValue = remember(currentMonthTransactions, benefitCards) {
-        val expenseSum = currentMonthTransactions.filter { tx ->
+    // Orçamento Comprometido: Despesas realizadas do mês + parcelas e despesas futuras do mês + contas fixas recorrentes + parcelas de dívidas ativas
+    val committedValue = remember(currentMonthTransactions, allTransactions, debts, benefitCards, currentMonthStart, currentMonthEnd) {
+        // 1. Despesas já presentes no mês atual (realizadas ou agendadas com dueDate/timestamp no mês)
+        val monthExpensesSum = currentMonthTransactions.filter { tx ->
             !tx.isIncome &&
-            tx.category != "Transferência" &&
+            !tx.category.trim().equals("Transferência", ignoreCase = true) &&
+            !tx.category.trim().equals("Transferencia", ignoreCase = true) &&
             benefitCards.none { card -> card.name == tx.accountOrCardName }
         }.sumOf { it.value }
-        if (expenseSum > 0.0) expenseSum else 0.0
+
+        // 2. Contas fixas recorrentes que não tiveram uma instância criada no mês atual
+        val orphanRecurrentSum = allTransactions.filter { tx ->
+            !tx.isIncome && tx.isRecurrent &&
+            !tx.category.trim().equals("Transferência", ignoreCase = true) &&
+            !tx.category.trim().equals("Transferencia", ignoreCase = true) &&
+            benefitCards.none { card -> card.name == tx.accountOrCardName } &&
+            currentMonthTransactions.none { it.id == tx.id || (it.isRecurrent && it.title.equals(tx.title, ignoreCase = true)) }
+        }.sumOf { it.value }
+
+        // 3. Parcelas de dívidas ativas da tabela debts para o mês atual
+        val activeDebtsMonthSum = debts.filter { debt ->
+            !debt.isPaid && (debt.dueDate == 0L || debt.dueDate in currentMonthStart..currentMonthEnd)
+        }.sumOf { debt ->
+            val installments = if (debt.installmentsTotal > 0) debt.installmentsTotal else 1
+            debt.value / installments
+        }
+
+        val total = monthExpensesSum + orphanRecurrentSum + activeDebtsMonthSum
+        if (total > 0.0) total else 0.0
     }
 
     val freeValue = checkingBalance + if (sumInvestmentsToSpendable) (savingsBalance + investmentBalance) else 0.0
@@ -636,9 +665,11 @@ fun FinanceScreen(
                         }
                         1 -> {
                             // Quadro 2: Painel de Parcelados
-                            val installmentTxs = remember(filteredTransactions) {
+                            val installmentTxs = remember(filteredTransactions, currentMonthStart, currentMonthEnd) {
                                 filteredTransactions.filter { tx ->
-                                    !tx.isIncome && (tx.subtitle.contains("Parcela") || tx.title.contains("/") || (!tx.isRecurrent && tx.dueDate > 0))
+                                    !tx.isIncome && 
+                                    (tx.subtitle.contains("Parcela", ignoreCase = true) || Regex("""\(\d+/\d+\)""").containsMatchIn(tx.title)) &&
+                                    (tx.timestamp in currentMonthStart..currentMonthEnd || (tx.dueDate > 0L && tx.dueDate in currentMonthStart..currentMonthEnd))
                                 }
                             }
                             val totalInstallmentValue = remember(installmentTxs) { installmentTxs.sumOf { it.value } }
@@ -2945,7 +2976,7 @@ fun InstallmentsScreen(
 
     val installmentTxs = remember(transactions) {
         transactions.filter { tx ->
-            !tx.isIncome && (tx.subtitle.contains("Parcela") || tx.title.contains("/") || (!tx.isRecurrent && tx.dueDate > 0))
+            !tx.isIncome && (tx.subtitle.contains("Parcela", ignoreCase = true) || Regex("""\(\d+/\d+\)""").containsMatchIn(tx.title))
         }
     }
     val totalInstallmentValue = remember(installmentTxs) { installmentTxs.sumOf { it.value } }
