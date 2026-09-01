@@ -300,18 +300,33 @@ fun FinanceScreen(
         }
     }
 
-    val salaryValue = remember(currentMonthTransactions, benefitCards) {
-        val incomeSum = currentMonthTransactions.filter { tx -> 
+    val salaryValue = remember(currentMonthTransactions, allTransactions, benefitCards, checkingBalance, savingsBalance, investmentBalance, sumInvestmentsToSpendable) {
+        // 1. Receitas com data no mês atual
+        val monthIncomeSum = currentMonthTransactions.filter { tx -> 
             tx.isIncome && 
             !tx.category.trim().equals("Transferência", ignoreCase = true) &&
             !tx.category.trim().equals("Transferencia", ignoreCase = true) &&
             benefitCards.none { card -> card.name == tx.accountOrCardName }
         }.sumOf { it.value }
-        if (incomeSum > 0.0) incomeSum else 0.0
+
+        // 2. Receitas fixas recorrentes ativas que ainda não tiveram lançamento gerado no mês atual
+        val orphanRecurrentIncomeSum = allTransactions.filter { tx ->
+            tx.isIncome && tx.isRecurrent &&
+            !tx.category.trim().equals("Transferência", ignoreCase = true) &&
+            !tx.category.trim().equals("Transferencia", ignoreCase = true) &&
+            benefitCards.none { card -> card.name == tx.accountOrCardName } &&
+            currentMonthTransactions.none { it.id == tx.id || (it.isRecurrent && it.title.equals(tx.title, ignoreCase = true)) }
+        }.sumOf { it.value }
+
+        val totalIncome = monthIncomeSum + orphanRecurrentIncomeSum
+        val liquidBalance = checkingBalance + if (sumInvestmentsToSpendable) (savingsBalance + investmentBalance) else 0.0
+
+        // Se houver receitas registradas, usa totalIncome; caso contrário, utiliza o saldo disponível em contas como recurso base
+        if (totalIncome > 0.0) totalIncome else if (liquidBalance > 0.0) liquidBalance else 0.0
     }
 
-    // Orçamento Comprometido: Despesas realizadas do mês + parcelas e despesas futuras do mês + contas fixas recorrentes + parcelas de dívidas ativas
-    val committedValue = remember(currentMonthTransactions, allTransactions, debts, benefitCards, currentMonthStart, currentMonthEnd) {
+    // Orçamento Comprometido: Despesas do mês + faturas de cartão abertas + contas fixas recorrentes + dívidas ativas + contas pendentes
+    val committedValue = remember(currentMonthTransactions, allTransactions, debts, creditCards, benefitCards, currentMonthStart, currentMonthEnd) {
         // 1. Despesas já presentes no mês atual (realizadas ou agendadas com dueDate/timestamp no mês)
         val monthExpensesSum = currentMonthTransactions.filter { tx ->
             !tx.isIncome &&
@@ -320,7 +335,19 @@ fun FinanceScreen(
             benefitCards.none { card -> card.name == tx.accountOrCardName }
         }.sumOf { it.value }
 
-        // 2. Contas fixas recorrentes que não tiveram uma instância criada no mês atual
+        // 2. Faturas em aberto dos cartões de crédito que não foram cobertas pelas transações individuais do mês
+        val openCardsInvoiceSum = creditCards.sumOf { card ->
+            val cardMonthTxsSum = currentMonthTransactions.filter { 
+                !it.isIncome && it.accountOrCardName.equals(card.name, ignoreCase = true) 
+            }.sumOf { it.value }
+            if (card.usedLimit > cardMonthTxsSum) {
+                card.usedLimit - cardMonthTxsSum
+            } else {
+                0.0
+            }
+        }
+
+        // 3. Contas fixas recorrentes que não tiveram uma instância criada no mês atual
         val orphanRecurrentSum = allTransactions.filter { tx ->
             !tx.isIncome && tx.isRecurrent &&
             !tx.category.trim().equals("Transferência", ignoreCase = true) &&
@@ -329,19 +356,51 @@ fun FinanceScreen(
             currentMonthTransactions.none { it.id == tx.id || (it.isRecurrent && it.title.equals(tx.title, ignoreCase = true)) }
         }.sumOf { it.value }
 
-        // 3. Parcelas de dívidas ativas da tabela debts para o mês atual
+        // 4. Parcelas de dívidas ativas da tabela debts (vencidas ou que vencem no mês)
         val activeDebtsMonthSum = debts.filter { debt ->
-            !debt.isPaid && (debt.dueDate == 0L || debt.dueDate in currentMonthStart..currentMonthEnd)
+            !debt.isPaid && (debt.dueDate == 0L || debt.dueDate <= currentMonthEnd)
         }.sumOf { debt ->
             val installments = if (debt.installmentsTotal > 0) debt.installmentsTotal else 1
             debt.value / installments
         }
 
-        val total = monthExpensesSum + orphanRecurrentSum + activeDebtsMonthSum
+        // 5. Despesas pendentes não pagas de meses anteriores (atrasadas)
+        val pastPendingExpensesSum = allTransactions.filter { tx ->
+            !tx.isIncome && !tx.isRealized && !tx.isRecurrent &&
+            !tx.category.trim().equals("Transferência", ignoreCase = true) &&
+            !tx.category.trim().equals("Transferencia", ignoreCase = true) &&
+            benefitCards.none { card -> card.name == tx.accountOrCardName } &&
+            tx.timestamp < currentMonthStart && (tx.dueDate == 0L || tx.dueDate < currentMonthStart)
+        }.sumOf { it.value }
+
+        val total = monthExpensesSum + openCardsInvoiceSum + orphanRecurrentSum + activeDebtsMonthSum + pastPendingExpensesSum
         if (total > 0.0) total else 0.0
     }
 
-    val freeValue = checkingBalance + if (sumInvestmentsToSpendable) (savingsBalance + investmentBalance) else 0.0
+    // Obrigações pendentes imediatas a debitar da conta corrente
+    val pendingObligationsToPay = remember(currentMonthTransactions, allTransactions, creditCards, debts, benefitCards, currentMonthEnd) {
+        val pendingMonthExpenses = currentMonthTransactions.filter { tx ->
+            !tx.isIncome && !tx.isRealized &&
+            !tx.category.trim().equals("Transferência", ignoreCase = true) &&
+            !tx.category.trim().equals("Transferencia", ignoreCase = true) &&
+            benefitCards.none { card -> card.name == tx.accountOrCardName } &&
+            creditCards.none { card -> card.name == tx.accountOrCardName }
+        }.sumOf { it.value }
+
+        val creditCardsUsedLimit = creditCards.sumOf { it.usedLimit }
+
+        val activeDebtsMonthSum = debts.filter { debt ->
+            !debt.isPaid && (debt.dueDate == 0L || debt.dueDate <= currentMonthEnd)
+        }.sumOf { debt ->
+            val installments = if (debt.installmentsTotal > 0) debt.installmentsTotal else 1
+            debt.value / installments
+        }
+
+        pendingMonthExpenses + creditCardsUsedLimit + activeDebtsMonthSum
+    }
+
+    val availableLiquid = checkingBalance + if (sumInvestmentsToSpendable) (savingsBalance + investmentBalance) else 0.0
+    val freeValue = availableLiquid - pendingObligationsToPay
 
     LaunchedEffect(freeValue, salaryValue, committedValue) {
         val ratio = if (salaryValue > 0.0) ((committedValue / salaryValue) * 100.0).coerceIn(0.0, 100.0) else 0.0

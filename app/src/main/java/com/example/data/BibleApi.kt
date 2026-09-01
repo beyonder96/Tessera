@@ -105,7 +105,7 @@ data class BibleVerseResponse(
 )
 
 // ==========================================
-// 6. Retrofit API Interface
+// 6. Retrofit API Interface (BibliaApi BR)
 // ==========================================
 interface BibleApi {
     @GET("versions")
@@ -132,3 +132,33 @@ interface BibleApi {
         @Query("q") query: String
     ): BibliaChapterResponse
 }
+
+// ==========================================
+// 7. Open Bible API (bible-api.com - Sem Token / Resiliente)
+// ==========================================
+@JsonClass(generateAdapter = true)
+data class OpenBibleVerseItem(
+    @Json(name = "book_id") val bookId: String? = null,
+    @Json(name = "book_name") val bookName: String? = null,
+    @Json(name = "chapter") val chapter: Int? = 1,
+    @Json(name = "verse") val verse: Int = 1,
+    @Json(name = "text") val text: String = ""
+)
+
+@JsonClass(generateAdapter = true)
+data class OpenBibleResponse(
+    @Json(name = "reference") val reference: String? = null,
+    @Json(name = "verses") val verses: List<OpenBibleVerseItem> = emptyList(),
+    @Json(name = "text") val text: String? = null,
+    @Json(name = "translation_id") val translationId: String? = null,
+    @Json(name = "translation_name") val translationName: String? = null
+)
+
+interface OpenBibleApi {
+    @GET("{passage}")
+    suspend fun getPassage(
+        @Path("passage") passage: String,
+        @Query("translation") translation: String = "almeida"
+    ): OpenBibleResponse
+}
+

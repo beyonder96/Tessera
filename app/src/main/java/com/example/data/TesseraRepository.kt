@@ -310,43 +310,71 @@ class TesseraRepository(private val dao: TesseraDao) {
         .add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory())
         .build()
 
-    private val bibleRetrofit = retrofit2.Retrofit.Builder()
-        .baseUrl("https://bibliaapi.com.br/api/v2/")
-        .client(bibliaOkHttpClient)
+    private val openBibleOkHttpClient = okhttp3.OkHttpClient.Builder()
+        .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
+
+    private val openBibleRetrofit = retrofit2.Retrofit.Builder()
+        .baseUrl("https://bible-api.com/")
+        .client(openBibleOkHttpClient)
         .addConverterFactory(retrofit2.converter.moshi.MoshiConverterFactory.create(bibleMoshi))
         .build()
 
-    private val bibleApi = bibleRetrofit.create(BibleApi::class.java)
+    private val openBibleApi = openBibleRetrofit.create(OpenBibleApi::class.java)
 
     private val offlineVerses = listOf(
-        BibleVerseResponse(book = ABibliaBook(name = "Salmos", version = "NVT"), chapter = 23, verse = 1, text = "O SENHOR é meu pastor, e nada me faltará.", bookAbbrev = "sl", versionCode = "NVT"),
-        BibleVerseResponse(book = ABibliaBook(name = "Filipenses", version = "NVT"), chapter = 4, verse = 13, text = "Posso todas as coisas por meio de Cristo, que me dá forças.", bookAbbrev = "fp", versionCode = "NVT"),
-        BibleVerseResponse(book = ABibliaBook(name = "Josué", version = "NVT"), chapter = 1, verse = 9, text = "Esta é minha ordem: Seja forte e corajoso! Não tenha medo nem desanime, pois o SENHOR, seu Deus, estará com você por onde você andar.", bookAbbrev = "js", versionCode = "NVT"),
-        BibleVerseResponse(book = ABibliaBook(name = "Jeremias", version = "NVT"), chapter = 29, verse = 11, text = "Porque eu sei os planos que tenho para vocês, diz o SENHOR. São planos de bem, e não de mal, para lhes dar um futuro e uma esperança.", bookAbbrev = "jr", versionCode = "NVT"),
-        BibleVerseResponse(book = ABibliaBook(name = "Provérbios", version = "NVT"), chapter = 3, verse = 5, text = "Confie no SENHOR de todo o coração; não dependa de seu próprio entendimento.", bookAbbrev = "pv", versionCode = "NVT"),
-        BibleVerseResponse(book = ABibliaBook(name = "Isaías", version = "NVT"), chapter = 41, verse = 10, text = "Não tenha medo, pois estou com você; não desanime, pois sou o seu Deus. Eu o fortalecerei e o ajudarei; eu o sustentarei com minha mão direita vitoriosa.", bookAbbrev = "is", versionCode = "NVT"),
-        BibleVerseResponse(book = ABibliaBook(name = "Mateus", version = "NVT"), chapter = 11, verse = 28, text = "Venham a mim todos vocês que estão cansados e sobrecarregados, e eu lhes darei descanso.", bookAbbrev = "mt", versionCode = "NVT"),
-        BibleVerseResponse(book = ABibliaBook(name = "Romanos", version = "NVT"), chapter = 8, verse = 28, text = "E sabemos que Deus faz todas as coisas cooperarem para o bem daqueles que o amam e que são chamados de acordo com seu propósito.", bookAbbrev = "rm", versionCode = "NVT")
+        BibleVerseResponse(book = ABibliaBook(name = "Salmos", version = "Almeida"), chapter = 23, verse = 1, text = "O SENHOR é meu pastor, e nada me faltará.", bookAbbrev = "sl", versionCode = "Almeida"),
+        BibleVerseResponse(book = ABibliaBook(name = "Filipenses", version = "Almeida"), chapter = 4, verse = 13, text = "Posso todas as coisas por meio de Cristo, que me dá forças.", bookAbbrev = "fp", versionCode = "Almeida"),
+        BibleVerseResponse(book = ABibliaBook(name = "Josué", version = "Almeida"), chapter = 1, verse = 9, text = "Esta é minha ordem: Seja forte e corajoso! Não tenha medo nem desanime, pois o SENHOR, seu Deus, estará com você por onde você andar.", bookAbbrev = "js", versionCode = "Almeida"),
+        BibleVerseResponse(book = ABibliaBook(name = "Jeremias", version = "Almeida"), chapter = 29, verse = 11, text = "Porque eu sei os planos que tenho para vocês, diz o SENHOR. São planos de bem, e não de mal, para lhes dar um futuro e uma esperança.", bookAbbrev = "jr", versionCode = "Almeida"),
+        BibleVerseResponse(book = ABibliaBook(name = "Provérbios", version = "Almeida"), chapter = 3, verse = 5, text = "Confie no SENHOR de todo o coração; não dependa de seu próprio entendimento.", bookAbbrev = "pv", versionCode = "Almeida"),
+        BibleVerseResponse(book = ABibliaBook(name = "Isaías", version = "Almeida"), chapter = 41, verse = 10, text = "Não tenha medo, pois estou com você; não desanime, pois sou o seu Deus. Eu o fortalecerei e o ajudarei; eu o sustentarei com minha mão direita vitoriosa.", bookAbbrev = "is", versionCode = "Almeida"),
+        BibleVerseResponse(book = ABibliaBook(name = "Mateus", version = "Almeida"), chapter = 11, verse = 28, text = "Venham a mim todos vocês que estão cansados e sobrecarregados, e eu lhes darei descanso.", bookAbbrev = "mt", versionCode = "Almeida"),
+        BibleVerseResponse(book = ABibliaBook(name = "Romanos", version = "Almeida"), chapter = 8, verse = 28, text = "E sabemos que Deus faz todas as coisas cooperarem para o bem daqueles que o amam e que são chamados de acordo com seu propósito.", bookAbbrev = "rm", versionCode = "Almeida")
     )
 
-    suspend fun getRandomBibleVerse(version: String = "NVT"): BibleVerseResponse {
+    private val bookAbbrevToSearchName = mapOf(
+        "gn" to "genesis", "ex" to "exodo", "lv" to "levitico", "nm" to "numeros", "dt" to "deuteronomio",
+        "js" to "josue", "jz" to "juizes", "rt" to "rute", "1sm" to "1 samuel", "2sm" to "2 samuel",
+        "1rs" to "1 reis", "2rs" to "2 reis", "1cr" to "1 cronicas", "2cr" to "2 cronicas",
+        "ed" to "esdras", "ne" to "neemias", "et" to "ester", "job" to "jo", "sl" to "salmos",
+        "pv" to "proverbios", "ec" to "eclesiastes", "ct" to "canticos", "is" to "isaias", "jr" to "jeremias",
+        "lm" to "lamentacoes", "ez" to "ezequiel", "dn" to "daniel", "os" to "oseias", "jl" to "joel",
+        "am" to "amos", "ob" to "obadias", "jn" to "jonas", "mq" to "miqueias", "na" to "naum",
+        "hc" to "habacuque", "sf" to "sofonias", "ag" to "ageu", "zc" to "zacarias", "ml" to "malaquias",
+        "mt" to "mateus", "mc" to "marcos", "lc" to "lucas", "jo" to "joao", "atos" to "atos",
+        "rm" to "romanos", "1co" to "1 corintios", "2co" to "2 corintios", "gl" to "galatas", "ef" to "efesios",
+        "fp" to "filipenses", "cl" to "colossenses", "1ts" to "1 tessalonicenses", "2ts" to "2 tessalonicenses",
+        "1tm" to "1 timoteo", "2tm" to "2 timoteo", "tt" to "tito", "fm" to "filemom", "hb" to "hebreus",
+        "tg" to "tiago", "1pe" to "1 pedro", "2pe" to "2 pedro", "1jo" to "1 joao", "2jo" to "2 joao",
+        "3jo" to "3 joao", "jd" to "judas", "ap" to "apocalipse"
+    )
+
+    suspend fun getRandomBibleVerse(version: String = "Almeida"): BibleVerseResponse {
         return try {
-            val response = bibleApi.getRandomVerse(version)
-            val verseData = response.data
-            val cleanText = (verseData.text ?: "").trim()
-            val bookName = verseData.book?.name ?: verseData.reference?.split(" ")?.firstOrNull() ?: "Bíblia"
-            val chapter = verseData.chapter ?: 1
-            val verseNum = verseData.verse ?: 1
-            val bookAbbrev = verseData.book?.abbrev ?: "sl"
+            val popularPassages = listOf(
+                "salmos+23:1", "filipenses+4:13", "josue+1:9", "jeremias+29:11",
+                "proverbios+3:5", "isaias+41:10", "mateus+11:28", "romanos+8:28",
+                "joao+3:16", "salmos+91:1", "mateus+6:33", "1+corintios+13:13"
+            )
+            val randomPassage = popularPassages.random()
+            val response = openBibleApi.getPassage(randomPassage, "almeida")
+            val firstVerse = response.verses.firstOrNull()
+            val cleanText = (firstVerse?.text ?: response.text ?: "").trim()
+            val bookName = firstVerse?.bookName ?: response.reference?.split(" ")?.firstOrNull() ?: "Salmos"
+            val chapter = firstVerse?.chapter ?: 1
+            val verseNum = firstVerse?.verse ?: 1
+            val bookAbbrev = defaultBooksList.find { it.name.equals(bookName, ignoreCase = true) }?.abbrev ?: "sl"
 
             if (cleanText.isNotBlank()) {
                 BibleVerseResponse(
-                    book = ABibliaBook(name = bookName, version = verseData.version ?: version),
+                    book = ABibliaBook(name = bookName, version = response.translationName ?: "Almeida"),
                     chapter = chapter,
                     verse = verseNum,
                     text = cleanText,
                     bookAbbrev = bookAbbrev,
-                    versionCode = verseData.version ?: version
+                    versionCode = "Almeida"
                 )
             } else {
                 offlineVerses.random()
@@ -357,29 +385,39 @@ class TesseraRepository(private val dao: TesseraDao) {
     }
 
     suspend fun getBibleVersions(): List<BibliaVersionItem> {
-        return try {
-            val response = bibleApi.getVersions()
-            if (response.data.isNotEmpty()) response.data else defaultVersionsList
-        } catch (e: Exception) {
-            defaultVersionsList
-        }
+        return defaultVersionsList
     }
 
     suspend fun getBibleBooks(): List<BibliaBookItem> {
-        return try {
-            val response = bibleApi.getBooks()
-            if (response.data.isNotEmpty()) response.data else defaultBooksList
-        } catch (e: Exception) {
-            defaultBooksList
-        }
+        return defaultBooksList
     }
 
     suspend fun getBibleChapter(version: String, bookAbbrev: String, chapter: Int): Result<BibliaChapterData> {
         return try {
-            val response = bibleApi.getChapter(version, bookAbbrev, chapter)
-            Result.success(response.data)
+            val book = defaultBooksList.find { it.abbrev.equals(bookAbbrev, ignoreCase = true) }
+            val searchBookName = bookAbbrevToSearchName[bookAbbrev.lowercase().trim()] 
+                ?: book?.name?.lowercase()?.trim() 
+                ?: bookAbbrev.lowercase().trim()
+
+            val queryPassage = "${searchBookName.replace(" ", "+")}+$chapter"
+            val response = openBibleApi.getPassage(queryPassage, "almeida")
+
+            if (response.verses.isNotEmpty()) {
+                val chapterData = BibliaChapterData(
+                    reference = response.reference ?: "${book?.name ?: searchBookName.capitalize()} $chapter",
+                    version = response.translationName ?: "Almeida",
+                    book = book ?: BibliaBookItem(id = 0, name = response.verses.firstOrNull()?.bookName ?: searchBookName, abbrev = bookAbbrev, testament = "VT"),
+                    chapter = BibliaChapterInfo(number = chapter, totalVerses = response.verses.size),
+                    verses = response.verses.map { v ->
+                        BibliaVerseItem(number = v.verse, text = v.text.trim())
+                    }
+                )
+                Result.success(chapterData)
+            } else {
+                Result.failure(Exception("Nenhum versículo encontrado para este capítulo."))
+            }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception("Não foi possível carregar o capítulo. Verifique sua conexão."))
         }
     }
 

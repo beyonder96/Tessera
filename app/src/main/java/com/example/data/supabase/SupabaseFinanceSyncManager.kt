@@ -302,23 +302,46 @@ class SupabaseFinanceSyncManager(
             }
         }
 
-        val calculatedIncome = currentMonthTransactions.filter { tx ->
+        val monthIncome = currentMonthTransactions.filter { tx ->
             tx.isIncome &&
-            tx.category != "Transferência" &&
+            !tx.category.trim().equals("Transferência", ignoreCase = true) &&
+            !tx.category.trim().equals("Transferencia", ignoreCase = true) &&
             benefits.none { card -> card.name == tx.accountOrCardName }
         }.sumOf { it.value }
 
-        val calculatedExpense = currentMonthTransactions.filter { tx ->
+        val orphanRecurrentIncome = transactions.filter { tx ->
+            tx.isIncome && tx.isRecurrent &&
+            !tx.category.trim().equals("Transferência", ignoreCase = true) &&
+            !tx.category.trim().equals("Transferencia", ignoreCase = true) &&
+            benefits.none { card -> card.name == tx.accountOrCardName } &&
+            currentMonthTransactions.none { it.id == tx.id || (it.isRecurrent && it.title.equals(tx.title, ignoreCase = true)) }
+        }.sumOf { it.value }
+
+        val checkingBalance = accounts.filter { it.type == "Corrente" }.sumOf { it.balance }
+        val totalIncome = monthIncome + orphanRecurrentIncome
+        val calculatedIncome = if (totalIncome > 0.0) totalIncome else if (checkingBalance > 0.0) checkingBalance else 0.0
+
+        val monthExpense = currentMonthTransactions.filter { tx ->
             !tx.isIncome &&
-            tx.category != "Transferência" &&
+            !tx.category.trim().equals("Transferência", ignoreCase = true) &&
+            !tx.category.trim().equals("Transferencia", ignoreCase = true) &&
             benefits.none { card -> card.name == tx.accountOrCardName }
         }.sumOf { it.value }
 
-        currentMonthTransactions.filter { !it.isIncome && it.category != "Transferência" }.forEach { tx ->
+        val orphanRecurrentExpense = transactions.filter { tx ->
+            !tx.isIncome && tx.isRecurrent &&
+            !tx.category.trim().equals("Transferência", ignoreCase = true) &&
+            !tx.category.trim().equals("Transferencia", ignoreCase = true) &&
+            benefits.none { card -> card.name == tx.accountOrCardName } &&
+            currentMonthTransactions.none { it.id == tx.id || (it.isRecurrent && it.title.equals(tx.title, ignoreCase = true)) }
+        }.sumOf { it.value }
+
+        val calculatedExpense = monthExpense + orphanRecurrentExpense
+
+        currentMonthTransactions.filter { !it.isIncome && !it.category.trim().equals("Transferência", ignoreCase = true) && !it.category.trim().equals("Transferencia", ignoreCase = true) }.forEach { tx ->
             categoryMap[tx.category] = (categoryMap[tx.category] ?: 0.0) + tx.value
         }
 
-        val checkingBalance = accounts.filter { it.type == "Corrente" }.sumOf { it.balance }
         val fallbackSpendable = if (accounts.isNotEmpty()) checkingBalance else totalBalance
 
         val finalSpendable = currentSpendableBalance ?: fallbackSpendable
