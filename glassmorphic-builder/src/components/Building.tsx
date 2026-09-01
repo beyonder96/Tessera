@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 
 export const Building = ({ progress, isDay }: { progress: number, isDay: boolean }) => {

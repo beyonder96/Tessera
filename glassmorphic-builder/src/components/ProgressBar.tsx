@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { RefreshCcw, Sparkles, Pickaxe } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -12,7 +12,7 @@ export const ProgressBar = ({ progress, setProgress, isDay }: ProgressBarProps) 
   const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
     if (isPlaying && progress < 100) {
       interval = setInterval(() => {
         setProgress((prev) => {
