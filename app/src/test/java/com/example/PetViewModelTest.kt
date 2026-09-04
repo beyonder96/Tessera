@@ -11,7 +11,10 @@ import org.junit.Test
 class FakeTesseraDao : TesseraDao {
     override fun getAllTransactions(): Flow<List<Transaction>> = flowOf(emptyList())
     override suspend fun insertTransaction(transaction: Transaction) {}
+    override suspend fun insertTransactions(transactions: List<Transaction>) {}
     override suspend fun deleteTransaction(transaction: Transaction) {}
+    override suspend fun deleteTransactions(transactions: List<Transaction>) {}
+    override suspend fun updateTransactionsCategory(ids: List<Int>, category: String) {}
     override fun getPendingMarketItems(): Flow<List<MarketItem>> = flowOf(emptyList())
     override fun getBoughtMarketItems(): Flow<List<MarketItem>> = flowOf(emptyList())
     override suspend fun insertMarketItem(item: MarketItem) {}

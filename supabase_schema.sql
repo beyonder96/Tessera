@@ -33,6 +33,9 @@ ALTER TABLE public.shared_finance_dashboards ADD COLUMN IF NOT EXISTS salary_val
 ALTER TABLE public.shared_finance_dashboards ADD COLUMN IF NOT EXISTS committed_value NUMERIC NOT NULL DEFAULT 0;
 ALTER TABLE public.shared_finance_dashboards ADD COLUMN IF NOT EXISTS committed_percentage NUMERIC NOT NULL DEFAULT 0;
 ALTER TABLE public.shared_finance_dashboards ADD COLUMN IF NOT EXISTS suggestions JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE public.shared_finance_dashboards ADD COLUMN IF NOT EXISTS debts JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE public.shared_finance_dashboards ADD COLUMN IF NOT EXISTS installments JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE public.shared_finance_dashboards ADD COLUMN IF NOT EXISTS recurrents JSONB NOT NULL DEFAULT '[]'::jsonb;
 
 -- 3. Habilita RLS (Row Level Security) e libera leitura e escrita pública/anônima
 ALTER TABLE public.shared_market_lists ENABLE ROW LEVEL SECURITY;

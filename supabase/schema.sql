@@ -35,6 +35,9 @@ ALTER TABLE public.shared_finance_dashboards ADD COLUMN IF NOT EXISTS salary_val
 ALTER TABLE public.shared_finance_dashboards ADD COLUMN IF NOT EXISTS committed_value NUMERIC(12,2) NOT NULL DEFAULT 0.00;
 ALTER TABLE public.shared_finance_dashboards ADD COLUMN IF NOT EXISTS committed_percentage NUMERIC(5,2) NOT NULL DEFAULT 0.00;
 ALTER TABLE public.shared_finance_dashboards ADD COLUMN IF NOT EXISTS suggestions JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE public.shared_finance_dashboards ADD COLUMN IF NOT EXISTS debts JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE public.shared_finance_dashboards ADD COLUMN IF NOT EXISTS installments JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE public.shared_finance_dashboards ADD COLUMN IF NOT EXISTS recurrents JSONB NOT NULL DEFAULT '[]'::jsonb;
 
 -- 3. Enable Realtime Publications de forma segura (idempotente)
 DO $$

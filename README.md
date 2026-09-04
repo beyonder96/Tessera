@@ -4,6 +4,11 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.48
+
+- **Modelo Orçamentário Mensal no "Disponível para Gastar":** Cálculo reformulado para refletir com precisão a margem livre real entre receitas do mês e despesas comprometidas (`salaryValue - committedValue`), eliminando valores negativos artificiais decorrentes de saldo em conta corrente zerado.
+- **Painéis de Dívidas, Parcelados e Contas Fixas no Resumo Web:** Integração completa dos 3 painéis do aplicativo móvel na página web compartilhada (`FinanceSharePage.tsx`), com carrossel interativo, navegação fluida, indicadores de página e modais detalhados de acompanhamento com prazos, credores e progresso de quitação.
+
 ## 🚀 Novidades da Versão 2.0.47
 
 - **Ajuste Completo no Disponível para Gastar, Receitas e Orçamento Comprometido:** Contabilização precisa de receitas fixas recorrentes, faturas de cartão em aberto, dívidas ativas pendentes e fallback inteligente para saldo disponível em contas correntes, eliminando valores zerados no painel financeiro.
@@ -213,8 +218,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.47.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.47.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.48.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.48.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.

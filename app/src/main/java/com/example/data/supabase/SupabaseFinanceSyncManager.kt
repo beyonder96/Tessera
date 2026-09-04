@@ -5,6 +5,7 @@ import android.util.Log
 import com.example.data.BankAccount
 import com.example.data.BenefitCard
 import com.example.data.CreditCard
+import com.example.data.Debt
 import com.example.data.TesseraRepository
 import com.example.data.Transaction
 import kotlinx.coroutines.CoroutineScope
@@ -109,16 +110,27 @@ class SupabaseFinanceSyncManager(
             generateNewShareId()
         }
 
-        // 1. Observe local transactions, accounts and cards and push to Supabase in real-time
+        // 1. Observe local transactions, accounts, cards, benefits and debts and push to Supabase in real-time
         if (localSyncJob?.isActive != true) {
             localSyncJob = scope.launch {
                 combine(
                     repository.allTransactions,
                     repository.allBankAccounts,
                     repository.allCreditCards,
-                    repository.allBenefitCards
-                ) { transactions, accounts, cards, benefits ->
-                    uploadDashboardToSupabase(transactions, accounts, cards, benefits)
+                    repository.allBenefitCards,
+                    repository.allDebts
+                ) { args: Array<Any> ->
+                    @Suppress("UNCHECKED_CAST")
+                    val transactions = args[0] as List<Transaction>
+                    @Suppress("UNCHECKED_CAST")
+                    val accounts = args[1] as List<BankAccount>
+                    @Suppress("UNCHECKED_CAST")
+                    val cards = args[2] as List<CreditCard>
+                    @Suppress("UNCHECKED_CAST")
+                    val benefits = args[3] as List<BenefitCard>
+                    @Suppress("UNCHECKED_CAST")
+                    val debts = args[4] as List<Debt>
+                    uploadDashboardToSupabase(transactions, accounts, cards, benefits, debts)
                 }.collect()
             }
         }
@@ -150,7 +162,8 @@ class SupabaseFinanceSyncManager(
             val accounts = repository.allBankAccounts.first()
             val cards = repository.allCreditCards.first()
             val benefits = repository.allBenefitCards.first()
-            uploadDashboardToSupabase(transactions, accounts, cards, benefits)
+            val debts = repository.allDebts.first()
+            uploadDashboardToSupabase(transactions, accounts, cards, benefits, debts)
         }
     }
 
@@ -263,7 +276,8 @@ class SupabaseFinanceSyncManager(
         transactions: List<Transaction>,
         accounts: List<BankAccount>,
         cards: List<CreditCard>,
-        benefits: List<BenefitCard>
+        benefits: List<BenefitCard>,
+        debts: List<Debt> = emptyList()
     ) {
         val shareId = _activeShareId.value ?: return
 
@@ -342,7 +356,88 @@ class SupabaseFinanceSyncManager(
             categoryMap[tx.category] = (categoryMap[tx.category] ?: 0.0) + tx.value
         }
 
-        val fallbackSpendable = if (accounts.isNotEmpty()) checkingBalance else totalBalance
+        // 1. Dívidas Ativas (Debts)
+        val activeDebts = debts.filter { !it.isPaid }
+        val debtsTotalOwed = activeDebts.sumOf { it.value }
+        val debtsTotalPaid = activeDebts.sumOf { debt ->
+            val installmentVal = if (debt.installmentsTotal > 0) debt.value / debt.installmentsTotal else debt.value
+            installmentVal * debt.installmentsPaid
+        }
+        val debtsRemaining = debtsTotalOwed - debtsTotalPaid
+
+        val debtsItemsArray = JSONArray()
+        activeDebts.forEach { debt ->
+            debtsItemsArray.put(JSONObject().apply {
+                put("id", debt.id)
+                put("title", debt.title)
+                put("description", debt.description)
+                put("value", debt.value)
+                put("due_date", debt.dueDate)
+                put("creditor_name", debt.creditorName)
+                put("installments_total", debt.installmentsTotal)
+                put("installments_paid", debt.installmentsPaid)
+            })
+        }
+
+        val debtsSummaryObj = JSONObject().apply {
+            put("count", activeDebts.size)
+            put("total_owed", debtsTotalOwed)
+            put("total_paid", debtsTotalPaid)
+            put("remaining_to_pay", debtsRemaining)
+            put("items", debtsItemsArray)
+        }
+
+        // 2. Despesas Parceladas do Mês (Installments)
+        val installmentTxs = transactions.filter { tx ->
+            !tx.isIncome &&
+            (tx.subtitle.contains("Parcela", ignoreCase = true) || Regex("""\(\d+/\d+\)""").containsMatchIn(tx.title)) &&
+            (tx.timestamp in currentMonthStart..currentMonthEnd || (tx.dueDate > 0L && tx.dueDate in currentMonthStart..currentMonthEnd))
+        }
+        val totalInstallmentValue = installmentTxs.sumOf { it.value }
+
+        val installmentsItemsArray = JSONArray()
+        installmentTxs.forEach { tx ->
+            installmentsItemsArray.put(JSONObject().apply {
+                put("id", tx.id)
+                put("title", tx.title)
+                put("subtitle", tx.subtitle)
+                put("value", tx.value)
+                put("category", tx.category)
+                put("account_or_card_name", tx.accountOrCardName)
+                put("date", if (tx.dueDate > 0L) tx.dueDate else tx.timestamp)
+            })
+        }
+
+        val installmentsSummaryObj = JSONObject().apply {
+            put("count", installmentTxs.size)
+            put("total_month_value", totalInstallmentValue)
+            put("items", installmentsItemsArray)
+        }
+
+        // 3. Contas Fixas Recorrentes (Recurrents)
+        val recurrentTxs = transactions.filter { tx -> !tx.isIncome && tx.isRecurrent }
+        val totalRecurrentValue = recurrentTxs.sumOf { it.value }
+
+        val recurrentsItemsArray = JSONArray()
+        recurrentTxs.forEach { tx ->
+            recurrentsItemsArray.put(JSONObject().apply {
+                put("id", tx.id)
+                put("title", tx.title)
+                put("subtitle", tx.subtitle)
+                put("value", tx.value)
+                put("category", tx.category)
+                put("account_or_card_name", tx.accountOrCardName)
+                put("recurrence_interval", tx.recurrenceInterval)
+            })
+        }
+
+        val recurrentsSummaryObj = JSONObject().apply {
+            put("count", recurrentTxs.size)
+            put("total_monthly_value", totalRecurrentValue)
+            put("items", recurrentsItemsArray)
+        }
+
+        val fallbackSpendable = calculatedIncome - calculatedExpense
 
         val finalSpendable = currentSpendableBalance ?: fallbackSpendable
         val finalSalary = currentSalaryValue ?: calculatedIncome
@@ -354,6 +449,7 @@ class SupabaseFinanceSyncManager(
                 (finalSpendable.hashCode() * 17) +
                 (finalSalary.hashCode() * 13) +
                 (finalCommitted.hashCode() * 7) +
+                (debts.hashCode() * 5) +
                 finalCommittedPercent.hashCode()
 
         if (currentHash == lastUploadedHash) return
@@ -372,16 +468,19 @@ class SupabaseFinanceSyncManager(
                     categoriesArray.put(catObj)
                 }
 
-                // Últimas 30 transações JSON
+                // Últimas 30 transações JSON enriquecidas
                 val txArray = JSONArray()
                 transactions.take(30).forEach { tx ->
                     val obj = JSONObject().apply {
                         put("id", tx.id)
                         put("title", tx.title)
+                        put("subtitle", tx.subtitle)
                         put("category", tx.category)
                         put("amount", tx.value)
                         put("type", if (tx.isIncome) "income" else "expense")
                         put("date", tx.timestamp)
+                        put("is_recurrent", tx.isRecurrent)
+                        put("account_or_card_name", tx.accountOrCardName)
                     }
                     txArray.put(obj)
                 }
@@ -397,12 +496,25 @@ class SupabaseFinanceSyncManager(
                     put("committed_percentage", finalCommittedPercent)
                     put("categories", categoriesArray)
                     put("transactions", txArray)
+                    put("debts", debtsSummaryObj)
+                    put("installments", installmentsSummaryObj)
+                    put("recurrents", recurrentsSummaryObj)
                     put("suggestions", cachedSuggestionsJson)
                     put("is_live", true)
                     put("updated_at", java.time.Instant.now().toString())
                 }.toString()
 
-                val result = SupabaseClientProvider.postOrUpdate("shared_finance_dashboards", payload)
+                var result = SupabaseClientProvider.postOrUpdate("shared_finance_dashboards", payload)
+                if (!result.isSuccess && result.exceptionOrNull()?.message?.contains("Could not find the column", ignoreCase = true) == true) {
+                    // Fallback retrocompatível caso colunas não tenham sido criadas no Supabase ainda
+                    val fallbackPayload = JSONObject(payload).apply {
+                        remove("debts")
+                        remove("installments")
+                        remove("recurrents")
+                    }.toString()
+                    result = SupabaseClientProvider.postOrUpdate("shared_finance_dashboards", fallbackPayload)
+                }
+
                 if (result.isSuccess) {
                     lastUploadedHash = currentHash
                     _syncStatus.value = SyncStatus.SYNCED

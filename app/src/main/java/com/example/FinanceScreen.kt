@@ -377,30 +377,8 @@ fun FinanceScreen(
         if (total > 0.0) total else 0.0
     }
 
-    // Obrigações pendentes imediatas a debitar da conta corrente
-    val pendingObligationsToPay = remember(currentMonthTransactions, allTransactions, creditCards, debts, benefitCards, currentMonthEnd) {
-        val pendingMonthExpenses = currentMonthTransactions.filter { tx ->
-            !tx.isIncome && !tx.isRealized &&
-            !tx.category.trim().equals("Transferência", ignoreCase = true) &&
-            !tx.category.trim().equals("Transferencia", ignoreCase = true) &&
-            benefitCards.none { card -> card.name == tx.accountOrCardName } &&
-            creditCards.none { card -> card.name == tx.accountOrCardName }
-        }.sumOf { it.value }
-
-        val creditCardsUsedLimit = creditCards.sumOf { it.usedLimit }
-
-        val activeDebtsMonthSum = debts.filter { debt ->
-            !debt.isPaid && (debt.dueDate == 0L || debt.dueDate <= currentMonthEnd)
-        }.sumOf { debt ->
-            val installments = if (debt.installmentsTotal > 0) debt.installmentsTotal else 1
-            debt.value / installments
-        }
-
-        pendingMonthExpenses + creditCardsUsedLimit + activeDebtsMonthSum
-    }
-
-    val availableLiquid = checkingBalance + if (sumInvestmentsToSpendable) (savingsBalance + investmentBalance) else 0.0
-    val freeValue = availableLiquid - pendingObligationsToPay
+    // Disponível para Gastar: Modelo Orçamentário Mensal (Receitas do Mês - Despesas Comprometidas)
+    val freeValue = salaryValue - committedValue
 
     LaunchedEffect(freeValue, salaryValue, committedValue) {
         val ratio = if (salaryValue > 0.0) ((committedValue / salaryValue) * 100.0).coerceIn(0.0, 100.0) else 0.0
