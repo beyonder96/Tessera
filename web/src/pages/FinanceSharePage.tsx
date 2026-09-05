@@ -21,7 +21,10 @@ import {
   Banknote,
   ChevronRight,
   ChevronLeft,
-  Building2
+  Building2,
+  Sun,
+  Moon,
+  Pencil
 } from 'lucide-react'
 
 interface CategoryBreakdown {
@@ -40,6 +43,8 @@ interface TransactionItem {
   date: string | number
   is_recurrent?: boolean
   account_or_card_name?: string
+  is_realized?: boolean
+  due_date?: string | number
 }
 
 export interface DebtItem {
@@ -129,6 +134,11 @@ export interface FinanceSuggestionDoc {
   date: string
   created_at: string
   status: 'pending' | 'approved' | 'rejected'
+  action?: 'create' | 'edit'
+  target_tx_id?: number | string
+  original_title?: string
+  original_amount?: number
+  account_or_card_name?: string
 }
 
 interface FinanceDashboardDoc {
@@ -154,132 +164,139 @@ interface FinanceDashboardDoc {
   updated_at: string
 }
 
-function normalizeDebts(raw: unknown): DebtsSummary {
-  if (!raw) {
-    return { count: 0, total_owed: 0, total_paid: 0, remaining_to_pay: 0, items: [] }
-  }
-
-  if (Array.isArray(raw)) {
-    if (raw.length === 0) {
-      return { count: 0, total_owed: 0, total_paid: 0, remaining_to_pay: 0, items: [] }
-    }
-    const items = raw as DebtItem[]
-    let totalOwed = 0
-    let totalPaid = 0
-    items.forEach(debt => {
-      const val = typeof debt.value === 'number' ? debt.value : parseFloat(String(debt.value)) || 0
-      totalOwed += val
-      const instTotal = debt.installments_total > 0 ? debt.installments_total : 1
-      const instPaid = debt.installments_paid || 0
-      totalPaid += (val / instTotal) * instPaid
-    })
-    return {
-      count: items.length,
-      total_owed: totalOwed,
-      total_paid: totalPaid,
-      remaining_to_pay: Math.max(0, totalOwed - totalPaid),
-      items
-    }
-  }
-
-  if (typeof raw === 'object' && raw !== null) {
+function normalizeDebts(raw: unknown, transactions?: TransactionItem[]): DebtsSummary {
+  let debtsList: DebtItem[] = []
+  if (Array.isArray(raw) && raw.length > 0) {
+    debtsList = raw as DebtItem[]
+  } else if (typeof raw === 'object' && raw !== null) {
     const obj = raw as Record<string, unknown>
-    const items = Array.isArray(obj.items) ? (obj.items as DebtItem[]) : []
-    const total_owed = typeof obj.total_owed === 'number' ? obj.total_owed : items.reduce((acc, d) => acc + (Number(d.value) || 0), 0)
-    const total_paid = typeof obj.total_paid === 'number' ? obj.total_paid : 0
-    const remaining_to_pay = typeof obj.remaining_to_pay === 'number' ? obj.remaining_to_pay : Math.max(0, total_owed - total_paid)
-    const count = typeof obj.count === 'number' ? obj.count : items.length
-
-    return {
-      count,
-      total_owed,
-      total_paid,
-      remaining_to_pay,
-      items
+    if (Array.isArray(obj.items) && obj.items.length > 0) {
+      debtsList = obj.items as DebtItem[]
     }
   }
 
-  return { count: 0, total_owed: 0, total_paid: 0, remaining_to_pay: 0, items: [] }
+  // Se não houver dívidas registradas no objeto principal, deriva de transações vencidas não pagas
+  if (debtsList.length === 0 && Array.isArray(transactions) && transactions.length > 0) {
+    const now = Date.now()
+    const synthetic = transactions
+      .filter(tx => {
+        const txDate = typeof tx.date === 'number' ? tx.date : parseInt(String(tx.date), 10) || 0
+        const isOverdueUnrealized = tx.is_realized === false && txDate > 0 && txDate < now
+        const isDebtByName = tx.title.toLowerCase().includes('dívida') ||
+          tx.title.toLowerCase().includes('divida') ||
+          tx.title.toLowerCase().includes('empréstimo') ||
+          tx.title.toLowerCase().includes('emprestimo') ||
+          tx.category.toLowerCase().includes('dívida') ||
+          tx.category.toLowerCase().includes('divida')
+        return tx.type === 'expense' && (isOverdueUnrealized || isDebtByName)
+      })
+      .map(tx => {
+        const txDate = typeof tx.date === 'number' ? tx.date : parseInt(String(tx.date), 10) || 0
+        return {
+          id: tx.id,
+          title: tx.title,
+          description: tx.subtitle || 'Pendência financeira',
+          value: Number(tx.amount) || 0,
+          due_date: txDate,
+          creditor_name: tx.account_or_card_name || 'Credor',
+          installments_total: 1,
+          installments_paid: tx.is_realized ? 1 : 0
+        }
+      })
+    if (synthetic.length > 0) {
+      debtsList = synthetic
+    }
+  }
+
+  let totalOwed = 0
+  let totalPaid = 0
+  debtsList.forEach(debt => {
+    const val = typeof debt.value === 'number' ? debt.value : parseFloat(String(debt.value)) || 0
+    totalOwed += val
+    const instTotal = debt.installments_total > 0 ? debt.installments_total : 1
+    const instPaid = debt.installments_paid || 0
+    totalPaid += (val / instTotal) * instPaid
+  })
+
+  return {
+    count: debtsList.length,
+    total_owed: totalOwed,
+    total_paid: totalPaid,
+    remaining_to_pay: Math.max(0, totalOwed - totalPaid),
+    items: debtsList
+  }
 }
 
 function normalizeInstallments(raw: unknown, transactions?: TransactionItem[]): InstallmentsSummary {
+  let items: InstallmentItem[] = []
+  let allItems: InstallmentItem[] = []
+
   if (raw && !Array.isArray(raw) && typeof raw === 'object') {
     const obj = raw as Record<string, unknown>
-    const items = Array.isArray(obj.items) ? (obj.items as InstallmentItem[]) : []
-    const allItems = Array.isArray(obj.all_items) ? (obj.all_items as InstallmentItem[]) : []
-
-    if (items.length > 0 || allItems.length > 0) {
-      const resolvedItems = items.length > 0 ? items : allItems.filter(i => i.is_current_month)
-      const resolvedAllItems = allItems.length > 0 ? allItems : items
-
-      const count = typeof obj.count === 'number' ? obj.count : resolvedItems.length
-      const total_month_value = typeof obj.total_month_value === 'number'
-        ? obj.total_month_value
-        : resolvedItems.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0)
-      const total_value = typeof obj.total_value === 'number'
-        ? obj.total_value
-        : resolvedAllItems.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0)
-      const all_count = typeof obj.all_count === 'number' ? obj.all_count : resolvedAllItems.length
-
-      return {
-        count,
-        total_month_value,
-        total_value,
-        all_count,
-        items: resolvedItems,
-        all_items: resolvedAllItems
-      }
-    }
+    if (Array.isArray(obj.items)) items = obj.items as InstallmentItem[]
+    if (Array.isArray(obj.all_items)) allItems = obj.all_items as InstallmentItem[]
+  } else if (Array.isArray(raw)) {
+    items = raw as InstallmentItem[]
+    allItems = items
   }
 
-  if (Array.isArray(raw) && raw.length > 0) {
-    const items = raw as InstallmentItem[]
-    const total = items.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0)
-    return { count: items.length, total_month_value: total, total_value: total, all_count: items.length, items, all_items: items }
+  // Se ambos estiverem vazios, aciona a heurística abrangente sobre transações locais
+  if (items.length === 0 && allItems.length === 0) {
+    const derived = (transactions || []).filter(tx => 
+      tx.type === 'expense' && (
+        (Boolean(tx.subtitle) && (
+          tx.subtitle!.toLowerCase().includes('parcela') ||
+          tx.subtitle!.toLowerCase().includes('parc.') ||
+          tx.subtitle!.toLowerCase().includes('de')
+        )) ||
+        tx.title.toLowerCase().includes('parcela') ||
+        tx.title.toLowerCase().includes('parcelado') ||
+        tx.title.toLowerCase().includes('parcelamento') ||
+        tx.category.toLowerCase().includes('parcelad') ||
+        /\(\d+\/\d+\)/.test(tx.title) ||
+        /\b\d+\/\d+\b/.test(tx.title) ||
+        /\b\d+x\b/i.test(tx.title) ||
+        tx.title.toLowerCase() === 'cartao' ||
+        tx.title.toLowerCase() === 'cartão' ||
+        Boolean(tx.account_or_card_name && (tx.account_or_card_name.toLowerCase().includes('credito') || tx.account_or_card_name.toLowerCase().includes('crédito')))
+      )
+    ).map(tx => ({
+      id: tx.id,
+      title: tx.title,
+      subtitle: tx.subtitle || (Boolean(tx.account_or_card_name && tx.account_or_card_name.toLowerCase().includes('credito')) ? 'Cartão de Crédito' : 'Parcela'),
+      value: Number(tx.amount) || 0,
+      category: tx.category,
+      account_or_card_name: tx.account_or_card_name,
+      date: typeof tx.date === 'number' ? tx.date : parseInt(String(tx.date), 10) || 0,
+      is_current_month: true,
+      is_realized: tx.is_realized ?? true
+    }))
+
+    items = derived
+    allItems = derived
   }
 
-  // Fallback derivado das transações locais com heurística abrangente
-  const derived = (transactions || []).filter(tx => 
-    tx.type === 'expense' && (
-      (Boolean(tx.subtitle) && (
-        tx.subtitle!.toLowerCase().includes('parcela') ||
-        tx.subtitle!.toLowerCase().includes('parc.') ||
-        tx.subtitle!.toLowerCase().includes('de')
-      )) ||
-      tx.title.toLowerCase().includes('parcela') ||
-      tx.title.toLowerCase().includes('parcelado') ||
-      tx.title.toLowerCase().includes('parcelamento') ||
-      tx.category.toLowerCase().includes('parcelad') ||
-      /\(\d+\/\d+\)/.test(tx.title) ||
-      /\b\d+\/\d+\b/.test(tx.title) ||
-      /\b\d+x\b/i.test(tx.title)
-    )
-  ).map(tx => ({
-    id: tx.id,
-    title: tx.title,
-    subtitle: tx.subtitle || 'Parcela',
-    value: Number(tx.amount) || 0,
-    category: tx.category,
-    account_or_card_name: tx.account_or_card_name,
-    date: typeof tx.date === 'number' ? tx.date : parseInt(String(tx.date), 10) || 0,
-    is_current_month: true
-  }))
+  const resolvedItems = items.length > 0 ? items : allItems.filter(i => i.is_current_month)
+  const resolvedAllItems = allItems.length > 0 ? allItems : items
 
-  const totalDerived = derived.reduce((acc, curr) => acc + curr.value, 0)
+  const total_month_value = resolvedItems.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0)
+  const total_value = resolvedAllItems.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0)
+
   return {
-    count: derived.length,
-    total_month_value: totalDerived,
-    total_value: totalDerived,
-    all_count: derived.length,
-    items: derived,
-    all_items: derived
+    count: resolvedItems.length,
+    total_month_value,
+    total_value,
+    all_count: resolvedAllItems.length,
+    items: resolvedItems,
+    all_items: resolvedAllItems
   }
 }
 
-function normalizeAccounts(docAccounts: unknown, rawInstallments: unknown): BankAccountDoc[] {
+function normalizeAccounts(docAccounts: unknown, rawInstallments: unknown, transactions?: TransactionItem[]): BankAccountDoc[] {
+  let list: BankAccountDoc[] = []
   // 1. Tenta da raiz doc.accounts
   if (Array.isArray(docAccounts) && docAccounts.length > 0) {
-    return docAccounts.map(item => {
+    list = docAccounts.map(item => {
       const obj = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>
       return {
         id: (obj.id as number | string) || String(Math.random()),
@@ -289,12 +306,11 @@ function normalizeAccounts(docAccounts: unknown, rawInstallments: unknown): Bank
         color_hex: typeof obj.color_hex === 'string' ? obj.color_hex : undefined
       }
     })
-  }
-  // 2. Tenta do fallback em installments.accounts
-  if (typeof rawInstallments === 'object' && rawInstallments !== null) {
+  } else if (typeof rawInstallments === 'object' && rawInstallments !== null) {
+    // 2. Tenta do fallback em installments.accounts
     const instObj = rawInstallments as Record<string, unknown>
     if (Array.isArray(instObj.accounts) && instObj.accounts.length > 0) {
-      return (instObj.accounts as Record<string, unknown>[]).map(obj => ({
+      list = (instObj.accounts as Record<string, unknown>[]).map(obj => ({
         id: (obj.id as number | string) || String(Math.random()),
         name: String(obj.name || 'Conta'),
         type: String(obj.type || 'Corrente'),
@@ -303,13 +319,32 @@ function normalizeAccounts(docAccounts: unknown, rawInstallments: unknown): Bank
       }))
     }
   }
-  return []
+
+  // 3. Fallback defensivo: se contas estiverem vazias mas há transações identificando conta
+  if (list.length === 0 && Array.isArray(transactions) && transactions.length > 0) {
+    const names = Array.from(new Set(transactions
+      .map(t => t.account_or_card_name?.trim())
+      .filter((name): name is string => Boolean(name && !name.toLowerCase().includes('credito') && !name.toLowerCase().includes('crédito') && !name.toLowerCase().includes('cartao') && !name.toLowerCase().includes('cartão')))
+    ))
+    if (names.length > 0) {
+      list = names.map((name, idx) => ({
+        id: `acc_derived_${idx}`,
+        name,
+        type: 'Corrente',
+        balance: 0,
+        color_hex: '#FF7A00'
+      }))
+    }
+  }
+
+  return list
 }
 
-function normalizeCards(docCards: unknown, rawInstallments: unknown): CreditCardDoc[] {
+function normalizeCards(docCards: unknown, rawInstallments: unknown, transactions?: TransactionItem[]): CreditCardDoc[] {
+  let list: CreditCardDoc[] = []
   // 1. Tenta da raiz doc.cards
   if (Array.isArray(docCards) && docCards.length > 0) {
-    return docCards.map(item => {
+    list = docCards.map(item => {
       const obj = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>
       const limit = typeof obj.limit === 'number' ? obj.limit : parseFloat(String(obj.limit)) || 0
       const usedLimit = typeof obj.used_limit === 'number' ? obj.used_limit : parseFloat(String(obj.used_limit)) || 0
@@ -326,12 +361,11 @@ function normalizeCards(docCards: unknown, rawInstallments: unknown): CreditCard
         due_day: typeof obj.due_day === 'number' ? obj.due_day : undefined
       }
     })
-  }
-  // 2. Tenta do fallback em installments.cards
-  if (typeof rawInstallments === 'object' && rawInstallments !== null) {
+  } else if (typeof rawInstallments === 'object' && rawInstallments !== null) {
+    // 2. Tenta do fallback em installments.cards
     const instObj = rawInstallments as Record<string, unknown>
     if (Array.isArray(instObj.cards) && instObj.cards.length > 0) {
-      return (instObj.cards as Record<string, unknown>[]).map(obj => {
+      list = (instObj.cards as Record<string, unknown>[]).map(obj => {
         const limit = typeof obj.limit === 'number' ? obj.limit : parseFloat(String(obj.limit)) || 0
         const usedLimit = typeof obj.used_limit === 'number' ? obj.used_limit : parseFloat(String(obj.used_limit)) || 0
         const avail = typeof obj.available_limit === 'number' ? obj.available_limit : Math.max(0, limit - usedLimit)
@@ -349,7 +383,47 @@ function normalizeCards(docCards: unknown, rawInstallments: unknown): CreditCard
       })
     }
   }
-  return []
+
+  // 3. Fallback defensivo se não houver cartões mas houver transações mencionando cartão
+  if (list.length === 0 && Array.isArray(transactions) && transactions.length > 0) {
+    const cardNames = Array.from(new Set(transactions
+      .map(t => t.account_or_card_name?.trim())
+      .filter((name): name is string => Boolean(name && (name.toLowerCase().includes('credito') || name.toLowerCase().includes('crédito') || name.toLowerCase().includes('cartao') || name.toLowerCase().includes('cartão'))))
+    ))
+    if (cardNames.length > 0) {
+      list = cardNames.map((name, idx) => ({
+        id: `card_derived_${idx}`,
+        name,
+        type: 'credit',
+        limit: 1000,
+        used_limit: 0,
+        available_limit: 1000,
+        color_hex: '#4A90E2'
+      }))
+    }
+  }
+
+  // 4. Se for cartão de crédito, ajusta a fatura usada conforme as despesas registradas
+  return list.map(card => {
+    if (card.type === 'credit') {
+      const cardExpenses = (transactions || [])
+        .filter(t => t.type === 'expense' && (
+          t.account_or_card_name?.toLowerCase() === card.name.toLowerCase() ||
+          t.title.toLowerCase().includes(card.name.toLowerCase()) ||
+          t.title.toLowerCase() === 'cartao' ||
+          t.title.toLowerCase() === 'cartão'
+        ))
+        .reduce((acc, t) => acc + t.amount, 0)
+      const effectiveUsed = Math.max(card.used_limit, cardExpenses)
+      const effectiveAvail = Math.max(0, card.limit - effectiveUsed)
+      return {
+        ...card,
+        used_limit: effectiveUsed,
+        available_limit: effectiveAvail
+      }
+    }
+    return card
+  })
 }
 
 function normalizeRecurrents(raw: unknown, transactions?: TransactionItem[]): RecurrentsSummary {
@@ -399,6 +473,26 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
   const [isPrivacyMode, setIsPrivacyMode] = useState(false)
   const [copied, setCopied] = useState(false)
 
+  // Tema Claro / Escuro com persistência
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('tessera_theme') : null
+    if (saved === 'light' || saved === 'dark') return saved
+    return typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+  })
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    try {
+      localStorage.setItem('tessera_theme', theme)
+    } catch {
+      // ignore
+    }
+  }, [theme])
+
+  const toggleTheme = () => {
+    setTheme(prev => (prev === 'dark' ? 'light' : 'dark'))
+  }
+
   // Seleção de filtro (Conta ou Cartão clicado, exatamente como no app principal)
   const [selectedFilter, setSelectedFilter] = useState<{
     type: 'account' | 'card'
@@ -421,6 +515,15 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
   const [suggestionCategory, setSuggestionCategory] = useState('Alimentação')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  // Edit Transaction Modal state
+  const [editingTx, setEditingTx] = useState<TransactionItem | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editAmount, setEditAmount] = useState('')
+  const [editType, setEditType] = useState<'expense' | 'income'>('expense')
+  const [editCategory, setEditCategory] = useState('Outros')
+  const [editAccountOrCard, setEditAccountOrCard] = useState('')
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false)
 
   // Summary Panels state (Carrossel dos 3 painéis: Dívidas | Parcelados | Contas Fixas)
   const [activePanelIndex, setActivePanelIndex] = useState(0)
@@ -595,6 +698,63 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
     }
   }
 
+  const handleOpenEditModal = (tx: TransactionItem) => {
+    setEditingTx(tx)
+    setEditTitle(tx.title)
+    setEditAmount(String(tx.amount))
+    setEditType(tx.type?.toLowerCase() === 'income' ? 'income' : 'expense')
+    setEditCategory(tx.category || 'Outros')
+    setEditAccountOrCard(tx.account_or_card_name || '')
+  }
+
+  const handleSuggestEditTransaction = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!doc || !editingTx || !editTitle.trim()) return
+
+    const amount = parseFloat(editAmount.replace(',', '.'))
+    if (!amount || amount <= 0) return
+
+    setIsSubmittingEdit(true)
+
+    const newSuggestion: FinanceSuggestionDoc = {
+      id: `sug_edit_${Date.now()}`,
+      title: editTitle.trim(),
+      amount,
+      type: editType,
+      category: editCategory,
+      date: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+      created_at: new Date().toISOString(),
+      status: 'pending',
+      action: 'edit',
+      target_tx_id: editingTx.id,
+      original_title: editingTx.title,
+      original_amount: Number(editingTx.amount) || 0,
+      account_or_card_name: editAccountOrCard || editingTx.account_or_card_name
+    }
+
+    const currentSuggestions = doc.suggestions || []
+    const updatedSuggestions = [newSuggestion, ...currentSuggestions]
+    const updatedDoc: FinanceDashboardDoc = { ...doc, suggestions: updatedSuggestions, updated_at: new Date().toISOString() }
+
+    setDoc(updatedDoc)
+    localStorage.setItem(`tessera_finance_${dashboardId}`, JSON.stringify(updatedDoc))
+
+    try {
+      await supabase
+        .from('shared_finance_dashboards')
+        .update({ suggestions: updatedSuggestions, updated_at: new Date().toISOString() })
+        .eq('id', dashboardId)
+
+      setSuccessMessage(`Edição de "${editingTx.title}" enviada! A alteração será aplicada no Tessera assim que for aprovada no app.`)
+      setEditingTx(null)
+      setTimeout(() => setSuccessMessage(null), 6000)
+    } catch (err: unknown) {
+      console.error('Failed to submit edit suggestion:', err)
+    } finally {
+      setIsSubmittingEdit(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="container" style={{ paddingTop: 40 }}>
@@ -653,11 +813,11 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
   const pendingSuggestions = (doc.suggestions || []).filter(s => s.status === 'pending')
 
   // Dados dos Painéis (Dívidas, Parcelados e Contas Fixas) normalizados com resiliência
-  const debtsData = normalizeDebts(doc.debts)
+  const debtsData = normalizeDebts(doc.debts, doc.transactions)
   const installmentsData = normalizeInstallments(doc.installments, doc.transactions)
   const recurrentsData = normalizeRecurrents(doc.recurrents, doc.transactions)
-  const accountsData = normalizeAccounts(doc.accounts, doc.installments)
-  const cardsData = normalizeCards(doc.cards, doc.installments)
+  const accountsData = normalizeAccounts(doc.accounts, doc.installments, doc.transactions)
+  const cardsData = normalizeCards(doc.cards, doc.installments, doc.transactions)
 
   const totalInstallmentsCount = installmentsData.all_count || installmentsData.all_items?.length || installmentsData.count || installmentsData.items.length
 
@@ -732,7 +892,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
       )}
 
       {/* Header */}
-      <div style={{ marginBottom: 20 }}>
+      <div className="animate-fade-in-up" style={{ marginBottom: 20 }}>
         {/* Top bar com Badge e Botões de Controle */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <div className="live-badge">
@@ -742,9 +902,22 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button 
+              type="button"
+              className="theme-toggle-btn"
+              onClick={toggleTheme}
+              title={theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+              aria-label="Alternar tema claro/escuro"
+            >
+              {theme === 'dark' ? (
+                <Sun key="sun" size={17} color="#F59E0B" className="theme-icon-enter" />
+              ) : (
+                <Moon key="moon" size={17} color="#4A90E2" className="theme-icon-enter" />
+              )}
+            </button>
+            <button 
               className="btn btn-outline" 
               onClick={() => setIsPrivacyMode(!isPrivacyMode)}
-              style={{ width: 36, height: 36, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-md)' }}
+              style={{ width: 36, height: 36, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-full)' }}
               title={isPrivacyMode ? 'Mostrar valores' : 'Ocultar valores'}
               aria-label="Alternar privacidade"
             >
@@ -753,7 +926,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
             <button 
               className="btn btn-outline" 
               onClick={handleShare} 
-              style={{ width: 36, height: 36, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-md)' }}
+              style={{ width: 36, height: 36, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-full)' }}
               title={copied ? 'Link copiado!' : 'Copiar link'}
               aria-label="Compartilhar"
             >
@@ -783,7 +956,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
       </div>
 
       {/* 1. HERO CARD: DISPONÍVEL PARA GASTAR / LIMITE OU SALDO ATUAL */}
-      <div className="card" style={{ marginBottom: 16, padding: '24px 20px', background: 'var(--bg-card)' }}>
+      <div className="card animate-fade-in-up" style={{ marginBottom: 16, padding: '24px 20px', background: 'var(--bg-card)', animationDelay: '50ms' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {selectedFilter ? (
@@ -885,6 +1058,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
             </div>
             <div style={{ width: '100%', height: 6, background: 'var(--bg-surface-hover)', borderRadius: 999, overflow: 'hidden' }}>
               <div 
+                className="animate-progress"
                 style={{ 
                   width: `${Math.min(committedPercent, 100)}%`, 
                   height: '100%', 
@@ -899,7 +1073,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
       </div>
 
       {/* 2. CARROSSEL DOS PAINÉIS (Dívidas | Parcelados | Contas Fixas) */}
-      <div style={{ marginBottom: 16 }}>
+      <div className="animate-fade-in-up" style={{ marginBottom: 16, animationDelay: '100ms' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, padding: '0 2px' }}>
           <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1.2, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
             Compromissos & Painéis
@@ -959,14 +1133,13 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
 
         {/* Card do Painel Ativo */}
         <div 
-          className="card"
+          className="card interactive-card animate-fade-in-up stagger-1"
           onClick={currentPanel.onClick}
           style={{
             padding: '18px 20px',
             background: 'var(--bg-card)',
             border: '1px solid var(--border)',
             cursor: 'pointer',
-            transition: 'border-color 180ms ease-out, transform 180ms ease-out',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -1082,6 +1255,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
               return (
                 <div
                   key={card.id}
+                  className={`card interactive-card animate-fade-in-up stagger-2 ${isSelected ? 'active-card-glow' : ''}`}
                   onClick={() => {
                     if (isSelected) {
                       setSelectedFilter(null)
@@ -1101,19 +1275,10 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
                     border: isSelected ? '1px solid var(--accent)' : '1px solid var(--border)',
                     borderRadius: 'var(--radius-md)',
                     cursor: 'pointer',
-                    transition: 'border-color 150ms ease-out, transform 150ms ease-out, background 150ms ease-out',
                     boxShadow: isSelected ? '0 0 0 1px var(--accent)' : 'none',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 10
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isSelected) e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'
-                    e.currentTarget.style.transform = 'translateY(-1px)'
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isSelected) e.currentTarget.style.borderColor = 'var(--border)'
-                    e.currentTarget.style.transform = 'translateY(0)'
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1152,6 +1317,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
                       </div>
                       <div style={{ width: '100%', height: 4, background: 'var(--bg-surface-hover)', borderRadius: 999, overflow: 'hidden' }}>
                         <div 
+                          className="animate-progress"
                           style={{ 
                             width: `${usageRatio}%`, 
                             height: '100%', 
@@ -1202,6 +1368,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
               return (
                 <div
                   key={acc.id}
+                  className={`card interactive-card animate-fade-in-up stagger-2 ${isSelected ? 'active-card-glow' : ''}`}
                   onClick={() => {
                     if (isSelected) {
                       setSelectedFilter(null)
@@ -1220,19 +1387,10 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
                     border: isSelected ? '1px solid var(--accent)' : '1px solid var(--border)',
                     borderRadius: 'var(--radius-md)',
                     cursor: 'pointer',
-                    transition: 'border-color 150ms ease-out, transform 150ms ease-out, background 150ms ease-out',
                     boxShadow: isSelected ? '0 0 0 1px var(--accent)' : 'none',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 12
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isSelected) e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'
-                    e.currentTarget.style.transform = 'translateY(-1px)'
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isSelected) e.currentTarget.style.borderColor = 'var(--border)'
-                    e.currentTarget.style.transform = 'translateY(0)'
                   }}
                 >
                   <div style={{ width: 4, height: 36, borderRadius: 999, background: accColor, flexShrink: 0 }} />
@@ -1258,7 +1416,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
 
       {/* Income & Expense Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
-        <div className="card" style={{ padding: '16px 18px' }}>
+        <div className="card interactive-card animate-fade-in-up stagger-3" style={{ padding: '16px 18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
             <TrendingUp size={14} color="var(--success)" />
             <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)' }}>Receitas do Mês</span>
@@ -1268,7 +1426,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
           </div>
         </div>
 
-        <div className="card" style={{ padding: '16px 18px' }}>
+        <div className="card interactive-card animate-fade-in-up stagger-3" style={{ padding: '16px 18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
             <TrendingDown size={14} color="var(--danger)" />
             <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)' }}>Despesas Comprometidas</span>
@@ -1281,7 +1439,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
 
       {/* Pending Suggestions Waiting for Approval */}
       {pendingSuggestions.length > 0 && (
-        <div className="card" style={{ marginBottom: 20, border: '1px solid var(--border-active)', background: 'var(--bg-surface)' }}>
+        <div className="card animate-fade-in-up" style={{ marginBottom: 20, border: '1px solid var(--border-active)', background: 'var(--bg-surface)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             <Clock size={16} color="var(--accent)" />
             <h2 style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.2, color: 'var(--accent)' }}>
@@ -1291,9 +1449,11 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {pendingSuggestions.map(sug => {
               const isIncome = sug.type === 'income'
+              const isEdit = sug.action === 'edit'
               return (
                 <div 
                   key={sug.id}
+                  className="interactive-card"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1305,8 +1465,27 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
                   }}
                 >
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{sug.title}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{sug.category} • {sug.date} • Aguardando aprovação</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{
+                        fontSize: 9,
+                        fontWeight: 600,
+                        padding: '1px 6px',
+                        borderRadius: 'var(--radius-sm)',
+                        background: isEdit ? 'rgba(74, 144, 226, 0.15)' : 'var(--accent-subtle)',
+                        color: isEdit ? '#4A90E2' : 'var(--accent)',
+                        textTransform: 'uppercase'
+                      }}>
+                        {isEdit ? 'Edição' : 'Novo'}
+                      </span>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{sug.title}</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                      {isEdit && sug.original_amount !== undefined ? (
+                        <span>{sug.category} • De {formatCurrency(sug.original_amount)} para {formatCurrency(sug.amount)} • Aguardando aprovação</span>
+                      ) : (
+                        <span>{sug.category} • {sug.date} • Aguardando aprovação</span>
+                      )}
+                    </div>
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: isIncome ? 'var(--success)' : 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
                     {isIncome ? '+' : '-'} {formatCurrency(sug.amount)}
@@ -1320,7 +1499,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
 
       {/* Category Breakdown */}
       {doc.categories && doc.categories.length > 0 && (
-        <div className="card" style={{ marginBottom: 20 }}>
+        <div className="card animate-fade-in-up stagger-4" style={{ marginBottom: 20 }}>
           <h2 style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.2, color: 'var(--text-muted)', marginBottom: 16 }}>
             Gastos por Categoria
           </h2>
@@ -1337,6 +1516,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
                   </div>
                   <div style={{ width: '100%', height: 6, background: 'var(--bg-surface-hover)', borderRadius: 999, overflow: 'hidden' }}>
                     <div 
+                      className="animate-progress"
                       style={{ 
                         width: `${Math.min(cat.percentage, 100)}%`, 
                         height: '100%', 
@@ -1354,16 +1534,18 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
 
       {/* Recent Transactions List */}
       {doc.transactions && doc.transactions.length > 0 && (
-        <div>
+        <div className="animate-fade-in-up stagger-5">
           <h2 style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.2, color: 'var(--text-muted)', marginBottom: 12 }}>
             Últimas Movimentações
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {doc.transactions.map((tx) => {
               const isIncome = tx.type?.toUpperCase() === 'INCOME'
+              const hasPendingEdit = pendingSuggestions.some(s => s.action === 'edit' && String(s.target_tx_id) === String(tx.id))
               return (
                 <div 
                   key={tx.id}
+                  className="card interactive-card"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1412,19 +1594,63 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
                         <span style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>{tx.category}</span>
                         {tx.date ? ` • ${formatDate(tx.date)}` : ''}
                       </div>
+                      {hasPendingEdit && (
+                        <div style={{ 
+                          display: 'inline-flex', 
+                          alignItems: 'center', 
+                          gap: 4, 
+                          marginTop: 4, 
+                          padding: '1px 6px', 
+                          borderRadius: 'var(--radius-sm)', 
+                          background: 'rgba(74, 144, 226, 0.12)', 
+                          color: '#4A90E2', 
+                          fontSize: 10, 
+                          fontWeight: 600 
+                        }}>
+                          <Clock size={10} /> Alteração em aprovação no app
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  <div style={{ 
-                    fontSize: 13, 
-                    fontWeight: 600, 
-                    color: isIncome ? 'var(--success)' : 'var(--danger)',
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0,
-                    textAlign: 'right',
-                    fontVariantNumeric: 'tabular-nums'
-                  }}>
-                    {isIncome ? '+ ' : '- '}{formatCurrency(tx.amount)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                    <div style={{ 
+                      fontSize: 13, 
+                      fontWeight: 600, 
+                      color: isIncome ? 'var(--success)' : 'var(--danger)',
+                      whiteSpace: 'nowrap',
+                      textAlign: 'right',
+                      fontVariantNumeric: 'tabular-nums'
+                    }}>
+                      {isIncome ? '+ ' : '- '}{formatCurrency(tx.amount)}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (!hasPendingEdit) {
+                          handleOpenEditModal(tx)
+                        }
+                      }}
+                      disabled={hasPendingEdit}
+                      title={hasPendingEdit ? "Já possui uma alteração aguardando aprovação" : "Sugerir alteração"}
+                      aria-label="Editar lançamento"
+                      style={{
+                        padding: 6,
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--border)',
+                        background: 'var(--bg-surface)',
+                        color: hasPendingEdit ? 'var(--text-muted)' : 'var(--text-secondary)',
+                        cursor: hasPendingEdit ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 150ms ease-out',
+                        opacity: hasPendingEdit ? 0.4 : 1
+                      }}
+                    >
+                      <Pencil size={13} />
+                    </button>
                   </div>
                 </div>
               )
@@ -1549,6 +1775,158 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
                   style={{ flex: 1 }}
                 >
                   {isSubmitting ? 'Enviando...' : 'Enviar Sugestão'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edição de Lançamento (com aprovação obrigatória) */}
+      {editingTx && (
+        <div className="modal-overlay" onClick={() => setEditingTx(null)}>
+          <div className="modal-content animate-fade-in-up" onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div>
+                <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)' }}>Editar Lançamento</h2>
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                  Sugerir alteração para aprovação no app
+                </p>
+              </div>
+              <button 
+                type="button"
+                className="btn btn-outline" 
+                onClick={() => setEditingTx(null)}
+                style={{ padding: 6, borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                aria-label="Fechar"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSuggestEditTransaction} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Type Switcher */}
+              <div>
+                <label className="input-label">Tipo de Lançamento</label>
+                <div className="segmented-control">
+                  <button 
+                    type="button"
+                    className={`segmented-btn ${editType === 'expense' ? 'active' : ''}`}
+                    onClick={() => setEditType('expense')}
+                  >
+                    💸 Despesa
+                  </button>
+                  <button 
+                    type="button"
+                    className={`segmented-btn ${editType === 'income' ? 'active' : ''}`}
+                    onClick={() => setEditType('income')}
+                  >
+                    💰 Receita
+                  </button>
+                </div>
+              </div>
+
+              {/* Title */}
+              <div>
+                <label className="input-label">Descrição / Título</label>
+                <input 
+                  type="text"
+                  className="input-field"
+                  placeholder="Título do lançamento"
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  autoFocus
+                  required
+                />
+              </div>
+
+              {/* Amount & Category */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label className="input-label">Valor (R$)</label>
+                  <input 
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    placeholder="0,00"
+                    className="input-field"
+                    value={editAmount}
+                    onChange={e => setEditAmount(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="input-label">Categoria</label>
+                  <select 
+                    className="input-field"
+                    value={editCategory}
+                    onChange={e => setEditCategory(e.target.value)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <option value="Alimentação">Alimentação</option>
+                    <option value="Mercado">Mercado</option>
+                    <option value="Transporte">Transporte</option>
+                    <option value="Moradia">Moradia</option>
+                    <option value="Lazer">Lazer</option>
+                    <option value="Saúde">Saúde</option>
+                    <option value="Educação">Educação</option>
+                    <option value="Salário">Salário</option>
+                    <option value="Outros">Outros</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Conta / Cartão de Origem (opcional) */}
+              {(accountsData.length > 0 || cardsData.length > 0) && (
+                <div>
+                  <label className="input-label">Conta ou Cartão</label>
+                  <select
+                    className="input-field"
+                    value={editAccountOrCard}
+                    onChange={e => setEditAccountOrCard(e.target.value)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <option value="">Manter original ({editingTx.account_or_card_name || 'Não informado'})</option>
+                    {accountsData.map(acc => (
+                      <option key={acc.id} value={acc.name}>🏦 {acc.name} ({acc.type})</option>
+                    ))}
+                    {cardsData.map(c => (
+                      <option key={c.id} value={c.name}>💳 {c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Aviso de Aprovação Obrigatória */}
+              <div style={{ 
+                background: 'var(--bg-surface)', 
+                border: '1px solid var(--border)', 
+                borderRadius: 'var(--radius-sm)', 
+                padding: '10px 14px', 
+                fontSize: 12, 
+                color: 'var(--text-muted)',
+                lineHeight: 1.4
+              }}>
+                🔒 <strong>Segurança:</strong> Esta alteração não será aplicada diretamente. Ela será enviada para aprovação no aplicativo Tessera do proprietário.
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                <button 
+                  type="button" 
+                  className="btn btn-outline" 
+                  onClick={() => setEditingTx(null)}
+                  style={{ flex: 1 }}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  className="btn btn-primary" 
+                  disabled={!editTitle.trim() || !editAmount || isSubmittingEdit}
+                  style={{ flex: 1 }}
+                >
+                  {isSubmittingEdit ? 'Enviando...' : 'Enviar para Aprovação'}
                 </button>
               </div>
             </form>

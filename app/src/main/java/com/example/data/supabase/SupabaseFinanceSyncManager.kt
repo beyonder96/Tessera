@@ -22,7 +22,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
@@ -34,7 +36,12 @@ data class FinanceSuggestion(
     val category: String,
     val date: String,
     val createdAt: String,
-    val status: String
+    val status: String,
+    val action: String = "create",
+    val targetTxId: Long? = null,
+    val originalTitle: String? = null,
+    val originalAmount: Double? = null,
+    val accountOrCardName: String? = null
 )
 
 class SupabaseFinanceSyncManager(
@@ -185,6 +192,12 @@ class SupabaseFinanceSyncManager(
                         val sugObj = suggestionsJson.getJSONObject(i)
                         val status = sugObj.optString("status", "pending")
                         if (status == "pending") {
+                            val action = sugObj.optString("action", "create")
+                            val targetTxId = if (sugObj.has("target_tx_id") && !sugObj.isNull("target_tx_id")) sugObj.optLong("target_tx_id") else null
+                            val originalTitle = if (sugObj.has("original_title") && !sugObj.isNull("original_title")) sugObj.optString("original_title") else null
+                            val originalAmount = if (sugObj.has("original_amount") && !sugObj.isNull("original_amount")) sugObj.optDouble("original_amount") else null
+                            val accountOrCard = if (sugObj.has("account_or_card_name") && !sugObj.isNull("account_or_card_name")) sugObj.optString("account_or_card_name") else null
+
                             pendingList.add(
                                 FinanceSuggestion(
                                     id = sugObj.optString("id", UUID.randomUUID().toString()),
@@ -194,7 +207,12 @@ class SupabaseFinanceSyncManager(
                                     category = sugObj.optString("category", "Geral"),
                                     date = sugObj.optString("date", ""),
                                     createdAt = sugObj.optString("created_at", ""),
-                                    status = status
+                                    status = status,
+                                    action = action,
+                                    targetTxId = targetTxId,
+                                    originalTitle = originalTitle,
+                                    originalAmount = originalAmount,
+                                    accountOrCardName = accountOrCard
                                 )
                             )
                         }
@@ -210,25 +228,45 @@ class SupabaseFinanceSyncManager(
     fun approveSuggestion(
         suggestion: FinanceSuggestion,
         accountOrCardName: String = "",
-        onApproveTransaction: (Transaction) -> Unit
+        onApproveTransaction: (Transaction) -> Unit,
+        onUpdateTransaction: ((Transaction) -> Unit)? = null
     ) {
         scope.launch(Dispatchers.IO) {
             val isIncome = suggestion.type.equals("income", ignoreCase = true)
-            val newTx = Transaction(
-                title = suggestion.title,
-                subtitle = "Via Web • ${suggestion.category}",
-                value = suggestion.amount,
-                isIncome = isIncome,
-                timestamp = System.currentTimeMillis(),
-                category = suggestion.category,
-                accountOrCardName = accountOrCardName,
-                isRealized = true,
-                isRecurrent = false,
-                recurrenceInterval = "Mensal"
-            )
+            if (suggestion.action.equals("edit", ignoreCase = true) && suggestion.targetTxId != null) {
+                val allTxs = repository.allTransactions.first()
+                val existingTx = allTxs.find { it.id.toLong() == suggestion.targetTxId }
+                if (existingTx != null) {
+                    val updatedTx = existingTx.copy(
+                        title = suggestion.title,
+                        value = suggestion.amount,
+                        isIncome = isIncome,
+                        category = suggestion.category,
+                        accountOrCardName = if (!suggestion.accountOrCardName.isNullOrBlank()) suggestion.accountOrCardName else existingTx.accountOrCardName
+                    )
+                    if (onUpdateTransaction != null) {
+                        onUpdateTransaction(updatedTx)
+                    } else {
+                        repository.insertTransaction(updatedTx)
+                    }
+                }
+            } else {
+                val newTx = Transaction(
+                    title = suggestion.title,
+                    subtitle = "Via Web • ${suggestion.category}",
+                    value = suggestion.amount,
+                    isIncome = isIncome,
+                    timestamp = System.currentTimeMillis(),
+                    category = suggestion.category,
+                    accountOrCardName = if (!suggestion.accountOrCardName.isNullOrBlank()) suggestion.accountOrCardName else accountOrCardName,
+                    isRealized = true,
+                    isRecurrent = false,
+                    recurrenceInterval = "Mensal"
+                )
 
-            // 1. Add locally to Room
-            onApproveTransaction(newTx)
+                // 1. Add locally to Room
+                onApproveTransaction(newTx)
+            }
 
             // 2. Mark suggestion as approved in Supabase
             updateRemoteSuggestionStatus(suggestion.id, "approved")
@@ -356,8 +394,23 @@ class SupabaseFinanceSyncManager(
             categoryMap[tx.category] = (categoryMap[tx.category] ?: 0.0) + tx.value
         }
 
-        // 1. Dívidas Ativas (Debts)
-        val activeDebts = debts.filter { !it.isPaid }
+        // 1. Dívidas Ativas (Debts) - Combina tabela debts com lançamentos vencidos não realizados (igual DebtsScreen)
+        val overdueTxs = transactions.filter { !it.isIncome && !it.isRealized && it.dueDate > 0L && it.dueDate < System.currentTimeMillis() }
+        val syntheticOverdueDebts = overdueTxs.map { tx ->
+            com.example.data.Debt(
+                id = -tx.id,
+                title = tx.title,
+                description = "Vencida em ${SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(tx.dueDate))}",
+                value = tx.value,
+                dueDate = tx.dueDate,
+                isPaid = false,
+                creditorName = if (tx.accountOrCardName.isNotBlank()) tx.accountOrCardName else "Lançamento Vencido",
+                installmentsTotal = 1,
+                installmentsPaid = 0
+            )
+        }
+        val combinedDebts = debts + syntheticOverdueDebts
+        val activeDebts = combinedDebts.filter { !it.isPaid }
         val debtsTotalOwed = activeDebts.sumOf { it.value }
         val debtsTotalPaid = activeDebts.sumOf { debt ->
             val installmentVal = if (debt.installmentsTotal > 0) debt.value / debt.installmentsTotal else debt.value
@@ -388,17 +441,25 @@ class SupabaseFinanceSyncManager(
         }
 
         // 2. Despesas Parceladas (Installments)
+        val creditCardNames = cards.map { it.name.trim().lowercase() }
         val isInstallmentTx: (Transaction) -> Boolean = { tx ->
+            val txAcc = tx.accountOrCardName.trim().lowercase()
             !tx.isIncome && (
                 tx.subtitle.contains("Parcela", ignoreCase = true) ||
                 tx.subtitle.contains("Parc.", ignoreCase = true) ||
+                tx.subtitle.contains("de", ignoreCase = true) ||
                 tx.title.contains("Parcela", ignoreCase = true) ||
                 tx.title.contains("Parcelado", ignoreCase = true) ||
                 tx.title.contains("Parcelamento", ignoreCase = true) ||
                 tx.category.contains("Parcelad", ignoreCase = true) ||
                 Regex("""\(\d+/\d+\)""").containsMatchIn(tx.title) ||
                 Regex("""\b\d+/\d+\b""").containsMatchIn(tx.title) ||
-                Regex("""\b\d+x\b""", RegexOption.IGNORE_CASE).containsMatchIn(tx.title)
+                Regex("""\b\d+x\b""", RegexOption.IGNORE_CASE).containsMatchIn(tx.title) ||
+                tx.title.trim().equals("Cartao", ignoreCase = true) ||
+                tx.title.trim().equals("Cartão", ignoreCase = true) ||
+                (txAcc.isNotBlank() && creditCardNames.contains(txAcc)) ||
+                txAcc.contains("credito") ||
+                txAcc.contains("crédito")
             )
         }
         val allInstallmentTxs = transactions.filter(isInstallmentTx)
@@ -455,13 +516,18 @@ class SupabaseFinanceSyncManager(
         // 4. Cartões de Crédito e Benefício (Cards)
         val cardsArray = JSONArray()
         cards.forEach { card ->
+            val cardMonthTxsSum = currentMonthTransactions.filter { 
+                !it.isIncome && it.accountOrCardName.equals(card.name, ignoreCase = true) 
+            }.sumOf { it.value }
+            val effectiveUsedLimit = maxOf(card.usedLimit, cardMonthTxsSum)
+
             cardsArray.put(JSONObject().apply {
                 put("id", card.id)
                 put("name", card.name)
                 put("type", "credit")
                 put("limit", card.limit)
-                put("used_limit", card.usedLimit)
-                put("available_limit", (card.limit - card.usedLimit).coerceAtLeast(0.0))
+                put("used_limit", effectiveUsedLimit)
+                put("available_limit", (card.limit - effectiveUsedLimit).coerceAtLeast(0.0))
                 put("color_hex", card.colorHex)
             })
         }
@@ -555,6 +621,8 @@ class SupabaseFinanceSyncManager(
                         put("amount", tx.value)
                         put("type", if (tx.isIncome) "income" else "expense")
                         put("date", tx.timestamp)
+                        put("due_date", tx.dueDate)
+                        put("is_realized", tx.isRealized)
                         put("is_recurrent", tx.isRecurrent)
                         put("account_or_card_name", tx.accountOrCardName)
                     }

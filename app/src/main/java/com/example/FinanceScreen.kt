@@ -447,6 +447,7 @@ fun FinanceScreen(
 
                         pendingSuggestions.forEach { sug ->
                             val isInc = sug.type.equals("income", ignoreCase = true)
+                            val isEdit = sug.action.equals("edit", ignoreCase = true)
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -457,18 +458,43 @@ fun FinanceScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = sug.title,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "${sug.category} • ${sug.date} • ${if (isInc) "+" else "-"} R$ ${String.format(Locale("pt", "BR"), "%,.2f", sug.amount)}",
-                                        fontSize = 11.sp,
-                                        color = if (isInc) Color(0xFF10B981) else MaterialTheme.colorScheme.error,
-                                        fontWeight = FontWeight.Medium
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(if (isEdit) Color(0x264A90E2) else Color(0x2610B981))
+                                                .padding(horizontal = 5.dp, vertical = 1.5.dp)
+                                        ) {
+                                            Text(
+                                                text = if (isEdit) "EDIÇÃO" else "NOVO",
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isEdit) Color(0xFF4A90E2) else Color(0xFF10B981)
+                                            )
+                                        }
+                                        Text(
+                                            text = sug.title,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    if (isEdit && sug.originalAmount != null) {
+                                        Text(
+                                            text = "${sug.category} • De R$ ${String.format(Locale("pt", "BR"), "%,.2f", sug.originalAmount)} para ${if (isInc) "+" else "-"} R$ ${String.format(Locale("pt", "BR"), "%,.2f", sug.amount)}",
+                                            fontSize = 11.sp,
+                                            color = if (isInc) Color(0xFF10B981) else MaterialTheme.colorScheme.error,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    } else {
+                                        Text(
+                                            text = "${sug.category} • ${sug.date} • ${if (isInc) "+" else "-"} R$ ${String.format(Locale("pt", "BR"), "%,.2f", sug.amount)}",
+                                            fontSize = 11.sp,
+                                            color = if (isInc) Color(0xFF10B981) else MaterialTheme.colorScheme.error,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
                                 }
 
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -487,16 +513,26 @@ fun FinanceScreen(
                                     Button(
                                         onClick = {
                                             val defaultAccount = bankAccounts.firstOrNull()?.name ?: creditCards.firstOrNull()?.name ?: ""
-                                            viewModel.supabaseFinanceSync.approveSuggestion(sug, defaultAccount) { newTx ->
-                                                viewModel.addTransaction(
-                                                    title = newTx.title,
-                                                    subtitle = newTx.subtitle,
-                                                    value = newTx.value,
-                                                    isIncome = newTx.isIncome,
-                                                    category = newTx.category,
-                                                    accountOrCardName = newTx.accountOrCardName
-                                                )
-                                            }
+                                            viewModel.supabaseFinanceSync.approveSuggestion(
+                                                suggestion = sug,
+                                                accountOrCardName = defaultAccount,
+                                                onApproveTransaction = { newTx ->
+                                                    viewModel.addTransaction(
+                                                        title = newTx.title,
+                                                        subtitle = newTx.subtitle,
+                                                        value = newTx.value,
+                                                        isIncome = newTx.isIncome,
+                                                        category = newTx.category,
+                                                        accountOrCardName = newTx.accountOrCardName
+                                                    )
+                                                },
+                                                onUpdateTransaction = { updatedTx ->
+                                                    val oldTx = allTransactions.find { it.id == updatedTx.id }
+                                                    if (oldTx != null) {
+                                                        viewModel.updateTransaction(oldTx, updatedTx)
+                                                    }
+                                                }
+                                            )
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
