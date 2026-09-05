@@ -20,7 +20,17 @@ import com.example.data.MedicationLog
 import com.example.data.StepsRecord
 import com.example.data.Routine
 import com.example.data.RoutineStep
+import com.example.data.ActivityRecord
+import com.example.data.BibleVerseVideo
+import com.example.data.BibleReadingSession
+import com.example.data.BibleMedal
+import com.example.data.PerseveranceStats
 import com.example.data.BibleVerseResponse
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -135,6 +145,7 @@ class TesseraViewModel(
             result.onSuccess { data ->
                 _chapterUiState.value = ChapterUiState.Success(data)
                 loadHighlightsForCurrentChapter()
+                recordBibleReading(bookAbbrev, chapter)
             }.onFailure { err ->
                 _chapterUiState.value = ChapterUiState.Error(err.message ?: "Erro ao carregar capítulo")
             }
@@ -224,6 +235,262 @@ class TesseraViewModel(
         val key = "${bookAbbrev}_${chapter}_${verseNumber}"
         biblePrefs.edit().remove("hl_$key").apply()
         _verseHighlights.value = _verseHighlights.value - key
+    }
+
+    // --- BÍBLIA: Vídeos Conectados aos Versículos ---
+    val currentChapterVideos: StateFlow<List<BibleVerseVideo>> = combine(
+        selectedBibleBook,
+        selectedBibleChapter,
+        repository.allVerseVideos
+    ) { book, chapter, allVideos ->
+        allVideos.filter { it.bookAbbrev.equals(book.abbrev, ignoreCase = true) && it.chapter == chapter }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun extractYouTubeVideoId(url: String): String? {
+        val trimmed = url.trim()
+        val patterns = listOf(
+            Regex("""(?:https?:\/\/)?(?:www\.|m\.)?youtu\.be\/([a-zA-Z0-9_-]{11})"""),
+            Regex("""(?:https?:\/\/)?(?:www\.|m\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})"""),
+            Regex("""(?:https?:\/\/)?(?:www\.|m\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})"""),
+            Regex("""(?:https?:\/\/)?(?:www\.|m\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]{11})""")
+        )
+        for (pattern in patterns) {
+            val match = pattern.find(trimmed)
+            if (match != null && match.groupValues.size > 1) {
+                return match.groupValues[1]
+            }
+        }
+        if (trimmed.length == 11 && trimmed.matches(Regex("""[a-zA-Z0-9_-]{11}"""))) {
+            return trimmed
+        }
+        return null
+    }
+
+    fun addVerseVideo(
+        bookAbbrev: String,
+        bookName: String,
+        chapter: Int,
+        verseNumber: Int,
+        youtubeUrl: String,
+        title: String,
+        channelName: String = "",
+        notes: String = ""
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val videoId = extractYouTubeVideoId(youtubeUrl) ?: ""
+            val video = BibleVerseVideo(
+                bookAbbrev = bookAbbrev.lowercase().trim(),
+                bookName = bookName,
+                chapter = chapter,
+                verseNumber = verseNumber,
+                youtubeUrl = youtubeUrl.trim(),
+                videoId = videoId,
+                title = title.ifBlank { "Estudo Bíblico" },
+                channelName = channelName.trim(),
+                notes = notes.trim()
+            )
+            repository.insertVerseVideo(video)
+        }
+    }
+
+    fun deleteVerseVideo(video: BibleVerseVideo) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.deleteVerseVideo(video)
+        }
+    }
+
+    // --- BÍBLIA: Sistema de Perseverança & Sessões de Leitura ---
+    fun recordBibleReading(bookAbbrev: String, chapter: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            val session = BibleReadingSession(
+                date = today,
+                bookAbbrev = bookAbbrev.lowercase().trim(),
+                chapter = chapter
+            )
+            repository.insertReadingSession(session)
+        }
+    }
+
+    val perseveranceStats: StateFlow<PerseveranceStats> = combine(
+        repository.distinctReadingDates,
+        repository.allReadingSessions
+    ) { dates, sessions ->
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val today = dateFormat.format(Date())
+        val yesterday = dateFormat.format(Date(System.currentTimeMillis() - 86400000L))
+
+        val hasReadToday = dates.contains(today)
+        var currentStreak = 0
+        val sortedDates = dates.sortedDescending()
+
+        if (sortedDates.isNotEmpty()) {
+            val firstDate = sortedDates.first()
+            if (firstDate == today || firstDate == yesterday) {
+                val expectedCal = Calendar.getInstance().apply {
+                    time = dateFormat.parse(firstDate) ?: Date()
+                }
+                for (dStr in sortedDates) {
+                    val expectedStr = dateFormat.format(expectedCal.time)
+                    if (dStr == expectedStr) {
+                        currentStreak++
+                        expectedCal.add(Calendar.DAY_OF_YEAR, -1)
+                    } else {
+                        break
+                    }
+                }
+            }
+        }
+
+        val totalChapters = sessions.size
+
+        PerseveranceStats(
+            currentStreak = currentStreak,
+            longestStreak = maxOf(currentStreak, biblePrefs.getInt("longest_streak", currentStreak)),
+            totalDaysRead = dates.size,
+            totalChaptersRead = totalChapters,
+            readToday = hasReadToday
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PerseveranceStats())
+
+    val bibleMedals: StateFlow<List<BibleMedal>> = combine(
+        perseveranceStats,
+        _verseHighlights,
+        repository.allVerseVideos
+    ) { stats, highlights, videos ->
+        listOf(
+            BibleMedal(
+                id = "first_chapter",
+                title = "Primeiro Capítulo",
+                description = "Leu seu primeiro capítulo na Bíblia",
+                iconEmoji = "🥉",
+                isUnlocked = stats.totalChaptersRead >= 1,
+                currentProgress = minOf(stats.totalChaptersRead, 1),
+                targetProgress = 1
+            ),
+            BibleMedal(
+                id = "streak_3",
+                title = "Chama Acesa",
+                description = "3 dias consecutivos de perseverança",
+                iconEmoji = "🔥",
+                isUnlocked = stats.currentStreak >= 3,
+                currentProgress = minOf(stats.currentStreak, 3),
+                targetProgress = 3
+            ),
+            BibleMedal(
+                id = "streak_7",
+                title = "Hábito Sagrado",
+                description = "7 dias consecutivos na Palavra",
+                iconEmoji = "⚡",
+                isUnlocked = stats.currentStreak >= 7,
+                currentProgress = minOf(stats.currentStreak, 7),
+                targetProgress = 7
+            ),
+            BibleMedal(
+                id = "streak_30",
+                title = "Constância Real",
+                description = "30 dias consecutivos de perseverança",
+                iconEmoji = "👑",
+                isUnlocked = stats.currentStreak >= 30,
+                currentProgress = minOf(stats.currentStreak, 30),
+                targetProgress = 30
+            ),
+            BibleMedal(
+                id = "chapters_10",
+                title = "Explorador da Bíblia",
+                description = "Leu 10 ou mais capítulos",
+                iconEmoji = "📖",
+                isUnlocked = stats.totalChaptersRead >= 10,
+                currentProgress = minOf(stats.totalChaptersRead, 10),
+                targetProgress = 10
+            ),
+            BibleMedal(
+                id = "highlights_5",
+                title = "Escriba Inspirado",
+                description = "Destacou 5 ou mais versículos",
+                iconEmoji = "🎨",
+                isUnlocked = highlights.size >= 5,
+                currentProgress = minOf(highlights.size, 5),
+                targetProgress = 5
+            ),
+            BibleMedal(
+                id = "video_connect",
+                title = "Estudo Multimídia",
+                description = "Conectou um vídeo do YouTube a um versículo",
+                iconEmoji = "🎬",
+                isUnlocked = videos.isNotEmpty(),
+                currentProgress = if (videos.isNotEmpty()) 1 else 0,
+                targetProgress = 1
+            )
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // --- BÍBLIA: Leitura em Áudio Nativo (TTS pt-BR) ---
+    private var textToSpeech: TextToSpeech? = null
+    private val _isAudioPlaying = MutableStateFlow(false)
+    val isAudioPlaying: StateFlow<Boolean> = _isAudioPlaying.asStateFlow()
+
+    private val _activeTtsVerse = MutableStateFlow<Int?>(null)
+    val activeTtsVerse: StateFlow<Int?> = _activeTtsVerse.asStateFlow()
+
+    fun togglePlayAudio(verses: List<com.example.data.BibliaVerseItem>) {
+        if (_isAudioPlaying.value) {
+            stopAudio()
+            return
+        }
+        if (verses.isEmpty()) return
+
+        if (textToSpeech == null) {
+            textToSpeech = TextToSpeech(applicationContext) { status ->
+                if (status == TextToSpeech.SUCCESS) {
+                    textToSpeech?.language = Locale("pt", "BR")
+                    startTtsPlayback(verses)
+                } else {
+                    _isAudioPlaying.value = false
+                }
+            }
+        } else {
+            startTtsPlayback(verses)
+        }
+    }
+
+    private fun startTtsPlayback(verses: List<com.example.data.BibliaVerseItem>) {
+        val tts = textToSpeech ?: return
+        _isAudioPlaying.value = true
+
+        tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            override fun onStart(utteranceId: String?) {
+                val verseNum = utteranceId?.toIntOrNull()
+                _activeTtsVerse.value = verseNum
+            }
+
+            override fun onDone(utteranceId: String?) {
+                val verseNum = utteranceId?.toIntOrNull()
+                val isLast = verseNum == verses.lastOrNull()?.number
+                if (isLast) {
+                    _isAudioPlaying.value = false
+                    _activeTtsVerse.value = null
+                }
+            }
+
+            @Deprecated("Deprecated in Java")
+            override fun onError(utteranceId: String?) {
+                _isAudioPlaying.value = false
+                _activeTtsVerse.value = null
+            }
+        })
+
+        for ((index, v) in verses.withIndex()) {
+            val textToSpeak = "Versículo ${v.number}. ${v.text.trim()}"
+            val queueMode = if (index == 0) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
+            tts.speak(textToSpeak, queueMode, null, v.number.toString())
+        }
+    }
+
+    fun stopAudio() {
+        textToSpeech?.stop()
+        _isAudioPlaying.value = false
+        _activeTtsVerse.value = null
     }
 
     fun loadDailyVerse(forceRefresh: Boolean = false) {
@@ -911,6 +1178,9 @@ class TesseraViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allSleepRecords: StateFlow<List<SleepRecord>> = repository.allSleepRecords
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allActivityRecords: StateFlow<List<ActivityRecord>> = repository.allActivityRecords
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // --- SPTrans Integration ---
@@ -1648,6 +1918,18 @@ class TesseraViewModel(
         }
     }
 
+    fun approveMarketItem(item: MarketItem) {
+        viewModelScope.launch {
+            repository.updateMarketItem(item.copy(needsApproval = false, isChecked = true))
+        }
+    }
+
+    fun returnMarketItemToPlanning(item: MarketItem) {
+        viewModelScope.launch {
+            repository.updateMarketItem(item.copy(inMarket = false, needsApproval = false, isChecked = false))
+        }
+    }
+
     fun updateMarketItemDetails(item: MarketItem, price: Double, quantity: Double, unit: String) {
         viewModelScope.launch {
             val autoCheck = if (price > 0.0 && !item.isChecked) true else item.isChecked
@@ -2243,11 +2525,44 @@ class TesseraViewModel(
                 }
             }
 
-            repository.clearHealthConnectSleepRecords()
-            sleeps.forEach { repository.insertSleepRecord(it) }
+            repository.safeUpsertSleepRecords(sleeps)
+            repository.safeUpsertStepsRecords(steps)
+        }
+    }
 
-            repository.clearHealthConnectStepsRecords()
-            steps.forEach { repository.insertStepsRecord(it) }
+    // --- Activities (Cardio & Treino por Grupo Muscular) ---
+    fun getActivityRecordsForDate(date: String): Flow<List<ActivityRecord>> {
+        return repository.getActivityRecordsForDate(date)
+    }
+
+    fun addActivityRecord(
+        type: String,
+        title: String,
+        muscleGroup: String? = null,
+        durationMinutes: Int = 0,
+        caloriesBurned: Double = 0.0,
+        notes: String = "",
+        date: String
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.insertActivityRecord(
+                ActivityRecord(
+                    type = type,
+                    title = title,
+                    muscleGroup = muscleGroup,
+                    durationMinutes = durationMinutes,
+                    caloriesBurned = caloriesBurned,
+                    notes = notes,
+                    timestamp = System.currentTimeMillis(),
+                    date = date
+                )
+            )
+        }
+    }
+
+    fun deleteActivityRecord(record: ActivityRecord) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.deleteActivityRecord(record)
         }
     }
 
@@ -2622,6 +2937,9 @@ class TesseraViewModel(
 
     override fun onCleared() {
         super.onCleared()
+        textToSpeech?.stop()
+        textToSpeech?.shutdown()
+        textToSpeech = null
         sharedPrefs.unregisterOnSharedPreferenceChangeListener(preferenceChangeListener)
     }
 

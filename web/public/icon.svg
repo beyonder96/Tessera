@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#131620"/>
+      <stop offset="100%" stop-color="#0B0D13"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2DD4BF"/>
+      <stop offset="100%" stop-color="#0D9488"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#2DD4BF" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect width="508" height="508" x="2" y="2" rx="110" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+  
+  <g filter="url(#glow)" transform="translate(106, 106)">
+    <!-- Tessera Modern Geometric Icon -->
+    <path d="M150 40 L240 100 L240 200 L150 260 L60 200 L60 100 Z" fill="none" stroke="url(#accent)" stroke-width="24" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="150" cy="150" r="32" fill="url(#accent)"/>
+    <path d="M150 150 L240 100" stroke="url(#accent)" stroke-width="12" stroke-linecap="round"/>
+    <path d="M150 150 L60 200" stroke="url(#accent)" stroke-width="12" stroke-linecap="round"/>
+    <path d="M150 150 L150 260" stroke="url(#accent)" stroke-width="12" stroke-linecap="round"/>
+  </g>
+</svg>

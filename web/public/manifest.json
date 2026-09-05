@@ -1,0 +1,21 @@
+{
+  "name": "Tessera Live",
+  "short_name": "Tessera",
+  "description": "Acompanhamento e sincronização em tempo real de Mercado e Finanças.",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B0D13",
+  "theme_color": "#0B0D13",
+  "lang": "pt-BR",
+  "categories": ["shopping", "finance", "productivity"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -24,7 +24,8 @@ import com.example.ui.theme.PrimaryTeal
 
 enum class HealthSubTab(val title: String) {
     GENERAL("Geral"),
-    NUTRI("Nutri")
+    NUTRI("Nutri"),
+    ACTIVITIES("Atividades")
 }
 
 @Composable

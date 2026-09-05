@@ -50,6 +50,10 @@ import coil.compose.AsyncImage
 import com.example.data.BankAccount
 import com.example.data.BenefitCard
 import com.example.data.MarketItem
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import com.example.data.nutrition.OpenFoodFactsApiClient
 import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.components.bounceClick
 import com.example.ui.components.isDarkTheme
@@ -105,16 +109,54 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
     val syncStatus by viewModel.supabaseMarketSync.syncStatus.collectAsStateWithLifecycle()
 
     val selectedTab = pagerState.currentPage
-    val cartTotal = shoppingItems.filter { it.isChecked }.sumOf { it.price * it.quantity }
+    val cartTotal = shoppingItems.filter { it.isChecked && !it.needsApproval }.sumOf { it.price * it.quantity }
     val formattedTotal = String.format(Locale("pt", "BR"), "R$ %,.2f", cartTotal)
     val context = LocalContext.current
     var pendingCheckoutAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+    // Barcode Scanner (EAN via Câmera com ML Kit e Open Food Facts)
+    val scannerOptions = remember {
+        GmsBarcodeScannerOptions.Builder()
+            .setBarcodeFormats(
+                Barcode.FORMAT_EAN_13,
+                Barcode.FORMAT_EAN_8,
+                Barcode.FORMAT_UPC_A,
+                Barcode.FORMAT_UPC_E,
+                Barcode.FORMAT_QR_CODE
+            )
+            .enableAutoZoom()
+            .build()
+    }
+    val barcodeScanner = remember { GmsBarcodeScanning.getClient(context, scannerOptions) }
+    var prefilledName by remember { mutableStateOf("") }
+
+    fun startLiveBarcodeScan() {
+        barcodeScanner.startScan()
+            .addOnSuccessListener { barcode ->
+                val rawValue = barcode.rawValue
+                if (!rawValue.isNullOrBlank()) {
+                    coroutineScope.launch {
+                        try {
+                            val response = OpenFoodFactsApiClient.service.getProductByBarcode(rawValue.trim())
+                            val product = response.product
+                            prefilledName = product?.displayName ?: "EAN: $rawValue"
+                        } catch (e: Exception) {
+                            prefilledName = "EAN: $rawValue"
+                        }
+                        showAddDialog = true
+                    }
+                }
+            }
+            .addOnFailureListener {
+                android.widget.Toast.makeText(context, "Não foi possível abrir o leitor de código de barras", android.widget.Toast.LENGTH_SHORT).show()
+            }
+    }
     
     val pdfLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/pdf")
     ) { uri ->
         if (uri != null) {
-            val itemsToPrint = shoppingItems.filter { it.isChecked }
+            val itemsToPrint = shoppingItems.filter { it.isChecked && !it.needsApproval }
             coroutineScope.launch {
                 try {
                     com.example.utils.PdfUtils.generateMarketPdf(context, uri, itemsToPrint, cartTotal)
@@ -145,8 +187,9 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                     coroutineScope.launch { pagerState.animateScrollToPage(index) }
                 },
                 totalItemsCount = pendingItems.size + shoppingItems.size,
-                cartCheckedCount = shoppingItems.count { it.isChecked },
-                onShareClick = { showShareOnlineModal = true }
+                cartCheckedCount = shoppingItems.count { it.isChecked && !it.needsApproval },
+                onShareClick = { showShareOnlineModal = true },
+                onScanClick = if (selectedTab == 1) { { startLiveBarcodeScan() } } else null
             )
         },
         bottomBar = {
@@ -154,7 +197,10 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                 selectedTab = selectedTab,
                 cartTotal = cartTotal,
                 formattedTotal = formattedTotal,
-                onAddClick = { showAddDialog = true },
+                onAddClick = { 
+                    prefilledName = ""
+                    showAddDialog = true 
+                },
                 onCheckoutClick = { showCheckoutDebitDialog = true },
                 viewModel = viewModel
             )
@@ -187,7 +233,9 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                         onItemUpdate = { item, price, qty, unit ->
                             viewModel.updateMarketItemDetails(item, price, qty, unit)
                         },
-                        onItemDelete = { viewModel.deleteMarketItem(it) }
+                        onItemDelete = { viewModel.deleteMarketItem(it) },
+                        onApproveItem = { viewModel.approveMarketItem(it) },
+                        onReturnToPlanning = { viewModel.returnMarketItemToPlanning(it) }
                     )
                 }
             }
@@ -196,7 +244,12 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
         // Add Item Dialog (Garante que se adiciona com inMarket correspondente à aba ativa)
         if (showAddDialog) {
             AddMarketItemDialog(
-                onDismiss = { showAddDialog = false },
+                initialName = prefilledName,
+                onDismiss = { 
+                    prefilledName = ""
+                    showAddDialog = false 
+                },
+                onScanClick = { startLiveBarcodeScan() },
                 onConfirm = { name, category, quantity, unit, price ->
                     val isMarketTab = (selectedTab == 1)
                     viewModel.addMarketItem(
@@ -208,6 +261,7 @@ fun MarketScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                         isChecked = isMarketTab,
                         inMarket = isMarketTab
                     )
+                    prefilledName = ""
                     showAddDialog = false
                 }
             )
@@ -257,7 +311,8 @@ fun MarketHeader(
     onTabSelect: (Int) -> Unit,
     totalItemsCount: Int,
     cartCheckedCount: Int,
-    onShareClick: () -> Unit
+    onShareClick: () -> Unit,
+    onScanClick: (() -> Unit)? = null
 ) {
     Column(
         modifier = Modifier
@@ -311,6 +366,24 @@ fun MarketHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Scanner EAN Button (Câmera)
+                if (onScanClick != null) {
+                    IconButton(
+                        onClick = onScanClick,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.QrCodeScanner,
+                            contentDescription = "Escanear Código de Barras",
+                            tint = PrimaryTeal,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
                 // Share Online Button
                 IconButton(
                     onClick = onShareClick,
@@ -516,8 +589,13 @@ fun ShoppingView(
     listState: androidx.compose.foundation.lazy.LazyListState,
     onItemToggle: (MarketItem) -> Unit,
     onItemUpdate: (MarketItem, Double, Double, String) -> Unit,
-    onItemDelete: (MarketItem) -> Unit
+    onItemDelete: (MarketItem) -> Unit,
+    onApproveItem: (MarketItem) -> Unit,
+    onReturnToPlanning: (MarketItem) -> Unit
 ) {
+    val pendingApprovalItems = remember(shoppingItems) { shoppingItems.filter { it.needsApproval } }
+    val activeItems = remember(shoppingItems) { shoppingItems.filter { !it.needsApproval } }
+
     if (shoppingItems.isEmpty()) {
         Box(
             modifier = Modifier
@@ -549,7 +627,105 @@ fun ShoppingView(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            items(shoppingItems, key = { it.id }) { item ->
+            // SEÇÃO: ITENS DA WEB AGUARDANDO APROVAÇÃO PARA O CARRINHO
+            if (pendingApprovalItems.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "ITENS DA WEB PARA APROVAÇÃO (${pendingApprovalItems.size})",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = PrimaryTeal,
+                        letterSpacing = 1.5.sp,
+                        modifier = Modifier.padding(bottom = 2.dp)
+                    )
+                }
+
+                items(pendingApprovalItems, key = { "approval_${it.id}" }) { item ->
+                    val itemSubtotal = (item.price * item.quantity)
+                    Box(
+                        modifier = PremiumGlassModifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(20.dp))
+                            .border(1.dp, PrimaryTeal.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
+                            .background(PrimaryTeal.copy(alpha = 0.05f))
+                            .padding(16.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = item.name,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "${item.quantity.toInt()} ${item.unit} • ${item.category}",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    )
+                                }
+
+                                if (itemSubtotal > 0) {
+                                    Text(
+                                        text = String.format(Locale("pt", "BR"), "R$ %,.2f", itemSubtotal),
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = PrimaryTeal
+                                    )
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = { onApproveItem(item) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.weight(1.3f).height(40.dp)
+                                ) {
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = Color.Black, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Aprovar para o Carrinho", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                                }
+
+                                OutlinedButton(
+                                    onClick = { onReturnToPlanning(item) },
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f)),
+                                    modifier = Modifier.weight(1f).height(40.dp)
+                                ) {
+                                    Text("Voltar ao Planejamento", fontSize = 11.sp, maxLines = 1, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f))
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (activeItems.isNotEmpty()) {
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "NO CARRINHO / ITENS DO MERCADO (${activeItems.size})",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            letterSpacing = 1.5.sp,
+                            modifier = Modifier.padding(bottom = 2.dp)
+                        )
+                    }
+                }
+            }
+
+            // ITENS ATIVOS NO MERCADO
+            items(activeItems, key = { it.id }) { item ->
                 ShoppingItemInteractiveCard(
                     item = item,
                     onToggle = { onItemToggle(item) },
@@ -892,17 +1068,21 @@ fun MarketBottomDock(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddMarketItemDialog(
+    initialName: String = "",
     onDismiss: () -> Unit,
+    onScanClick: (() -> Unit)? = null,
     onConfirm: (String, String, Double, String, Double) -> Unit
 ) {
-    var name by remember { mutableStateOf("") }
+    var name by remember(initialName) { mutableStateOf(initialName) }
     var category by remember { mutableStateOf("Hortifrúti") }
     var quantityText by remember { mutableStateOf("1") }
     var priceText by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
+        if (initialName.isBlank()) {
+            focusRequester.requestFocus()
+        }
     }
 
     ModalBottomSheet(
@@ -931,7 +1111,18 @@ fun AddMarketItemDialog(
                     label = { Text("Nome do produto") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
-                    shape = RoundedCornerShape(14.dp)
+                    shape = RoundedCornerShape(14.dp),
+                    trailingIcon = if (onScanClick != null) {
+                        {
+                            IconButton(onClick = onScanClick) {
+                                Icon(
+                                    imageVector = Icons.Outlined.QrCodeScanner,
+                                    contentDescription = "Escanear Código de Barras",
+                                    tint = PrimaryTeal
+                                )
+                            }
+                        }
+                    } else null
                 )
 
                 // Category selector

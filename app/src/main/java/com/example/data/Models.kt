@@ -32,7 +32,8 @@ data class MarketItem(
     val unit: String = "un",
     val price: Double = 0.0,
     val category: String = "Geral",
-    val inMarket: Boolean = false
+    val inMarket: Boolean = false,
+    val needsApproval: Boolean = false
 )
 
 @Entity(tableName = "pet_events")
@@ -289,3 +290,65 @@ data class Debt(
     val installmentsTotal: Int = 1,
     val installmentsPaid: Int = 0
 )
+
+@Entity(tableName = "activity_records")
+data class ActivityRecord(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val type: String, // "CARDIO" ou "STRENGTH"
+    val title: String, // "Esteira", "Musculação - Superiores", etc.
+    val muscleGroup: String? = null, // "Superiores", "Inferiores", "Abdômen", "Full Body"
+    val durationMinutes: Int = 0,
+    val caloriesBurned: Double = 0.0,
+    val notes: String = "",
+    val timestamp: Long = System.currentTimeMillis(),
+    val date: String // YYYY-MM-DD
+)
+
+@Entity(
+    tableName = "bible_verse_videos",
+    indices = [androidx.room.Index(value = ["bookAbbrev", "chapter", "verseNumber"])]
+)
+data class BibleVerseVideo(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val bookAbbrev: String,
+    val bookName: String,
+    val chapter: Int,
+    val verseNumber: Int,
+    val youtubeUrl: String,
+    val videoId: String,
+    val title: String,
+    val channelName: String = "",
+    val notes: String = "",
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+@Entity(
+    tableName = "bible_reading_sessions",
+    indices = [androidx.room.Index(value = ["date", "bookAbbrev", "chapter"], unique = true)]
+)
+data class BibleReadingSession(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val date: String, // YYYY-MM-DD
+    val bookAbbrev: String,
+    val chapter: Int,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+data class BibleMedal(
+    val id: String,
+    val title: String,
+    val description: String,
+    val iconEmoji: String,
+    val isUnlocked: Boolean,
+    val currentProgress: Int = 0,
+    val targetProgress: Int = 1
+)
+
+data class PerseveranceStats(
+    val currentStreak: Int = 0,
+    val longestStreak: Int = 0,
+    val totalDaysRead: Int = 0,
+    val totalChaptersRead: Int = 0,
+    val readToday: Boolean = false
+)
+

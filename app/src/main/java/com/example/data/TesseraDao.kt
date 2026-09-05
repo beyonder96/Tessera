@@ -321,4 +321,59 @@ interface TesseraDao {
 
     @Query("DELETE FROM water_records WHERE id = :id")
     suspend fun deleteWaterRecordById(id: Int)
+
+    // Activity Records (Cardio & Treino por Grupo Muscular)
+    @Query("SELECT * FROM activity_records ORDER BY timestamp DESC")
+    fun getAllActivityRecords(): Flow<List<ActivityRecord>>
+
+    @Query("SELECT * FROM activity_records WHERE date = :date ORDER BY timestamp DESC")
+    fun getActivityRecordsForDate(date: String): Flow<List<ActivityRecord>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertActivityRecord(record: ActivityRecord): Long
+
+    @Delete
+    suspend fun deleteActivityRecord(record: ActivityRecord)
+
+    @Query("DELETE FROM activity_records WHERE id = :id")
+    suspend fun deleteActivityRecordById(id: Int)
+
+    // Persistência segura não-destrutiva de sono e passos
+    @Query("SELECT * FROM sleep_records WHERE startTime = :startTime AND endTime = :endTime LIMIT 1")
+    suspend fun findSleepRecord(startTime: Long, endTime: Long): SleepRecord?
+
+    @Query("SELECT * FROM steps_records WHERE startTime >= :startOfDay AND endTime <= :endOfDay AND source = :source LIMIT 1")
+    suspend fun findStepsRecordForDayAndSource(startOfDay: Long, endOfDay: Long, source: String): StepsRecord?
+
+    @Update
+    suspend fun updateStepsRecord(record: StepsRecord)
+
+    @Update
+    suspend fun updateSleepRecord(record: SleepRecord)
+
+    // Bible Verse Videos
+    @Query("SELECT * FROM bible_verse_videos WHERE bookAbbrev = :bookAbbrev AND chapter = :chapter ORDER BY verseNumber ASC, createdAt ASC")
+    fun getVerseVideosForChapter(bookAbbrev: String, chapter: Int): Flow<List<BibleVerseVideo>>
+
+    @Query("SELECT * FROM bible_verse_videos ORDER BY createdAt DESC")
+    fun getAllVerseVideos(): Flow<List<BibleVerseVideo>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertVerseVideo(video: BibleVerseVideo): Long
+
+    @Delete
+    suspend fun deleteVerseVideo(video: BibleVerseVideo)
+
+    @Query("DELETE FROM bible_verse_videos WHERE id = :id")
+    suspend fun deleteVerseVideoById(id: Int)
+
+    // Bible Reading Sessions (Perseverança)
+    @Query("SELECT DISTINCT date FROM bible_reading_sessions ORDER BY date DESC")
+    fun getDistinctReadingDates(): Flow<List<String>>
+
+    @Query("SELECT * FROM bible_reading_sessions ORDER BY timestamp DESC")
+    fun getAllReadingSessions(): Flow<List<BibleReadingSession>>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertReadingSession(session: BibleReadingSession): Long
 }

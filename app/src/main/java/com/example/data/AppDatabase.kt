@@ -14,9 +14,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         Medication::class, WeightRecord::class, SleepRecord::class, PetEntity::class,
         PetWeightHistoryEntity::class, MedicationLog::class, StepsRecord::class,
         Routine::class, RoutineStep::class, BenefitCard::class, Debt::class,
-        MealRecord::class, WaterRecord::class
+        MealRecord::class, WaterRecord::class, ActivityRecord::class,
+        BibleVerseVideo::class, BibleReadingSession::class
     ], 
-    version = 21, 
+    version = 23, 
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -161,6 +162,57 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_21_22 = object : Migration(21, 22) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE market_items ADD COLUMN needsApproval INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `activity_records` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `type` TEXT NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `muscleGroup` TEXT DEFAULT NULL,
+                        `durationMinutes` INTEGER NOT NULL DEFAULT 0,
+                        `caloriesBurned` REAL NOT NULL DEFAULT 0.0,
+                        `notes` TEXT NOT NULL DEFAULT '',
+                        `timestamp` INTEGER NOT NULL,
+                        `date` TEXT NOT NULL
+                    )
+                """)
+            }
+        }
+
+        val MIGRATION_22_23 = object : Migration(22, 23) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `bible_verse_videos` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `bookAbbrev` TEXT NOT NULL,
+                        `bookName` TEXT NOT NULL,
+                        `chapter` INTEGER NOT NULL,
+                        `verseNumber` INTEGER NOT NULL,
+                        `youtubeUrl` TEXT NOT NULL,
+                        `videoId` TEXT NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `channelName` TEXT NOT NULL DEFAULT '',
+                        `notes` TEXT NOT NULL DEFAULT '',
+                        `createdAt` INTEGER NOT NULL
+                    )
+                """)
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_bible_verse_videos_bookAbbrev_chapter_verseNumber` ON `bible_verse_videos` (`bookAbbrev`, `chapter`, `verseNumber`)")
+
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `bible_reading_sessions` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `date` TEXT NOT NULL,
+                        `bookAbbrev` TEXT NOT NULL,
+                        `chapter` INTEGER NOT NULL,
+                        `timestamp` INTEGER NOT NULL
+                    )
+                """)
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_bible_reading_sessions_date_bookAbbrev_chapter` ON `bible_reading_sessions` (`date`, `bookAbbrev`, `chapter`)")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -172,7 +224,7 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, 
                     MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, 
                     MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20,
-                    MIGRATION_20_21
+                    MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23
                 )
                 .fallbackToDestructiveMigration()
                 .build()

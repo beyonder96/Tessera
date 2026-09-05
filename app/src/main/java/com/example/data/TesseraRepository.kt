@@ -156,6 +156,19 @@ class TesseraRepository(private val dao: TesseraDao) {
     suspend fun clearHealthConnectSleepRecords() = dao.clearHealthConnectSleepRecords()
     suspend fun clearManualSleepForDay(startOfDay: Long, endOfDay: Long) = dao.clearManualSleepForDay(startOfDay, endOfDay)
 
+    suspend fun safeUpsertSleepRecords(records: List<SleepRecord>) {
+        records.forEach { record ->
+            val existing = dao.findSleepRecord(record.startTime, record.endTime)
+            if (existing != null) {
+                if (existing.durationHours != record.durationHours) {
+                    dao.updateSleepRecord(existing.copy(durationHours = record.durationHours))
+                }
+            } else {
+                dao.insertSleepRecord(record)
+            }
+        }
+    }
+
     val allPets: Flow<List<PetEntity>> = dao.getAllPets()
 
     suspend fun insertPet(pet: PetEntity): Long {
@@ -211,6 +224,43 @@ class TesseraRepository(private val dao: TesseraDao) {
     suspend fun clearManualStepsForDay(startOfDay: Long, endOfDay: Long) {
         dao.clearManualStepsForDay(startOfDay, endOfDay)
     }
+
+    suspend fun safeUpsertStepsRecords(records: List<StepsRecord>) {
+        val zone = java.time.ZoneId.systemDefault()
+        records.forEach { record ->
+            val localDate = java.time.Instant.ofEpochMilli(record.startTime).atZone(zone).toLocalDate()
+            val startOfDay = localDate.atStartOfDay(zone).toInstant().toEpochMilli()
+            val endOfDay = localDate.atTime(java.time.LocalTime.MAX).atZone(zone).toInstant().toEpochMilli()
+
+            val existing = dao.findStepsRecordForDayAndSource(startOfDay, endOfDay, record.source)
+            if (existing != null) {
+                if (record.count > existing.count) {
+                    dao.updateStepsRecord(existing.copy(count = record.count, endTime = record.endTime))
+                }
+            } else {
+                dao.insertStepsRecord(record)
+            }
+        }
+    }
+
+    // Activities (Cardio & Treinos Musculares)
+    val allActivityRecords: Flow<List<ActivityRecord>> = dao.getAllActivityRecords()
+    fun getActivityRecordsForDate(date: String): Flow<List<ActivityRecord>> = dao.getActivityRecordsForDate(date)
+    suspend fun insertActivityRecord(record: ActivityRecord): Long = dao.insertActivityRecord(record)
+    suspend fun deleteActivityRecord(record: ActivityRecord) = dao.deleteActivityRecord(record)
+    suspend fun deleteActivityRecordById(id: Int) = dao.deleteActivityRecordById(id)
+
+    // Bible Verse Videos
+    val allVerseVideos: Flow<List<BibleVerseVideo>> = dao.getAllVerseVideos()
+    fun getVerseVideosForChapter(bookAbbrev: String, chapter: Int): Flow<List<BibleVerseVideo>> = dao.getVerseVideosForChapter(bookAbbrev, chapter)
+    suspend fun insertVerseVideo(video: BibleVerseVideo): Long = dao.insertVerseVideo(video)
+    suspend fun deleteVerseVideo(video: BibleVerseVideo) = dao.deleteVerseVideo(video)
+    suspend fun deleteVerseVideoById(id: Int) = dao.deleteVerseVideoById(id)
+
+    // Bible Reading Sessions (Perseverança)
+    val distinctReadingDates: Flow<List<String>> = dao.getDistinctReadingDates()
+    val allReadingSessions: Flow<List<BibleReadingSession>> = dao.getAllReadingSessions()
+    suspend fun insertReadingSession(session: BibleReadingSession): Long = dao.insertReadingSession(session)
 
     // Routines
     val allRoutines: Flow<List<Routine>> = dao.getAllRoutines()

@@ -10,6 +10,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -69,18 +70,20 @@ class SupabaseMarketSyncManager(
             generateNewShareId()
         }
 
-        // 1. Observe local changes and push to Supabase
+        // 1. Observe local changes (planejamento + mercado) and push to Supabase
         if (localSyncJob?.isActive != true) {
             localSyncJob = scope.launch {
-                repository.pendingMarketItems.collect { items ->
+                combine(repository.pendingMarketItems, repository.shoppingMarketItems) { pending, shopping ->
+                    pending + shopping
+                }.collect { allActiveItems ->
                     if (!isUpdatingFromRemote) {
-                        uploadListToSupabase(items)
+                        uploadListToSupabase(allActiveItems)
                     }
                 }
             }
         }
 
-        // 2. Poll remote changes from Supabase (to pull items added on Web)
+        // 2. Poll remote changes from Supabase (to pull items added or checked on Web)
         if (remotePollJob?.isActive != true) {
             remotePollJob = scope.launch {
                 while (isActive) {
@@ -103,8 +106,9 @@ class SupabaseMarketSyncManager(
         lastUploadedHash = null
         scope.launch {
             pullFromSupabase()
-            val items = repository.pendingMarketItems.first()
-            uploadListToSupabase(items)
+            val pending = repository.pendingMarketItems.first()
+            val shopping = repository.shoppingMarketItems.first()
+            uploadListToSupabase(pending + shopping)
         }
     }
 
@@ -131,6 +135,8 @@ class SupabaseMarketSyncManager(
                         val quantity = itemObj.optDouble("quantity", 1.0)
                         val unit = itemObj.optString("unit", "un")
                         val category = itemObj.optString("category", "Geral")
+                        val inMarket = itemObj.optBoolean("inMarket", false)
+                        val needsApproval = itemObj.optBoolean("needsApproval", false)
 
                         remoteItems.add(
                             MarketItem(
@@ -141,7 +147,9 @@ class SupabaseMarketSyncManager(
                                 price = price,
                                 quantity = quantity,
                                 unit = unit,
-                                category = category
+                                category = category,
+                                inMarket = inMarket,
+                                needsApproval = needsApproval
                             )
                         )
                     }
@@ -156,15 +164,31 @@ class SupabaseMarketSyncManager(
 
     private suspend fun mergeRemoteItems(remoteItems: List<MarketItem>) {
         if (remoteItems.isEmpty()) return
-        val localItems = repository.pendingMarketItems.first()
+        val localPending = repository.pendingMarketItems.first()
+        val localShopping = repository.shoppingMarketItems.first()
+        val allLocal = localPending + localShopping
 
         val inserts = mutableListOf<MarketItem>()
         val updates = mutableListOf<MarketItem>()
 
         remoteItems.forEach { remoteItem ->
-            val existing = localItems.find { it.name.equals(remoteItem.name, ignoreCase = true) }
+            val existing = allLocal.find { it.name.equals(remoteItem.name, ignoreCase = true) }
             if (existing != null) {
-                if (existing.isChecked != remoteItem.isChecked ||
+                // Se a web enviou para o mercado, mas o item ainda não foi aprovado localmente:
+                val resolvedNeedsApproval = if (remoteItem.inMarket && !existing.inMarket) {
+                    true
+                } else {
+                    existing.needsApproval && remoteItem.needsApproval
+                }
+
+                // Se requer aprovação, não deixa entrar no carrinho (isChecked = false) até o usuário aprovar no app
+                val resolvedChecked = if (resolvedNeedsApproval) false else existing.isChecked
+
+                val resolvedInMarket = if (remoteItem.inMarket) true else existing.inMarket
+
+                if (existing.isChecked != resolvedChecked ||
+                    existing.inMarket != resolvedInMarket ||
+                    existing.needsApproval != resolvedNeedsApproval ||
                     existing.price != remoteItem.price ||
                     existing.quantity != remoteItem.quantity ||
                     existing.unit != remoteItem.unit ||
@@ -172,7 +196,9 @@ class SupabaseMarketSyncManager(
                 ) {
                     updates.add(
                         existing.copy(
-                            isChecked = remoteItem.isChecked,
+                            isChecked = resolvedChecked,
+                            inMarket = resolvedInMarket,
+                            needsApproval = resolvedNeedsApproval,
                             price = remoteItem.price,
                             quantity = remoteItem.quantity,
                             unit = remoteItem.unit,
@@ -181,7 +207,9 @@ class SupabaseMarketSyncManager(
                     )
                 }
             } else {
-                inserts.add(remoteItem)
+                // Item novo vindo da web
+                val resolvedChecked = if (remoteItem.inMarket && remoteItem.needsApproval) false else remoteItem.isChecked
+                inserts.add(remoteItem.copy(isChecked = resolvedChecked))
             }
         }
 
@@ -189,8 +217,9 @@ class SupabaseMarketSyncManager(
             isUpdatingFromRemote = true
             try {
                 repository.syncMarketItems(inserts, updates, emptyList())
-                val updatedLocal = repository.pendingMarketItems.first()
-                lastUploadedHash = computeHash(updatedLocal)
+                val updatedPending = repository.pendingMarketItems.first()
+                val updatedShopping = repository.shoppingMarketItems.first()
+                lastUploadedHash = computeHash(updatedPending + updatedShopping)
             } finally {
                 isUpdatingFromRemote = false
             }
@@ -198,7 +227,7 @@ class SupabaseMarketSyncManager(
     }
 
     private fun computeHash(items: List<MarketItem>): Int {
-        return items.map { "${it.name}|${it.isChecked}|${it.isBought}|${it.price}|${it.quantity}|${it.category}" }.hashCode()
+        return items.map { "${it.name}|${it.isChecked}|${it.isBought}|${it.price}|${it.quantity}|${it.category}|${it.inMarket}|${it.needsApproval}" }.hashCode()
     }
 
     private suspend fun uploadListToSupabase(items: List<MarketItem>) {
@@ -221,6 +250,8 @@ class SupabaseMarketSyncManager(
                         put("quantity", item.quantity)
                         put("unit", item.unit)
                         put("category", item.category)
+                        put("inMarket", item.inMarket)
+                        put("needsApproval", item.needsApproval)
                     }
                     jsonArray.put(obj)
                 }
@@ -248,4 +279,3 @@ class SupabaseMarketSyncManager(
         }
     }
 }
-

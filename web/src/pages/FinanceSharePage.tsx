@@ -24,7 +24,8 @@ import {
   Building2,
   Sun,
   Moon,
-  Pencil
+  Pencil,
+  Download
 } from 'lucide-react'
 
 interface CategoryBreakdown {
@@ -56,6 +57,11 @@ export interface DebtItem {
   creditor_name: string
   installments_total: number
   installments_paid: number
+}
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
 export interface DebtsSummary {
@@ -493,6 +499,35 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'))
   }
 
+  // PWA Install state
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const [isInstalled, setIsInstalled] = useState(false)
+
+  useEffect(() => {
+    const handleBeforeInstall = (e: Event) => {
+      e.preventDefault()
+      setInstallPrompt(e as BeforeInstallPromptEvent)
+    }
+    const handleAppInstalled = () => {
+      setIsInstalled(true)
+      setInstallPrompt(null)
+    }
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall)
+    window.addEventListener('appinstalled', handleAppInstalled)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall)
+      window.removeEventListener('appinstalled', handleAppInstalled)
+    }
+  }, [])
+
+  const handleInstallApp = async () => {
+    if (!installPrompt) return
+    await installPrompt.prompt()
+    const { outcome } = await installPrompt.userChoice
+    if (outcome === 'accepted') setIsInstalled(true)
+    setInstallPrompt(null)
+  }
+
   // Seleção de filtro (Conta ou Cartão clicado, exatamente como no app principal)
   const [selectedFilter, setSelectedFilter] = useState<{
     type: 'account' | 'card'
@@ -901,6 +936,18 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {installPrompt && !isInstalled && (
+              <button 
+                type="button"
+                className="btn btn-outline" 
+                onClick={handleInstallApp}
+                title="Instalar como aplicativo no celular ou desktop"
+                style={{ padding: '6px 10px', fontSize: 11, height: 36, borderRadius: 'var(--radius-full)', gap: 6 }}
+              >
+                <Download size={14} color="var(--accent)" />
+                <span>Instalar App</span>
+              </button>
+            )}
             <button 
               type="button"
               className="theme-toggle-btn"

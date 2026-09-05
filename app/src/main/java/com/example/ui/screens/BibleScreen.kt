@@ -40,6 +40,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.BibliaBookItem
 import com.example.data.BibliaVerseItem
 import com.example.data.BibliaVersionItem
+import com.example.data.BibleVerseVideo
+import com.example.data.BibleMedal
+import com.example.data.PerseveranceStats
+import android.net.Uri
+import coil.compose.AsyncImage
+import com.example.ui.theme.PrimaryTeal
+import com.example.ui.theme.SecondaryGold
+import com.example.ui.components.bounceClick
 import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.components.themedCardBackground
 import com.example.ui.components.themedCardBorder
@@ -83,10 +91,20 @@ fun BibleScreen(
     val highlights by viewModel.verseHighlights.collectAsStateWithLifecycle()
     val targetScrollVerse by viewModel.targetScrollVerse.collectAsStateWithLifecycle()
 
+    // Novos estados: Vídeos, Perseverança, Medalhas e Áudio
+    val currentChapterVideos by viewModel.currentChapterVideos.collectAsStateWithLifecycle()
+    val perseveranceStats by viewModel.perseveranceStats.collectAsStateWithLifecycle()
+    val bibleMedals by viewModel.bibleMedals.collectAsStateWithLifecycle()
+    val isAudioPlaying by viewModel.isAudioPlaying.collectAsStateWithLifecycle()
+    val activeTtsVerse by viewModel.activeTtsVerse.collectAsStateWithLifecycle()
+
     val listState = rememberLazyListState()
 
     var showBookPicker by remember { mutableStateOf(false) }
     var showVersionPicker by remember { mutableStateOf(false) }
+    var showPerseveranceModal by remember { mutableStateOf(false) }
+    var connectingVideoVerse by remember { mutableStateOf<BibliaVerseItem?>(null) }
+    var viewingVideosVerse by remember { mutableStateOf<BibliaVerseItem?>(null) }
     val selectedVerses = remember { mutableStateListOf<BibliaVerseItem>() }
 
     LaunchedEffect(Unit) {
@@ -110,7 +128,7 @@ fun BibleScreen(
 
     val navBarBottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val navBarTotalHeight = navBarBottomInset + 84.dp
-    val listBottomPadding = navBarTotalHeight + if (selectedVerses.isNotEmpty()) 150.dp else 24.dp
+    val listBottomPadding = navBarTotalHeight + 80.dp
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -127,9 +145,16 @@ fun BibleScreen(
                     bookName = selectedBook.name,
                     chapter = selectedChapter,
                     versionCode = selectedVersion,
+                    perseveranceStats = perseveranceStats,
+                    isAudioPlaying = isAudioPlaying,
                     onBackClick = onHomeClick,
                     onBookClick = { showBookPicker = true },
-                    onVersionClick = { showVersionPicker = true }
+                    onVersionClick = { showVersionPicker = true },
+                    onPerseveranceClick = { showPerseveranceModal = true },
+                    onAudioClick = {
+                        val verses = (chapterState as? TesseraViewModel.ChapterUiState.Success)?.chapterData?.verses ?: emptyList()
+                        viewModel.togglePlayAudio(verses)
+                    }
                 )
 
                 // Chapter Reading Content
@@ -159,30 +184,32 @@ fun BibleScreen(
                                     contentPadding = PaddingValues(
                                         start = 20.dp,
                                         end = 20.dp,
-                                        top = 12.dp,
+                                        top = 8.dp,
                                         bottom = listBottomPadding
                                     )
                                 ) {
+                                    // Header Editorial Estilo YouVersion
                                     item {
                                         Column(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(bottom = 24.dp),
+                                                .padding(top = 16.dp, bottom = 28.dp),
                                             horizontalAlignment = Alignment.CenterHorizontally
                                         ) {
                                             Text(
-                                                text = "${selectedBook.name} $selectedChapter",
-                                                fontSize = 22.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = MaterialTheme.colorScheme.onBackground
-                                            )
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Text(
-                                                text = selectedVersion.uppercase(),
-                                                fontSize = 11.sp,
+                                                text = selectedBook.name,
+                                                fontSize = 18.sp,
                                                 fontWeight = FontWeight.Medium,
-                                                color = MaterialTheme.colorScheme.primary,
-                                                letterSpacing = 1.sp
+                                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                                                letterSpacing = 0.5.sp
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = "$selectedChapter",
+                                                fontSize = 54.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onBackground,
+                                                lineHeight = 58.sp
                                             )
                                         }
                                     }
@@ -192,12 +219,16 @@ fun BibleScreen(
                                         val isTargetVerse = targetScrollVerse == verse.number
                                         val highlightKey = "${selectedBook.abbrev}_${selectedChapter}_${verse.number}"
                                         val highlightColorHex = highlights[highlightKey]
+                                        val hasVideos = currentChapterVideos.any { it.verseNumber == verse.number }
+                                        val isTtsActive = activeTtsVerse == verse.number
 
                                         BibleVerseRow(
                                             verse = verse,
                                             isSelected = isSelected,
                                             isTargetVerse = isTargetVerse,
+                                            isTtsActive = isTtsActive,
                                             highlightColorHex = highlightColorHex,
+                                            hasVideos = hasVideos,
                                             onClick = {
                                                 viewModel.clearTargetScrollVerse()
                                                 if (isSelected) {
@@ -205,62 +236,11 @@ fun BibleScreen(
                                                 } else {
                                                     selectedVerses.add(verse)
                                                 }
+                                            },
+                                            onVideoClick = {
+                                                viewingVideosVerse = verse
                                             }
                                         )
-                                    }
-
-                                    // Chapter Footer Navigation (Prev / Next)
-                                    item {
-                                        Spacer(modifier = Modifier.height(32.dp))
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(bottom = 16.dp),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            // Previous Chapter
-                                            OutlinedButton(
-                                                onClick = {
-                                                    selectedVerses.clear()
-                                                    viewModel.previousChapter()
-                                                },
-                                                enabled = selectedChapter > 1,
-                                                shape = RoundedCornerShape(12.dp),
-                                                border = BorderStroke(1.dp, themedCardBorder()),
-                                                colors = ButtonDefaults.outlinedButtonColors(
-                                                    contentColor = MaterialTheme.colorScheme.onBackground
-                                                )
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Text(text = "Cap. Anterior", fontSize = 13.sp)
-                                            }
-
-                                            // Next Chapter
-                                            Button(
-                                                onClick = {
-                                                    selectedVerses.clear()
-                                                    viewModel.nextChapter()
-                                                },
-                                                shape = RoundedCornerShape(12.dp),
-                                                colors = ButtonDefaults.buttonColors(
-                                                    containerColor = MaterialTheme.colorScheme.primary
-                                                )
-                                            ) {
-                                                Text(text = "Próximo Cap.", fontSize = 13.sp, color = Color.Black, fontWeight = FontWeight.SemiBold)
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Icon(
-                                                    imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(16.dp),
-                                                    tint = Color.Black
-                                                )
-                                            }
-                                        }
                                     }
                                 }
                             }
@@ -269,7 +249,37 @@ fun BibleScreen(
                 }
             }
 
-            // Floating Bottom Action Bar for Selected Verses (Posicionada ACIMA da BottomNavBar)
+            // Floating Bottom Reader Bar (Estilo YouVersion) - visível quando não houver versículos selecionados
+            AnimatedVisibility(
+                visible = selectedVerses.isEmpty(),
+                enter = slideInVertically(initialOffsetY = { it }, animationSpec = tween(180)) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it }, animationSpec = tween(150)) + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = navBarTotalHeight + 6.dp)
+            ) {
+                val verses = (chapterState as? TesseraViewModel.ChapterUiState.Success)?.chapterData?.verses ?: emptyList()
+                BibleBottomReaderBar(
+                    bookName = selectedBook.name,
+                    chapter = selectedChapter,
+                    canGoBack = selectedChapter > 1,
+                    isAudioPlaying = isAudioPlaying,
+                    onPreviousChapter = {
+                        selectedVerses.clear()
+                        viewModel.previousChapter()
+                    },
+                    onNextChapter = {
+                        selectedVerses.clear()
+                        viewModel.nextChapter()
+                    },
+                    onBookPickerClick = { showBookPicker = true },
+                    onPlayAudioClick = {
+                        viewModel.togglePlayAudio(verses)
+                    }
+                )
+            }
+
+            // Floating Bottom Action Bar for Selected Verses
             AnimatedVisibility(
                 visible = selectedVerses.isNotEmpty(),
                 enter = slideInVertically(initialOffsetY = { it }, animationSpec = tween(200)) + fadeIn(),
@@ -293,6 +303,11 @@ fun BibleScreen(
                             viewModel.removeVerseHighlight(selectedBook.abbrev, selectedChapter, v.number)
                         }
                         selectedVerses.clear()
+                    },
+                    onConnectVideo = {
+                        if (selectedVerses.isNotEmpty()) {
+                            connectingVideoVerse = selectedVerses.first()
+                        }
                     },
                     onCopy = {
                         val sorted = selectedVerses.sortedBy { it.number }
@@ -345,19 +360,79 @@ fun BibleScreen(
             onDismiss = { showVersionPicker = false }
         )
     }
+
+    // Modal: Conectar Vídeo ao Versículo
+    connectingVideoVerse?.let { verse ->
+        ConnectVideoDialog(
+            bookName = selectedBook.name,
+            chapter = selectedChapter,
+            verseNumber = verse.number,
+            onConfirm = { url, title, channel, notes ->
+                viewModel.addVerseVideo(
+                    bookAbbrev = selectedBook.abbrev,
+                    bookName = selectedBook.name,
+                    chapter = selectedChapter,
+                    verseNumber = verse.number,
+                    youtubeUrl = url,
+                    title = title,
+                    channelName = channel,
+                    notes = notes
+                )
+                connectingVideoVerse = null
+                selectedVerses.clear()
+                Toast.makeText(context, "Vídeo conectado ao versículo ${verse.number}!", Toast.LENGTH_SHORT).show()
+            },
+            onDismiss = { connectingVideoVerse = null }
+        )
+    }
+
+    // Modal: Assistir / Gerenciar Vídeos do Versículo
+    viewingVideosVerse?.let { verse ->
+        val videosForVerse = currentChapterVideos.filter { it.verseNumber == verse.number }
+        VerseVideosBottomSheet(
+            bookName = selectedBook.name,
+            chapter = selectedChapter,
+            verseNumber = verse.number,
+            videos = videosForVerse,
+            onAddAnother = {
+                connectingVideoVerse = verse
+                viewingVideosVerse = null
+            },
+            onDeleteVideo = { video ->
+                viewModel.deleteVerseVideo(video)
+            },
+            onDismiss = { viewingVideosVerse = null }
+        )
+    }
+
+    // Modal: Perseverança e Medalhas
+    if (showPerseveranceModal) {
+        PerseveranceMedalsModal(
+            stats = perseveranceStats,
+            medals = bibleMedals,
+            onDismiss = { showPerseveranceModal = false }
+        )
+    }
 }
 
 // ==============================================================================
 // TOP BAR
+// ==============================================================================
+// ==============================================================================
+// TOP BAR (YouVersion Minimalist Header)
 // ==============================================================================
 @Composable
 private fun BibleTopBar(
     bookName: String,
     chapter: Int,
     versionCode: String,
+    perseveranceStats: PerseveranceStats,
+    isAudioPlaying: Boolean,
     onBackClick: () -> Unit,
     onBookClick: () -> Unit,
-    onVersionClick: () -> Unit
+    onVersionClick: () -> Unit,
+    onPerseveranceClick: () -> Unit,
+    onAudioClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -375,72 +450,88 @@ private fun BibleTopBar(
             )
         }
 
-        // Center Pill: Book & Chapter Trigger
-        Surface(
-            onClick = onBookClick,
-            shape = RoundedCornerShape(20.dp),
-            color = themedSubtleBackground(),
-            border = BorderStroke(1.dp, themedCardBorder())
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            // Botão de Áudio / Leitura TTS
+            IconButton(
+                onClick = onAudioClick,
+                modifier = Modifier.size(38.dp)
             ) {
-                Text(
-                    text = "$bookName $chapter",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
                 Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    imageVector = if (isAudioPlaying) Icons.Outlined.VolumeUp else Icons.Outlined.VolumeOff,
+                    contentDescription = if (isAudioPlaying) "Pausar leitura em áudio" else "Ouvir capítulo",
+                    tint = if (isAudioPlaying) PrimaryTeal else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    modifier = Modifier.size(20.dp)
                 )
             }
-        }
 
-        // Right Pill: Version Trigger
-        Surface(
-            onClick = onVersionClick,
-            shape = RoundedCornerShape(20.dp),
-            color = themedSubtleBackground(),
-            border = BorderStroke(1.dp, themedCardBorder())
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            // Pill de Perseverança & Medalhas
+            Surface(
+                onClick = onPerseveranceClick,
+                shape = RoundedCornerShape(20.dp),
+                color = themedSubtleBackground(),
+                border = BorderStroke(1.dp, themedCardBorder())
             ) {
-                Text(
-                    text = versionCode.uppercase(),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
-                    modifier = Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(text = "🔥", fontSize = 13.sp)
+                    Text(
+                        text = "${perseveranceStats.currentStreak} d",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (perseveranceStats.currentStreak > 0) Color(0xFFF97316) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+            }
+
+            // Pill de Versão Bíblica
+            Surface(
+                onClick = onVersionClick,
+                shape = RoundedCornerShape(20.dp),
+                color = themedSubtleBackground(),
+                border = BorderStroke(1.dp, themedCardBorder())
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Language,
+                        contentDescription = null,
+                        modifier = Modifier.size(13.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = versionCode.uppercase(),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }
 }
 
 // ==============================================================================
-// VERSE ROW (With Pastel Highlight Overlay)
+// VERSE ROW (Estilo YouVersion Editorial com Indicador de Vídeo)
 // ==============================================================================
 @Composable
 private fun BibleVerseRow(
     verse: BibliaVerseItem,
     isSelected: Boolean,
     isTargetVerse: Boolean = false,
+    isTtsActive: Boolean = false,
     highlightColorHex: String?,
-    onClick: () -> Unit
+    hasVideos: Boolean = false,
+    onClick: () -> Unit,
+    onVideoClick: () -> Unit
 ) {
     val highlightColor = remember(highlightColorHex) {
         if (highlightColorHex != null) {
@@ -457,6 +548,7 @@ private fun BibleVerseRow(
 
     val backgroundColor = when {
         isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+        isTtsActive -> PrimaryTeal.copy(alpha = 0.22f)
         isTargetVerse -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
         highlightColorHex != null -> highlightColor
         else -> Color.Transparent
@@ -464,6 +556,7 @@ private fun BibleVerseRow(
 
     val borderColor = when {
         isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+        isTtsActive -> PrimaryTeal.copy(alpha = 0.5f)
         isTargetVerse -> MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
         else -> Color.Transparent
     }
@@ -471,52 +564,174 @@ private fun BibleVerseRow(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 3.dp)
+            .padding(vertical = 2.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(backgroundColor)
             .border(
-                width = if (isSelected || isTargetVerse) 1.dp else 0.dp,
+                width = if (isSelected || isTargetVerse || isTtsActive) 1.dp else 0.dp,
                 color = borderColor,
                 shape = RoundedCornerShape(8.dp)
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp)
+            .padding(horizontal = 8.dp, vertical = 6.dp)
     ) {
-        Text(
-            text = buildAnnotatedString {
-                withStyle(
-                    style = SpanStyle(
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(
+                        style = SpanStyle(
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isTtsActive) PrimaryTeal else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        append("${verse.number}  ")
+                    }
+                    withStyle(
+                        style = SpanStyle(
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Normal,
+                            fontFamily = FontFamily.SansSerif,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    ) {
+                        append(verse.text.trim())
+                    }
+                },
+                lineHeight = 27.sp,
+                modifier = Modifier.weight(1f)
+            )
+
+            if (hasVideos) {
+                Spacer(modifier = Modifier.width(6.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable(onClick = onVideoClick)
+                        .padding(4.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    append("${verse.number}  ")
-                }
-                withStyle(
-                    style = SpanStyle(
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Normal,
-                        fontFamily = FontFamily.SansSerif,
-                        color = MaterialTheme.colorScheme.onBackground
+                    Icon(
+                        imageVector = Icons.Outlined.SmartDisplay,
+                        contentDescription = "Vídeo conectado",
+                        tint = Color(0xFFEF4444),
+                        modifier = Modifier.size(17.dp)
                     )
-                ) {
-                    append(verse.text.trim())
                 }
-            },
-            lineHeight = 24.sp
-        )
+            }
+        }
     }
 }
 
 // ==============================================================================
-// FLOATING CONTEXTUAL BAR (YouVersion Style)
+// BOTTOM READER BAR (Barra Flutuante YouVersion: Play + < Livro X >)
+// ==============================================================================
+@Composable
+private fun BibleBottomReaderBar(
+    bookName: String,
+    chapter: Int,
+    canGoBack: Boolean,
+    isAudioPlaying: Boolean,
+    onPreviousChapter: () -> Unit,
+    onNextChapter: () -> Unit,
+    onBookPickerClick: () -> Unit,
+    onPlayAudioClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Botão circular de Play / Pause
+        Surface(
+            onClick = onPlayAudioClick,
+            shape = CircleShape,
+            color = themedCardBackground(),
+            border = BorderStroke(1.dp, themedCardBorder()),
+            modifier = Modifier.size(46.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = if (isAudioPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    contentDescription = if (isAudioPlaying) "Pausar Leitura" else "Ouvir Capítulo",
+                    tint = if (isAudioPlaying) PrimaryTeal else MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        // Pill central de navegação rápida: < Livro X >
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = themedCardBackground(),
+            border = BorderStroke(1.dp, themedCardBorder()),
+            modifier = Modifier.height(46.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            ) {
+                IconButton(
+                    onClick = onPreviousChapter,
+                    enabled = canGoBack,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = "Capítulo Anterior",
+                        tint = if (canGoBack) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(onClick = onBookPickerClick)
+                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "$bookName $chapter",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+
+                IconButton(
+                    onClick = onNextChapter,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+                        contentDescription = "Próximo Capítulo",
+                        tint = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ==============================================================================
+// FLOATING CONTEXTUAL BAR (YouVersion Style com Ação de Vídeo)
 // ==============================================================================
 @Composable
 private fun BibleSelectionFloatingBar(
     selectedCount: Int,
     onColorSelect: (String) -> Unit,
     onClearHighlight: () -> Unit,
+    onConnectVideo: () -> Unit,
     onCopy: () -> Unit,
     onShare: () -> Unit,
     onClose: () -> Unit
@@ -542,6 +757,9 @@ private fun BibleSelectionFloatingBar(
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    IconButton(onClick = onConnectVideo, modifier = Modifier.size(34.dp)) {
+                        Icon(imageVector = Icons.Outlined.SmartDisplay, contentDescription = "Conectar Vídeo do YouTube", tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
+                    }
                     IconButton(onClick = onCopy, modifier = Modifier.size(34.dp)) {
                         Icon(imageVector = Icons.Outlined.ContentCopy, contentDescription = "Copiar", modifier = Modifier.size(18.dp))
                     }
@@ -587,6 +805,565 @@ private fun BibleSelectionFloatingBar(
                         modifier = Modifier.size(18.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+            }
+        }
+    }
+}
+
+// ==============================================================================
+// MODAL: CONECTAR VÍDEO AO VERSÍCULO
+// ==============================================================================
+@Composable
+private fun ConnectVideoDialog(
+    bookName: String,
+    chapter: Int,
+    verseNumber: Int,
+    onConfirm: (url: String, title: String, channel: String, notes: String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var url by remember { mutableStateOf("") }
+    var title by remember { mutableStateOf("") }
+    var channel by remember { mutableStateOf("") }
+    var notes by remember { mutableStateOf("") }
+    var isError by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column {
+                Text(
+                    text = "Conectar Vídeo do YouTube",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "$bookName $chapter:$verseNumber",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = PrimaryTeal
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = {
+                        url = it
+                        isError = false
+                    },
+                    label = { Text("Link do YouTube") },
+                    placeholder = { Text("https://youtube.com/watch?v=...") },
+                    singleLine = true,
+                    isError = isError,
+                    supportingText = if (isError) {
+                        { Text("Insira um link válido do YouTube", color = MaterialTheme.colorScheme.error) }
+                    } else null,
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Outlined.SmartDisplay,
+                            contentDescription = null,
+                            tint = Color(0xFFEF4444)
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Título ou Tema do Estudo") },
+                    placeholder = { Text("Ex: Explicação sobre a graça") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = channel,
+                    onValueChange = { channel = it },
+                    label = { Text("Canal / Preletor (Opcional)") },
+                    placeholder = { Text("Ex: Pr. Luciano Subirá") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    label = { Text("Anotações Pessoais (Opcional)") },
+                    placeholder = { Text("Ex: Trecho marcante em 04:30") },
+                    maxLines = 2,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (url.isBlank() || !url.contains("youtu", ignoreCase = true)) {
+                        isError = true
+                    } else {
+                        onConfirm(url.trim(), title.trim(), channel.trim(), notes.trim())
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text("Conectar", color = Color.Black, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+            }
+        },
+        shape = RoundedCornerShape(20.dp),
+        containerColor = themedCardBackground()
+    )
+}
+
+// ==============================================================================
+// MODAL: VÍDEOS CONECTADOS AO VERSÍCULO
+// ==============================================================================
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun VerseVideosBottomSheet(
+    bookName: String,
+    chapter: Int,
+    verseNumber: Int,
+    videos: List<BibleVerseVideo>,
+    onAddAnother: () -> Unit,
+    onDeleteVideo: (BibleVerseVideo) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(vertical = 10.dp)
+                    .width(40.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
+            )
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Vídeos de Estudo",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "$bookName $chapter:$verseNumber",
+                        fontSize = 13.sp,
+                        color = PrimaryTeal,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Button(
+                    onClick = onAddAnother,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal.copy(alpha = 0.15f)),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Adicionar", fontSize = 12.sp, color = PrimaryTeal, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (videos.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 30.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Nenhum vídeo conectado a este versículo.",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(videos, key = { it.id }) { video ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(themedCardBackground())
+                                .border(1.dp, themedCardBorder(), RoundedCornerShape(16.dp))
+                                .padding(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Thumbnail do YouTube
+                                Box(
+                                    modifier = Modifier
+                                        .size(width = 96.dp, height = 58.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Color.Black.copy(alpha = 0.2f))
+                                        .clickable {
+                                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(video.youtubeUrl))
+                                            context.startActivity(intent)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (video.videoId.isNotBlank()) {
+                                        AsyncImage(
+                                            model = "https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg",
+                                            contentDescription = video.title,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = Icons.Filled.PlayArrow,
+                                        contentDescription = "Reproduzir",
+                                        tint = Color.White,
+                                        modifier = Modifier
+                                            .size(28.dp)
+                                            .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                                            .padding(4.dp)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(12.dp))
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = video.title,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    if (video.channelName.isNotBlank()) {
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = video.channelName,
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    if (video.notes.isNotBlank()) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = video.notes,
+                                            fontSize = 11.sp,
+                                            color = PrimaryTeal,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+
+                                IconButton(
+                                    onClick = { onDeleteVideo(video) },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Delete,
+                                        contentDescription = "Excluir vídeo",
+                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ==============================================================================
+// MODAL: PERSEVERANÇA E MEDALHAS BÍBLICAS
+// ==============================================================================
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PerseveranceMedalsModal(
+    stats: PerseveranceStats,
+    medals: List<BibleMedal>,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(vertical = 10.dp)
+                    .width(40.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
+            )
+        }
+    ) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 36.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Perseverança na Palavra",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Sua jornada diária de leitura e reflexão",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        )
+                    }
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.Close, contentDescription = "Fechar", modifier = Modifier.size(20.dp))
+                    }
+                }
+            }
+
+            // Card Hero de Perseverança
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(themedCardBackground())
+                        .border(1.dp, themedCardBorder(), RoundedCornerShape(20.dp))
+                        .padding(18.dp)
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "SEQUÊNCIA ATUAL",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFF97316),
+                                    letterSpacing = 1.sp
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(verticalAlignment = Alignment.Bottom) {
+                                    Text(
+                                        text = "${stats.currentStreak}",
+                                        fontSize = 38.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        lineHeight = 40.sp
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = if (stats.currentStreak == 1) "dia" else "dias seguidos",
+                                        fontSize = 14.sp,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                        modifier = Modifier.padding(bottom = 6.dp)
+                                    )
+                                }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .size(52.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFF97316).copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = "🔥", fontSize = 26.sp)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text("Maior Sequência", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                                Text("${stats.longestStreak} dias", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                            }
+                            Column {
+                                Text("Dias Lidos", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                                Text("${stats.totalDaysRead} dias", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                            }
+                            Column {
+                                Text("Capítulos Lidos", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                                Text("${stats.totalChaptersRead}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = PrimaryTeal)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (stats.readToday) PrimaryTeal.copy(alpha = 0.12f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (stats.readToday) "✨ Leitura de hoje registrada!" else "📖 Leia um capítulo hoje para manter o fogo aceso.",
+                                    fontSize = 12.sp,
+                                    color = if (stats.readToday) PrimaryTeal else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Título de Medalhas
+            item {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "MEDALHAS & CONQUISTAS",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    letterSpacing = 1.2.sp
+                )
+            }
+
+            // Lista de Medalhas
+            items(medals, key = { it.id }) { medal ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            if (medal.isUnlocked) PrimaryTeal.copy(alpha = 0.08f)
+                            else themedCardBackground()
+                        )
+                        .border(
+                            1.dp,
+                            if (medal.isUnlocked) PrimaryTeal.copy(alpha = 0.35f) else themedCardBorder(),
+                            RoundedCornerShape(16.dp)
+                        )
+                        .padding(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (medal.isUnlocked) PrimaryTeal.copy(alpha = 0.15f)
+                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = medal.iconEmoji,
+                                fontSize = 22.sp,
+                                color = if (medal.isUnlocked) Color.Unspecified else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(14.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = medal.title,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                if (medal.isUnlocked) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = "Conquistada",
+                                        tint = PrimaryTeal,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = medal.description,
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+                            )
+                            if (!medal.isUnlocked && medal.targetProgress > 1) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                LinearProgressIndicator(
+                                    progress = { medal.currentProgress.toFloat() / medal.targetProgress },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(4.dp)
+                                        .clip(RoundedCornerShape(2.dp)),
+                                    color = PrimaryTeal,
+                                    trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

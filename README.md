@@ -4,6 +4,15 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.53
+
+- **Redesign Editorial da Bíblia (Estilo YouVersion):** Leitura contínua fluida sem caixas duras, números de versículos em sobrescrito suave, entrelinha ampla (27sp), header imersivo com número de capítulo gigante (54sp) e barra de leitura flutuante YouVersion com botão circular de play (TTS em voz alta nativo pt-BR) e navegação `< Livro X >`.
+- **Sistema de Perseverança e Medalhas Bíblicas:** Acompanhamento automático de leitura diária da Palavra com contador de sequência ininterrupta (`🔥 X dias`), recorde histórico, estatísticas e sistema de medalhas e conquistas desbloqueáveis com barra de progresso.
+- **Conexão de Versículos a Vídeos do YouTube:** Capacidade de vincular estudos, pregações e reflexões em vídeo a versículos bíblicos diretamente pela barra de seleção, com indicador visual no texto, geração de thumbnails em alta resolução e abertura instantânea no YouTube.
+- **Nova Aba Atividades na Central de Saúde:** Cálculo automático de calorias gastas com base nos passos do Google Health Connect, registro manual de cardio (esteira, corrida, bike, tempo e calorias) e histórico semanal de treinos de musculação por grupo muscular (superiores, inferiores, costas, peito, etc.).
+- **Persistência Segura e Não-Destrutiva de Passos e Sono:** Correção definitiva eliminando perdas de dados históricos de saúde no banco Room através de rotinas de upsert inteligente.
+- **Mercado Web sem Modais, PWA e Scanner EAN no App:** Entrada direta de itens no topo da tela web com subtotal instantâneo, suporte a instalação como Progressive Web App (PWA), alternância de tema claro/escuro, scanner EAN por câmera integrado ao ML Kit no app móvel e seção de aprovação para itens vindos da Web antes de somar no carrinho.
+
 ## 🚀 Novidades da Versão 2.0.52
 
 - **Edição de Lançamentos via Web com Aprovação Obrigatória:** Possibilidade de sugerir edições completas em lançamentos existentes na Web (`/finance/:id`), com envio protegido para o aplicativo móvel onde o proprietário pode aprovar ou rejeitar antes de qualquer alteração no banco de dados.
@@ -239,8 +248,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.52.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.52.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.53.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.53.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.

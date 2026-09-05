@@ -77,6 +77,7 @@ import androidx.compose.animation.Crossfade
 import com.example.ui.components.HealthTabSelector
 import com.example.ui.components.HealthSubTab
 import com.example.ui.screens.NutriScreen
+import com.example.ui.screens.ActivitiesScreen
 import com.example.ui.components.*
 import com.example.ui.theme.*
 import com.example.ui.components.isDarkTheme
@@ -1216,6 +1217,9 @@ fun HealthScreen(viewModel: TesseraViewModel, onHomeClick: () -> Unit = {}) {
                                 }
                                 HealthSubTab.NUTRI -> {
                                     NutriScreen(viewModel = viewModel)
+                                }
+                                HealthSubTab.ACTIVITIES -> {
+                                    ActivitiesScreen(viewModel = viewModel)
                                 }
                             }
                         }

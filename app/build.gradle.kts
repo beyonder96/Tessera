@@ -22,8 +22,8 @@ android {
     applicationId = "com.aistudio.tessera.xtrkna"
     minSdk = 26
     targetSdk = 35
-    versionCode = 105
-    versionName = "2.0.52"
+    versionCode = 106
+    versionName = "2.0.53"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     manifestPlaceholders["MAPS_API_KEY"] = "DUMMY_KEY"
