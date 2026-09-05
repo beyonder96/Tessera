@@ -4,6 +4,12 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.54
+
+- **Síntese de Voz Neural Offline com Sherpa-ONNX (pt-BR):** Leitura falada das Escrituras com voz neural offline de alta fidelidade rodando 100% localmente no dispositivo através da biblioteca Sherpa-ONNX (modelo Piper/VITS treinado com Mozilla Common Voice pt-BR). Inclui download sob demanda gerenciado do modelo com barra visual de progresso na Bíblia e fallback gracioso.
+- **Recomendações de Vídeos e Panoramas Bíblicos:** Novo serviço curado de panoramas bíblicos (`BibleVideoRecommendationService`) trazendo estudos em vídeo do BibleProject em português para cada livro bíblico, com cartões visuais ricos, miniaturas de alta qualidade e abertura direta no YouTube.
+- **Refinamento Visual e Acessibilidade no Modo Mercado:** Redesign minimalista da TopBar do Mercado com superfícies circulares sutis, tipografia elegante com tracking ampliado e acesso rápido ao leitor de código de barras (Scanner EAN via ML Kit na aba No Mercado).
+
 ## 🚀 Novidades da Versão 2.0.53
 
 - **Redesign Editorial da Bíblia (Estilo YouVersion):** Leitura contínua fluida sem caixas duras, números de versículos em sobrescrito suave, entrelinha ampla (27sp), header imersivo com número de capítulo gigante (54sp) e barra de leitura flutuante YouVersion com botão circular de play (TTS em voz alta nativo pt-BR) e navegação `< Livro X >`.
@@ -248,8 +254,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.53.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.53.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.54.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.54.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.
