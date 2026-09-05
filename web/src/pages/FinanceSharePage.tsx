@@ -59,10 +59,8 @@ export interface DebtItem {
   installments_paid: number
 }
 
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
-}
+import { usePwaInstall } from '../hooks/usePwaInstall'
+import { PwaInstructionsModal } from '../components/PwaInstructionsModal'
 
 export interface DebtsSummary {
   count: number
@@ -499,34 +497,8 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'))
   }
 
-  // PWA Install state
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
-  const [isInstalled, setIsInstalled] = useState(false)
-
-  useEffect(() => {
-    const handleBeforeInstall = (e: Event) => {
-      e.preventDefault()
-      setInstallPrompt(e as BeforeInstallPromptEvent)
-    }
-    const handleAppInstalled = () => {
-      setIsInstalled(true)
-      setInstallPrompt(null)
-    }
-    window.addEventListener('beforeinstallprompt', handleBeforeInstall)
-    window.addEventListener('appinstalled', handleAppInstalled)
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstall)
-      window.removeEventListener('appinstalled', handleAppInstalled)
-    }
-  }, [])
-
-  const handleInstallApp = async () => {
-    if (!installPrompt) return
-    await installPrompt.prompt()
-    const { outcome } = await installPrompt.userChoice
-    if (outcome === 'accepted') setIsInstalled(true)
-    setInstallPrompt(null)
-  }
+  // PWA Install state via hook resiliente
+  const { isInstalled, installApp, showHelpModal, setShowHelpModal, isIos } = usePwaInstall()
 
   // Seleção de filtro (Conta ou Cartão clicado, exatamente como no app principal)
   const [selectedFilter, setSelectedFilter] = useState<{
@@ -936,11 +908,11 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {installPrompt && !isInstalled && (
+            {!isInstalled && (
               <button 
                 type="button"
                 className="btn btn-outline" 
-                onClick={handleInstallApp}
+                onClick={installApp}
                 title="Instalar como aplicativo no celular ou desktop"
                 style={{ padding: '6px 10px', fontSize: 11, height: 36, borderRadius: 'var(--radius-full)', gap: 6 }}
               >
@@ -2357,6 +2329,13 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
       <div style={{ textAlign: 'center', marginTop: 40, marginBottom: 20, fontSize: 11, color: 'var(--text-muted)' }}>
         Desenvolvido por <strong style={{ color: 'var(--text-primary)' }}>Tessera</strong> • Conexão Web
       </div>
+
+      {/* Modal de Instruções de Instalação PWA */}
+      <PwaInstructionsModal 
+        isOpen={showHelpModal} 
+        onClose={() => setShowHelpModal(false)} 
+        isIos={isIos} 
+      />
     </div>
   )
 }

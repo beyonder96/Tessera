@@ -4,6 +4,11 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.55
+
+- **Instalação PWA Resiliente no Web Mercado e Web Finanças:** Disponibilização consistente da opção de instalação como aplicativo nos links compartilhados web (`/market/:id` e `/finance/:id`), com ícones PNG de alta fidelidade (192px e 512px) cumprindo requisitos estritos do Web App Manifest, captura antecipada do evento `beforeinstallprompt`, modal explicativo para dispositivos sem suporte ao prompt direto (como iOS Safari) e Service Worker otimizado.
+- **Formulário Minimalista de Adição no Web Mercado:** Redesign e simplificação do card de adição ao planejamento na interface web, contendo exclusivamente Nome, Quantidade, Valor e o Botão de Adição, eliminando poluição visual (unidade, seletor de categoria e subtotal estimado) com valores padrão transparentes para compatibilidade contínua com o banco de dados e app móvel.
+
 ## 🚀 Novidades da Versão 2.0.54
 
 - **Síntese de Voz Neural Offline com Sherpa-ONNX (pt-BR):** Leitura falada das Escrituras com voz neural offline de alta fidelidade rodando 100% localmente no dispositivo através da biblioteca Sherpa-ONNX (modelo Piper/VITS treinado com Mozilla Common Voice pt-BR). Inclui download sob demanda gerenciado do modelo com barra visual de progresso na Bíblia e fallback gracioso.
@@ -254,8 +259,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.54.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.54.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.55.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.55.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.

@@ -16,11 +16,8 @@ import {
   RotateCcw,
   Sparkles
 } from 'lucide-react'
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
-}
+import { usePwaInstall } from '../hooks/usePwaInstall'
+import { PwaInstructionsModal } from '../components/PwaInstructionsModal'
 
 export interface MarketItem {
   id: number
@@ -66,46 +63,13 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'))
   }
 
-  // PWA Install state
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
-  const [isInstalled, setIsInstalled] = useState(false)
+  // PWA Install state via hook resiliente
+  const { isInstalled, installApp, showHelpModal, setShowHelpModal, isIos } = usePwaInstall()
 
-  useEffect(() => {
-    const handleBeforeInstall = (e: Event) => {
-      e.preventDefault()
-      setInstallPrompt(e as BeforeInstallPromptEvent)
-    }
-
-    const handleAppInstalled = () => {
-      setIsInstalled(true)
-      setInstallPrompt(null)
-    }
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstall)
-    window.addEventListener('appinstalled', handleAppInstalled)
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstall)
-      window.removeEventListener('appinstalled', handleAppInstalled)
-    }
-  }, [])
-
-  const handleInstallApp = async () => {
-    if (!installPrompt) return
-    await installPrompt.prompt()
-    const { outcome } = await installPrompt.userChoice
-    if (outcome === 'accepted') {
-      setIsInstalled(true)
-    }
-    setInstallPrompt(null)
-  }
-
-  // Inline Add Item Form state (Zero Modal)
+  // Formulário minimalista de adição: Nome, Quantidade e Valor
   const [newItemName, setNewItemName] = useState('')
   const [newItemQty, setNewItemQty] = useState('1')
-  const [newItemUnit, setNewItemUnit] = useState('un')
   const [newItemPrice, setNewItemPrice] = useState('')
-  const [newItemCategory, setNewItemCategory] = useState('Geral')
   const [isSavingItem, setIsSavingItem] = useState(false)
 
   // Fetch initial list & Realtime
@@ -207,8 +171,8 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
       isBought: false,
       price,
       quantity: qty,
-      unit: newItemUnit,
-      category: newItemCategory || 'Geral',
+      unit: 'un',
+      category: 'Geral',
       inMarket: false,       // Inicia sempre no planejamento!
       needsApproval: false,
     }
@@ -216,7 +180,7 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
     const updatedItems = [...list.items, newItem]
     await persistItems(updatedItems)
 
-    // Reset formulário mantendo unidade e categoria
+    // Reset formulário limpo
     setNewItemName('')
     setNewItemQty('1')
     setNewItemPrice('')
@@ -264,11 +228,6 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
       setTimeout(() => setCopied(false), 2000)
     }
   }
-
-  // Subtotal calculado em tempo real no formulário
-  const parsedQty = parseFloat(newItemQty) || 0
-  const parsedPrice = parseFloat(newItemPrice.replace(',', '.')) || 0
-  const estimatedSubtotal = parsedQty * parsedPrice
 
   if (loading) {
     return (
@@ -337,11 +296,12 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {/* PWA Install Button (se disponível no navegador) */}
-          {installPrompt && !isInstalled && (
+          {/* PWA Install Button (visível se ainda não instalado) */}
+          {!isInstalled && (
             <button 
+              type="button"
               className="btn btn-outline" 
-              onClick={handleInstallApp}
+              onClick={installApp}
               title="Instalar como aplicativo no celular ou desktop"
               style={{ padding: '8px 12px', fontSize: 12, gap: 6 }}
             >
@@ -415,8 +375,8 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
             />
           </div>
 
-          {/* Linha de Quantidade, Unidade e Preço Unitário */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr 1fr', gap: 8 }}>
+          {/* Linha de Quantidade e Valor */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <label className="input-label">Quantidade</label>
               <input 
@@ -431,29 +391,7 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
             </div>
 
             <div>
-              <label className="input-label">Unidade</label>
-              <div className="segmented-control" style={{ height: 42, padding: 2 }}>
-                <button 
-                  type="button"
-                  className={`segmented-btn ${newItemUnit === 'un' ? 'active' : ''}`}
-                  onClick={() => setNewItemUnit('un')}
-                  style={{ padding: '4px 6px', fontSize: 12 }}
-                >
-                  un
-                </button>
-                <button 
-                  type="button"
-                  className={`segmented-btn ${newItemUnit === 'kg' ? 'active' : ''}`}
-                  onClick={() => setNewItemUnit('kg')}
-                  style={{ padding: '4px 6px', fontSize: 12 }}
-                >
-                  kg
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label className="input-label">Valor Unit. (R$)</label>
+              <label className="input-label">Valor (R$)</label>
               <input 
                 type="number"
                 step="0.01"
@@ -466,41 +404,12 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
             </div>
           </div>
 
-          {/* Categoria e Subtotal Calculado */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-            <div style={{ flex: 1, maxWidth: 220 }}>
-              <select 
-                className="input-field"
-                value={newItemCategory}
-                onChange={e => setNewItemCategory(e.target.value)}
-                style={{ padding: '8px 12px', fontSize: 13, cursor: 'pointer' }}
-              >
-                <option value="Geral">Geral</option>
-                <option value="Hortifrúti">Hortifrúti</option>
-                <option value="Carnes & Frios">Carnes & Frios</option>
-                <option value="Laticínios & Ovos">Laticínios & Ovos</option>
-                <option value="Padaria">Padaria</option>
-                <option value="Bebidas">Bebidas</option>
-                <option value="Higiene & Limpeza">Higiene & Limpeza</option>
-                <option value="Pet">Pet</option>
-              </select>
-            </div>
-
-            {/* Subtotal estimado em tempo real */}
-            <div style={{ textAlign: 'right', paddingLeft: 12 }}>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Subtotal estimado:</span>
-              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(estimatedSubtotal)}
-              </div>
-            </div>
-          </div>
-
           {/* Botão de Adição Inline */}
           <button 
             type="submit" 
             className="btn btn-primary" 
             disabled={!newItemName.trim() || isSavingItem}
-            style={{ width: '100%', marginTop: 6, height: 44 }}
+            style={{ width: '100%', marginTop: 4, height: 44 }}
           >
             <Plus size={16} />
             {isSavingItem ? 'Adicionando ao Planejamento...' : 'Adicionar ao Planejamento'}
@@ -688,6 +597,13 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
       <div style={{ textAlign: 'center', marginTop: 40, marginBottom: 20, fontSize: 11, color: 'var(--text-muted)' }}>
         Desenvolvido por <strong style={{ color: 'var(--text-primary)' }}>Tessera</strong> • Conexão Web PWA
       </div>
+
+      {/* Modal de Instruções de Instalação PWA */}
+      <PwaInstructionsModal 
+        isOpen={showHelpModal} 
+        onClose={() => setShowHelpModal(false)} 
+        isIos={isIos} 
+      />
     </div>
   )
 }

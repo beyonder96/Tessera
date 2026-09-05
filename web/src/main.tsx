@@ -10,11 +10,17 @@ createRoot(document.getElementById('root')!).render(
 )
 
 // Registrar Service Worker para suporte a PWA
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((err) => {
-      console.error('Falha ao registrar Service Worker:', err)
+if ('serviceWorker' in navigator) {
+  const registerSw = () => {
+    navigator.serviceWorker.register('/sw.js').catch((err: unknown) => {
+      console.warn('Falha ao registrar Service Worker:', err)
     })
-  })
+  }
+
+  if (document.readyState === 'complete') {
+    registerSw()
+  } else {
+    window.addEventListener('load', registerSw)
+  }
 }
 
