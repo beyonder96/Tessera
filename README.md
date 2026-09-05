@@ -4,6 +4,11 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.51
+
+- **Painel de Parcelados Completo no Resumo Web:** Identificação abrangente de compras parceladas (detecção de formatos como `(X/Y)`, `X/Y`, `Xx`, parcelamentos e descrições), eliminando a omissão de lançamentos nos resumos compartilhados (`/finance/:id`), com abas dedicadas para visualização mensal vs acumulada e empty state inteligente.
+- **Saldos de Contas e Limites/Faturas de Cartões na Web:** Integração visual de contas bancárias (correntes, poupanças e investimentos com saldos atualizados) e cartões de crédito/benefício (limite, fatura consumida e margem disponível), espelhando o aplicativo móvel com Hero Card dinâmico ao selecionar qualquer cartão ou conta.
+
 ## 🚀 Novidades da Versão 2.0.50
 
 - **Painéis Financeiros na Visualização Web Compartilhada:** Normalização resiliente e suporte completo para exibição dos painéis de Dívidas, Parcelados e Contas Fixas nos links compartilhados do resumo financeiro (`/finance/:id`), com seletores diretos de abas, layout adaptativo e deploy de produção no Firebase Hosting.
@@ -228,8 +233,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.50.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.50.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.51.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.51.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.

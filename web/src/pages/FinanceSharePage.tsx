@@ -20,7 +20,8 @@ import {
   Repeat,
   Banknote,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  Building2
 } from 'lucide-react'
 
 interface CategoryBreakdown {
@@ -68,12 +69,39 @@ export interface InstallmentItem {
   category: string
   account_or_card_name?: string
   date: number
+  is_current_month?: boolean
+  is_realized?: boolean
 }
 
 export interface InstallmentsSummary {
   count: number
   total_month_value: number
+  total_value?: number
+  all_count?: number
   items: InstallmentItem[]
+  all_items?: InstallmentItem[]
+  accounts?: BankAccountDoc[]
+  cards?: CreditCardDoc[]
+}
+
+export interface BankAccountDoc {
+  id: number | string
+  name: string
+  type: string
+  balance: number
+  color_hex?: string
+}
+
+export interface CreditCardDoc {
+  id: number | string
+  name: string
+  type: 'credit' | 'benefit'
+  limit: number
+  used_limit: number
+  available_limit: number
+  color_hex?: string
+  closing_day?: number
+  due_day?: number
 }
 
 export interface RecurrentItem {
@@ -119,6 +147,8 @@ interface FinanceDashboardDoc {
   debts?: unknown
   installments?: unknown
   recurrents?: unknown
+  accounts?: unknown
+  cards?: unknown
   suggestions?: FinanceSuggestionDoc[]
   is_live: boolean
   updated_at: string
@@ -176,28 +206,53 @@ function normalizeInstallments(raw: unknown, transactions?: TransactionItem[]): 
   if (raw && !Array.isArray(raw) && typeof raw === 'object') {
     const obj = raw as Record<string, unknown>
     const items = Array.isArray(obj.items) ? (obj.items as InstallmentItem[]) : []
-    if (items.length > 0) {
-      const count = typeof obj.count === 'number' ? obj.count : items.length
+    const allItems = Array.isArray(obj.all_items) ? (obj.all_items as InstallmentItem[]) : []
+
+    if (items.length > 0 || allItems.length > 0) {
+      const resolvedItems = items.length > 0 ? items : allItems.filter(i => i.is_current_month)
+      const resolvedAllItems = allItems.length > 0 ? allItems : items
+
+      const count = typeof obj.count === 'number' ? obj.count : resolvedItems.length
       const total_month_value = typeof obj.total_month_value === 'number'
         ? obj.total_month_value
-        : items.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0)
-      return { count, total_month_value, items }
-    }
-    if (items.length === 0 && (!transactions || transactions.length === 0)) {
-      return { count: 0, total_month_value: 0, items: [] }
+        : resolvedItems.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0)
+      const total_value = typeof obj.total_value === 'number'
+        ? obj.total_value
+        : resolvedAllItems.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0)
+      const all_count = typeof obj.all_count === 'number' ? obj.all_count : resolvedAllItems.length
+
+      return {
+        count,
+        total_month_value,
+        total_value,
+        all_count,
+        items: resolvedItems,
+        all_items: resolvedAllItems
+      }
     }
   }
 
   if (Array.isArray(raw) && raw.length > 0) {
     const items = raw as InstallmentItem[]
     const total = items.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0)
-    return { count: items.length, total_month_value: total, items }
+    return { count: items.length, total_month_value: total, total_value: total, all_count: items.length, items, all_items: items }
   }
 
+  // Fallback derivado das transações locais com heurística abrangente
   const derived = (transactions || []).filter(tx => 
     tx.type === 'expense' && (
-      (Boolean(tx.subtitle) && tx.subtitle!.toLowerCase().includes('parcela')) ||
-      /\(\d+\/\d+\)/.test(tx.title)
+      (Boolean(tx.subtitle) && (
+        tx.subtitle!.toLowerCase().includes('parcela') ||
+        tx.subtitle!.toLowerCase().includes('parc.') ||
+        tx.subtitle!.toLowerCase().includes('de')
+      )) ||
+      tx.title.toLowerCase().includes('parcela') ||
+      tx.title.toLowerCase().includes('parcelado') ||
+      tx.title.toLowerCase().includes('parcelamento') ||
+      tx.category.toLowerCase().includes('parcelad') ||
+      /\(\d+\/\d+\)/.test(tx.title) ||
+      /\b\d+\/\d+\b/.test(tx.title) ||
+      /\b\d+x\b/i.test(tx.title)
     )
   ).map(tx => ({
     id: tx.id,
@@ -206,14 +261,95 @@ function normalizeInstallments(raw: unknown, transactions?: TransactionItem[]): 
     value: Number(tx.amount) || 0,
     category: tx.category,
     account_or_card_name: tx.account_or_card_name,
-    date: typeof tx.date === 'number' ? tx.date : parseInt(String(tx.date), 10) || 0
+    date: typeof tx.date === 'number' ? tx.date : parseInt(String(tx.date), 10) || 0,
+    is_current_month: true
   }))
 
+  const totalDerived = derived.reduce((acc, curr) => acc + curr.value, 0)
   return {
     count: derived.length,
-    total_month_value: derived.reduce((acc, curr) => acc + curr.value, 0),
-    items: derived
+    total_month_value: totalDerived,
+    total_value: totalDerived,
+    all_count: derived.length,
+    items: derived,
+    all_items: derived
   }
+}
+
+function normalizeAccounts(docAccounts: unknown, rawInstallments: unknown): BankAccountDoc[] {
+  // 1. Tenta da raiz doc.accounts
+  if (Array.isArray(docAccounts) && docAccounts.length > 0) {
+    return docAccounts.map(item => {
+      const obj = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>
+      return {
+        id: (obj.id as number | string) || String(Math.random()),
+        name: String(obj.name || 'Conta'),
+        type: String(obj.type || 'Corrente'),
+        balance: typeof obj.balance === 'number' ? obj.balance : parseFloat(String(obj.balance)) || 0,
+        color_hex: typeof obj.color_hex === 'string' ? obj.color_hex : undefined
+      }
+    })
+  }
+  // 2. Tenta do fallback em installments.accounts
+  if (typeof rawInstallments === 'object' && rawInstallments !== null) {
+    const instObj = rawInstallments as Record<string, unknown>
+    if (Array.isArray(instObj.accounts) && instObj.accounts.length > 0) {
+      return (instObj.accounts as Record<string, unknown>[]).map(obj => ({
+        id: (obj.id as number | string) || String(Math.random()),
+        name: String(obj.name || 'Conta'),
+        type: String(obj.type || 'Corrente'),
+        balance: typeof obj.balance === 'number' ? obj.balance : parseFloat(String(obj.balance)) || 0,
+        color_hex: typeof obj.color_hex === 'string' ? obj.color_hex : undefined
+      }))
+    }
+  }
+  return []
+}
+
+function normalizeCards(docCards: unknown, rawInstallments: unknown): CreditCardDoc[] {
+  // 1. Tenta da raiz doc.cards
+  if (Array.isArray(docCards) && docCards.length > 0) {
+    return docCards.map(item => {
+      const obj = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>
+      const limit = typeof obj.limit === 'number' ? obj.limit : parseFloat(String(obj.limit)) || 0
+      const usedLimit = typeof obj.used_limit === 'number' ? obj.used_limit : parseFloat(String(obj.used_limit)) || 0
+      const avail = typeof obj.available_limit === 'number' ? obj.available_limit : Math.max(0, limit - usedLimit)
+      return {
+        id: (obj.id as number | string) || String(Math.random()),
+        name: String(obj.name || 'Cartão'),
+        type: obj.type === 'benefit' ? 'benefit' : 'credit',
+        limit,
+        used_limit: usedLimit,
+        available_limit: avail,
+        color_hex: typeof obj.color_hex === 'string' ? obj.color_hex : undefined,
+        closing_day: typeof obj.closing_day === 'number' ? obj.closing_day : undefined,
+        due_day: typeof obj.due_day === 'number' ? obj.due_day : undefined
+      }
+    })
+  }
+  // 2. Tenta do fallback em installments.cards
+  if (typeof rawInstallments === 'object' && rawInstallments !== null) {
+    const instObj = rawInstallments as Record<string, unknown>
+    if (Array.isArray(instObj.cards) && instObj.cards.length > 0) {
+      return (instObj.cards as Record<string, unknown>[]).map(obj => {
+        const limit = typeof obj.limit === 'number' ? obj.limit : parseFloat(String(obj.limit)) || 0
+        const usedLimit = typeof obj.used_limit === 'number' ? obj.used_limit : parseFloat(String(obj.used_limit)) || 0
+        const avail = typeof obj.available_limit === 'number' ? obj.available_limit : Math.max(0, limit - usedLimit)
+        return {
+          id: (obj.id as number | string) || String(Math.random()),
+          name: String(obj.name || 'Cartão'),
+          type: obj.type === 'benefit' ? 'benefit' : 'credit',
+          limit,
+          used_limit: usedLimit,
+          available_limit: avail,
+          color_hex: typeof obj.color_hex === 'string' ? obj.color_hex : undefined,
+          closing_day: typeof obj.closing_day === 'number' ? obj.closing_day : undefined,
+          due_day: typeof obj.due_day === 'number' ? obj.due_day : undefined
+        }
+      })
+    }
+  }
+  return []
 }
 
 function normalizeRecurrents(raw: unknown, transactions?: TransactionItem[]): RecurrentsSummary {
@@ -262,6 +398,20 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
   const [error, setError] = useState<string | null>(null)
   const [isPrivacyMode, setIsPrivacyMode] = useState(false)
   const [copied, setCopied] = useState(false)
+
+  // Seleção de filtro (Conta ou Cartão clicado, exatamente como no app principal)
+  const [selectedFilter, setSelectedFilter] = useState<{
+    type: 'account' | 'card'
+    name: string
+    balance?: number
+    limit?: number
+    usedLimit?: number
+    cardType?: 'credit' | 'benefit'
+    accountType?: string
+  } | null>(null)
+
+  // Modo de visualização no modal de parcelados ('month' = deste mês | 'all' = todas)
+  const [installmentViewMode, setInstallmentViewMode] = useState<'month' | 'all'>('month')
 
   // Suggestion Modal state
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -506,6 +656,10 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
   const debtsData = normalizeDebts(doc.debts)
   const installmentsData = normalizeInstallments(doc.installments, doc.transactions)
   const recurrentsData = normalizeRecurrents(doc.recurrents, doc.transactions)
+  const accountsData = normalizeAccounts(doc.accounts, doc.installments)
+  const cardsData = normalizeCards(doc.cards, doc.installments)
+
+  const totalInstallmentsCount = installmentsData.all_count || installmentsData.all_items?.length || installmentsData.count || installmentsData.items.length
 
   const panels = [
     {
@@ -528,8 +682,10 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
       title: 'Painel de Parcelados',
       subtitle: installmentsData.count > 0
         ? `${installmentsData.count} parcelas no mês (${formatCurrency(installmentsData.total_month_value)})`
-        : 'Nenhuma compra parcelada este mês',
-      badge: `${installmentsData.count} no mês`,
+        : totalInstallmentsCount > 0
+          ? `${totalInstallmentsCount} parcelas registradas`
+          : 'Nenhuma compra parcelada registrada',
+      badge: `${installmentsData.count > 0 ? `${installmentsData.count} no mês` : `${totalInstallmentsCount} ativas`}`,
       icon: CreditCard,
       color: '#4A90E2',
       bgBadge: 'rgba(74, 144, 226, 0.12)',
@@ -626,49 +782,120 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
         </button>
       </div>
 
-      {/* 1. HERO CARD: DISPONÍVEL PARA GASTAR (Harmônico em Dark/Light Mode) */}
+      {/* 1. HERO CARD: DISPONÍVEL PARA GASTAR / LIMITE OU SALDO ATUAL */}
       <div className="card" style={{ marginBottom: 16, padding: '24px 20px', background: 'var(--bg-card)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Wallet size={16} color="var(--accent)" />
-            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1.2, color: 'var(--accent)', textTransform: 'uppercase' }}>
-              Disponível para Gastar
+            {selectedFilter ? (
+              selectedFilter.type === 'card' ? <CreditCard size={16} color="#4A90E2" /> : <Building2 size={16} color="var(--accent)" />
+            ) : (
+              <Wallet size={16} color="var(--accent)" />
+            )}
+            <span style={{ 
+              fontSize: 11, 
+              fontWeight: 600, 
+              letterSpacing: 1.2, 
+              color: selectedFilter?.type === 'card' ? '#4A90E2' : 'var(--accent)', 
+              textTransform: 'uppercase' 
+            }}>
+              {selectedFilter 
+                ? (selectedFilter.type === 'card' ? `FATURA / LIMITE • ${selectedFilter.name}` : `SALDO ATUAL • ${selectedFilter.name}`)
+                : 'Disponível para Gastar'}
             </span>
           </div>
-          <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)' }}>Livre no mês</span>
+          {selectedFilter ? (
+            <button
+              onClick={() => setSelectedFilter(null)}
+              style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-secondary)',
+                fontSize: 11,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '3px 8px',
+                borderRadius: 'var(--radius-full)',
+                transition: 'all 150ms ease-out'
+              }}
+              title="Limpar seleção e voltar ao Disponível para Gastar"
+            >
+              <X size={12} /> Limpar
+            </button>
+          ) : (
+            <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)' }}>Livre no mês</span>
+          )}
         </div>
 
         <div style={{ 
           fontSize: 36, 
           fontWeight: 600, 
           letterSpacing: -0.8, 
-          color: isSpendableNegative && !isPrivacyMode ? 'var(--danger)' : 'var(--text-primary)',
+          color: (selectedFilter ? false : isSpendableNegative) && !isPrivacyMode ? 'var(--danger)' : 'var(--text-primary)',
           marginBottom: 16,
           fontVariantNumeric: 'tabular-nums'
         }}>
-          {formatCurrency(spendableValue)}
+          {selectedFilter ? (
+            selectedFilter.type === 'card'
+              ? formatCurrency(selectedFilter.usedLimit || 0)
+              : formatCurrency(selectedFilter.balance || 0)
+          ) : (
+            formatCurrency(spendableValue)
+          )}
         </div>
 
-        {/* Budget Commitment Progress */}
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, marginBottom: 6 }}>
-            <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Orçamento Comprometido</span>
-            <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
-              {isPrivacyMode ? '•••' : `${Math.round(committedPercent)}%`}
-            </span>
+        {/* Detalhes do Hero Card */}
+        {selectedFilter ? (
+          selectedFilter.type === 'card' ? (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, marginBottom: 6 }}>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
+                  Disponível: <strong style={{ color: 'var(--text-primary)' }}>{formatCurrency(Math.max(0, (selectedFilter.limit || 0) - (selectedFilter.usedLimit || 0)))}</strong>
+                </span>
+                <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+                  Total: {formatCurrency(selectedFilter.limit || 0)}
+                </span>
+              </div>
+              <div style={{ width: '100%', height: 6, background: 'var(--bg-surface-hover)', borderRadius: 999, overflow: 'hidden' }}>
+                <div 
+                  style={{ 
+                    width: `${Math.min(100, Math.max(0, ((selectedFilter.usedLimit || 0) / (selectedFilter.limit || 1)) * 100))}%`, 
+                    height: '100%', 
+                    background: ((selectedFilter.usedLimit || 0) / (selectedFilter.limit || 1)) > 0.9 ? 'var(--danger)' : '#4A90E2', 
+                    borderRadius: 999,
+                    transition: 'width 300ms ease-out' 
+                  }} 
+                />
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: 'var(--text-secondary)' }}>
+              <span>Tipo de conta: <strong style={{ color: 'var(--text-primary)' }}>{selectedFilter.accountType || 'Corrente'}</strong></span>
+              <span style={{ color: 'var(--accent)', fontSize: 11, fontWeight: 500 }}>Conta Ativa</span>
+            </div>
+          )
+        ) : (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, marginBottom: 6 }}>
+              <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Orçamento Comprometido</span>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                {isPrivacyMode ? '•••' : `${Math.round(committedPercent)}%`}
+              </span>
+            </div>
+            <div style={{ width: '100%', height: 6, background: 'var(--bg-surface-hover)', borderRadius: 999, overflow: 'hidden' }}>
+              <div 
+                style={{ 
+                  width: `${Math.min(committedPercent, 100)}%`, 
+                  height: '100%', 
+                  background: committedPercent > 90 ? 'var(--danger)' : 'var(--accent)', 
+                  borderRadius: 999,
+                  transition: 'width 300ms ease-out' 
+                }} 
+              />
+            </div>
           </div>
-          <div style={{ width: '100%', height: 6, background: 'var(--bg-surface-hover)', borderRadius: 999, overflow: 'hidden' }}>
-            <div 
-              style={{ 
-                width: `${Math.min(committedPercent, 100)}%`, 
-                height: '100%', 
-                background: committedPercent > 90 ? 'var(--danger)' : 'var(--accent)', 
-                borderRadius: 999,
-                transition: 'width 300ms ease-out' 
-              }} 
-            />
-          </div>
-        </div>
+        )}
       </div>
 
       {/* 2. CARROSSEL DOS PAINÉIS (Dívidas | Parcelados | Contas Fixas) */}
@@ -818,6 +1045,215 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
             />
           ))}
         </div>
+      </div>
+
+      {/* 3. SEUS CARTÕES (Fatura e Limites) */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, padding: '0 2px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1.2, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              Seus Cartões
+            </span>
+            {cardsData.length > 0 && (
+              <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 'var(--radius-full)', background: 'rgba(74, 144, 226, 0.12)', color: '#4A90E2' }}>
+                {cardsData.length}
+              </span>
+            )}
+          </div>
+          {cardsData.length > 0 && (
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              Toque para filtrar saldo
+            </span>
+          )}
+        </div>
+
+        {cardsData.length === 0 ? (
+          <div className="card" style={{ padding: '16px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
+            Nenhum cartão cadastrado no aplicativo.
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: cardsData.length === 1 ? '1fr' : 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+            {cardsData.map((card) => {
+              const isSelected = selectedFilter?.type === 'card' && selectedFilter.name === card.name
+              const isBenefit = card.type === 'benefit'
+              const cardColor = card.color_hex || (isBenefit ? '#F59E0B' : '#4A90E2')
+              const usageRatio = card.limit > 0 ? Math.min(100, (card.used_limit / card.limit) * 100) : 0
+
+              return (
+                <div
+                  key={card.id}
+                  onClick={() => {
+                    if (isSelected) {
+                      setSelectedFilter(null)
+                    } else {
+                      setSelectedFilter({
+                        type: 'card',
+                        name: card.name,
+                        limit: card.limit,
+                        usedLimit: card.used_limit,
+                        cardType: card.type
+                      })
+                    }
+                  }}
+                  style={{
+                    padding: '16px 18px',
+                    background: 'var(--bg-card)',
+                    border: isSelected ? '1px solid var(--accent)' : '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)',
+                    cursor: 'pointer',
+                    transition: 'border-color 150ms ease-out, transform 150ms ease-out, background 150ms ease-out',
+                    boxShadow: isSelected ? '0 0 0 1px var(--accent)' : 'none',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isSelected) e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'
+                    e.currentTarget.style.transform = 'translateY(-1px)'
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isSelected) e.currentTarget.style.borderColor = 'var(--border)'
+                    e.currentTarget.style.transform = 'translateY(0)'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: cardColor }} />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: 0.5 }}>
+                        {card.name.toUpperCase()}
+                      </span>
+                    </div>
+                    <span style={{
+                      fontSize: 10,
+                      fontWeight: 600,
+                      padding: '2px 8px',
+                      borderRadius: 'var(--radius-full)',
+                      background: isBenefit ? 'rgba(245, 158, 11, 0.12)' : 'rgba(74, 144, 226, 0.12)',
+                      color: isBenefit ? '#F59E0B' : '#4A90E2'
+                    }}>
+                      {isBenefit ? 'Benefício' : 'Crédito'}
+                    </span>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>
+                      {isBenefit ? 'Saldo Atual' : 'Fatura Atual'}
+                    </div>
+                    <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                      {isBenefit ? formatCurrency(card.available_limit) : formatCurrency(card.used_limit)}
+                    </div>
+                  </div>
+
+                  {!isBenefit && (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+                        <span>Disp: <strong style={{ color: 'var(--text-secondary)' }}>{formatCurrency(card.available_limit)}</strong></span>
+                        <span>Total: {formatCurrency(card.limit)}</span>
+                      </div>
+                      <div style={{ width: '100%', height: 4, background: 'var(--bg-surface-hover)', borderRadius: 999, overflow: 'hidden' }}>
+                        <div 
+                          style={{ 
+                            width: `${usageRatio}%`, 
+                            height: '100%', 
+                            background: usageRatio > 90 ? 'var(--danger)' : cardColor, 
+                            borderRadius: 999 
+                          }} 
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* 4. SUAS CONTAS (Saldo em Contas Bancárias) */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, padding: '0 2px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1.2, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              Suas Contas
+            </span>
+            {accountsData.length > 0 && (
+              <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 'var(--radius-full)', background: 'var(--accent-subtle)', color: 'var(--accent)' }}>
+                {accountsData.length}
+              </span>
+            )}
+          </div>
+          {accountsData.length > 0 && (
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              Toque para filtrar saldo
+            </span>
+          )}
+        </div>
+
+        {accountsData.length === 0 ? (
+          <div className="card" style={{ padding: '16px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
+            Nenhuma conta cadastrada no aplicativo.
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: accountsData.length === 1 ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+            {accountsData.map((acc) => {
+              const isSelected = selectedFilter?.type === 'account' && selectedFilter.name === acc.name
+              const accColor = acc.color_hex || 'var(--accent)'
+
+              return (
+                <div
+                  key={acc.id}
+                  onClick={() => {
+                    if (isSelected) {
+                      setSelectedFilter(null)
+                    } else {
+                      setSelectedFilter({
+                        type: 'account',
+                        name: acc.name,
+                        balance: acc.balance,
+                        accountType: acc.type
+                      })
+                    }
+                  }}
+                  style={{
+                    padding: '14px 16px',
+                    background: 'var(--bg-card)',
+                    border: isSelected ? '1px solid var(--accent)' : '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)',
+                    cursor: 'pointer',
+                    transition: 'border-color 150ms ease-out, transform 150ms ease-out, background 150ms ease-out',
+                    boxShadow: isSelected ? '0 0 0 1px var(--accent)' : 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isSelected) e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'
+                    e.currentTarget.style.transform = 'translateY(-1px)'
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isSelected) e.currentTarget.style.borderColor = 'var(--border)'
+                    e.currentTarget.style.transform = 'translateY(0)'
+                  }}
+                >
+                  <div style={{ width: 4, height: 36, borderRadius: 999, background: accColor, flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {acc.name}
+                      </span>
+                      <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                        {acc.type}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--accent)', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+                      {formatCurrency(acc.balance)}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* Income & Expense Grid */}
@@ -1192,17 +1628,72 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
             )}
 
             {selectedPanelModal === 'installments' && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
-                <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>Total no Mês</div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: '#4A90E2', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
-                    {formatCurrency(installmentsData.total_month_value)}
-                  </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+                {/* Abas Deste Mês vs Todas as Parcelas */}
+                <div style={{
+                  display: 'flex',
+                  background: 'var(--bg-surface-hover)',
+                  padding: 3,
+                  borderRadius: 'var(--radius-sm)',
+                  gap: 4
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => setInstallmentViewMode('month')}
+                    style={{
+                      flex: 1,
+                      padding: '6px 12px',
+                      fontSize: 12,
+                      fontWeight: installmentViewMode === 'month' ? 600 : 400,
+                      borderRadius: 'calc(var(--radius-sm) - 2px)',
+                      border: 'none',
+                      background: installmentViewMode === 'month' ? 'var(--bg-surface)' : 'transparent',
+                      color: installmentViewMode === 'month' ? 'var(--text-primary)' : 'var(--text-muted)',
+                      cursor: 'pointer',
+                      transition: 'all 150ms ease-out',
+                      boxShadow: installmentViewMode === 'month' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                    }}
+                  >
+                    Deste Mês ({installmentsData.count})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInstallmentViewMode('all')}
+                    style={{
+                      flex: 1,
+                      padding: '6px 12px',
+                      fontSize: 12,
+                      fontWeight: installmentViewMode === 'all' ? 600 : 400,
+                      borderRadius: 'calc(var(--radius-sm) - 2px)',
+                      border: 'none',
+                      background: installmentViewMode === 'all' ? 'var(--bg-surface)' : 'transparent',
+                      color: installmentViewMode === 'all' ? 'var(--text-primary)' : 'var(--text-muted)',
+                      cursor: 'pointer',
+                      transition: 'all 150ms ease-out',
+                      boxShadow: installmentViewMode === 'all' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                    }}
+                  >
+                    Todas as Parcelas ({totalInstallmentsCount})
+                  </button>
                 </div>
-                <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>Parcelas do Mês</div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginTop: 2 }}>
-                    {installmentsData.count} parcelas
+
+                {/* Métricas do modo selecionado */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>
+                      {installmentViewMode === 'month' ? 'Total no Mês' : 'Total Geral Lançado'}
+                    </div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: '#4A90E2', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+                      {formatCurrency(installmentViewMode === 'month' ? installmentsData.total_month_value : (installmentsData.total_value || installmentsData.total_month_value))}
+                    </div>
+                  </div>
+                  <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>
+                      {installmentViewMode === 'month' ? 'Parcelas do Mês' : 'Total Cadastradas'}
+                    </div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginTop: 2 }}>
+                      {installmentViewMode === 'month' ? `${installmentsData.count} parcelas` : `${totalInstallmentsCount} parcelas`}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1291,44 +1782,95 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
               )}
 
               {/* Painel de Parcelados: Lista ou Empty State */}
-              {selectedPanelModal === 'installments' && (
-                installmentsData.items.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-muted)' }}>
-                    <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(74, 144, 226, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                      <CreditCard size={22} color="#4A90E2" />
+              {selectedPanelModal === 'installments' && (() => {
+                const currentList = installmentViewMode === 'month'
+                  ? installmentsData.items
+                  : (installmentsData.all_items && installmentsData.all_items.length > 0 ? installmentsData.all_items : installmentsData.items)
+
+                if (currentList.length === 0) {
+                  return (
+                    <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-muted)' }}>
+                      <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(74, 144, 226, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                        <CreditCard size={22} color="#4A90E2" />
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {installmentViewMode === 'month' ? 'Nenhuma parcela este mês' : 'Nenhuma parcela cadastrada'}
+                      </div>
+                      <p style={{ fontSize: 12, marginTop: 4, marginBottom: totalInstallmentsCount > 0 ? 12 : 0 }}>
+                        {installmentViewMode === 'month' 
+                          ? (totalInstallmentsCount > 0 
+                              ? `Você tem ${totalInstallmentsCount} parcela(s) lançada(s) em outros períodos.` 
+                              : 'Não constam compras parceladas ativas para o período.')
+                          : 'Nenhuma compra parcelada registrada no momento.'}
+                      </p>
+                      {installmentViewMode === 'month' && totalInstallmentsCount > 0 && (
+                        <button
+                          type="button"
+                          className="btn btn-outline"
+                          onClick={() => setInstallmentViewMode('all')}
+                          style={{ fontSize: 11, padding: '6px 14px', margin: '0 auto' }}
+                        >
+                          Ver todas as {totalInstallmentsCount} parcelas
+                        </button>
+                      )}
                     </div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Nenhuma parcela este mês</div>
-                    <p style={{ fontSize: 12, marginTop: 4 }}>Não constam compras parceladas ativas para o período.</p>
+                  )
+                }
+
+                return currentList.map(inst => (
+                  <div 
+                    key={inst.id}
+                    style={{
+                      padding: '12px 14px',
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-sm)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: 12
+                    }}
+                  >
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{inst.title}</span>
+                        {installmentViewMode === 'all' && inst.is_current_month && (
+                          <span style={{
+                            fontSize: 9,
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            background: 'rgba(74, 144, 226, 0.12)',
+                            color: '#4A90E2',
+                            fontWeight: 600
+                          }}>
+                            Deste Mês
+                          </span>
+                        )}
+                        {inst.is_realized && (
+                          <span style={{
+                            fontSize: 9,
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            background: 'var(--success-subtle)',
+                            color: 'var(--success)',
+                            fontWeight: 600
+                          }}>
+                            Paga
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                        <span style={{ color: '#4A90E2', fontWeight: 600 }}>{inst.subtitle || 'Parcela'}</span>
+                        {inst.account_or_card_name && ` • ${inst.account_or_card_name}`}
+                        {inst.date > 0 && ` • ${formatDate(inst.date)}`}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                      {formatCurrency(inst.value)}
+                    </div>
                   </div>
-                ) : (
-                  installmentsData.items.map(inst => (
-                    <div 
-                      key={inst.id}
-                      style={{
-                        padding: '12px 14px',
-                        background: 'var(--bg-surface)',
-                        border: '1px solid var(--border)',
-                        borderRadius: 'var(--radius-sm)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{inst.title}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                          <span style={{ color: '#4A90E2', fontWeight: 600 }}>{inst.subtitle || 'Parcela'}</span>
-                          {inst.account_or_card_name && ` • ${inst.account_or_card_name}`}
-                          {inst.date > 0 && ` • ${formatDate(inst.date)}`}
-                        </div>
-                      </div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
-                        {formatCurrency(inst.value)}
-                      </div>
-                    </div>
-                  ))
-                )
-              )}
+                ))
+              })()}
 
               {/* Painel de Contas Fixas: Lista ou Empty State */}
               {selectedPanelModal === 'recurrents' && (
