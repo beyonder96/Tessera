@@ -30,7 +30,7 @@ interface CategoryBreakdown {
 }
 
 interface TransactionItem {
-  id: number
+  id: number | string
   title: string
   subtitle?: string
   category: string
@@ -42,7 +42,7 @@ interface TransactionItem {
 }
 
 export interface DebtItem {
-  id: number
+  id: number | string
   title: string
   description?: string
   value: number
@@ -61,7 +61,7 @@ export interface DebtsSummary {
 }
 
 export interface InstallmentItem {
-  id: number
+  id: number | string
   title: string
   subtitle?: string
   value: number
@@ -77,7 +77,7 @@ export interface InstallmentsSummary {
 }
 
 export interface RecurrentItem {
-  id: number
+  id: number | string
   title: string
   subtitle?: string
   value: number
@@ -116,12 +116,144 @@ interface FinanceDashboardDoc {
   monthly_expense?: number
   categories: CategoryBreakdown[]
   transactions: TransactionItem[]
-  debts?: DebtsSummary
-  installments?: InstallmentsSummary
-  recurrents?: RecurrentsSummary
+  debts?: unknown
+  installments?: unknown
+  recurrents?: unknown
   suggestions?: FinanceSuggestionDoc[]
   is_live: boolean
   updated_at: string
+}
+
+function normalizeDebts(raw: unknown): DebtsSummary {
+  if (!raw) {
+    return { count: 0, total_owed: 0, total_paid: 0, remaining_to_pay: 0, items: [] }
+  }
+
+  if (Array.isArray(raw)) {
+    if (raw.length === 0) {
+      return { count: 0, total_owed: 0, total_paid: 0, remaining_to_pay: 0, items: [] }
+    }
+    const items = raw as DebtItem[]
+    let totalOwed = 0
+    let totalPaid = 0
+    items.forEach(debt => {
+      const val = typeof debt.value === 'number' ? debt.value : parseFloat(String(debt.value)) || 0
+      totalOwed += val
+      const instTotal = debt.installments_total > 0 ? debt.installments_total : 1
+      const instPaid = debt.installments_paid || 0
+      totalPaid += (val / instTotal) * instPaid
+    })
+    return {
+      count: items.length,
+      total_owed: totalOwed,
+      total_paid: totalPaid,
+      remaining_to_pay: Math.max(0, totalOwed - totalPaid),
+      items
+    }
+  }
+
+  if (typeof raw === 'object' && raw !== null) {
+    const obj = raw as Record<string, unknown>
+    const items = Array.isArray(obj.items) ? (obj.items as DebtItem[]) : []
+    const total_owed = typeof obj.total_owed === 'number' ? obj.total_owed : items.reduce((acc, d) => acc + (Number(d.value) || 0), 0)
+    const total_paid = typeof obj.total_paid === 'number' ? obj.total_paid : 0
+    const remaining_to_pay = typeof obj.remaining_to_pay === 'number' ? obj.remaining_to_pay : Math.max(0, total_owed - total_paid)
+    const count = typeof obj.count === 'number' ? obj.count : items.length
+
+    return {
+      count,
+      total_owed,
+      total_paid,
+      remaining_to_pay,
+      items
+    }
+  }
+
+  return { count: 0, total_owed: 0, total_paid: 0, remaining_to_pay: 0, items: [] }
+}
+
+function normalizeInstallments(raw: unknown, transactions?: TransactionItem[]): InstallmentsSummary {
+  if (raw && !Array.isArray(raw) && typeof raw === 'object') {
+    const obj = raw as Record<string, unknown>
+    const items = Array.isArray(obj.items) ? (obj.items as InstallmentItem[]) : []
+    if (items.length > 0) {
+      const count = typeof obj.count === 'number' ? obj.count : items.length
+      const total_month_value = typeof obj.total_month_value === 'number'
+        ? obj.total_month_value
+        : items.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0)
+      return { count, total_month_value, items }
+    }
+    if (items.length === 0 && (!transactions || transactions.length === 0)) {
+      return { count: 0, total_month_value: 0, items: [] }
+    }
+  }
+
+  if (Array.isArray(raw) && raw.length > 0) {
+    const items = raw as InstallmentItem[]
+    const total = items.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0)
+    return { count: items.length, total_month_value: total, items }
+  }
+
+  const derived = (transactions || []).filter(tx => 
+    tx.type === 'expense' && (
+      (Boolean(tx.subtitle) && tx.subtitle!.toLowerCase().includes('parcela')) ||
+      /\(\d+\/\d+\)/.test(tx.title)
+    )
+  ).map(tx => ({
+    id: tx.id,
+    title: tx.title,
+    subtitle: tx.subtitle || 'Parcela',
+    value: Number(tx.amount) || 0,
+    category: tx.category,
+    account_or_card_name: tx.account_or_card_name,
+    date: typeof tx.date === 'number' ? tx.date : parseInt(String(tx.date), 10) || 0
+  }))
+
+  return {
+    count: derived.length,
+    total_month_value: derived.reduce((acc, curr) => acc + curr.value, 0),
+    items: derived
+  }
+}
+
+function normalizeRecurrents(raw: unknown, transactions?: TransactionItem[]): RecurrentsSummary {
+  if (raw && !Array.isArray(raw) && typeof raw === 'object') {
+    const obj = raw as Record<string, unknown>
+    const items = Array.isArray(obj.items) ? (obj.items as RecurrentItem[]) : []
+    if (items.length > 0) {
+      const count = typeof obj.count === 'number' ? obj.count : items.length
+      const total_monthly_value = typeof obj.total_monthly_value === 'number'
+        ? obj.total_monthly_value
+        : items.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0)
+      return { count, total_monthly_value, items }
+    }
+    if (items.length === 0 && (!transactions || transactions.length === 0)) {
+      return { count: 0, total_monthly_value: 0, items: [] }
+    }
+  }
+
+  if (Array.isArray(raw) && raw.length > 0) {
+    const items = raw as RecurrentItem[]
+    const total = items.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0)
+    return { count: items.length, total_monthly_value: total, items }
+  }
+
+  const derived = (transactions || []).filter(tx => 
+    tx.type === 'expense' && Boolean(tx.is_recurrent)
+  ).map(tx => ({
+    id: tx.id,
+    title: tx.title,
+    subtitle: tx.subtitle,
+    value: Number(tx.amount) || 0,
+    category: tx.category,
+    account_or_card_name: tx.account_or_card_name
+  }))
+
+  return {
+    count: derived.length,
+    total_monthly_value: derived.reduce((acc, curr) => acc + curr.value, 0),
+    items: derived
+  }
 }
 
 export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardId }) => {
@@ -238,9 +370,11 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
     }
   }, [dashboardId])
 
-  const formatCurrency = (val: number) => {
+  const formatCurrency = (val: unknown) => {
     if (isPrivacyMode) return 'R$ •••••'
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+    const num = typeof val === 'number' ? val : parseFloat(String(val))
+    const safeNum = isNaN(num) ? 0 : num
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(safeNum)
   }
 
   const formatDate = (rawDate: unknown): string => {
@@ -335,7 +469,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
           <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--danger-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <AlertCircle size={24} color="var(--danger)" />
           </div>
-          <h2 style={{ fontSize: 18, fontWeight: 700 }}>Resumo indisponível</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 600 }}>Resumo indisponível</h2>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
             O painel financeiro (<code>{dashboardId}</code>) não foi localizado no servidor.
           </p>
@@ -368,58 +502,15 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
   const isSpendableNegative = spendableValue < 0
   const pendingSuggestions = (doc.suggestions || []).filter(s => s.status === 'pending')
 
-  // Dados dos Painéis (Dívidas, Parcelados e Contas Fixas)
-  const debtsData: DebtsSummary = doc.debts || {
-    count: 0,
-    total_owed: 0,
-    total_paid: 0,
-    remaining_to_pay: 0,
-    items: []
-  }
-
-  const installmentsData: InstallmentsSummary = doc.installments || (() => {
-    const derived = (doc.transactions || []).filter(tx => 
-      tx.type === 'expense' && (
-        (Boolean(tx.subtitle) && tx.subtitle!.toLowerCase().includes('parcela')) ||
-        /\(\d+\/\d+\)/.test(tx.title)
-      )
-    ).map(tx => ({
-      id: tx.id,
-      title: tx.title,
-      subtitle: tx.subtitle || 'Parcela',
-      value: tx.amount,
-      category: tx.category,
-      account_or_card_name: tx.account_or_card_name,
-      date: typeof tx.date === 'number' ? tx.date : parseInt(String(tx.date), 10) || 0
-    }))
-    return {
-      count: derived.length,
-      total_month_value: derived.reduce((acc, curr) => acc + curr.value, 0),
-      items: derived
-    }
-  })()
-
-  const recurrentsData: RecurrentsSummary = doc.recurrents || (() => {
-    const derived = (doc.transactions || []).filter(tx => 
-      tx.type === 'expense' && Boolean(tx.is_recurrent)
-    ).map(tx => ({
-      id: tx.id,
-      title: tx.title,
-      subtitle: tx.subtitle,
-      value: tx.amount,
-      category: tx.category,
-      account_or_card_name: tx.account_or_card_name
-    }))
-    return {
-      count: derived.length,
-      total_monthly_value: derived.reduce((acc, curr) => acc + curr.value, 0),
-      items: derived
-    }
-  })()
+  // Dados dos Painéis (Dívidas, Parcelados e Contas Fixas) normalizados com resiliência
+  const debtsData = normalizeDebts(doc.debts)
+  const installmentsData = normalizeInstallments(doc.installments, doc.transactions)
+  const recurrentsData = normalizeRecurrents(doc.recurrents, doc.transactions)
 
   const panels = [
     {
       key: 'debts' as const,
+      tabLabel: 'Dívidas',
       title: 'Painel de Dívidas',
       subtitle: debtsData.count > 0 
         ? `${debtsData.count} dívidas ativas • ${formatCurrency(debtsData.remaining_to_pay)} a pagar` 
@@ -433,6 +524,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
     },
     {
       key: 'installments' as const,
+      tabLabel: 'Parcelados',
       title: 'Painel de Parcelados',
       subtitle: installmentsData.count > 0
         ? `${installmentsData.count} parcelas no mês (${formatCurrency(installmentsData.total_month_value)})`
@@ -446,6 +538,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
     },
     {
       key: 'recurrents' as const,
+      tabLabel: 'Contas Fixas',
       title: 'Painel de Contas Fixas',
       subtitle: recurrentsData.count > 0
         ? `${recurrentsData.count} contas fixas (${formatCurrency(recurrentsData.total_monthly_value)})`
@@ -515,7 +608,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
 
         {/* Título e Subtítulo sem quebras forçadas */}
         <div>
-          <h1 className="header-title" style={{ fontSize: 24, fontWeight: 700, letterSpacing: -0.5, color: 'var(--text-primary)', marginBottom: 4 }}>
+          <h1 className="header-title" style={{ fontSize: 24, fontWeight: 600, letterSpacing: -0.5, color: 'var(--text-primary)', marginBottom: 4 }}>
             {doc.title || 'Resumo Financeiro'}
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
@@ -538,7 +631,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Wallet size={16} color="var(--accent)" />
-            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.2, color: 'var(--accent)', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1.2, color: 'var(--accent)', textTransform: 'uppercase' }}>
               Disponível para Gastar
             </span>
           </div>
@@ -547,7 +640,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
 
         <div style={{ 
           fontSize: 36, 
-          fontWeight: 700, 
+          fontWeight: 600, 
           letterSpacing: -0.8, 
           color: isSpendableNegative && !isPrivacyMode ? 'var(--danger)' : 'var(--text-primary)',
           marginBottom: 16,
@@ -560,7 +653,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, marginBottom: 6 }}>
             <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Orçamento Comprometido</span>
-            <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+            <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
               {isPrivacyMode ? '•••' : `${Math.round(committedPercent)}%`}
             </span>
           </div>
@@ -581,7 +674,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
       {/* 2. CARROSSEL DOS PAINÉIS (Dívidas | Parcelados | Contas Fixas) */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, padding: '0 2px' }}>
-          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.2, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1.2, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
             Compromissos & Painéis
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -606,6 +699,37 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
           </div>
         </div>
 
+        {/* Tabs Rápidas dos 3 Painéis */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
+          {panels.map((p, idx) => {
+            const isActive = activePanelIndex === idx
+            return (
+              <button
+                key={p.key}
+                onClick={() => setActivePanelIndex(idx)}
+                style={{
+                  padding: '8px 4px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: isActive ? `1px solid ${p.borderActive}` : '1px solid var(--border)',
+                  background: isActive ? p.bgBadge : 'var(--bg-surface)',
+                  color: isActive ? p.color : 'var(--text-secondary)',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  transition: 'all 180ms ease-out'
+                }}
+              >
+                <p.icon size={13} color={isActive ? p.color : 'currentColor'} />
+                <span>{p.tabLabel}</span>
+              </button>
+            )
+          })}
+        </div>
+
         {/* Card do Painel Ativo */}
         <div 
           className="card"
@@ -615,7 +739,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
             background: 'var(--bg-card)',
             border: '1px solid var(--border)',
             cursor: 'pointer',
-            transition: 'all var(--transition)',
+            transition: 'border-color 180ms ease-out, transform 180ms ease-out',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -645,7 +769,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
             </div>
             <div style={{ minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
                   {currentPanel.title}
                 </span>
                 <span style={{
@@ -688,7 +812,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
                 background: activePanelIndex === idx ? 'var(--accent)' : 'var(--border)',
                 border: 'none',
                 cursor: 'pointer',
-                transition: 'all var(--transition)',
+                transition: 'all 180ms ease-out',
                 padding: 0
               }}
             />
@@ -703,7 +827,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
             <TrendingUp size={14} color="var(--success)" />
             <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)' }}>Receitas do Mês</span>
           </div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--success)', fontVariantNumeric: 'tabular-nums' }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--success)', fontVariantNumeric: 'tabular-nums' }}>
             {formatCurrency(salaryValue)}
           </div>
         </div>
@@ -713,7 +837,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
             <TrendingDown size={14} color="var(--danger)" />
             <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)' }}>Despesas Comprometidas</span>
           </div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--danger)', fontVariantNumeric: 'tabular-nums' }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--danger)', fontVariantNumeric: 'tabular-nums' }}>
             {formatCurrency(committedValue)}
           </div>
         </div>
@@ -724,7 +848,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
         <div className="card" style={{ marginBottom: 20, border: '1px solid var(--border-active)', background: 'var(--bg-surface)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             <Clock size={16} color="var(--accent)" />
-            <h2 style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.2, color: 'var(--accent)' }}>
+            <h2 style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.2, color: 'var(--accent)' }}>
               Sugestões Enviadas ({pendingSuggestions.length} aguardando aprovação no app)
             </h2>
           </div>
@@ -748,7 +872,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{sug.title}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{sug.category} • {sug.date} • Aguardando aprovação</div>
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: isIncome ? 'var(--success)' : 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: isIncome ? 'var(--success)' : 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
                     {isIncome ? '+' : '-'} {formatCurrency(sug.amount)}
                   </div>
                 </div>
@@ -761,7 +885,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
       {/* Category Breakdown */}
       {doc.categories && doc.categories.length > 0 && (
         <div className="card" style={{ marginBottom: 20 }}>
-          <h2 style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.2, color: 'var(--text-muted)', marginBottom: 16 }}>
+          <h2 style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.2, color: 'var(--text-muted)', marginBottom: 16 }}>
             Gastos por Categoria
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -795,7 +919,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
       {/* Recent Transactions List */}
       {doc.transactions && doc.transactions.length > 0 && (
         <div>
-          <h2 style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.2, color: 'var(--text-muted)', marginBottom: 12 }}>
+          <h2 style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.2, color: 'var(--text-muted)', marginBottom: 12 }}>
             Últimas Movimentações
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -857,7 +981,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
 
                   <div style={{ 
                     fontSize: 13, 
-                    fontWeight: 700, 
+                    fontWeight: 600, 
                     color: isIncome ? 'var(--success)' : 'var(--danger)',
                     whiteSpace: 'nowrap',
                     flexShrink: 0,
@@ -878,7 +1002,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
         <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>Sugerir Lançamento</h2>
+              <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)' }}>Sugerir Lançamento</h2>
               <button 
                 className="btn btn-outline" 
                 onClick={() => setIsModalOpen(false)}
@@ -1021,7 +1145,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
                   {selectedPanelModal === 'recurrents' && <Repeat size={18} color="var(--accent)" />}
                 </div>
                 <div>
-                  <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
+                  <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>
                     {selectedPanelModal === 'debts' && 'Painel de Dívidas'}
                     {selectedPanelModal === 'installments' && 'Painel de Parcelados'}
                     {selectedPanelModal === 'recurrents' && 'Painel de Contas Fixas'}
@@ -1048,19 +1172,19 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
                 <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
                   <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>Total Devido</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
                     {formatCurrency(debtsData.total_owed)}
                   </div>
                 </div>
                 <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
                   <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>Já Quitado</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--success)', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--success)', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
                     {formatCurrency(debtsData.total_paid)}
                   </div>
                 </div>
                 <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
                   <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>Restante</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#EF4444', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#EF4444', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
                     {formatCurrency(debtsData.remaining_to_pay)}
                   </div>
                 </div>
@@ -1071,13 +1195,13 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
                 <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
                   <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>Total no Mês</div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: '#4A90E2', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: '#4A90E2', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
                     {formatCurrency(installmentsData.total_month_value)}
                   </div>
                 </div>
                 <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
                   <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>Parcelas do Mês</div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginTop: 2 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginTop: 2 }}>
                     {installmentsData.count} parcelas
                   </div>
                 </div>
@@ -1088,13 +1212,13 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
                 <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
                   <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>Custo Fixo Mensal</div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent)', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--accent)', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
                     {formatCurrency(recurrentsData.total_monthly_value)}
                   </div>
                 </div>
                 <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
                   <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>Contas Cadastradas</div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginTop: 2 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginTop: 2 }}>
                     {recurrentsData.count} ativas
                   </div>
                 </div>
@@ -1141,7 +1265,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
                             </div>
                           </div>
                           <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: '#EF4444', fontVariantNumeric: 'tabular-nums' }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: '#EF4444', fontVariantNumeric: 'tabular-nums' }}>
                               {formatCurrency(remainingVal)}
                             </div>
                             <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
@@ -1198,7 +1322,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
                           {inst.date > 0 && ` • ${formatDate(inst.date)}`}
                         </div>
                       </div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
                         {formatCurrency(inst.value)}
                       </div>
                     </div>
@@ -1238,7 +1362,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
                           {rec.recurrence_interval && ` • ${rec.recurrence_interval}`}
                         </div>
                       </div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
                         {formatCurrency(rec.value)}
                       </div>
                     </div>

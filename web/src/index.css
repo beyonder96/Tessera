@@ -115,7 +115,7 @@ body {
   padding: 4px 10px;
   border-radius: var(--radius-full);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 1px;
   color: var(--accent);
   text-transform: uppercase;
@@ -151,7 +151,7 @@ body {
 .header-title {
   font-family: var(--font-sans);
   font-size: 24px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-primary);
   letter-spacing: -0.5px;
 }

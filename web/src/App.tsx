@@ -92,7 +92,7 @@ export function App() {
             textAlign: 'left' 
           }}>
             <Smartphone size={20} color="var(--accent)" style={{ marginBottom: 8 }} />
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>App Android</div>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>App Android</div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Gere um link no menu de Finanças ou Mercado do app.</div>
           </div>
 
@@ -104,7 +104,7 @@ export function App() {
             textAlign: 'left' 
           }}>
             <Shield size={20} color="var(--accent)" style={{ marginBottom: 8 }} />
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Tempo Real</div>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Tempo Real</div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Atualização instantânea via Supabase WebSockets.</div>
           </div>
         </div>
