@@ -77,3 +77,11 @@
 -keepclassmembers class com.google.mediapipe.** { *; }
 -keep class com.google.protobuf.** { *; }
 -keepclassmembers class com.google.protobuf.** { *; }
+
+# Sherpa-ONNX Neural TTS (JNI & Kotlin API)
+-dontwarn com.k2fsa.sherpa.onnx.**
+-keep class com.k2fsa.sherpa.onnx.** { *; }
+-keepclassmembers class com.k2fsa.sherpa.onnx.** { *; }
+-keepclasseswithmembernames class * {
+    native <methods>;
+}

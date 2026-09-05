@@ -26,8 +26,10 @@ import com.example.data.BibleReadingSession
 import com.example.data.BibleMedal
 import com.example.data.PerseveranceStats
 import com.example.data.BibleVerseResponse
-import android.speech.tts.TextToSpeech
-import android.speech.tts.UtteranceProgressListener
+import com.example.data.BibleVideoRecommendation
+import com.example.data.BibleVideoRecommendationService
+import com.example.tts.SherpaTtsManager
+import com.example.tts.SherpaModelStatus
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -299,6 +301,45 @@ class TesseraViewModel(
         }
     }
 
+    fun getRecommendedVideosForVerse(
+        bookAbbrev: String,
+        bookName: String,
+        chapter: Int,
+        verseNumber: Int,
+        verseText: String
+    ): List<BibleVideoRecommendation> {
+        return BibleVideoRecommendationService.getRecommendationsForVerse(
+            bookAbbrev = bookAbbrev,
+            bookName = bookName,
+            chapter = chapter,
+            verseNumber = verseNumber,
+            verseText = verseText
+        )
+    }
+
+    fun saveRecommendedVideo(
+        bookAbbrev: String,
+        bookName: String,
+        chapter: Int,
+        verseNumber: Int,
+        recommendation: BibleVideoRecommendation
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val video = BibleVerseVideo(
+                bookAbbrev = bookAbbrev.lowercase().trim(),
+                bookName = bookName,
+                chapter = chapter,
+                verseNumber = verseNumber,
+                youtubeUrl = recommendation.youtubeUrl,
+                videoId = recommendation.videoId,
+                title = recommendation.title,
+                channelName = recommendation.channelName,
+                notes = recommendation.description
+            )
+            repository.insertVerseVideo(video)
+        }
+    }
+
     // --- BÍBLIA: Sistema de Perseverança & Sessões de Leitura ---
     fun recordBibleReading(bookAbbrev: String, chapter: Int) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -425,13 +466,23 @@ class TesseraViewModel(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // --- BÍBLIA: Leitura em Áudio Nativo (TTS pt-BR) ---
-    private var textToSpeech: TextToSpeech? = null
+    // --- BÍBLIA: Leitura em Áudio Neural Sherpa-ONNX (Mozilla Common Voice pt-BR) ---
+    val sherpaTtsManager = SherpaTtsManager(applicationContext)
+    val sherpaModelStatus: StateFlow<SherpaModelStatus> = sherpaTtsManager.modelStatus
+
     private val _isAudioPlaying = MutableStateFlow(false)
     val isAudioPlaying: StateFlow<Boolean> = _isAudioPlaying.asStateFlow()
 
     private val _activeTtsVerse = MutableStateFlow<Int?>(null)
     val activeTtsVerse: StateFlow<Int?> = _activeTtsVerse.asStateFlow()
+
+    private var sherpaPlaybackJob: kotlinx.coroutines.Job? = null
+
+    fun downloadSherpaModel() {
+        viewModelScope.launch(Dispatchers.IO) {
+            sherpaTtsManager.downloadAndPrepareModel()
+        }
+    }
 
     fun togglePlayAudio(verses: List<com.example.data.BibliaVerseItem>) {
         if (_isAudioPlaying.value) {
@@ -440,57 +491,43 @@ class TesseraViewModel(
         }
         if (verses.isEmpty()) return
 
-        if (textToSpeech == null) {
-            textToSpeech = TextToSpeech(applicationContext) { status ->
-                if (status == TextToSpeech.SUCCESS) {
-                    textToSpeech?.language = Locale("pt", "BR")
-                    startTtsPlayback(verses)
-                } else {
-                    _isAudioPlaying.value = false
-                }
-            }
-        } else {
-            startTtsPlayback(verses)
+        if (!sherpaTtsManager.isModelReady()) {
+            downloadSherpaModel()
+            return
         }
+
+        startSherpaTtsPlayback(verses)
     }
 
-    private fun startTtsPlayback(verses: List<com.example.data.BibliaVerseItem>) {
-        val tts = textToSpeech ?: return
+    private fun startSherpaTtsPlayback(verses: List<com.example.data.BibliaVerseItem>) {
+        sherpaPlaybackJob?.cancel()
         _isAudioPlaying.value = true
 
-        tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-            override fun onStart(utteranceId: String?) {
-                val verseNum = utteranceId?.toIntOrNull()
-                _activeTtsVerse.value = verseNum
-            }
-
-            override fun onDone(utteranceId: String?) {
-                val verseNum = utteranceId?.toIntOrNull()
-                val isLast = verseNum == verses.lastOrNull()?.number
-                if (isLast) {
-                    _isAudioPlaying.value = false
-                    _activeTtsVerse.value = null
+        sherpaPlaybackJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                for (v in verses) {
+                    if (!_isAudioPlaying.value) break
+                    _activeTtsVerse.value = v.number
+                    val textToSpeak = "Versículo ${v.number}. ${v.text.trim()}"
+                    val completed = sherpaTtsManager.speakText(textToSpeak)
+                    if (!completed || !_isAudioPlaying.value) {
+                        break
+                    }
+                    kotlinx.coroutines.delay(200)
                 }
-            }
-
-            @Deprecated("Deprecated in Java")
-            override fun onError(utteranceId: String?) {
+            } finally {
                 _isAudioPlaying.value = false
                 _activeTtsVerse.value = null
             }
-        })
-
-        for ((index, v) in verses.withIndex()) {
-            val textToSpeak = "Versículo ${v.number}. ${v.text.trim()}"
-            val queueMode = if (index == 0) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
-            tts.speak(textToSpeak, queueMode, null, v.number.toString())
         }
     }
 
     fun stopAudio() {
-        textToSpeech?.stop()
         _isAudioPlaying.value = false
         _activeTtsVerse.value = null
+        sherpaPlaybackJob?.cancel()
+        sherpaPlaybackJob = null
+        sherpaTtsManager.stop()
     }
 
     fun loadDailyVerse(forceRefresh: Boolean = false) {
@@ -2937,9 +2974,8 @@ class TesseraViewModel(
 
     override fun onCleared() {
         super.onCleared()
-        textToSpeech?.stop()
-        textToSpeech?.shutdown()
-        textToSpeech = null
+        stopAudio()
+        sherpaTtsManager.release()
         sharedPrefs.unregisterOnSharedPreferenceChangeListener(preferenceChangeListener)
     }
 

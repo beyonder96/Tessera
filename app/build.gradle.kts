@@ -28,6 +28,10 @@ android {
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     manifestPlaceholders["MAPS_API_KEY"] = "DUMMY_KEY"
     manifestPlaceholders["redirectSchemeName"] = "tessera"
+
+    ndk {
+      abiFilters += listOf("arm64-v8a")
+    }
   }
 
   val defaultDebugKeystore = file("${rootDir}/debug.keystore").takeIf { it.exists() } ?: file("${System.getProperty("user.home")}/.android/debug.keystore")
@@ -93,7 +97,12 @@ secrets {
 // Some unused dependencies are commented out below instead of being removed.
 // This makes it easy to add them back in the future if needed.
 dependencies {
-    implementation("androidx.browser:browser:1.8.0")
+  // Sherpa-ONNX Neural TTS (Offline VITS/Piper pt-BR Mozilla Common Voice)
+  implementation(files("libs/sherpa-onnx-1.13.7.aar"))
+  implementation("org.apache.commons:commons-compress:1.26.1")
+  implementation("org.tukaani:xz:1.9")
+
+  implementation("androidx.browser:browser:1.8.0")
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))
   implementation(libs.accompanist.permissions)

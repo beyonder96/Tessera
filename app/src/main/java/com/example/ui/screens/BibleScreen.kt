@@ -43,6 +43,9 @@ import com.example.data.BibliaVersionItem
 import com.example.data.BibleVerseVideo
 import com.example.data.BibleMedal
 import com.example.data.PerseveranceStats
+import com.example.data.BibleVideoRecommendation
+import com.example.data.BibleVideoRecommendationService
+import com.example.tts.SherpaModelStatus
 import android.net.Uri
 import coil.compose.AsyncImage
 import com.example.ui.theme.PrimaryTeal
@@ -52,6 +55,7 @@ import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.components.themedCardBackground
 import com.example.ui.components.themedCardBorder
 import com.example.ui.components.themedSubtleBackground
+import com.example.ui.components.themedSubtleBorder
 import com.example.viewmodel.TesseraViewModel
 
 // Cores Pastéis YouVersion Modernas
@@ -97,13 +101,13 @@ fun BibleScreen(
     val bibleMedals by viewModel.bibleMedals.collectAsStateWithLifecycle()
     val isAudioPlaying by viewModel.isAudioPlaying.collectAsStateWithLifecycle()
     val activeTtsVerse by viewModel.activeTtsVerse.collectAsStateWithLifecycle()
+    val sherpaModelStatus by viewModel.sherpaModelStatus.collectAsStateWithLifecycle()
 
     val listState = rememberLazyListState()
 
     var showBookPicker by remember { mutableStateOf(false) }
     var showVersionPicker by remember { mutableStateOf(false) }
     var showPerseveranceModal by remember { mutableStateOf(false) }
-    var connectingVideoVerse by remember { mutableStateOf<BibliaVerseItem?>(null) }
     var viewingVideosVerse by remember { mutableStateOf<BibliaVerseItem?>(null) }
     val selectedVerses = remember { mutableStateListOf<BibliaVerseItem>() }
 
@@ -147,6 +151,7 @@ fun BibleScreen(
                     versionCode = selectedVersion,
                     perseveranceStats = perseveranceStats,
                     isAudioPlaying = isAudioPlaying,
+                    sherpaModelStatus = sherpaModelStatus,
                     onBackClick = onHomeClick,
                     onBookClick = { showBookPicker = true },
                     onVersionClick = { showVersionPicker = true },
@@ -156,6 +161,52 @@ fun BibleScreen(
                         viewModel.togglePlayAudio(verses)
                     }
                 )
+
+                // Banner de status e progresso do download do modelo neural Sherpa-ONNX (21 MB)
+                AnimatedVisibility(
+                    visible = sherpaModelStatus is SherpaModelStatus.Downloading,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
+                ) {
+                    val percent = (sherpaModelStatus as? SherpaModelStatus.Downloading)?.progressPercent ?: 0
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = PrimaryTeal.copy(alpha = 0.08f),
+                        border = BorderStroke(1.dp, PrimaryTeal.copy(alpha = 0.2f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                CircularProgressIndicator(
+                                    progress = { percent / 100f },
+                                    modifier = Modifier.size(16.dp),
+                                    color = PrimaryTeal,
+                                    strokeWidth = 2.dp
+                                )
+                                Text(
+                                    text = "Baixando voz neural pt-BR • $percent%",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Text(
+                                text = "21 MB",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+                }
 
                 // Chapter Reading Content
                 Box(
@@ -264,6 +315,7 @@ fun BibleScreen(
                     chapter = selectedChapter,
                     canGoBack = selectedChapter > 1,
                     isAudioPlaying = isAudioPlaying,
+                    sherpaModelStatus = sherpaModelStatus,
                     onPreviousChapter = {
                         selectedVerses.clear()
                         viewModel.previousChapter()
@@ -306,7 +358,8 @@ fun BibleScreen(
                     },
                     onConnectVideo = {
                         if (selectedVerses.isNotEmpty()) {
-                            connectingVideoVerse = selectedVerses.first()
+                            viewingVideosVerse = selectedVerses.first()
+                            selectedVerses.clear()
                         }
                     },
                     onCopy = {
@@ -361,44 +414,33 @@ fun BibleScreen(
         )
     }
 
-    // Modal: Conectar Vídeo ao Versículo
-    connectingVideoVerse?.let { verse ->
-        ConnectVideoDialog(
+    // Modal: Estudos e Vídeos Recomendados para o Versículo
+    viewingVideosVerse?.let { verse ->
+        val savedVideosForVerse = currentChapterVideos.filter { it.verseNumber == verse.number }
+        val recommendations = viewModel.getRecommendedVideosForVerse(
+            bookAbbrev = selectedBook.abbrev,
             bookName = selectedBook.name,
             chapter = selectedChapter,
             verseNumber = verse.number,
-            onConfirm = { url, title, channel, notes ->
-                viewModel.addVerseVideo(
+            verseText = verse.text
+        )
+        RecommendedVerseVideosBottomSheet(
+            bookAbbrev = selectedBook.abbrev,
+            bookName = selectedBook.name,
+            chapter = selectedChapter,
+            verse = verse,
+            savedVideos = savedVideosForVerse,
+            recommendations = recommendations,
+            onSaveRecommendation = { rec ->
+                viewModel.saveRecommendedVideo(
                     bookAbbrev = selectedBook.abbrev,
                     bookName = selectedBook.name,
                     chapter = selectedChapter,
                     verseNumber = verse.number,
-                    youtubeUrl = url,
-                    title = title,
-                    channelName = channel,
-                    notes = notes
+                    recommendation = rec
                 )
-                connectingVideoVerse = null
-                selectedVerses.clear()
-                Toast.makeText(context, "Vídeo conectado ao versículo ${verse.number}!", Toast.LENGTH_SHORT).show()
             },
-            onDismiss = { connectingVideoVerse = null }
-        )
-    }
-
-    // Modal: Assistir / Gerenciar Vídeos do Versículo
-    viewingVideosVerse?.let { verse ->
-        val videosForVerse = currentChapterVideos.filter { it.verseNumber == verse.number }
-        VerseVideosBottomSheet(
-            bookName = selectedBook.name,
-            chapter = selectedChapter,
-            verseNumber = verse.number,
-            videos = videosForVerse,
-            onAddAnother = {
-                connectingVideoVerse = verse
-                viewingVideosVerse = null
-            },
-            onDeleteVideo = { video ->
+            onDeleteSavedVideo = { video ->
                 viewModel.deleteVerseVideo(video)
             },
             onDismiss = { viewingVideosVerse = null }
@@ -428,6 +470,7 @@ private fun BibleTopBar(
     versionCode: String,
     perseveranceStats: PerseveranceStats,
     isAudioPlaying: Boolean,
+    sherpaModelStatus: SherpaModelStatus,
     onBackClick: () -> Unit,
     onBookClick: () -> Unit,
     onVersionClick: () -> Unit,
@@ -454,17 +497,25 @@ private fun BibleTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Botão de Áudio / Leitura TTS
+            // Botão de Áudio / Leitura TTS Sherpa-ONNX
             IconButton(
                 onClick = onAudioClick,
                 modifier = Modifier.size(38.dp)
             ) {
-                Icon(
-                    imageVector = if (isAudioPlaying) Icons.Outlined.VolumeUp else Icons.Outlined.VolumeOff,
-                    contentDescription = if (isAudioPlaying) "Pausar leitura em áudio" else "Ouvir capítulo",
-                    tint = if (isAudioPlaying) PrimaryTeal else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                    modifier = Modifier.size(20.dp)
-                )
+                if (sherpaModelStatus is SherpaModelStatus.Downloading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        color = PrimaryTeal,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = if (isAudioPlaying) Icons.Outlined.VolumeUp else Icons.Outlined.VolumeOff,
+                        contentDescription = if (isAudioPlaying) "Pausar leitura em áudio" else "Ouvir capítulo",
+                        tint = if (isAudioPlaying) PrimaryTeal else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
 
             // Pill de Perseverança & Medalhas
@@ -636,6 +687,7 @@ private fun BibleBottomReaderBar(
     chapter: Int,
     canGoBack: Boolean,
     isAudioPlaying: Boolean,
+    sherpaModelStatus: SherpaModelStatus,
     onPreviousChapter: () -> Unit,
     onNextChapter: () -> Unit,
     onBookPickerClick: () -> Unit,
@@ -658,12 +710,20 @@ private fun BibleBottomReaderBar(
             modifier = Modifier.size(46.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = if (isAudioPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = if (isAudioPlaying) "Pausar Leitura" else "Ouvir Capítulo",
-                    tint = if (isAudioPlaying) PrimaryTeal else MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.size(22.dp)
-                )
+                if (sherpaModelStatus is SherpaModelStatus.Downloading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = PrimaryTeal,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = if (isAudioPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (isAudioPlaying) "Pausar Leitura" else "Ouvir Capítulo",
+                        tint = if (isAudioPlaying) PrimaryTeal else MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
         }
 
@@ -812,138 +872,19 @@ private fun BibleSelectionFloatingBar(
 }
 
 // ==============================================================================
-// MODAL: CONECTAR VÍDEO AO VERSÍCULO
-// ==============================================================================
-@Composable
-private fun ConnectVideoDialog(
-    bookName: String,
-    chapter: Int,
-    verseNumber: Int,
-    onConfirm: (url: String, title: String, channel: String, notes: String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var url by remember { mutableStateOf("") }
-    var title by remember { mutableStateOf("") }
-    var channel by remember { mutableStateOf("") }
-    var notes by remember { mutableStateOf("") }
-    var isError by remember { mutableStateOf(false) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Column {
-                Text(
-                    text = "Conectar Vídeo do YouTube",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "$bookName $chapter:$verseNumber",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = PrimaryTeal
-                )
-            }
-        },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedTextField(
-                    value = url,
-                    onValueChange = {
-                        url = it
-                        isError = false
-                    },
-                    label = { Text("Link do YouTube") },
-                    placeholder = { Text("https://youtube.com/watch?v=...") },
-                    singleLine = true,
-                    isError = isError,
-                    supportingText = if (isError) {
-                        { Text("Insira um link válido do YouTube", color = MaterialTheme.colorScheme.error) }
-                    } else null,
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Outlined.SmartDisplay,
-                            contentDescription = null,
-                            tint = Color(0xFFEF4444)
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = { Text("Título ou Tema do Estudo") },
-                    placeholder = { Text("Ex: Explicação sobre a graça") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                OutlinedTextField(
-                    value = channel,
-                    onValueChange = { channel = it },
-                    label = { Text("Canal / Preletor (Opcional)") },
-                    placeholder = { Text("Ex: Pr. Luciano Subirá") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                OutlinedTextField(
-                    value = notes,
-                    onValueChange = { notes = it },
-                    label = { Text("Anotações Pessoais (Opcional)") },
-                    placeholder = { Text("Ex: Trecho marcante em 04:30") },
-                    maxLines = 2,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (url.isBlank() || !url.contains("youtu", ignoreCase = true)) {
-                        isError = true
-                    } else {
-                        onConfirm(url.trim(), title.trim(), channel.trim(), notes.trim())
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal),
-                shape = RoundedCornerShape(10.dp)
-            ) {
-                Text("Conectar", color = Color.Black, fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancelar", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-            }
-        },
-        shape = RoundedCornerShape(20.dp),
-        containerColor = themedCardBackground()
-    )
-}
-
-// ==============================================================================
-// MODAL: VÍDEOS CONECTADOS AO VERSÍCULO
+// MODAL: ESTUDOS E VÍDEOS RECOMENDADOS AUTOMATICAMENTE (YOUTUBE)
 // ==============================================================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun VerseVideosBottomSheet(
+private fun RecommendedVerseVideosBottomSheet(
+    bookAbbrev: String,
     bookName: String,
     chapter: Int,
-    verseNumber: Int,
-    videos: List<BibleVerseVideo>,
-    onAddAnother: () -> Unit,
-    onDeleteVideo: (BibleVerseVideo) -> Unit,
+    verse: BibliaVerseItem,
+    savedVideos: List<BibleVerseVideo>,
+    recommendations: List<BibleVideoRecommendation>,
+    onSaveRecommendation: (BibleVideoRecommendation) -> Unit,
+    onDeleteSavedVideo: (BibleVerseVideo) -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -968,151 +909,335 @@ private fun VerseVideosBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp)
+                .padding(bottom = 36.dp)
         ) {
+            // Cabeçalho Editorial
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Outlined.SmartDisplay,
+                            contentDescription = null,
+                            tint = Color(0xFFEF4444),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Estudos em Vídeo",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Vídeos de Estudo",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "$bookName $chapter:$verseNumber",
+                        text = "$bookName $chapter:${verse.number}",
                         fontSize = 13.sp,
                         color = PrimaryTeal,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
 
-                Button(
-                    onClick = onAddAnother,
+                // Atalho de 1 toque: Pesquisa Inteligente no YouTube
+                Surface(
+                    onClick = {
+                        val searchUrl = BibleVideoRecommendationService.buildSearchUrlForVerse(bookName, chapter, verse.number)
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(searchUrl))
+                        context.startActivity(intent)
+                    },
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal.copy(alpha = 0.15f)),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    color = PrimaryTeal.copy(alpha = 0.12f),
+                    border = BorderStroke(1.dp, PrimaryTeal.copy(alpha = 0.25f))
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Adicionar", fontSize = 12.sp, color = PrimaryTeal, fontWeight = FontWeight.Bold)
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(Icons.Outlined.Search, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(14.dp))
+                        Text("Buscar no YouTube", fontSize = 11.sp, color = PrimaryTeal, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            if (videos.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 30.dp),
-                    contentAlignment = Alignment.Center
-                ) {
+            // Versículo em Citação Suave
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(themedSubtleBackground())
+                    .border(1.dp, themedSubtleBorder(), RoundedCornerShape(12.dp))
+                    .padding(12.dp)
+            ) {
+                Text(
+                    text = "“${verse.text.trim()}”",
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Seção: Estudos Salvos pelo Usuário (se houver)
+                if (savedVideos.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "MEUS ESTUDOS SALVOS (${savedVideos.size})",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = PrimaryTeal,
+                            letterSpacing = 1.sp
+                        )
+                    }
+
+                    items(savedVideos, key = { "saved_${it.id}" }) { saved ->
+                        SavedVideoCard(
+                            video = saved,
+                            onWatch = {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(saved.youtubeUrl))
+                                context.startActivity(intent)
+                            },
+                            onDelete = { onDeleteSavedVideo(saved) }
+                        )
+                    }
+
+                    item {
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                }
+
+                // Seção: Recomendações Automáticas do App
+                item {
                     Text(
-                        text = "Nenhum vídeo conectado a este versículo.",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        text = "ESTUDOS RECOMENDADOS AUTOMATICAMENTE",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        letterSpacing = 1.sp
                     )
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(videos, key = { it.id }) { video ->
+
+                if (recommendations.isEmpty()) {
+                    item {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(themedCardBackground())
-                                .border(1.dp, themedCardBorder(), RoundedCornerShape(16.dp))
-                                .padding(12.dp)
+                                .padding(vertical = 20.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Thumbnail do YouTube
-                                Box(
-                                    modifier = Modifier
-                                        .size(width = 96.dp, height = 58.dp)
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(Color.Black.copy(alpha = 0.2f))
-                                        .clickable {
-                                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(video.youtubeUrl))
-                                            context.startActivity(intent)
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (video.videoId.isNotBlank()) {
-                                        AsyncImage(
-                                            model = "https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg",
-                                            contentDescription = video.title,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                    }
-                                    Icon(
-                                        imageVector = Icons.Filled.PlayArrow,
-                                        contentDescription = "Reproduzir",
-                                        tint = Color.White,
-                                        modifier = Modifier
-                                            .size(28.dp)
-                                            .background(Color.Black.copy(alpha = 0.6f), CircleShape)
-                                            .padding(4.dp)
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(12.dp))
-
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = video.title,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    if (video.channelName.isNotBlank()) {
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = video.channelName,
-                                            fontSize = 12.sp,
-                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
-                                    if (video.notes.isNotBlank()) {
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = video.notes,
-                                            fontSize = 11.sp,
-                                            color = PrimaryTeal,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
-                                }
-
-                                IconButton(
-                                    onClick = { onDeleteVideo(video) },
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Delete,
-                                        contentDescription = "Excluir vídeo",
-                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
+                            Text(
+                                text = "Nenhuma recomendação adicional para este versículo.",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
                         }
                     }
+                } else {
+                    items(recommendations, key = { it.id }) { rec ->
+                        val isAlreadySaved = savedVideos.any { it.videoId == rec.videoId || it.title == rec.title }
+                        RecommendedVideoCard(
+                            recommendation = rec,
+                            isSaved = isAlreadySaved,
+                            onWatch = {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(rec.youtubeUrl))
+                                context.startActivity(intent)
+                            },
+                            onToggleSave = {
+                                if (!isAlreadySaved) {
+                                    onSaveRecommendation(rec)
+                                }
+                            }
+                        )
+                    }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecommendedVideoCard(
+    recommendation: BibleVideoRecommendation,
+    isSaved: Boolean,
+    onWatch: () -> Unit,
+    onToggleSave: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(themedCardBackground())
+            .border(1.dp, themedCardBorder(), RoundedCornerShape(16.dp))
+            .padding(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Thumbnail com Play
+            Box(
+                modifier = Modifier
+                    .size(width = 96.dp, height = 62.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color.Black.copy(alpha = 0.2f))
+                    .clickable(onClick = onWatch),
+                contentAlignment = Alignment.Center
+            ) {
+                if (recommendation.thumbnailUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = recommendation.thumbnailUrl,
+                        contentDescription = recommendation.title,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Filled.PlayArrow,
+                    contentDescription = "Reproduzir",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .size(26.dp)
+                        .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                        .padding(3.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                // Badge de Categoria
+                Text(
+                    text = recommendation.categoryBadge,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = PrimaryTeal
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = recommendation.title,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (recommendation.channelName.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = recommendation.channelName,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            // Botão de Favoritar / Salvar
+            IconButton(
+                onClick = onToggleSave,
+                modifier = Modifier.size(34.dp)
+            ) {
+                Icon(
+                    imageVector = if (isSaved) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                    contentDescription = if (isSaved) "Estudo Salvo" else "Salvar Estudo",
+                    tint = if (isSaved) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                    modifier = Modifier.size(19.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SavedVideoCard(
+    video: BibleVerseVideo,
+    onWatch: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(themedCardBackground())
+            .border(1.dp, PrimaryTeal.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
+            .padding(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(width = 96.dp, height = 62.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color.Black.copy(alpha = 0.2f))
+                    .clickable(onClick = onWatch),
+                contentAlignment = Alignment.Center
+            ) {
+                if (video.videoId.isNotBlank()) {
+                    AsyncImage(
+                        model = "https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg",
+                        contentDescription = video.title,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Filled.PlayArrow,
+                    contentDescription = "Reproduzir",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .size(26.dp)
+                        .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                        .padding(3.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = video.title,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (video.channelName.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = video.channelName,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.size(34.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Delete,
+                    contentDescription = "Remover dos salvos",
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                    modifier = Modifier.size(18.dp)
+                )
             }
         }
     }

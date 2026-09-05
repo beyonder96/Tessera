@@ -327,116 +327,110 @@ fun MarketHeader(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
+                Surface(
                     onClick = onBack,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+                    shape = CircleShape,
+                    color = themedSubtleBackground(),
+                    border = BorderStroke(1.dp, themedSubtleBorder()),
+                    modifier = Modifier.size(40.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Voltar",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Voltar",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                val thermalBrush = remember { Brush.linearGradient(listOf(Color(0xFFec4899), Color(0xFFf97316))) }
                 Column {
                     Text(
-                        text = "MERCADO INTELIGENTE",
+                        text = "MERCADO",
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        style = TextStyle(brush = thermalBrush),
-                        letterSpacing = 2.sp
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        letterSpacing = 1.5.sp
                     )
                     Text(
                         text = "Lista & Carrinho",
                         fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onBackground
                     )
                 }
             }
 
+            // Ações da TopBar alinhadas e arejadas
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Scanner EAN Button (Câmera)
+                // Scanner EAN (Câmera ML Kit - disponível na aba No Mercado)
                 if (onScanClick != null) {
-                    IconButton(
+                    Surface(
                         onClick = onScanClick,
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                        shape = CircleShape,
+                        color = themedSubtleBackground(),
+                        border = BorderStroke(1.dp, themedSubtleBorder()),
+                        modifier = Modifier.size(40.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.QrCodeScanner,
-                            contentDescription = "Escanear Código de Barras",
-                            tint = PrimaryTeal,
-                            modifier = Modifier.size(18.dp)
-                        )
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Outlined.QrCodeScanner,
+                                contentDescription = "Escanear Código de Barras",
+                                tint = PrimaryTeal,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
 
-                // Share Online Button
-                IconButton(
+                // Compartilhar Lista Online
+                Surface(
                     onClick = onShareClick,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+                    shape = CircleShape,
+                    color = themedSubtleBackground(),
+                    border = BorderStroke(1.dp, themedSubtleBorder()),
+                    modifier = Modifier.size(40.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Share,
-                        contentDescription = "Compartilhar Online",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                // Header Status Pill
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
-                        .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
-                ) {
-                    Text(
-                        text = "$cartCheckedCount / $totalItemsCount",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "Compartilhar Lista Online",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Tab Pill Selector
+        // Seletor de Abas com Contagem Quantitativa Integrada e Limpa
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(46.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
-                .padding(4.dp)
+                .height(44.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+                .border(1.dp, themedSubtleBorder(), RoundedCornerShape(14.dp))
+                .padding(3.dp)
         ) {
-            val tabs = listOf("PLANEJAMENTO", "NO MERCADO")
+            val tabs = listOf(
+                "PLANEJAMENTO",
+                if (totalItemsCount > 0) "NO MERCADO • $cartCheckedCount/$totalItemsCount" else "NO MERCADO"
+            )
             tabs.forEachIndexed { index, title ->
                 val isSelected = selectedTab == index
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(11.dp))
                         .background(if (isSelected) PrimaryTeal else Color.Transparent)
                         .clickable { onTabSelect(index) },
                     contentAlignment = Alignment.Center
@@ -444,9 +438,9 @@ fun MarketHeader(
                     Text(
                         text = title,
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                         color = if (isSelected) Color.Black else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        letterSpacing = 1.sp
+                        letterSpacing = 0.6.sp
                     )
                 }
             }
