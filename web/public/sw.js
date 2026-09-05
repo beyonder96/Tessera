@@ -1,12 +1,14 @@
 // Tessera Live - Service Worker (PWA)
-const CACHE_NAME = 'tessera-live-v2';
+const CACHE_NAME = 'tessera-live-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/icon.svg',
   '/icon-192.png',
-  '/icon-512.png'
+  '/icon-512.png',
+  '/screenshot-mobile.png',
+  '/screenshot-desktop.png'
 ];
 
 self.addEventListener('install', (event) => {
