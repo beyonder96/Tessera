@@ -1617,6 +1617,13 @@ class TesseraViewModel(
     fun clearAllFinances() {
         viewModelScope.launch(Dispatchers.IO) {
             repository.clearAllFinances()
+            supabaseFinanceSync.updateSpendableMetrics(
+                spendableBalance = 0.0,
+                salaryValue = 0.0,
+                committedValue = 0.0,
+                committedPercentage = 0.0
+            )
+            supabaseFinanceSync.triggerSync()
         }
     }
 

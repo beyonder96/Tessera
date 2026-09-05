@@ -96,6 +96,7 @@ class FakeTesseraDao : TesseraDao {
     override fun getAllDebts(): Flow<List<Debt>> = flowOf(emptyList())
     override suspend fun insertDebt(debt: Debt) {}
     override suspend fun deleteDebt(debt: Debt) {}
+    override suspend fun clearAllDebts() {}
 
     // MealRecord methods
     override fun getAllMealRecords(): Flow<List<MealRecord>> = flowOf(emptyList())

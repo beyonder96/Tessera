@@ -249,6 +249,10 @@ class TesseraRepository(private val dao: TesseraDao) {
         dao.deleteDebt(debt)
     }
 
+    suspend fun clearAllDebts() {
+        dao.clearAllDebts()
+    }
+
     // Nutrition & Meal Records
     val allMealRecords: Flow<List<MealRecord>> = dao.getAllMealRecords()
 

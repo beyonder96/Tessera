@@ -179,7 +179,7 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
         AlertDialog(
             onDismissRequest = { showResetFinancesDialog = false },
             title = { Text("Zerar Finanças", color = MaterialTheme.colorScheme.onBackground) },
-            text = { Text("Isso apagará todas as transações, cartões de crédito e contas bancárias. Tem certeza?", color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.7f)) },
+            text = { Text("Isso apagará todas as transações, dívidas, cartões de crédito e contas bancárias. Tem certeza?", color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.7f)) },
             containerColor = Color(0xFF1E1E1E),
             confirmButton = {
                 TextButton(onClick = {

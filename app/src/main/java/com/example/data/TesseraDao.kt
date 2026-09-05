@@ -119,12 +119,16 @@ interface TesseraDao {
     @Query("DELETE FROM benefit_cards")
     suspend fun clearAllBenefitCards()
 
+    @Query("DELETE FROM debts")
+    suspend fun clearAllDebts()
+
     @androidx.room.Transaction
     suspend fun clearAllFinances() {
         clearAllTransactions()
         clearAllBankAccounts()
         clearAllCreditCards()
         clearAllBenefitCards()
+        clearAllDebts()
     }
 
     // Habits

@@ -4,6 +4,11 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.49
+
+- **Correção Definitiva do "Disponível para Gastar" ao Zerar Finanças:** Inclusão da tabela de dívidas ativas (`debts`) no método de limpeza do Room DAO (`clearAllDebts()` em `clearAllFinances()`), evitando que parcelas residuais de dívidas deixassem o saldo disponível negativo (como -R$ 300,00) após acionar a ação de zerar.
+- **Reset Imediato das Métricas na Nuvem (Supabase):** Redefinição instantânea de `spendableBalance`, `salaryValue`, `committedValue` e `committedPercentage` para 0.0 na sincronização em tempo real e atualização do diálogo de confirmação em Configurações.
+
 ## 🚀 Novidades da Versão 2.0.48
 
 - **Modelo Orçamentário Mensal no "Disponível para Gastar":** Cálculo reformulado para refletir com precisão a margem livre real entre receitas do mês e despesas comprometidas (`salaryValue - committedValue`), eliminando valores negativos artificiais decorrentes de saldo em conta corrente zerado.
@@ -218,8 +223,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.48.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.48.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.49.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.49.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.
