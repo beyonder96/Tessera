@@ -1,9 +1,19 @@
 import { useState, useEffect } from 'react'
 import { MarketSharePage } from './pages/MarketSharePage'
 import { FinanceSharePage } from './pages/FinanceSharePage'
-import { Sparkles, Shield, Smartphone } from 'lucide-react'
+import { HomePage } from './pages/HomePage'
+import { getLastActiveRoute } from './utils/recentStorage'
 
-function parseRoute(): { type: 'market' | 'finance' | 'home'; id: string } {
+export type RouteType = 'market' | 'finance' | 'home'
+
+export interface RouteInfo {
+  type: RouteType
+  id: string
+}
+
+function parseRoute(): RouteInfo {
+  if (typeof window === 'undefined') return { type: 'home', id: '' }
+
   const path = window.location.pathname
   const hash = window.location.hash
   const params = new URLSearchParams(window.location.search)
@@ -38,8 +48,32 @@ function parseRoute(): { type: 'market' | 'finance' | 'home'; id: string } {
   return { type: 'home', id: '' }
 }
 
+function getInitialRoute(): RouteInfo {
+  const currentRoute = parseRoute()
+  if (currentRoute.type !== 'home') return currentRoute
+
+  // Se o usuário solicitou explicitamente a Home, respeita a intenção
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('home') === 'true') return currentRoute
+
+    const skipRedirect = sessionStorage.getItem('tessera_skip_autoredirect')
+    if (skipRedirect === 'true') return currentRoute
+
+    // Se estiver na raiz e houver um último acesso registrado, auto-redireciona
+    const lastActive = getLastActiveRoute()
+    if (lastActive) {
+      const targetPath = `/${lastActive.type}/${lastActive.id}`
+      window.history.replaceState(null, '', targetPath)
+      return { type: lastActive.type, id: lastActive.id }
+    }
+  }
+
+  return currentRoute
+}
+
 export function App() {
-  const [routeInfo, setRouteInfo] = useState(parseRoute())
+  const [routeInfo, setRouteInfo] = useState<RouteInfo>(getInitialRoute)
 
   useEffect(() => {
     const handleLocationChange = () => setRouteInfo(parseRoute())
@@ -51,6 +85,15 @@ export function App() {
     }
   }, [])
 
+  const handleNavigate = (type: 'market' | 'finance', id: string) => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('tessera_skip_autoredirect')
+      const targetPath = `/${type}/${id}`
+      window.history.pushState(null, '', targetPath)
+    }
+    setRouteInfo({ type, id })
+  }
+
   if (routeInfo.type === 'market' && routeInfo.id) {
     return <MarketSharePage listId={routeInfo.id} />
   }
@@ -59,56 +102,5 @@ export function App() {
     return <FinanceSharePage dashboardId={routeInfo.id} />
   }
 
-  // Fallback Home / Landing
-  return (
-    <div className="container" style={{ textAlign: 'center', paddingTop: 80, maxWidth: 540 }}>
-      <div className="card" style={{ padding: '40px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
-        <div style={{ 
-          width: 56, 
-          height: 56, 
-          borderRadius: '50%', 
-          background: 'var(--accent-subtle)', 
-          border: '1px solid var(--border-active)', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center' 
-        }}>
-          <Sparkles size={28} color="var(--accent)" />
-        </div>
-
-        <div>
-          <h1 className="header-title" style={{ fontSize: 28, marginBottom: 8 }}>Tessera Live Web</h1>
-          <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-            Compartilhe e acompanhe listas de compras e resumos financeiros em tempo real, sem necessidade de login ou instalação.
-          </p>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, width: '100%', marginTop: 12 }}>
-          <div style={{ 
-            background: 'var(--bg-surface)', 
-            border: '1px solid var(--border)', 
-            borderRadius: 'var(--radius-md)', 
-            padding: 16,
-            textAlign: 'left' 
-          }}>
-            <Smartphone size={20} color="var(--accent)" style={{ marginBottom: 8 }} />
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>App Android</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Gere um link no menu de Finanças ou Mercado do app.</div>
-          </div>
-
-          <div style={{ 
-            background: 'var(--bg-surface)', 
-            border: '1px solid var(--border)', 
-            borderRadius: 'var(--radius-md)', 
-            padding: 16,
-            textAlign: 'left' 
-          }}>
-            <Shield size={20} color="var(--accent)" style={{ marginBottom: 8 }} />
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Tempo Real</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Atualização instantânea via Supabase WebSockets.</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+  return <HomePage onNavigate={handleNavigate} />
 }

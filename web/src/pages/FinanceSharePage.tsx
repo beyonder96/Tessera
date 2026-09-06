@@ -61,6 +61,7 @@ export interface DebtItem {
 
 import { usePwaInstall } from '../hooks/usePwaInstall'
 import { PwaInstructionsModal } from '../components/PwaInstructionsModal'
+import { saveRecentItem } from '../utils/recentStorage'
 
 export interface DebtsSummary {
   count: number
@@ -554,15 +555,19 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
         }
 
         if (data) {
-          setDoc(data as FinanceDashboardDoc)
-          localStorage.setItem(`tessera_finance_${dashboardId}`, JSON.stringify(data))
+          const finDoc = data as FinanceDashboardDoc
+          setDoc(finDoc)
+          localStorage.setItem(`tessera_finance_${dashboardId}`, JSON.stringify(finDoc))
+          saveRecentItem({ type: 'finance', id: dashboardId, title: finDoc.title || 'Resumo Financeiro' })
         }
       } catch (err: unknown) {
         console.error('Error fetching finance dashboard:', err)
         const cached = localStorage.getItem(`tessera_finance_${dashboardId}`)
         if (cached && isInitial) {
           try {
-            setDoc(JSON.parse(cached) as FinanceDashboardDoc)
+            const cachedDoc = JSON.parse(cached) as FinanceDashboardDoc
+            setDoc(cachedDoc)
+            saveRecentItem({ type: 'finance', id: dashboardId, title: cachedDoc.title || 'Resumo Financeiro' })
             setError(null)
             setLoading(false)
             return
@@ -617,6 +622,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
             const newDoc = payload.new as unknown as FinanceDashboardDoc
             setDoc(newDoc)
             localStorage.setItem(`tessera_finance_${dashboardId}`, JSON.stringify(newDoc))
+            saveRecentItem({ type: 'finance', id: dashboardId, title: newDoc.title || 'Resumo Financeiro' })
           }
         }
       )
@@ -797,7 +803,13 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
             <button className="btn btn-outline" onClick={() => window.location.reload()}>
               <RefreshCw size={14} /> Tentar novamente
             </button>
-            <button className="btn btn-outline" onClick={() => window.location.href = '/'}>
+            <button 
+              className="btn btn-outline" 
+              onClick={() => {
+                sessionStorage.setItem('tessera_skip_autoredirect', 'true')
+                window.location.href = '/?home=true'
+              }}
+            >
               <Home size={14} /> Início
             </button>
           </div>
@@ -941,6 +953,19 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
               aria-label="Alternar privacidade"
             >
               {isPrivacyMode ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+            <button 
+              type="button"
+              className="btn btn-outline" 
+              onClick={() => {
+                sessionStorage.setItem('tessera_skip_autoredirect', 'true')
+                window.location.href = '/?home=true'
+              }}
+              style={{ width: 36, height: 36, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-full)' }}
+              title="Início / Acessos recentes"
+              aria-label="Página inicial"
+            >
+              <Home size={16} />
             </button>
             <button 
               className="btn btn-outline" 

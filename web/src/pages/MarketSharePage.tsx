@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { usePwaInstall } from '../hooks/usePwaInstall'
 import { PwaInstructionsModal } from '../components/PwaInstructionsModal'
+import { saveRecentItem } from '../utils/recentStorage'
 
 export interface MarketItem {
   id: number
@@ -87,15 +88,19 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
         if (sbError) throw sbError
 
         if (data) {
-          setList(data as MarketListDoc)
-          localStorage.setItem(`tessera_market_${listId}`, JSON.stringify(data))
+          const listDoc = data as MarketListDoc
+          setList(listDoc)
+          localStorage.setItem(`tessera_market_${listId}`, JSON.stringify(listDoc))
+          saveRecentItem({ type: 'market', id: listId, title: listDoc.title || 'Lista de Mercado' })
         }
       } catch (err: unknown) {
         console.error('Error fetching market list:', err)
         const cached = localStorage.getItem(`tessera_market_${listId}`)
         if (cached) {
           try {
-            setList(JSON.parse(cached) as MarketListDoc)
+            const cachedDoc = JSON.parse(cached) as MarketListDoc
+            setList(cachedDoc)
+            saveRecentItem({ type: 'market', id: listId, title: cachedDoc.title || 'Lista de Mercado' })
             setError(null)
             setLoading(false)
             return
@@ -128,6 +133,7 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
             const newDoc = payload.new as unknown as MarketListDoc
             setList(newDoc)
             localStorage.setItem(`tessera_market_${listId}`, JSON.stringify(newDoc))
+            saveRecentItem({ type: 'market', id: listId, title: newDoc.title || 'Lista de Mercado' })
           }
         }
       )
@@ -264,7 +270,13 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
             <button className="btn btn-outline" onClick={() => window.location.reload()}>
               <RefreshCw size={14} /> Tentar novamente
             </button>
-            <button className="btn btn-outline" onClick={() => window.location.href = '/'}>
+            <button 
+              className="btn btn-outline" 
+              onClick={() => {
+                sessionStorage.setItem('tessera_skip_autoredirect', 'true')
+                window.location.href = '/?home=true'
+              }}
+            >
               <Home size={14} /> Início
             </button>
           </div>
@@ -321,6 +333,20 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
             ) : (
               <Moon size={17} color="#4A90E2" className="theme-icon-enter" />
             )}
+          </button>
+
+          {/* Home / Outras Listas Button */}
+          <button 
+            type="button"
+            className="btn btn-outline" 
+            onClick={() => {
+              sessionStorage.setItem('tessera_skip_autoredirect', 'true')
+              window.location.href = '/?home=true'
+            }}
+            title="Início / Acessos recentes"
+            style={{ padding: '8px 10px', fontSize: 12 }}
+          >
+            <Home size={15} />
           </button>
 
           {/* Share Link Button */}
