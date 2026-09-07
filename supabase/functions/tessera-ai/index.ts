@@ -252,7 +252,7 @@ Deno.serve(async (req: Request) => {
     const msg = error instanceof Error ? error.message : String(error)
     console.error("Erro na Edge Function tessera-ai:", msg)
     return new Response(
-      JSON.stringify({ success: false, error: msg }),
+      JSON.stringify({ success: false, error: "Erro interno ao processar a solicitação com o serviço de IA." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     )
   }

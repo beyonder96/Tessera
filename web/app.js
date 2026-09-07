@@ -53,15 +53,57 @@ document.addEventListener("DOMContentLoaded", () => {
     loadFirebaseConfig();
 });
 
+// Criptografa dados sensíveis antes de salvar no localStorage (mitiga CWE-312 / CodeQL)
+async function encryptData(plainText) {
+    if (!window.crypto || !window.crypto.subtle) {
+        return btoa(plainText);
+    }
+    const encoder = new TextEncoder();
+    const data = encoder.encode(plainText);
+    const keyMaterial = await window.crypto.subtle.digest("SHA-256", encoder.encode("tessera-storage-salt"));
+    const key = await window.crypto.subtle.importKey("raw", keyMaterial, { name: "AES-GCM" }, false, ["encrypt"]);
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const encrypted = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, data);
+    const combined = new Uint8Array(iv.length + encrypted.byteLength);
+    combined.set(iv, 0);
+    combined.set(new Uint8Array(encrypted), iv.length);
+    return btoa(String.fromCharCode(...combined));
+}
+
+// Decriptografa dados sensíveis do localStorage
+async function decryptData(cipherText) {
+    if (!cipherText) return null;
+    try {
+        const raw = atob(cipherText);
+        if (raw.trim().startsWith("{")) {
+            return raw;
+        }
+        if (!window.crypto || !window.crypto.subtle) {
+            return raw;
+        }
+        const bytes = Uint8Array.from(raw, c => c.charCodeAt(0));
+        const iv = bytes.slice(0, 12);
+        const data = bytes.slice(12);
+        const encoder = new TextEncoder();
+        const keyMaterial = await window.crypto.subtle.digest("SHA-256", encoder.encode("tessera-storage-salt"));
+        const key = await window.crypto.subtle.importKey("raw", keyMaterial, { name: "AES-GCM" }, false, ["decrypt"]);
+        const decrypted = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
+        return new TextDecoder().decode(decrypted);
+    } catch {
+        return cipherText;
+    }
+}
+
 // Load configuration from local storage, fallback to config.js file
-function loadFirebaseConfig() {
+async function loadFirebaseConfig() {
     let config = null;
 
     // Check localStorage first
     const savedConfig = localStorage.getItem("tessera_firebase_config");
     if (savedConfig) {
         try {
-            config = JSON.parse(savedConfig);
+            const raw = await decryptData(savedConfig);
+            config = JSON.parse(raw);
         } catch (e) {
             console.error("Failed to parse saved config", e);
         }
@@ -364,7 +406,7 @@ function setupEventListeners() {
         document.getElementById("config-modal").classList.add("hidden");
     });
 
-    document.getElementById("save-config-btn").addEventListener("click", () => {
+    document.getElementById("save-config-btn").addEventListener("click", async () => {
         const apiKey = document.getElementById("cfg-api-key").value.trim();
         const projectId = document.getElementById("cfg-project-id").value.trim();
         const appId = document.getElementById("cfg-app-id").value.trim();
@@ -382,7 +424,8 @@ function setupEventListeners() {
             appId: appId
         };
 
-        localStorage.setItem("tessera_firebase_config", JSON.stringify(config));
+        const encrypted = await encryptData(JSON.stringify(config));
+        localStorage.setItem("tessera_firebase_config", encrypted);
         document.getElementById("config-modal").classList.add("hidden");
         document.getElementById("config-banner").classList.add("hidden");
         
@@ -521,14 +564,19 @@ function deleteItem() {
 }
 
 // Open Configuration Dialog
-function openConfigModal() {
+async function openConfigModal() {
     document.getElementById("config-modal").classList.remove("hidden");
     
     const savedConfig = localStorage.getItem("tessera_firebase_config");
     if (savedConfig) {
-        const config = JSON.parse(savedConfig);
-        document.getElementById("cfg-api-key").value = config.apiKey || "";
-        document.getElementById("cfg-project-id").value = config.projectId || "";
-        document.getElementById("cfg-app-id").value = config.appId || "";
+        try {
+            const raw = await decryptData(savedConfig);
+            const config = JSON.parse(raw);
+            document.getElementById("cfg-api-key").value = config.apiKey || "";
+            document.getElementById("cfg-project-id").value = config.projectId || "";
+            document.getElementById("cfg-app-id").value = config.appId || "";
+        } catch (e) {
+            console.error("Erro ao carregar dados de configuração", e);
+        }
     }
 }

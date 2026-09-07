@@ -20,8 +20,9 @@ def get_github_token():
                 line = line.strip()
                 if not line:
                     continue
-                parsed = urllib.parse.urlparse(line)
-                if 'github.com' in parsed.netloc or 'github.com' in parsed.path:
+                candidate = line if "://" in line else f"https://{line}"
+                parsed = urllib.parse.urlparse(candidate)
+                if parsed.hostname in ('github.com', 'api.github.com'):
                     if parsed.password:
                         return parsed.password
                     if parsed.username and len(parsed.username) > 30:
