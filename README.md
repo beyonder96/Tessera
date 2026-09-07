@@ -4,6 +4,13 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.58
+
+- **Desobstrução do Chat do Tessera AI:** Ocultação da barra de navegação global inferior flutuante na tela de Chat, garantindo que o campo de digitação e o botão de envio fiquem 100% livres e acessíveis.
+- **Botão Compacto de Nova Tarefa no App:** Substituição do botão largo por um ícone circular minimalista com o símbolo `+`, economizando espaço e alinhando-se com o botão de compartilhamento.
+- **Eliminação de Redundância na Web:** A Central de Tarefas e Avisos na Home Web agora é ocultada automaticamente quando o atalho já consta na seção de Acessos Recentes.
+- **Notificações Abrangentes no Android:** Correção na regra de notificação do aplicativo móvel para alertar com som prioritário e banner informativo sempre que qualquer nova tarefa ou aviso for cadastrado na Web.
+
 ## 🚀 Novidades da Versão 2.0.57
 
 - **Central de Lembretes, Tarefas & Avisos (Web & Android):** Visibilidade mútua completa de tarefas criadas pela Web e pelo app, suporte a menções `@kenned` e alertas direcionados com notificação prioritária no dispositivo móvel (som instantâneo de alta prioridade e pulso duplo).
@@ -267,8 +274,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.57.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.57.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.58.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.58.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.

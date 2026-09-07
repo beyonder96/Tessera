@@ -167,6 +167,13 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                android.util.Log.w("NotificationHelper", "Permissão POST_NOTIFICATIONS não concedida para avisos")
+                return
+            }
+        }
+
         val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
         val contentText = buildString {
             if (!description.isNullOrBlank()) {
@@ -177,13 +184,15 @@ object NotificationHelper {
                 append(timeOrDate)
             }
             if (isEmpty()) {
-                append("Novo aviso recebido da Web aguardando sua confirmação.")
+                append("Novo item recebido da Web.")
             }
         }
 
+        val formattedTitle = if (title.startsWith("🔔") || title.startsWith("📌") || title.startsWith("⏱️")) title else "🔔 $title"
+
         val builder = NotificationCompat.Builder(context, CHANNEL_TASKS_NOTICES_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle("🔔 $title")
+            .setContentTitle(formattedTitle)
             .setContentText(contentText)
             .setStyle(NotificationCompat.BigTextStyle().bigText(contentText))
             .setPriority(NotificationCompat.PRIORITY_HIGH)

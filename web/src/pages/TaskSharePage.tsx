@@ -238,7 +238,7 @@ export const TaskSharePage: React.FC<{ hubId: string }> = ({ hubId }) => {
       setFeedbackMessage(
         isKenned 
           ? 'Aviso enviado para o Kenned com notificação prioritária!' 
-          : 'Item adicionado à sua lista com sucesso!'
+          : 'Tarefa adicionada ao mural e enviada ao celular do Kenned!'
       )
       setTitle('')
       setDescription('')
@@ -799,7 +799,7 @@ export const TaskSharePage: React.FC<{ hubId: string }> = ({ hubId }) => {
                     }}
                   >
                     <Bell size={14} />
-                    <span>Para o Kenned</span>
+                    <span>Para o Kenned (Notifica no Celular)</span>
                   </button>
 
                   <button
@@ -822,7 +822,7 @@ export const TaskSharePage: React.FC<{ hubId: string }> = ({ hubId }) => {
                     }}
                   >
                     <User size={14} />
-                    <span>Apenas para mim</span>
+                    <span>Minha Tarefa (Compartilhada)</span>
                   </button>
                 </div>
               </div>

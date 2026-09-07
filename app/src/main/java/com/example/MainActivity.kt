@@ -706,27 +706,29 @@ fun TesseraApp() {
                 }
             }
 
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .padding(bottom = innerPadding.calculateBottomPadding())
-            ) {
-                BottomNavBar(
-                    viewModel = viewModel,
-                    isExpanded = isFabExpanded,
-                    onExpandedChange = { isFabExpanded = it },
-                    onHoveredItemChange = { fabHoveredItem = it },
-                    currentRoute = currentRoute,
-                    onNavigate = navigateAction,
-                    onCameraClick = { }
-                )
+            if (currentRoute != "chat") {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(bottom = innerPadding.calculateBottomPadding())
+                ) {
+                    BottomNavBar(
+                        viewModel = viewModel,
+                        isExpanded = isFabExpanded,
+                        onExpandedChange = { isFabExpanded = it },
+                        onHoveredItemChange = { fabHoveredItem = it },
+                        currentRoute = currentRoute,
+                        onNavigate = navigateAction,
+                        onCameraClick = { }
+                    )
+                }
             }
             } // Fecha o Box do blur
 
             // Overlay for FAB with elegant animations
             AnimatedVisibility(
-                visible = isFabExpanded,
+                visible = isFabExpanded && currentRoute != "chat",
                 enter = fadeIn(tween(300)),
                 exit = fadeOut(tween(300)),
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = innerPadding.calculateBottomPadding())

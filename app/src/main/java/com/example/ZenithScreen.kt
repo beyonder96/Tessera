@@ -779,25 +779,19 @@ fun AvisosWebTab(
                         )
                     }
 
-                    // Botão Nova Tarefa
-                    Button(
+                    // Botão Nova Tarefa (Apenas o símbolo +)
+                    IconButton(
                         onClick = { showAddDialog = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2DD4BF)),
-                        shape = RoundedCornerShape(20.dp),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF2DD4BF))
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
-                            contentDescription = null,
+                            contentDescription = "Nova Tarefa",
                             tint = Color(0xFF0B0D13),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Novo",
-                            color = Color(0xFF0B0D13),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }

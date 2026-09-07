@@ -294,56 +294,58 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
         </div>
       ) : null}
 
-      {/* Acesso Rápido: Central de Tarefas & Avisos */}
-      <div 
-        onClick={() => onNavigate('tasks', 'tasks_default')}
-        className="card interactive-card"
-        style={{
-          padding: '16px 18px',
-          marginBottom: 20,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          cursor: 'pointer',
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border-active)'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+      {/* Acesso Rápido: Central de Tarefas & Avisos (exibido apenas se ainda não estiver nos Acessos Recentes) */}
+      {!recents.some(item => item.type === 'tasks') && (
+        <div 
+          onClick={() => onNavigate('tasks', 'tasks_default')}
+          className="card interactive-card"
+          style={{
+            padding: '16px 18px',
+            marginBottom: 20,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            cursor: 'pointer',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-active)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{
+              width: 40,
+              height: 40,
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--accent-subtle)',
+              border: '1px solid var(--border-active)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              <Bell size={20} color="var(--accent)" />
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+                Central de Tarefas & Avisos
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+                Envie lembretes e avisos ao Kenned em tempo real
+              </div>
+            </div>
+          </div>
           <div style={{
-            width: 40,
-            height: 40,
+            width: 32,
+            height: 32,
             borderRadius: 'var(--radius-sm)',
-            background: 'var(--accent-subtle)',
-            border: '1px solid var(--border-active)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            flexShrink: 0
+            background: 'var(--bg-surface)'
           }}>
-            <Bell size={20} color="var(--accent)" />
-          </div>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
-              Central de Tarefas & Avisos
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-              Envie lembretes e avisos ao Kenned em tempo real
-            </div>
+            <ArrowRight size={16} color="var(--accent)" />
           </div>
         </div>
-        <div style={{
-          width: 32,
-          height: 32,
-          borderRadius: 'var(--radius-sm)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--bg-surface)'
-        }}>
-          <ArrowRight size={16} color="var(--accent)" />
-        </div>
-      </div>
+      )}
 
       {/* Seção 2: Acesso por Link ou ID */}
       <div className="card" style={{ padding: '20px 20px', marginBottom: 24 }}>

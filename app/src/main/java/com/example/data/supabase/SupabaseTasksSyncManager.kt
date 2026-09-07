@@ -134,7 +134,11 @@ class SupabaseTasksSyncManager(
     private fun checkAndNotifyNewNotices(items: List<SharedTaskItem>) {
         var hasNew = false
         items.forEach { item ->
-            if (item.target_user == "kenned" && item.status == "pending" && !notifiedTaskIds.contains(item.id)) {
+            // Notifica se foi criado pela Web e ainda não foi alertado no aparelho
+            val isFromWeb = item.created_by != "Kenned"
+            val isUnnotified = !notifiedTaskIds.contains(item.id)
+
+            if (isFromWeb && isUnnotified) {
                 notifiedTaskIds.add(item.id)
                 hasNew = true
 
@@ -148,9 +152,17 @@ class SupabaseTasksSyncManager(
                     }
                 }.takeIf { it.isNotBlank() }
 
+                val notificationTitle = when {
+                    item.target_user == "kenned" && item.type == "notice" -> "📌 Aviso para você: ${item.title}"
+                    item.target_user == "kenned" -> "⏱️ Tarefa para você: ${item.title}"
+                    item.type == "notice" -> "📌 Novo Recado: ${item.title}"
+                    item.target_user == "me" -> "📋 Nova Tarefa (Dela): ${item.title}"
+                    else -> "⏱️ Nova Tarefa (Web): ${item.title}"
+                }
+
                 NotificationHelper.showTaskNoticeNotification(
                     context = context,
-                    title = item.title,
+                    title = notificationTitle,
                     description = item.description,
                     timeOrDate = timeOrDate,
                     taskId = item.id
