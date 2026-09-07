@@ -29,6 +29,10 @@ local.properties
 debug.keystore*
 *.base64
 
+# --- Supabase ---
+supabase/.temp/
+.temp/
+
 # --- Web Module (Vite + React + Node) ---
 web/node_modules/
 node_modules/

@@ -103,4 +103,30 @@ object SupabaseClientProvider {
             Result.failure(e)
         }
     }
+
+    suspend fun invokeFunction(functionName: String, jsonBody: String): Result<String> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        try {
+            val url = "${getSupabaseUrl()}/functions/v1/$functionName"
+            val body = jsonBody.toRequestBody("application/json; charset=utf-8".toMediaType())
+            val request = Request.Builder()
+                .url(url)
+                .addHeader("apikey", getSupabaseAnonKey())
+                .addHeader("Authorization", "Bearer ${getSupabaseAnonKey()}")
+                .addHeader("Content-Type", "application/json")
+                .post(body)
+                .build()
+
+            val response = client.newCall(request).execute()
+            val responseString = response.body?.string() ?: ""
+            if (response.isSuccessful) {
+                Result.success(responseString)
+            } else {
+                Log.w(TAG, "Supabase Function $functionName HTTP error ${response.code}: $responseString")
+                Result.failure(Exception("HTTP ${response.code}: $responseString"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error invoking Supabase Function $functionName: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
 }

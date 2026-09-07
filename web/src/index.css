@@ -131,6 +131,10 @@ body {
   border-color: rgba(255, 255, 255, 0.12);
 }
 
+:root[data-theme="light"] .card:hover {
+  border-color: rgba(0, 0, 0, 0.14);
+}
+
 /* Live Badge */
 .live-badge {
   display: inline-flex;

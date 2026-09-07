@@ -108,6 +108,7 @@ fun DailyScreen(
     val medications by viewModel.allMedications.collectAsStateWithLifecycle(initialValue = emptyList())
     val weatherState by viewModel.weatherState.collectAsStateWithLifecycle(initialValue = null)
     val dailyBriefingText by viewModel.dailyBriefingText.collectAsStateWithLifecycle(initialValue = null)
+    val isGeneratingAiSummary by viewModel.isGeneratingAiSummary.collectAsStateWithLifecycle(initialValue = false)
     val dailyVerse by viewModel.dailyVerse.collectAsStateWithLifecycle(initialValue = null)
 
     var activeMindSession by remember { mutableStateOf<Pair<String, String>?>(null) }
@@ -375,7 +376,13 @@ fun DailyScreen(
                             weatherState = weatherState
                         )
 
-
+                        // 1.2. TESSERA AI BRIEFING CARD
+                        DailyBriefingCard(
+                            personalizedSummary = personalizedAISummary,
+                            isGenerating = isGeneratingAiSummary,
+                            onRefresh = { viewModel.refreshAiDailyBriefing() },
+                            onOpenChat = { onNavigate("chat") }
+                        )
 
                         // 1.5. HOME SCREEN METRICS WIDGETS
                         Row(
@@ -544,64 +551,83 @@ fun HeaderGreetingSection(
 // 2. DailyBriefingCard Component
 @Composable
 fun DailyBriefingCard(
-    personalizedSummary: String
+    personalizedSummary: String,
+    isGenerating: Boolean = false,
+    onRefresh: () -> Unit,
+    onOpenChat: () -> Unit
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "NeonBriefGlow")
-    val pulseGlowVal by infiniteTransition.animateFloat(
-        initialValue = 0.25f,
-        targetValue = 0.65f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "BriefPulseAlpha"
-    )
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(20.dp))
             .background(themedCardBackground())
             .border(
                 width = 1.dp,
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF71D7CD).copy(alpha = pulseGlowVal),
-                        Color(0xFF71D7CD).copy(alpha = 0.05f)
-                    )
-                ),
-                shape = RoundedCornerShape(24.dp)
+                color = Color(0xFF71D7CD).copy(alpha = 0.25f),
+                shape = RoundedCornerShape(20.dp)
             )
+            .clickable { onOpenChat() }
             .padding(20.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.AutoAwesome,
-                    contentDescription = null,
-                    tint = Color(0xFF71D7CD),
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "TESSERA AI SUMMARY",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF71D7CD),
-                    letterSpacing = 1.5.sp
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Outlined.AutoAwesome,
+                        contentDescription = null,
+                        tint = Color(0xFF71D7CD),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "TESSERA AI SUMMARY",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF71D7CD),
+                        letterSpacing = 1.5.sp
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    IconButton(
+                        onClick = onRefresh,
+                        enabled = !isGenerating,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Refresh,
+                            contentDescription = "Atualizar resumo",
+                            tint = if (isGenerating) Color(0xFF71D7CD) else Color(0x99FFFFFF),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onOpenChat,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.ChatBubbleOutline,
+                            contentDescription = "Abrir chat",
+                            tint = Color(0xFF71D7CD),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
             }
 
             Text(
-                text = personalizedSummary,
-                fontFamily = FontFamily.Serif,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Light,
+                text = if (isGenerating) "Consultando a Tessera AI..." else personalizedSummary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Normal,
                 color = MaterialTheme.colorScheme.onSurface,
-                lineHeight = 26.sp
+                lineHeight = 22.sp
             )
         }
     }

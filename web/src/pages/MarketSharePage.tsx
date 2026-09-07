@@ -16,6 +16,7 @@ import {
   RotateCcw,
   Sparkles
 } from 'lucide-react'
+import { useTheme } from '../hooks/useTheme'
 import { usePwaInstall } from '../hooks/usePwaInstall'
 import { PwaInstructionsModal } from '../components/PwaInstructionsModal'
 import { saveRecentItem } from '../utils/recentStorage'
@@ -47,22 +48,7 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
   const [copied, setCopied] = useState(false)
 
   // Theme state
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('tessera_theme')
-      if (saved === 'light' || saved === 'dark') return saved
-    }
-    return 'dark'
-  })
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme)
-    localStorage.setItem('tessera_theme', theme)
-  }, [theme])
-
-  const toggleTheme = () => {
-    setTheme(prev => (prev === 'dark' ? 'light' : 'dark'))
-  }
+  const { theme, toggleTheme } = useTheme()
 
   // PWA Install state via hook resiliente
   const { isInstalled, installApp, showHelpModal, setShowHelpModal, isIos } = usePwaInstall()

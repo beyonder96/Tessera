@@ -2332,7 +2332,7 @@ fun RecentTransactionsSection(
     onTransactionClick: (Transaction) -> Unit
 ) {
     val sortedTransactions = remember(transactions) {
-        transactions.sortedByDescending { it.timestamp }
+        transactions.sortedByDescending { if (it.dueDate > 0L) it.dueDate else it.timestamp }
     }
     
     Column {
@@ -2364,7 +2364,8 @@ fun RecentTransactionsSection(
             val recentList = remember(sortedTransactions) { sortedTransactions.take(15) }
             val groupedTransactions = remember(recentList) {
                 recentList.groupBy { tx ->
-                    val cal = Calendar.getInstance().apply { timeInMillis = tx.timestamp }
+                    val effectiveDate = if (tx.dueDate > 0L) tx.dueDate else tx.timestamp
+                    val cal = Calendar.getInstance().apply { timeInMillis = effectiveDate }
                     val today = Calendar.getInstance()
                     val yesterday = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
                     
@@ -2377,7 +2378,7 @@ fun RecentTransactionsSection(
                         
                         else -> {
                             val sdf = java.text.SimpleDateFormat("dd 'de' MMMM", Locale("pt", "BR"))
-                            sdf.format(Date(tx.timestamp))
+                            sdf.format(Date(effectiveDate))
                         }
                     }
                 }
@@ -2456,7 +2457,8 @@ fun TransactionItem(transaction: Transaction, bankAccounts: List<BankAccount>, c
                 modifier = Modifier.fillMaxWidth()
             ) {
                 val dateFormat = remember { java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()) }
-                val dateStr = dateFormat.format(java.util.Date(transaction.timestamp))
+                val effectiveDate = if (transaction.dueDate > 0L) transaction.dueDate else transaction.timestamp
+                val dateStr = dateFormat.format(java.util.Date(effectiveDate))
 
                 Text(
                     text = "$dateStr • ${transaction.subtitle.ifEmpty { transaction.category }}",

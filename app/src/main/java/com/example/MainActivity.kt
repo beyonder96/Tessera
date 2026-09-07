@@ -183,6 +183,10 @@ class MainActivity : FragmentActivity() {
         intent?.getStringExtra("OPEN_TARGET")?.let { target ->
             AppState.pendingHealthAction = target
         }
+        if (intent?.action == "ACTION_OPEN_ZENITH_TASKS") {
+            val targetTab = intent.getIntExtra("TARGET_TAB", 2)
+            AppState.pendingZenithTab = targetTab
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -489,6 +493,10 @@ fun TesseraApp() {
                 viewModel.selectedGoalsTab = 1
                 "goals"
             }
+            "zenith_tasks", "avisos_web" -> {
+                viewModel.selectedGoalsTab = 2
+                "goals"
+            }
             else -> route
         }
         if (targetRoute == "home") {
@@ -527,6 +535,21 @@ fun TesseraApp() {
                             } else if (action == "METRO") {
                                 navController.navigate("transport")
                             }
+                        }
+                    }
+
+                    LaunchedEffect(AppState.pendingZenithTab) {
+                        val tab = AppState.pendingZenithTab
+                        if (tab != null) {
+                            viewModel.selectedGoalsTab = tab
+                            navController.navigate("goals") {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                            AppState.pendingZenithTab = null
                         }
                     }
 
@@ -674,6 +697,11 @@ fun TesseraApp() {
                                 restoreState = true
                             }
                         }
+                    )
+                }
+                composable("chat") {
+                    TesseraChatScreen(
+                        onBack = { navController.popBackStack() }
                     )
                 }
             }

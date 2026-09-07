@@ -9,7 +9,12 @@ import {
   AlertCircle, 
   Smartphone, 
   Shield, 
-  Clock 
+  Clock,
+  Sun,
+  Moon,
+  Download,
+  Bell,
+  CheckSquare
 } from 'lucide-react'
 import { 
   getRecentItems, 
@@ -17,12 +22,15 @@ import {
   clearRecentItems, 
   RecentItem 
 } from '../utils/recentStorage'
+import { useTheme } from '../hooks/useTheme'
+import { usePwaInstall } from '../hooks/usePwaInstall'
+import { PwaInstructionsModal } from '../components/PwaInstructionsModal'
 
 interface HomePageProps {
-  onNavigate: (type: 'market' | 'finance', id: string) => void
+  onNavigate: (type: 'market' | 'finance' | 'tasks', id: string) => void
 }
 
-function parseInputLink(input: string): { type: 'market' | 'finance'; id: string } | null {
+function parseInputLink(input: string): { type: 'market' | 'finance' | 'tasks'; id: string } | null {
   const trimmed = input.trim()
   if (!trimmed) return null
 
@@ -38,7 +46,13 @@ function parseInputLink(input: string): { type: 'market' | 'finance'; id: string
     return { type: 'finance', id: decodeURIComponent(financeMatch[1]) }
   }
 
-  // 3. Fallback: ID direto (UUID ou alfanumérico)
+  // 3. Detect tasks link/path
+  const tasksMatch = trimmed.match(/(?:tasks\/|[?&](?:taskId|hubId)=)([^/?&#\s]+)/i)
+  if (tasksMatch && tasksMatch[1]) {
+    return { type: 'tasks', id: decodeURIComponent(tasksMatch[1]) }
+  }
+
+  // 4. Fallback: ID direto (UUID ou alfanumérico)
   if (/^[a-zA-Z0-9_-]{6,}$/.test(trimmed)) {
     return { type: 'market', id: trimmed }
   }
@@ -60,6 +74,8 @@ function formatRelativeTime(timestamp: number): string {
 }
 
 export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
+  const { theme, toggleTheme } = useTheme()
+  const { isInstalled, installApp, showHelpModal, setShowHelpModal, isIos } = usePwaInstall()
   const [recents, setRecents] = useState<RecentItem[]>([])
   const [inputValue, setInputValue] = useState('')
   const [inputError, setInputError] = useState<string | null>(null)
@@ -69,11 +85,11 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
     setRecents(getRecentItems())
   }, [])
 
-  const handleOpenItem = (type: 'market' | 'finance', id: string) => {
+  const handleOpenItem = (type: 'market' | 'finance' | 'tasks', id: string) => {
     onNavigate(type, id)
   }
 
-  const handleRemove = (e: React.MouseEvent, type: 'market' | 'finance', id: string) => {
+  const handleRemove = (e: React.MouseEvent, type: 'market' | 'finance' | 'tasks', id: string) => {
     e.stopPropagation()
     removeRecentItem(type, id)
     setRecents(getRecentItems())
@@ -101,7 +117,36 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   }
 
   return (
-    <div className="container" style={{ paddingTop: 40, paddingBottom: 60, maxWidth: 560 }}>
+    <div className="container" style={{ paddingTop: 24, paddingBottom: 60, maxWidth: 560 }}>
+      {/* Top Bar: Ações Globais (Instalar App & Alternar Tema) */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+        {!isInstalled && (
+          <button 
+            type="button"
+            className="btn btn-outline" 
+            onClick={installApp}
+            title="Instalar como aplicativo no celular ou desktop"
+            style={{ padding: '6px 12px', fontSize: 11, height: 36, borderRadius: 'var(--radius-full)', gap: 6, display: 'inline-flex', alignItems: 'center' }}
+          >
+            <Download size={14} color="var(--accent)" />
+            <span>Instalar App</span>
+          </button>
+        )}
+        <button 
+          type="button"
+          className="theme-toggle-btn"
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+          aria-label={theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'}
+        >
+          {theme === 'dark' ? (
+            <Sun key="sun" size={17} color="#F59E0B" className="theme-icon-enter" />
+          ) : (
+            <Moon key="moon" size={17} color="#4A90E2" className="theme-icon-enter" />
+          )}
+        </button>
+      </div>
+
       {/* Header Minimalista */}
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
         <div 
@@ -147,18 +192,18 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {recents.map((item) => {
               const isMarket = item.type === 'market'
+              const isTasks = item.type === 'tasks'
               return (
                 <div 
                   key={`${item.type}-${item.id}`}
                   onClick={() => handleOpenItem(item.type, item.id)}
-                  className="card"
+                  className="card interactive-card"
                   style={{ 
                     padding: '14px 16px', 
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'space-between',
-                    cursor: 'pointer',
-                    transition: 'all var(--transition)'
+                    cursor: 'pointer'
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
@@ -177,6 +222,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                     >
                       {isMarket ? (
                         <ShoppingCart size={18} color="var(--accent)" />
+                      ) : isTasks ? (
+                        <CheckSquare size={18} color="var(--accent)" />
                       ) : (
                         <TrendingUp size={18} color="var(--accent)" />
                       )}
@@ -206,7 +253,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                             borderRadius: 'var(--radius-full)'
                           }}
                         >
-                          {isMarket ? 'Mercado' : 'Finanças'}
+                          {isMarket ? 'Mercado' : isTasks ? 'Tarefas' : 'Finanças'}
                         </span>
                         <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
                           <Clock size={11} /> {formatRelativeTime(item.updatedAt)}
@@ -246,6 +293,57 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           </div>
         </div>
       ) : null}
+
+      {/* Acesso Rápido: Central de Tarefas & Avisos */}
+      <div 
+        onClick={() => onNavigate('tasks', 'tasks_default')}
+        className="card interactive-card"
+        style={{
+          padding: '16px 18px',
+          marginBottom: 20,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          cursor: 'pointer',
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-active)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{
+            width: 40,
+            height: 40,
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--accent-subtle)',
+            border: '1px solid var(--border-active)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0
+          }}>
+            <Bell size={20} color="var(--accent)" />
+          </div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+              Central de Tarefas & Avisos
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+              Envie lembretes e avisos ao Kenned em tempo real
+            </div>
+          </div>
+        </div>
+        <div style={{
+          width: 32,
+          height: 32,
+          borderRadius: 'var(--radius-sm)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--bg-surface)'
+        }}>
+          <ArrowRight size={16} color="var(--accent)" />
+        </div>
+      </div>
 
       {/* Seção 2: Acesso por Link ou ID */}
       <div className="card" style={{ padding: '20px 20px', marginBottom: 24 }}>
@@ -340,6 +438,13 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           </div>
         </div>
       )}
+
+      {/* Modal de Instruções PWA */}
+      <PwaInstructionsModal 
+        isOpen={showHelpModal} 
+        onClose={() => setShowHelpModal(false)} 
+        isIos={isIos} 
+      />
     </div>
   )
 }

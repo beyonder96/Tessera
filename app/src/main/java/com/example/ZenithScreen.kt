@@ -46,6 +46,8 @@ import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.components.bounceClick
 import com.example.ui.theme.*
 import com.example.viewmodel.TesseraViewModel
+import com.example.data.supabase.SharedTaskItem
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -72,16 +74,24 @@ fun ZenithScreen(
 ) {
     val coroutineScope = rememberCoroutineScope()
     val pagerState = rememberPagerState(
-        initialPage = initialPage.coerceIn(0, 1),
-        pageCount = { 2 }
+        initialPage = initialPage.coerceIn(0, 2),
+        pageCount = { 3 }
     )
 
     val lembretesLazyListState = rememberLazyListState()
     val chronosLazyListState = rememberLazyListState()
+    val avisosLazyListState = rememberLazyListState()
+
+    LaunchedEffect(initialPage) {
+        if (initialPage in 0..2 && pagerState.currentPage != initialPage) {
+            pagerState.scrollToPage(initialPage)
+        }
+    }
 
     val isCompact by remember(pagerState.currentPage) {
         derivedStateOf {
             when (pagerState.currentPage) {
+                2 -> avisosLazyListState.firstVisibleItemIndex > 0 || avisosLazyListState.firstVisibleItemScrollOffset > 100
                 1 -> chronosLazyListState.firstVisibleItemIndex > 0 || chronosLazyListState.firstVisibleItemScrollOffset > 100
                 else -> lembretesLazyListState.firstVisibleItemIndex > 0 || lembretesLazyListState.firstVisibleItemScrollOffset > 100
             }
@@ -93,14 +103,18 @@ fun ZenithScreen(
     val thermalBrush = Brush.linearGradient(listOf(Color(0xFFec4899), Color(0xFFf97316)))
 
     val accentColor = when (pagerState.currentPage) {
+        2 -> Color(0xFF2DD4BF)
         1 -> Color(0xFF71D7CD)
         else -> Color(0xFFF9A826)
     }
 
     val titleText = when (pagerState.currentPage) {
+        2 -> "Avisos Web"
         1 -> "Rotinas"
         else -> "Lembretes"
     }
+
+    val pendingNoticesCount by viewModel.supabaseTasksSync.pendingCount.collectAsStateWithLifecycle()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -115,7 +129,7 @@ fun ZenithScreen(
             ) {
                 Spacer(modifier = Modifier.height(72.dp))
 
-                // Internal navigation tabs — 2 tabs
+                // Internal navigation tabs — 3 tabs
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -126,7 +140,8 @@ fun ZenithScreen(
                         .padding(4.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    listOf("Lembretes", "Rotinas").forEachIndexed { index, title ->
+                    val tabTitles = listOf("Lembretes", "Rotinas", "Avisos Web")
+                    tabTitles.forEachIndexed { index, title ->
                         val isSelected = pagerState.currentPage == index
                         Box(
                             modifier = Modifier
@@ -141,12 +156,34 @@ fun ZenithScreen(
                                 .padding(vertical = 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = title,
-                                color = if (isSelected) Color.White else Color.White.copy(alpha=0.6f),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = title,
+                                    color = if (isSelected) Color.White else Color.White.copy(alpha=0.6f),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                )
+                                if (index == 2 && pendingNoticesCount > 0) {
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFFEF4444)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = pendingNoticesCount.toString(),
+                                            color = Color.White,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -170,6 +207,7 @@ fun ZenithScreen(
                             }
                     ) {
                         when (page) {
+                            2 -> AvisosWebTab(viewModel = viewModel, listState = avisosLazyListState)
                             1 -> ChronosScreen(viewModel = viewModel, listState = chronosLazyListState)
                             else -> LembretesTab(viewModel = viewModel, listState = lembretesLazyListState)
                         }
@@ -229,6 +267,7 @@ fun ZenithScreen(
                 ) {
                     Icon(
                         imageVector = when (pagerState.currentPage) {
+                            2 -> Icons.Outlined.NotificationsActive
                             1 -> Icons.Outlined.HourglassEmpty
                             else -> Icons.Outlined.CalendarMonth
                         },
@@ -657,6 +696,569 @@ fun SectionHeader(title: String, icon: ImageVector) {
             fontWeight = FontWeight.Bold,
             letterSpacing = 2.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+// ======================== TAB: AVISOS E TAREFAS WEB ========================
+
+@Composable
+fun AvisosWebTab(
+    viewModel: TesseraViewModel,
+    listState: LazyListState
+) {
+    val context = LocalContext.current
+    val tasks by viewModel.supabaseTasksSync.tasks.collectAsStateWithLifecycle()
+    var showAddDialog by remember { mutableStateOf(false) }
+    var newTitle by remember { mutableStateOf("") }
+    var newDescription by remember { mutableStateOf("") }
+    var newTime by remember { mutableStateOf("") }
+
+    val pendingNotices = remember(tasks) {
+        tasks.filter { it.target_user == "kenned" && it.status == "pending" }
+    }
+    val activeTasks = remember(tasks) {
+        tasks.filter { it.status != "completed" && !(it.target_user == "kenned" && it.status == "pending") }
+    }
+    val completedTasks = remember(tasks) {
+        tasks.filter { it.status == "completed" }
+    }
+
+    LazyColumn(
+        state = listState,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 20.dp),
+        contentPadding = PaddingValues(top = 12.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        // Cabeçalho / Ações rápidas
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Mural Compartilhado",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        text = "Sincronizado em tempo real com a Web",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Botão de Compartilhar Link
+                    IconButton(
+                        onClick = {
+                            val shareUrl = viewModel.supabaseTasksSync.getShareUrl()
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            val clip = android.content.ClipData.newPlainText("Link de Tarefas Tessera", shareUrl)
+                            clipboard.setPrimaryClip(clip)
+                            android.widget.Toast.makeText(context, "Link copiado para a área de transferência!", android.widget.Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.06f))
+                            .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Share,
+                            contentDescription = "Compartilhar",
+                            tint = Color(0xFF2DD4BF),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
+                    // Botão Nova Tarefa
+                    Button(
+                        onClick = { showAddDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2DD4BF)),
+                        shape = RoundedCornerShape(20.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            tint = Color(0xFF0B0D13),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Novo",
+                            color = Color(0xFF0B0D13),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+
+        // Seção: Avisos Pendentes de Confirmação (Destacado)
+        if (pendingNotices.isNotEmpty()) {
+            item {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.NotificationsActive,
+                        contentDescription = null,
+                        tint = Color(0xFFEF4444),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "AGUARDANDO SUA CONFIRMAÇÃO (${pendingNotices.size})",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color(0xFFEF4444),
+                        letterSpacing = 1.sp
+                    )
+                }
+            }
+
+            items(pendingNotices, key = { it.id }) { item ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1917)),
+                    border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.4f))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(Color(0xFFEF4444).copy(alpha = 0.15f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "Aviso da Web",
+                                    color = Color(0xFFEF4444),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            IconButton(
+                                onClick = { viewModel.supabaseTasksSync.deleteTask(item.id) },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Delete,
+                                    contentDescription = "Excluir",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = item.title,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+
+                        if (!item.description.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = item.description,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        if (item.due_date != null || !item.due_time.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Schedule,
+                                    contentDescription = null,
+                                    tint = Color(0xFF2DD4BF),
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                val dateStr = item.due_date?.let {
+                                    SimpleDateFormat("dd/MM/yyyy", Locale("pt", "BR")).format(Date(it))
+                                } ?: ""
+                                val timeStr = item.due_time ?: ""
+                                Text(
+                                    text = listOf(dateStr, timeStr).filter { it.isNotBlank() }.joinToString(" às "),
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF2DD4BF)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = { viewModel.supabaseTasksSync.approveNotice(item.id) },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2DD4BF).copy(alpha = 0.15f)),
+                                border = BorderStroke(1.dp, Color(0xFF2DD4BF).copy(alpha = 0.4f)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(vertical = 8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = Color(0xFF2DD4BF),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Ciente", color = Color(0xFF2DD4BF), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            Button(
+                                onClick = { viewModel.supabaseTasksSync.completeTask(item.id) },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(vertical = 8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DoneAll,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Concluir", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Seção: Tarefas e Lembretes Ativos
+        item {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Checklist,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "TAREFAS & LEMBRETES ATIVOS (${activeTasks.size})",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    letterSpacing = 1.sp
+                )
+            }
+        }
+
+        if (activeTasks.isEmpty() && pendingNotices.isEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White.copy(alpha = 0.03f))
+                        .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Outlined.TaskAlt,
+                            contentDescription = null,
+                            tint = Color(0xFF2DD4BF),
+                            modifier = Modifier.size(36.dp)
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "Nenhuma tarefa ativa",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Todas as tarefas foram concluídas ou você pode criar uma nova tocando no botão Novo.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+        }
+
+        items(activeTasks, key = { it.id }) { item ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF181C24)),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    IconButton(
+                        onClick = { viewModel.supabaseTasksSync.completeTask(item.id) },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.RadioButtonUnchecked,
+                            contentDescription = "Concluir",
+                            tint = Color(0xFF2DD4BF),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = item.title,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+
+                        if (!item.description.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = item.description,
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(if (item.created_by == "Kenned") Color(0xFF71D7CD).copy(alpha = 0.15f) else Color(0xFFF97316).copy(alpha = 0.15f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = if (item.created_by == "Kenned") "Por você" else "Pela Web",
+                                    color = if (item.created_by == "Kenned") Color(0xFF71D7CD) else Color(0xFFF97316),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            if (item.due_date != null || !item.due_time.isNullOrBlank()) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.CalendarToday,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(11.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    val dateStr = item.due_date?.let {
+                                        SimpleDateFormat("dd/MM", Locale("pt", "BR")).format(Date(it))
+                                    } ?: ""
+                                    val timeStr = item.due_time ?: ""
+                                    Text(
+                                        text = listOf(dateStr, timeStr).filter { it.isNotBlank() }.joinToString(" às "),
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    IconButton(
+                        onClick = { viewModel.supabaseTasksSync.deleteTask(item.id) },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Delete,
+                            contentDescription = "Excluir",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Seção: Concluídas Recentemente
+        if (completedTasks.isNotEmpty()) {
+            item {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = Color(0xFF10B981),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "CONCLUÍDAS (${completedTasks.size})",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        letterSpacing = 1.sp
+                    )
+                }
+            }
+
+            items(completedTasks, key = { it.id }) { item ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .alpha(0.5f),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF131620)),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.04f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = { viewModel.supabaseTasksSync.completeTask(item.id) },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "Reabrir",
+                                tint = Color(0xFF10B981),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Text(
+                            text = item.title,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        IconButton(
+                            onClick = { viewModel.supabaseTasksSync.deleteTask(item.id) },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Delete,
+                                contentDescription = "Excluir",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Modal de Criação de Tarefa no Android
+    if (showAddDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddDialog = false },
+            title = {
+                Text(
+                    text = "Nova Tarefa Compartilhada",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = newTitle,
+                        onValueChange = { newTitle = it },
+                        label = { Text("Título da Tarefa") },
+                        placeholder = { Text("Ex: Passar no mercado...") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = newDescription,
+                        onValueChange = { newDescription = it },
+                        label = { Text("Observações (opcional)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = newTime,
+                        onValueChange = { newTime = it },
+                        label = { Text("Horário específico (opcional, ex: 14:30)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (newTitle.isNotBlank()) {
+                            viewModel.supabaseTasksSync.createTask(
+                                title = newTitle,
+                                description = newDescription.takeIf { it.isNotBlank() },
+                                dueDate = System.currentTimeMillis(),
+                                dueTime = newTime.takeIf { it.isNotBlank() },
+                                type = "task"
+                            )
+                            newTitle = ""
+                            newDescription = ""
+                            newTime = ""
+                            showAddDialog = false
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2DD4BF))
+                ) {
+                    Text("Criar", color = Color(0xFF0B0D13), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddDialog = false }) {
+                    Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            containerColor = Color(0xFF1E222D),
+            shape = RoundedCornerShape(16.dp)
         )
     }
 }

@@ -61,6 +61,7 @@ class TesseraViewModel(
     val syncManager = com.example.data.MarketSyncManager(applicationContext, repository)
     val supabaseMarketSync = com.example.data.supabase.SupabaseMarketSyncManager(applicationContext, repository)
     val supabaseFinanceSync = com.example.data.supabase.SupabaseFinanceSyncManager(applicationContext, repository)
+    val supabaseTasksSync = com.example.data.supabase.SupabaseTasksSyncManager(applicationContext)
 
     private val marketSharedPrefs = applicationContext.getSharedPreferences("tessera_market_prefs", Context.MODE_PRIVATE)
     val marketListId = MutableStateFlow<String?>(marketSharedPrefs.getString("shared_list_id", null))
@@ -69,6 +70,7 @@ class TesseraViewModel(
         com.example.data.supabase.SupabaseClientProvider.init(applicationContext)
         supabaseMarketSync.startContinuousSync()
         supabaseFinanceSync.startContinuousSync()
+        supabaseTasksSync.startContinuousSync()
 
         marketListId.value?.let { id ->
             syncManager.startSync(id)
@@ -678,6 +680,9 @@ class TesseraViewModel(
     private val _dailyBriefingText = MutableStateFlow<String?>(null)
     val dailyBriefingText: StateFlow<String?> = _dailyBriefingText.asStateFlow()
 
+    private val _isGeneratingAiSummary = MutableStateFlow(false)
+    val isGeneratingAiSummary: StateFlow<Boolean> = _isGeneratingAiSummary.asStateFlow()
+
     private val sharedPrefs = applicationContext.getSharedPreferences("tessera_prefs", Context.MODE_PRIVATE)
 
     enum class FinanceAction {
@@ -1188,14 +1193,50 @@ class TesseraViewModel(
                 val petText = if (petEvents.any { !it.isCompleted }) " Lembre-se de cuidar da Marie e do Churchill hoje." else ""
                 val stepsText = if (todaySteps > 0) " Você já caminhou $todaySteps passos hoje." else " Que tal dar uma caminhada hoje?"
                 val fallbackBriefing = "Você dormiu $sleepText com $sleepEfficiency% de eficiência. $habitsText$petText$stepsText"
-                _dailyBriefingText.value = fallbackBriefing
+                if (_dailyBriefingText.value.isNullOrBlank()) {
+                    _dailyBriefingText.value = fallbackBriefing
+                }
 
                 _heroMetric.value = fallbackMetric
                 _aiInsights.value = fallbackInsights.take(3)
+
+                // Chamada assíncrona para a Edge Function tessera-ai via Supabase/Gemini
+                viewModelScope.launch {
+                    try {
+                        _isGeneratingAiSummary.value = true
+                        val aiContext = com.example.data.ai.DailySummaryContext(
+                            userName = "Kenned",
+                            sleepText = sleepText,
+                            sleepEfficiency = sleepEfficiency,
+                            completedHabits = completedHabits,
+                            totalHabits = totalHabits,
+                            todaySteps = todaySteps,
+                            expensesToday = realExpense,
+                            pendingMedsCount = pendingMeds,
+                            petRoutinesPending = petEvents.count { !it.isCompleted }
+                        )
+                        val aiResult = com.example.data.ai.TesseraAiRepository.getDailySummary(aiContext)
+                        aiResult.onSuccess { summary ->
+                            if (summary.isNotBlank()) {
+                                _dailyBriefingText.value = summary
+                            }
+                        }.onFailure {
+                            Log.w("TesseraViewModel", "Usando fallback para o resumo diário: ${it.message}")
+                        }
+                    } catch (e: Exception) {
+                        Log.w("TesseraViewModel", "Erro ao buscar resumo dinâmico da IA", e)
+                    } finally {
+                        _isGeneratingAiSummary.value = false
+                    }
+                }
             } catch (e: Exception) {
                 Log.e("TesseraViewModel", "Erro ao atualizar insights AI", e)
             }
         }
+    }
+
+    fun refreshAiDailyBriefing() {
+        refreshAIInsightsAndMetric()
     }
 
     val allMedications: StateFlow<List<Medication>> = combine(

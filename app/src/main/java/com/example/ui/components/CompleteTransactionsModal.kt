@@ -72,7 +72,7 @@ fun CompleteTransactionsModal(
     val groupedByMonth = remember(transactions) {
         transactions.groupBy { 
             val cal = Calendar.getInstance()
-            cal.timeInMillis = it.timestamp
+            cal.timeInMillis = if (it.dueDate > 0L) it.dueDate else it.timestamp
             cal.set(Calendar.DAY_OF_MONTH, 1)
             cal.set(Calendar.HOUR_OF_DAY, 0)
             cal.set(Calendar.MINUTE, 0)
@@ -273,7 +273,7 @@ fun CompleteTransactionsModal(
                             val groupedByDay = remember(filteredMonthTransactions) {
                                 filteredMonthTransactions.groupBy {
                                     val cal = Calendar.getInstance()
-                                    cal.timeInMillis = it.timestamp
+                                    cal.timeInMillis = if (it.dueDate > 0L) it.dueDate else it.timestamp
                                     cal.set(Calendar.HOUR_OF_DAY, 0)
                                     cal.set(Calendar.MINUTE, 0)
                                     cal.set(Calendar.SECOND, 0)
@@ -816,8 +816,9 @@ private suspend fun generateCsv(context: Context, uri: Uri, transactions: List<T
                 
                 val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("pt", "BR"))
                 
-                transactions.sortedBy { it.timestamp }.forEach { tx ->
-                    val date = dateFormat.format(Date(tx.timestamp))
+                transactions.sortedBy { if (it.dueDate > 0L) it.dueDate else it.timestamp }.forEach { tx ->
+                    val effectiveDate = if (tx.dueDate > 0L) tx.dueDate else tx.timestamp
+                    val date = dateFormat.format(Date(effectiveDate))
                     val title = tx.title.replace(",", " ")
                     val subtitle = tx.subtitle.replace(",", " ")
                     val category = tx.category.replace(",", " ")
@@ -877,7 +878,7 @@ private suspend fun generatePdf(context: Context, uri: Uri, transactions: List<T
             
             val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale("pt", "BR"))
             
-            for (tx in transactions.sortedBy { it.timestamp }) {
+            for (tx in transactions.sortedBy { if (it.dueDate > 0L) it.dueDate else it.timestamp }) {
                 if (yPosition > 800f) {
                     document.finishPage(page)
                     page = document.startPage(pageInfo)
@@ -885,7 +886,8 @@ private suspend fun generatePdf(context: Context, uri: Uri, transactions: List<T
                     yPosition = 50f
                 }
                 
-                val dateStr = dateFormat.format(Date(tx.timestamp))
+                val effectiveDate = if (tx.dueDate > 0L) tx.dueDate else tx.timestamp
+                val dateStr = dateFormat.format(Date(effectiveDate))
                 val valStr = String.format(Locale("pt", "BR"), if (tx.isIncome) "+R$ %,.2f" else "-R$ %,.2f", tx.value)
                 
                 canvas.drawText(dateStr, margin, yPosition, textPaint)

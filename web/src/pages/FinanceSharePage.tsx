@@ -59,6 +59,7 @@ export interface DebtItem {
   installments_paid: number
 }
 
+import { useTheme } from '../hooks/useTheme'
 import { usePwaInstall } from '../hooks/usePwaInstall'
 import { PwaInstructionsModal } from '../components/PwaInstructionsModal'
 import { saveRecentItem } from '../utils/recentStorage'
@@ -100,6 +101,7 @@ export interface BankAccountDoc {
   type: string
   balance: number
   color_hex?: string
+  is_mine?: boolean
 }
 
 export interface CreditCardDoc {
@@ -112,6 +114,7 @@ export interface CreditCardDoc {
   color_hex?: string
   closing_day?: number
   due_day?: number
+  is_mine?: boolean
 }
 
 export interface RecurrentItem {
@@ -138,12 +141,15 @@ export interface FinanceSuggestionDoc {
   category: string
   date: string
   created_at: string
-  status: 'pending' | 'approved' | 'rejected'
+  status: 'pending' | 'approved' | 'rejected' | 'auto_approved'
   action?: 'create' | 'edit'
   target_tx_id?: number | string
   original_title?: string
   original_amount?: number
   account_or_card_name?: string
+  due_date?: number
+  auto_approved?: boolean
+  is_own?: boolean
 }
 
 interface FinanceDashboardDoc {
@@ -308,7 +314,8 @@ function normalizeAccounts(docAccounts: unknown, rawInstallments: unknown, trans
         name: String(obj.name || 'Conta'),
         type: String(obj.type || 'Corrente'),
         balance: typeof obj.balance === 'number' ? obj.balance : parseFloat(String(obj.balance)) || 0,
-        color_hex: typeof obj.color_hex === 'string' ? obj.color_hex : undefined
+        color_hex: typeof obj.color_hex === 'string' ? obj.color_hex : undefined,
+        is_mine: Boolean(obj.is_mine)
       }
     })
   } else if (typeof rawInstallments === 'object' && rawInstallments !== null) {
@@ -320,7 +327,8 @@ function normalizeAccounts(docAccounts: unknown, rawInstallments: unknown, trans
         name: String(obj.name || 'Conta'),
         type: String(obj.type || 'Corrente'),
         balance: typeof obj.balance === 'number' ? obj.balance : parseFloat(String(obj.balance)) || 0,
-        color_hex: typeof obj.color_hex === 'string' ? obj.color_hex : undefined
+        color_hex: typeof obj.color_hex === 'string' ? obj.color_hex : undefined,
+        is_mine: Boolean(obj.is_mine)
       }))
     }
   }
@@ -337,7 +345,8 @@ function normalizeAccounts(docAccounts: unknown, rawInstallments: unknown, trans
         name,
         type: 'Corrente',
         balance: 0,
-        color_hex: '#FF7A00'
+        color_hex: '#FF7A00',
+        is_mine: false
       }))
     }
   }
@@ -363,7 +372,8 @@ function normalizeCards(docCards: unknown, rawInstallments: unknown, transaction
         available_limit: avail,
         color_hex: typeof obj.color_hex === 'string' ? obj.color_hex : undefined,
         closing_day: typeof obj.closing_day === 'number' ? obj.closing_day : undefined,
-        due_day: typeof obj.due_day === 'number' ? obj.due_day : undefined
+        due_day: typeof obj.due_day === 'number' ? obj.due_day : undefined,
+        is_mine: Boolean(obj.is_mine)
       }
     })
   } else if (typeof rawInstallments === 'object' && rawInstallments !== null) {
@@ -383,7 +393,8 @@ function normalizeCards(docCards: unknown, rawInstallments: unknown, transaction
           available_limit: avail,
           color_hex: typeof obj.color_hex === 'string' ? obj.color_hex : undefined,
           closing_day: typeof obj.closing_day === 'number' ? obj.closing_day : undefined,
-          due_day: typeof obj.due_day === 'number' ? obj.due_day : undefined
+          due_day: typeof obj.due_day === 'number' ? obj.due_day : undefined,
+          is_mine: Boolean(obj.is_mine)
         }
       })
     }
@@ -479,24 +490,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
   const [copied, setCopied] = useState(false)
 
   // Tema Claro / Escuro com persistência
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('tessera_theme') : null
-    if (saved === 'light' || saved === 'dark') return saved
-    return typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
-  })
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme)
-    try {
-      localStorage.setItem('tessera_theme', theme)
-    } catch {
-      // ignore
-    }
-  }, [theme])
-
-  const toggleTheme = () => {
-    setTheme(prev => (prev === 'dark' ? 'light' : 'dark'))
-  }
+  const { theme, toggleTheme } = useTheme()
 
   // PWA Install state via hook resiliente
   const { isInstalled, installApp, showHelpModal, setShowHelpModal, isIos } = usePwaInstall()
@@ -521,8 +515,37 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
   const [suggestionTitle, setSuggestionTitle] = useState('')
   const [suggestionAmount, setSuggestionAmount] = useState('')
   const [suggestionCategory, setSuggestionCategory] = useState('Alimentação')
+  const [suggestionOrigin, setSuggestionOrigin] = useState('')
+  const [suggestionDate, setSuggestionDate] = useState(() => {
+    const today = new Date()
+    const yyyy = today.getFullYear()
+    const mm = String(today.getMonth() + 1).padStart(2, '0')
+    const dd = String(today.getDate()).padStart(2, '0')
+    return `${yyyy}-${mm}-${dd}`
+  })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  // Modal Nova Conta
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false)
+  const [accName, setAccName] = useState('')
+  const [accType, setAccType] = useState('Corrente')
+  const [accBalance, setAccBalance] = useState('')
+  const [accColor, setAccColor] = useState('#4A90E2')
+  const [accIsMine, setAccIsMine] = useState(true)
+  const [isSubmittingAccount, setIsSubmittingAccount] = useState(false)
+
+  // Modal Novo Cartão
+  const [isCardModalOpen, setIsCardModalOpen] = useState(false)
+  const [cardName, setCardName] = useState('')
+  const [cardType, setCardType] = useState<'credit' | 'benefit'>('credit')
+  const [cardLimit, setCardLimit] = useState('')
+  const [cardUsedLimit, setCardUsedLimit] = useState('')
+  const [cardColor, setCardColor] = useState('#71D7CD')
+  const [cardClosingDay, setCardClosingDay] = useState('')
+  const [cardDueDay, setCardDueDay] = useState('')
+  const [cardIsMine, setCardIsMine] = useState(true)
+  const [isSubmittingCard, setIsSubmittingCard] = useState(false)
 
   // Edit Transaction Modal state
   const [editingTx, setEditingTx] = useState<TransactionItem | null>(null)
@@ -650,6 +673,19 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
         const d = new Date(Number(rawDate))
         return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
       }
+      if (typeof rawDate === 'string') {
+        const clean = rawDate.trim()
+        if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+          const [y, m, d] = clean.split('-').map(Number)
+          const dateObj = new Date(y, m - 1, d)
+          return dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+        }
+        if (clean.includes('T')) {
+          const d = new Date(clean)
+          return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+        }
+        return clean
+      }
       return String(rawDate)
     } catch {
       return String(rawDate)
@@ -664,7 +700,102 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
     }
   }
 
-  // Handle submitting a suggestion from Web
+  const handleCreateAccount = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!doc || !accName.trim()) return
+    const initialBal = parseFloat(accBalance.replace(',', '.')) || 0
+    setIsSubmittingAccount(true)
+
+    const newAcc: BankAccountDoc = {
+      id: `acc_web_${Date.now()}`,
+      name: accName.trim(),
+      type: accType,
+      balance: initialBal,
+      color_hex: accColor,
+      is_mine: accIsMine
+    }
+
+    const currentAccounts = normalizeAccounts(doc.accounts, doc.installments, doc.transactions)
+    const updatedAccounts = [...currentAccounts, newAcc]
+    const updatedDoc: FinanceDashboardDoc = {
+      ...doc,
+      accounts: updatedAccounts,
+      updated_at: new Date().toISOString()
+    }
+    setDoc(updatedDoc)
+    localStorage.setItem(`tessera_finance_${dashboardId}`, JSON.stringify(updatedDoc))
+
+    try {
+      await supabase
+        .from('shared_finance_dashboards')
+        .update({ accounts: updatedAccounts, updated_at: new Date().toISOString() })
+        .eq('id', dashboardId)
+
+      setSuccessMessage(`Conta "${newAcc.name}" cadastrada com sucesso!`)
+      setAccName('')
+      setAccBalance('')
+      setIsAccountModalOpen(false)
+      setTimeout(() => setSuccessMessage(null), 4000)
+    } catch (err: unknown) {
+      console.error('Falha ao salvar conta:', err)
+    } finally {
+      setIsSubmittingAccount(false)
+    }
+  }
+
+  const handleCreateCard = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!doc || !cardName.trim()) return
+    const limit = parseFloat(cardLimit.replace(',', '.')) || 0
+    const used = parseFloat(cardUsedLimit.replace(',', '.')) || 0
+    const avail = Math.max(0, limit - used)
+    setIsSubmittingCard(true)
+
+    const newCard: CreditCardDoc = {
+      id: `card_web_${Date.now()}`,
+      name: cardName.trim(),
+      type: cardType,
+      limit,
+      used_limit: used,
+      available_limit: avail,
+      color_hex: cardColor,
+      closing_day: parseInt(cardClosingDay, 10) || undefined,
+      due_day: parseInt(cardDueDay, 10) || undefined,
+      is_mine: cardIsMine
+    }
+
+    const currentCards = normalizeCards(doc.cards, doc.installments, doc.transactions)
+    const updatedCards = [...currentCards, newCard]
+    const updatedDoc: FinanceDashboardDoc = {
+      ...doc,
+      cards: updatedCards,
+      updated_at: new Date().toISOString()
+    }
+    setDoc(updatedDoc)
+    localStorage.setItem(`tessera_finance_${dashboardId}`, JSON.stringify(updatedDoc))
+
+    try {
+      await supabase
+        .from('shared_finance_dashboards')
+        .update({ cards: updatedCards, updated_at: new Date().toISOString() })
+        .eq('id', dashboardId)
+
+      setSuccessMessage(`Cartão "${newCard.name}" cadastrado com sucesso!`)
+      setCardName('')
+      setCardLimit('')
+      setCardUsedLimit('')
+      setCardClosingDay('')
+      setCardDueDay('')
+      setIsCardModalOpen(false)
+      setTimeout(() => setSuccessMessage(null), 4000)
+    } catch (err: unknown) {
+      console.error('Falha ao salvar cartão:', err)
+    } finally {
+      setIsSubmittingCard(false)
+    }
+  }
+
+  // Handle submitting a transaction or suggestion from Web
   const handleSuggestTransaction = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!doc || !suggestionTitle.trim()) return
@@ -674,40 +805,153 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
 
     setIsSubmitting(true)
 
-    const newSuggestion: FinanceSuggestionDoc = {
-      id: `sug_${Date.now()}`,
-      title: suggestionTitle.trim(),
-      amount,
-      type: suggestionType,
-      category: suggestionCategory,
-      date: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-      created_at: new Date().toISOString(),
-      status: 'pending',
+    const isIncome = suggestionType === 'income'
+    let txDateMillis = Date.now()
+    if (suggestionDate) {
+      const [y, m, d] = suggestionDate.split('-').map(Number)
+      if (y && m && d) {
+        txDateMillis = new Date(y, m - 1, d, 12, 0, 0).getTime()
+      }
     }
 
-    const currentSuggestions = doc.suggestions || []
-    const updatedSuggestions = [newSuggestion, ...currentSuggestions]
-    const updatedDoc: FinanceDashboardDoc = { ...doc, suggestions: updatedSuggestions, updated_at: new Date().toISOString() }
+    const currentAccounts = normalizeAccounts(doc.accounts, doc.installments, doc.transactions)
+    const currentCards = normalizeCards(doc.cards, doc.installments, doc.transactions)
 
-    // Optimistic local update
-    setDoc(updatedDoc)
-    localStorage.setItem(`tessera_finance_${dashboardId}`, JSON.stringify(updatedDoc))
+    const isOriginMine = Boolean(
+      currentAccounts.find(a => a.name === suggestionOrigin)?.is_mine ||
+      currentCards.find(c => c.name === suggestionOrigin)?.is_mine
+    )
 
-    try {
-      await supabase
-        .from('shared_finance_dashboards')
-        .update({ suggestions: updatedSuggestions, updated_at: new Date().toISOString() })
-        .eq('id', dashboardId)
+    if (isOriginMine) {
+      // Lançamento direto para conta/cartão próprio
+      const newTx: TransactionItem = {
+        id: `tx_web_${Date.now()}`,
+        title: suggestionTitle.trim(),
+        subtitle: `Via Web • ${suggestionCategory}`,
+        category: suggestionCategory,
+        amount,
+        type: suggestionType,
+        date: txDateMillis,
+        due_date: txDateMillis,
+        account_or_card_name: suggestionOrigin,
+        is_realized: true
+      }
 
-      setSuccessMessage(`Sugestão de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount)} enviada! Ela aparecerá no aplicativo para aprovação.`)
-      setSuggestionTitle('')
-      setSuggestionAmount('')
-      setIsModalOpen(false)
-      setTimeout(() => setSuccessMessage(null), 5000)
-    } catch (err: unknown) {
-      console.error('Failed to submit suggestion:', err)
-    } finally {
-      setIsSubmitting(false)
+      const currentTransactions = doc.transactions || []
+      const updatedTransactions = [newTx, ...currentTransactions]
+
+      const updatedAccounts = currentAccounts.map(acc => {
+        if (acc.name === suggestionOrigin) {
+          const newBal = isIncome ? acc.balance + amount : acc.balance - amount
+          return { ...acc, balance: newBal }
+        }
+        return acc
+      })
+
+      const updatedCards = currentCards.map(c => {
+        if (c.name === suggestionOrigin) {
+          const newUsed = isIncome ? Math.max(0, c.used_limit - amount) : c.used_limit + amount
+          return { ...c, used_limit: newUsed, available_limit: Math.max(0, c.limit - newUsed) }
+        }
+        return c
+      })
+
+      const newTotalBalance = isIncome ? (doc.total_balance || 0) + amount : (doc.total_balance || 0) - amount
+
+      // Auto-aprovada para inserção transparente no Room do Android
+      const autoApprovedSug: FinanceSuggestionDoc = {
+        id: `sug_auto_${Date.now()}`,
+        title: suggestionTitle.trim(),
+        amount,
+        type: suggestionType,
+        category: suggestionCategory,
+        date: suggestionDate,
+        due_date: txDateMillis,
+        created_at: new Date().toISOString(),
+        status: 'auto_approved',
+        action: 'create',
+        account_or_card_name: suggestionOrigin,
+        auto_approved: true,
+        is_own: true
+      }
+
+      const updatedSuggestions = [autoApprovedSug, ...(doc.suggestions || [])]
+
+      const updatedDoc: FinanceDashboardDoc = {
+        ...doc,
+        transactions: updatedTransactions,
+        accounts: updatedAccounts,
+        cards: updatedCards,
+        total_balance: newTotalBalance,
+        suggestions: updatedSuggestions,
+        updated_at: new Date().toISOString()
+      }
+
+      setDoc(updatedDoc)
+      localStorage.setItem(`tessera_finance_${dashboardId}`, JSON.stringify(updatedDoc))
+
+      try {
+        await supabase
+          .from('shared_finance_dashboards')
+          .update({
+            transactions: updatedTransactions,
+            accounts: updatedAccounts,
+            cards: updatedCards,
+            total_balance: newTotalBalance,
+            suggestions: updatedSuggestions,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', dashboardId)
+
+        setSuccessMessage(`Lançamento de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount)} adicionado com sucesso!`)
+        setSuggestionTitle('')
+        setSuggestionAmount('')
+        setIsModalOpen(false)
+        setTimeout(() => setSuccessMessage(null), 5000)
+      } catch (err: unknown) {
+        console.error('Failed to submit direct transaction:', err)
+      } finally {
+        setIsSubmitting(false)
+      }
+    } else {
+      // Requer aprovação do Kenned
+      const newSuggestion: FinanceSuggestionDoc = {
+        id: `sug_${Date.now()}`,
+        title: suggestionTitle.trim(),
+        amount,
+        type: suggestionType,
+        category: suggestionCategory,
+        date: suggestionDate,
+        due_date: txDateMillis,
+        created_at: new Date().toISOString(),
+        status: 'pending',
+        action: 'create',
+        account_or_card_name: suggestionOrigin
+      }
+
+      const currentSuggestions = doc.suggestions || []
+      const updatedSuggestions = [newSuggestion, ...currentSuggestions]
+      const updatedDoc: FinanceDashboardDoc = { ...doc, suggestions: updatedSuggestions, updated_at: new Date().toISOString() }
+
+      setDoc(updatedDoc)
+      localStorage.setItem(`tessera_finance_${dashboardId}`, JSON.stringify(updatedDoc))
+
+      try {
+        await supabase
+          .from('shared_finance_dashboards')
+          .update({ suggestions: updatedSuggestions, updated_at: new Date().toISOString() })
+          .eq('id', dashboardId)
+
+        setSuccessMessage(`Sugestão de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount)} enviada! Ela aparecerá no aplicativo para aprovação.`)
+        setSuggestionTitle('')
+        setSuggestionAmount('')
+        setIsModalOpen(false)
+        setTimeout(() => setSuccessMessage(null), 5000)
+      } catch (err: unknown) {
+        console.error('Failed to submit suggestion:', err)
+      } finally {
+        setIsSubmitting(false)
+      }
     }
   }
 
@@ -1277,16 +1521,27 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
               </span>
             )}
           </div>
-          {cardsData.length > 0 && (
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-              Toque para filtrar saldo
-            </span>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => setIsCardModalOpen(true)}
+              style={{ padding: '4px 10px', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, height: 28, borderRadius: 'var(--radius-sm)' }}
+            >
+              <Plus size={13} />
+              Novo Cartão
+            </button>
+            {cardsData.length > 0 && (
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Filtrar
+              </span>
+            )}
+          </div>
         </div>
 
         {cardsData.length === 0 ? (
           <div className="card" style={{ padding: '16px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
-            Nenhum cartão cadastrado no aplicativo.
+            Nenhum cartão cadastrado. Clique em "+ Novo Cartão" para adicionar.
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: cardsData.length === 1 ? '1fr' : 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
@@ -1331,6 +1586,18 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
                       <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: 0.5 }}>
                         {card.name.toUpperCase()}
                       </span>
+                      {card.is_mine && (
+                        <span style={{
+                          fontSize: 9,
+                          fontWeight: 600,
+                          padding: '1px 6px',
+                          borderRadius: 'var(--radius-full)',
+                          background: 'rgba(113, 215, 205, 0.15)',
+                          color: '#71D7CD'
+                        }}>
+                          Meu cartão
+                        </span>
+                      )}
                     </div>
                     <span style={{
                       fontSize: 10,
@@ -1392,16 +1659,27 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
               </span>
             )}
           </div>
-          {accountsData.length > 0 && (
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-              Toque para filtrar saldo
-            </span>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => setIsAccountModalOpen(true)}
+              style={{ padding: '4px 10px', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, height: 28, borderRadius: 'var(--radius-sm)' }}
+            >
+              <Plus size={13} />
+              Nova Conta
+            </button>
+            {accountsData.length > 0 && (
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Filtrar
+              </span>
+            )}
+          </div>
         </div>
 
         {accountsData.length === 0 ? (
           <div className="card" style={{ padding: '16px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
-            Nenhuma conta cadastrada no aplicativo.
+            Nenhuma conta cadastrada. Clique em "+ Nova Conta" para adicionar.
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: accountsData.length === 1 ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
@@ -1440,9 +1718,24 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
                   <div style={{ width: 4, height: 36, borderRadius: 999, background: accColor, flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {acc.name}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {acc.name}
+                        </span>
+                        {acc.is_mine && (
+                          <span style={{
+                            fontSize: 9,
+                            fontWeight: 600,
+                            padding: '1px 6px',
+                            borderRadius: 'var(--radius-full)',
+                            background: 'rgba(113, 215, 205, 0.15)',
+                            color: '#71D7CD',
+                            flexShrink: 0
+                          }}>
+                            Minha conta
+                          </span>
+                        )}
+                      </div>
                       <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
                         {acc.type}
                       </span>
@@ -1708,11 +2001,17 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
         <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)' }}>Sugerir Lançamento</h2>
+              <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)' }}>
+                {Boolean(
+                  accountsData.find(a => a.name === suggestionOrigin)?.is_mine ||
+                  cardsData.find(c => c.name === suggestionOrigin)?.is_mine
+                ) ? 'Novo Lançamento' : 'Sugerir Lançamento'}
+              </h2>
               <button 
                 className="btn btn-outline" 
                 onClick={() => setIsModalOpen(false)}
-                style={{ padding: 6, borderRadius: '50%', width: 32, height: 32 }}
+                style={{ padding: 6, borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                aria-label="Fechar"
               >
                 <X size={16} />
               </button>
@@ -1791,17 +2090,82 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
                 </div>
               </div>
 
-              <div style={{ 
-                background: 'var(--bg-surface)', 
-                border: '1px solid var(--border)', 
-                borderRadius: 'var(--radius-sm)', 
-                padding: '10px 14px', 
-                fontSize: 12, 
-                color: 'var(--text-muted)',
-                lineHeight: 1.4
-              }}>
-                ℹ️ Esta transação será enviada como uma sugestão para o aplicativo do Kenned e só será efetivada após aprovação no celular.
+              {/* De onde virá o lançamento? */}
+              <div>
+                <label className="input-label">De onde virá aquele lançamento?</label>
+                <select 
+                  className="input-field"
+                  value={suggestionOrigin}
+                  onChange={e => setSuggestionOrigin(e.target.value)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <option value="">Selecione a conta ou cartão...</option>
+                  {accountsData.length > 0 && (
+                    <optgroup label="Contas Bancárias">
+                      {accountsData.map(acc => (
+                        <option key={acc.id} value={acc.name}>
+                          🏦 {acc.name} ({acc.type}){acc.is_mine ? ' • Minha conta' : ''}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {cardsData.length > 0 && (
+                    <optgroup label="Cartões">
+                      {cardsData.map(c => (
+                        <option key={c.id} value={c.name}>
+                          💳 {c.name} ({c.type === 'credit' ? 'Crédito' : 'Benefício'}){c.is_mine ? ' • Meu cartão' : ''}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
               </div>
+
+              {/* Data do Lançamento */}
+              <div>
+                <label className="input-label">Data do Lançamento</label>
+                <input 
+                  type="date"
+                  className="input-field"
+                  value={suggestionDate}
+                  onChange={e => setSuggestionDate(e.target.value)}
+                  required
+                />
+              </div>
+
+              {/* Indicador de Aprovação Dinâmica */}
+              {Boolean(
+                accountsData.find(a => a.name === suggestionOrigin)?.is_mine ||
+                cardsData.find(c => c.name === suggestionOrigin)?.is_mine
+              ) ? (
+                <div style={{ 
+                  background: 'rgba(113, 215, 205, 0.08)', 
+                  border: '1px solid rgba(113, 215, 205, 0.3)', 
+                  borderRadius: 'var(--radius-sm)', 
+                  padding: '10px 14px', 
+                  fontSize: 12, 
+                  color: 'var(--accent)',
+                  lineHeight: 1.4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8
+                }}>
+                  <span style={{ fontSize: 14 }}>✓</span>
+                  <span><strong>Conta/Cartão próprio:</strong> Como esta conta/cartão é sua, o lançamento será registrado diretamente sem necessidade de aprovação.</span>
+                </div>
+              ) : (
+                <div style={{ 
+                  background: 'var(--bg-surface)', 
+                  border: '1px solid var(--border)', 
+                  borderRadius: 'var(--radius-sm)', 
+                  padding: '10px 14px', 
+                  fontSize: 12, 
+                  color: 'var(--text-muted)',
+                  lineHeight: 1.4
+                }}>
+                  ℹ️ {suggestionOrigin ? 'Esta conta/cartão pertence ao Kenned. O lançamento será enviado como sugestão para aprovação no aplicativo.' : 'Selecione uma conta ou cartão. Lançamentos em contas suas não requerem aprovação.'}
+                </div>
+              )}
 
               <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
                 <button 
@@ -1818,7 +2182,353 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
                   disabled={!suggestionTitle.trim() || !suggestionAmount || isSubmitting}
                   style={{ flex: 1 }}
                 >
-                  {isSubmitting ? 'Enviando...' : 'Enviar Sugestão'}
+                  {isSubmitting 
+                    ? 'Salvando...' 
+                    : (accountsData.find(a => a.name === suggestionOrigin)?.is_mine || cardsData.find(c => c.name === suggestionOrigin)?.is_mine)
+                      ? 'Adicionar Lançamento'
+                      : 'Enviar Sugestão'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Nova Conta */}
+      {isAccountModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsAccountModalOpen(false)}>
+          <div className="modal-content animate-fade-in-up" onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div>
+                <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)' }}>Nova Conta Bancária</h2>
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                  Cadastre uma conta corrente, poupança ou investimento
+                </p>
+              </div>
+              <button 
+                type="button"
+                className="btn btn-outline" 
+                onClick={() => setIsAccountModalOpen(false)}
+                style={{ padding: 6, borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                aria-label="Fechar"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateAccount} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Nome da Conta */}
+              <div>
+                <label className="input-label">Nome da Conta / Instituição</label>
+                <input 
+                  type="text"
+                  className="input-field"
+                  placeholder="Ex: Nubank, Itaú, Inter..."
+                  value={accName}
+                  onChange={e => setAccName(e.target.value)}
+                  autoFocus
+                  required
+                />
+              </div>
+
+              {/* Tipo e Saldo Inicial */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label className="input-label">Tipo de Conta</label>
+                  <select 
+                    className="input-field"
+                    value={accType}
+                    onChange={e => setAccType(e.target.value)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <option value="Corrente">Corrente</option>
+                    <option value="Poupança">Poupança</option>
+                    <option value="Investimento">Investimento</option>
+                    <option value="Carteira">Carteira / Dinheiro</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="input-label">Saldo Inicial (R$)</label>
+                  <input 
+                    type="number"
+                    step="0.01"
+                    placeholder="0,00"
+                    className="input-field"
+                    value={accBalance}
+                    onChange={e => setAccBalance(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Cor de Identificação */}
+              <div>
+                <label className="input-label">Cor de Identificação</label>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+                  {['#4A90E2', '#71D7CD', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#64748B'].map(color => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setAccColor(color)}
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: '50%',
+                        background: color,
+                        border: accColor === color ? '2px solid var(--text-primary)' : '1px solid var(--border)',
+                        cursor: 'pointer',
+                        transition: 'transform 150ms ease-out',
+                        transform: accColor === color ? 'scale(1.15)' : 'scale(1)'
+                      }}
+                      aria-label={`Selecionar cor ${color}`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Checkbox: Esta conta é minha */}
+              <div 
+                onClick={() => setAccIsMine(!accIsMine)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '12px 14px',
+                  background: accIsMine ? 'rgba(113, 215, 205, 0.08)' : 'var(--bg-surface)',
+                  border: `1px solid ${accIsMine ? 'rgba(113, 215, 205, 0.4)' : 'var(--border)'}`,
+                  borderRadius: 'var(--radius-sm)',
+                  cursor: 'pointer',
+                  transition: 'all 150ms ease-out'
+                }}
+              >
+                <input 
+                  type="checkbox"
+                  checked={accIsMine}
+                  onChange={e => setAccIsMine(e.target.checked)}
+                  style={{ width: 18, height: 18, accentColor: 'var(--accent)', cursor: 'pointer' }}
+                  onClick={e => e.stopPropagation()}
+                />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                    Esta conta é minha
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                    Lançamentos nesta conta não precisarão de aprovação do Kenned.
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                <button 
+                  type="button" 
+                  className="btn btn-outline" 
+                  onClick={() => setIsAccountModalOpen(false)}
+                  style={{ flex: 1 }}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  className="btn btn-primary" 
+                  disabled={!accName.trim() || isSubmittingAccount}
+                  style={{ flex: 1 }}
+                >
+                  {isSubmittingAccount ? 'Salvando...' : 'Cadastrar Conta'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Novo Cartão */}
+      {isCardModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsCardModalOpen(false)}>
+          <div className="modal-content animate-fade-in-up" onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div>
+                <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)' }}>Novo Cartão</h2>
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                  Cadastre um cartão de crédito ou benefício
+                </p>
+              </div>
+              <button 
+                type="button"
+                className="btn btn-outline" 
+                onClick={() => setIsCardModalOpen(false)}
+                style={{ padding: 6, borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                aria-label="Fechar"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateCard} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Nome do Cartão */}
+              <div>
+                <label className="input-label">Nome do Cartão</label>
+                <input 
+                  type="text"
+                  className="input-field"
+                  placeholder="Ex: Nubank Ultravioleta, C6 Black, VR..."
+                  value={cardName}
+                  onChange={e => setCardName(e.target.value)}
+                  autoFocus
+                  required
+                />
+              </div>
+
+              {/* Tipo de Cartão */}
+              <div>
+                <label className="input-label">Tipo de Cartão</label>
+                <div className="segmented-control">
+                  <button 
+                    type="button"
+                    className={`segmented-btn ${cardType === 'credit' ? 'active' : ''}`}
+                    onClick={() => setCardType('credit')}
+                  >
+                    💳 Crédito
+                  </button>
+                  <button 
+                    type="button"
+                    className={`segmented-btn ${cardType === 'benefit' ? 'active' : ''}`}
+                    onClick={() => setCardType('benefit')}
+                  >
+                    🍽️ Benefício / VR
+                  </button>
+                </div>
+              </div>
+
+              {/* Limite Total e Utilizado */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label className="input-label">Limite Total (R$)</label>
+                  <input 
+                    type="number"
+                    step="0.01"
+                    placeholder="0,00"
+                    className="input-field"
+                    value={cardLimit}
+                    onChange={e => setCardLimit(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="input-label">Limite Já Usado (R$)</label>
+                  <input 
+                    type="number"
+                    step="0.01"
+                    placeholder="0,00"
+                    className="input-field"
+                    value={cardUsedLimit}
+                    onChange={e => setCardUsedLimit(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Dia Fechamento e Dia Vencimento */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label className="input-label">Dia do Fechamento</label>
+                  <input 
+                    type="number"
+                    min="1"
+                    max="31"
+                    placeholder="Ex: 5"
+                    className="input-field"
+                    value={cardClosingDay}
+                    onChange={e => setCardClosingDay(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="input-label">Dia do Vencimento</label>
+                  <input 
+                    type="number"
+                    min="1"
+                    max="31"
+                    placeholder="Ex: 12"
+                    className="input-field"
+                    value={cardDueDay}
+                    onChange={e => setCardDueDay(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Cor do Cartão */}
+              <div>
+                <label className="input-label">Cor de Identificação</label>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+                  {['#71D7CD', '#4A90E2', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#1E293B'].map(color => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setCardColor(color)}
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: '50%',
+                        background: color,
+                        border: cardColor === color ? '2px solid var(--text-primary)' : '1px solid var(--border)',
+                        cursor: 'pointer',
+                        transition: 'transform 150ms ease-out',
+                        transform: cardColor === color ? 'scale(1.15)' : 'scale(1)'
+                      }}
+                      aria-label={`Selecionar cor ${color}`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Checkbox: Este cartão é meu */}
+              <div 
+                onClick={() => setCardIsMine(!cardIsMine)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '12px 14px',
+                  background: cardIsMine ? 'rgba(113, 215, 205, 0.08)' : 'var(--bg-surface)',
+                  border: `1px solid ${cardIsMine ? 'rgba(113, 215, 205, 0.4)' : 'var(--border)'}`,
+                  borderRadius: 'var(--radius-sm)',
+                  cursor: 'pointer',
+                  transition: 'all 150ms ease-out'
+                }}
+              >
+                <input 
+                  type="checkbox"
+                  checked={cardIsMine}
+                  onChange={e => setCardIsMine(e.target.checked)}
+                  style={{ width: 18, height: 18, accentColor: 'var(--accent)', cursor: 'pointer' }}
+                  onClick={e => e.stopPropagation()}
+                />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                    Este cartão é meu
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                    Lançamentos neste cartão não precisarão de aprovação do Kenned.
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                <button 
+                  type="button" 
+                  className="btn btn-outline" 
+                  onClick={() => setIsCardModalOpen(false)}
+                  style={{ flex: 1 }}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  className="btn btn-primary" 
+                  disabled={!cardName.trim() || isSubmittingCard}
+                  style={{ flex: 1 }}
+                >
+                  {isSubmittingCard ? 'Salvando...' : 'Cadastrar Cartão'}
                 </button>
               </div>
             </form>

@@ -63,6 +63,8 @@ class SupabaseFinanceSyncManager(
 
     private var lastUploadedHash: Int? = null
     private var cachedSuggestionsJson = JSONArray()
+    private var cachedAccountsJson = JSONArray()
+    private var cachedCardsJson = JSONArray()
 
     private var currentSpendableBalance: Double? = null
     private var currentSalaryValue: Double? = null
@@ -187,11 +189,68 @@ class SupabaseFinanceSyncManager(
                     val suggestionsJson = docObj.optJSONArray("suggestions") ?: JSONArray()
                     cachedSuggestionsJson = suggestionsJson
 
+                    // Sincronizar e armazenar contas criadas na Web
+                    val remoteAccounts = docObj.optJSONArray("accounts")
+                    if (remoteAccounts != null) {
+                        cachedAccountsJson = remoteAccounts
+                        try {
+                            val localAccounts = repository.allBankAccounts.first()
+                            for (i in 0 until remoteAccounts.length()) {
+                                val accObj = remoteAccounts.getJSONObject(i)
+                                val name = accObj.optString("name", "").trim()
+                                if (name.isNotEmpty() && localAccounts.none { it.name.equals(name, ignoreCase = true) }) {
+                                    repository.insertBankAccount(
+                                        BankAccount(
+                                            name = name,
+                                            balance = accObj.optDouble("balance", 0.0),
+                                            type = accObj.optString("type", "Corrente"),
+                                            colorHex = accObj.optString("color_hex", "#4A90E2")
+                                        )
+                                    )
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.w("SupabaseFinanceSync", "Erro ao sincronizar contas da Web: ${e.message}")
+                        }
+                    }
+
+                    // Sincronizar e armazenar cartões criados na Web
+                    val remoteCards = docObj.optJSONArray("cards")
+                    if (remoteCards != null) {
+                        cachedCardsJson = remoteCards
+                        try {
+                            val localCards = repository.allCreditCards.first()
+                            for (i in 0 until remoteCards.length()) {
+                                val cardObj = remoteCards.getJSONObject(i)
+                                val name = cardObj.optString("name", "").trim()
+                                if (name.isNotEmpty() && localCards.none { it.name.equals(name, ignoreCase = true) }) {
+                                    repository.insertCreditCard(
+                                        CreditCard(
+                                            name = name,
+                                            limit = cardObj.optDouble("limit", 0.0),
+                                            usedLimit = cardObj.optDouble("used_limit", 0.0),
+                                            numberLastFour = "0000",
+                                            colorHex = cardObj.optString("color_hex", "#71D7CD"),
+                                            holderName = "Web"
+                                        )
+                                    )
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.w("SupabaseFinanceSync", "Erro ao sincronizar cartões da Web: ${e.message}")
+                        }
+                    }
+
                     val pendingList = mutableListOf<FinanceSuggestion>()
                     for (i in 0 until suggestionsJson.length()) {
                         val sugObj = suggestionsJson.getJSONObject(i)
                         val status = sugObj.optString("status", "pending")
-                        if (status == "pending") {
+                        val isAutoApproved = status == "auto_approved" || sugObj.optBoolean("auto_approved", false)
+
+                        if (isAutoApproved && status != "approved" && status != "rejected") {
+                            // Transação de conta/cartão próprio: aprova e insere no Room imediatamente
+                            handleAutoApprovedSuggestion(sugObj)
+                        } else if (status == "pending") {
                             val action = sugObj.optString("action", "create")
                             val targetTxId = if (sugObj.has("target_tx_id") && !sugObj.isNull("target_tx_id")) sugObj.optLong("target_tx_id") else null
                             val originalTitle = if (sugObj.has("original_title") && !sugObj.isNull("original_title")) sugObj.optString("original_title") else null
@@ -222,6 +281,52 @@ class SupabaseFinanceSyncManager(
             } catch (e: Exception) {
                 Log.w("SupabaseFinanceSync", "Failed to pull suggestions: ${e.message}")
             }
+        }
+    }
+
+    private suspend fun handleAutoApprovedSuggestion(sugObj: JSONObject) {
+        try {
+            val sugId = sugObj.optString("id", UUID.randomUUID().toString())
+            val sugTitle = sugObj.optString("title", "Sem título")
+            val sugAmount = sugObj.optDouble("amount", 0.0)
+            val isInc = sugObj.optString("type", "expense").equals("income", ignoreCase = true)
+            val sugCat = sugObj.optString("category", "Geral")
+            val accountOrCard = if (sugObj.has("account_or_card_name") && !sugObj.isNull("account_or_card_name")) sugObj.optString("account_or_card_name") else ""
+            val dueDateLong = sugObj.optLong("due_date", 0L).let { if (it > 0L) it else System.currentTimeMillis() }
+
+            val newTx = Transaction(
+                title = sugTitle,
+                subtitle = "Via Web • $sugCat",
+                value = sugAmount,
+                isIncome = isInc,
+                timestamp = dueDateLong,
+                category = sugCat,
+                accountOrCardName = accountOrCard,
+                isRealized = true,
+                isRecurrent = false,
+                recurrenceInterval = "Mensal",
+                dueDate = dueDateLong
+            )
+            repository.insertTransaction(newTx)
+
+            if (accountOrCard.isNotEmpty()) {
+                val bankAccounts = repository.allBankAccounts.first()
+                val matchingAccount = bankAccounts.find { it.name.equals(accountOrCard, ignoreCase = true) }
+                if (matchingAccount != null) {
+                    val newBalance = if (isInc) matchingAccount.balance + sugAmount else matchingAccount.balance - sugAmount
+                    repository.insertBankAccount(matchingAccount.copy(balance = newBalance))
+                } else {
+                    val cards = repository.allCreditCards.first()
+                    val matchingCard = cards.find { it.name.equals(accountOrCard, ignoreCase = true) }
+                    if (matchingCard != null) {
+                        val newUsed = if (isInc) matchingCard.usedLimit - sugAmount else matchingCard.usedLimit + sugAmount
+                        repository.insertCreditCard(matchingCard.copy(usedLimit = newUsed.coerceAtLeast(0.0)))
+                    }
+                }
+            }
+            updateRemoteSuggestionStatus(sugId, "approved")
+        } catch (e: Exception) {
+            Log.e("SupabaseFinanceSync", "Erro ao processar sugestao auto-aprovada", e)
         }
     }
 
@@ -504,18 +609,44 @@ class SupabaseFinanceSyncManager(
         // 3. Contas Bancárias (Accounts)
         val accountsArray = JSONArray()
         accounts.forEach { acc ->
+            val isMine = run {
+                for (i in 0 until cachedAccountsJson.length()) {
+                    val obj = cachedAccountsJson.optJSONObject(i)
+                    if (obj?.optString("name")?.equals(acc.name, ignoreCase = true) == true) {
+                        return@run obj.optBoolean("is_mine", false)
+                    }
+                }
+                false
+            }
             accountsArray.put(JSONObject().apply {
                 put("id", acc.id)
                 put("name", acc.name)
                 put("type", acc.type)
                 put("balance", acc.balance)
                 put("color_hex", acc.colorHex)
+                if (isMine) put("is_mine", true)
             })
+        }
+        for (i in 0 until cachedAccountsJson.length()) {
+            val obj = cachedAccountsJson.optJSONObject(i) ?: continue
+            val accName = obj.optString("name", "")
+            if (accName.isNotEmpty() && accounts.none { it.name.equals(accName, ignoreCase = true) }) {
+                accountsArray.put(obj)
+            }
         }
 
         // 4. Cartões de Crédito e Benefício (Cards)
         val cardsArray = JSONArray()
         cards.forEach { card ->
+            val isMine = run {
+                for (i in 0 until cachedCardsJson.length()) {
+                    val obj = cachedCardsJson.optJSONObject(i)
+                    if (obj?.optString("name")?.equals(card.name, ignoreCase = true) == true) {
+                        return@run obj.optBoolean("is_mine", false)
+                    }
+                }
+                false
+            }
             val cardMonthTxsSum = currentMonthTransactions.filter { 
                 !it.isIncome && it.accountOrCardName.equals(card.name, ignoreCase = true) 
             }.sumOf { it.value }
@@ -529,6 +660,7 @@ class SupabaseFinanceSyncManager(
                 put("used_limit", effectiveUsedLimit)
                 put("available_limit", (card.limit - effectiveUsedLimit).coerceAtLeast(0.0))
                 put("color_hex", card.colorHex)
+                if (isMine) put("is_mine", true)
             })
         }
         benefits.forEach { ben ->
@@ -541,6 +673,13 @@ class SupabaseFinanceSyncManager(
                 put("available_limit", ben.balance)
                 put("color_hex", ben.colorHex)
             })
+        }
+        for (i in 0 until cachedCardsJson.length()) {
+            val obj = cachedCardsJson.optJSONObject(i) ?: continue
+            val cardName = obj.optString("name", "")
+            if (cardName.isNotEmpty() && cards.none { it.name.equals(cardName, ignoreCase = true) } && benefits.none { it.name.equals(cardName, ignoreCase = true) }) {
+                cardsArray.put(obj)
+            }
         }
 
         val installmentsSummaryObj = JSONObject().apply {
@@ -620,7 +759,7 @@ class SupabaseFinanceSyncManager(
                         put("category", tx.category)
                         put("amount", tx.value)
                         put("type", if (tx.isIncome) "income" else "expense")
-                        put("date", tx.timestamp)
+                        put("date", if (tx.dueDate > 0L) tx.dueDate else tx.timestamp)
                         put("due_date", tx.dueDate)
                         put("is_realized", tx.isRealized)
                         put("is_recurrent", tx.isRecurrent)
