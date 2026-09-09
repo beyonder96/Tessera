@@ -54,7 +54,7 @@ class SupabaseMarketSyncManager(
     }
 
     fun generateNewShareId(): String {
-        val newId = UUID.randomUUID().toString().take(8)
+        val newId = UUID.randomUUID().toString()
         _activeShareId.value = newId
         lastUploadedHash = null
         context.getSharedPreferences("tessera_supabase_prefs", Context.MODE_PRIVATE)

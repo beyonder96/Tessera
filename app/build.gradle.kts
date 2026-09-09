@@ -22,8 +22,8 @@ android {
     applicationId = "com.aistudio.tessera.xtrkna"
     minSdk = 26
     targetSdk = 35
-    versionCode = 111
-    versionName = "2.0.58"
+    versionCode = 112
+    versionName = "2.0.59"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     manifestPlaceholders["MAPS_API_KEY"] = "DUMMY_KEY"
@@ -38,17 +38,19 @@ android {
   signingConfigs {
     val keystorePath = "${rootDir}/my-upload-key.jks"
     val keystoreFile = file(keystorePath)
-    if (keystoreFile.exists()) {
+    val relStorePass = localProperties.getProperty("RELEASE_STORE_PASSWORD") ?: System.getenv("RELEASE_STORE_PASSWORD") ?: ""
+    val relKeyPass = localProperties.getProperty("RELEASE_KEY_PASSWORD") ?: System.getenv("RELEASE_KEY_PASSWORD") ?: ""
+    if (keystoreFile.exists() && relStorePass.isNotBlank() && relKeyPass.isNotBlank()) {
       create("release") {
         storeFile = keystoreFile
-        storePassword = localProperties.getProperty("RELEASE_STORE_PASSWORD") ?: "android123"
+        storePassword = relStorePass
         keyAlias = "upload"
-        keyPassword = localProperties.getProperty("RELEASE_KEY_PASSWORD") ?: "android123"
+        keyPassword = relKeyPass
         enableV1Signing = true
         enableV2Signing = true
       }
     } else {
-      // Graceful fallback to debug signature if release key is not found (avoids local build errors)
+      // Graceful fallback to debug signature if release key or passwords are not found (avoids local build errors)
       create("release") {
         storeFile = defaultDebugKeystore
         storePassword = localProperties.getProperty("DEBUG_STORE_PASSWORD") ?: "android"

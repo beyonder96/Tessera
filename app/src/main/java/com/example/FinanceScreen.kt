@@ -1049,7 +1049,7 @@ fun FinanceScreen(
             }
             if (showCompleteTransactions) {
                 com.example.ui.components.CompleteTransactionsModal(
-                    transactions = filteredTransactions,
+                    transactions = allTransactions,
                     initialFilterUnclassified = startWithUnclassifiedFilter,
                     onDismiss = { 
                         showCompleteTransactions = false 

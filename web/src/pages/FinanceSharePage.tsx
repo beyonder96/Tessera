@@ -482,6 +482,39 @@ function normalizeRecurrents(raw: unknown, transactions?: TransactionItem[]): Re
   }
 }
 
+async function flushPendingSync(id: string) {
+  const pendingKey = `tessera_pending_sync_${id}`
+  const rawPending = localStorage.getItem(pendingKey)
+  if (!rawPending) return
+  try {
+    const payload = JSON.parse(rawPending) as Record<string, unknown>
+    const { error: syncErr } = await supabase
+      .from('shared_finance_dashboards')
+      .update(payload)
+      .eq('id', id)
+    if (!syncErr) {
+      localStorage.removeItem(pendingKey)
+    }
+  } catch (e) {
+    console.warn('Falha ao descarregar sincronização offline:', e)
+  }
+}
+
+function queuePendingSync(id: string, updates: Record<string, unknown>) {
+  const pendingKey = `tessera_pending_sync_${id}`
+  const existingRaw = localStorage.getItem(pendingKey)
+  let merged = updates
+  if (existingRaw) {
+    try {
+      const existing = JSON.parse(existingRaw) as Record<string, unknown>
+      merged = { ...existing, ...updates }
+    } catch {
+      // ignore
+    }
+  }
+  localStorage.setItem(pendingKey, JSON.stringify(merged))
+}
+
 export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardId }) => {
   const [doc, setDoc] = useState<FinanceDashboardDoc | null>(null)
   const [loading, setLoading] = useState(true)
@@ -610,16 +643,23 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
     }
 
     loadDashboard(true)
+    flushPendingSync(dashboardId)
 
-    // Listener para quando o usuário volta para a aba do navegador
-    const handleFocus = () => loadDashboard(false)
+    // Listener para quando o usuário volta para a aba do navegador ou reconecta à internet
+    const handleFocus = () => {
+      loadDashboard(false)
+      flushPendingSync(dashboardId)
+    }
+    const handleOnline = () => flushPendingSync(dashboardId)
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
         loadDashboard(false)
+        flushPendingSync(dashboardId)
       }
     }
 
     window.addEventListener('focus', handleFocus)
+    window.addEventListener('online', handleOnline)
     document.addEventListener('visibilitychange', handleVisibility)
 
     // Polling a cada 4 segundos como garantia extra
@@ -653,6 +693,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
 
     return () => {
       window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('online', handleOnline)
       document.removeEventListener('visibilitychange', handleVisibility)
       clearInterval(pollInterval)
       supabase.removeChannel(channel)
@@ -737,7 +778,13 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
       setIsAccountModalOpen(false)
       setTimeout(() => setSuccessMessage(null), 4000)
     } catch (err: unknown) {
-      console.error('Falha ao salvar conta:', err)
+      console.warn('Falha ao sincronizar conta com servidor, salvando offline:', err)
+      queuePendingSync(dashboardId, { accounts: updatedAccounts, updated_at: new Date().toISOString() })
+      setSuccessMessage(`Conta "${newAcc.name}" salva localmente (offline)! Será sincronizada assim que a internet voltar.`)
+      setAccName('')
+      setAccBalance('')
+      setIsAccountModalOpen(false)
+      setTimeout(() => setSuccessMessage(null), 5000)
     } finally {
       setIsSubmittingAccount(false)
     }
@@ -789,7 +836,16 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
       setIsCardModalOpen(false)
       setTimeout(() => setSuccessMessage(null), 4000)
     } catch (err: unknown) {
-      console.error('Falha ao salvar cartão:', err)
+      console.warn('Falha ao sincronizar cartão com servidor, salvando offline:', err)
+      queuePendingSync(dashboardId, { cards: updatedCards, updated_at: new Date().toISOString() })
+      setSuccessMessage(`Cartão "${newCard.name}" salvo localmente (offline)! Será sincronizado assim que a internet voltar.`)
+      setCardName('')
+      setCardLimit('')
+      setCardUsedLimit('')
+      setCardClosingDay('')
+      setCardDueDay('')
+      setIsCardModalOpen(false)
+      setTimeout(() => setSuccessMessage(null), 5000)
     } finally {
       setIsSubmittingCard(false)
     }
@@ -909,7 +965,20 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
         setIsModalOpen(false)
         setTimeout(() => setSuccessMessage(null), 5000)
       } catch (err: unknown) {
-        console.error('Failed to submit direct transaction:', err)
+        console.warn('Falha ao sincronizar lançamento direto com servidor, salvando offline:', err)
+        queuePendingSync(dashboardId, {
+          transactions: updatedTransactions,
+          accounts: updatedAccounts,
+          cards: updatedCards,
+          total_balance: newTotalBalance,
+          suggestions: updatedSuggestions,
+          updated_at: new Date().toISOString()
+        })
+        setSuccessMessage(`Lançamento salvo localmente (offline)! Será sincronizado com o Tessera assim que a internet voltar.`)
+        setSuggestionTitle('')
+        setSuggestionAmount('')
+        setIsModalOpen(false)
+        setTimeout(() => setSuccessMessage(null), 6000)
       } finally {
         setIsSubmitting(false)
       }
@@ -948,7 +1017,13 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
         setIsModalOpen(false)
         setTimeout(() => setSuccessMessage(null), 5000)
       } catch (err: unknown) {
-        console.error('Failed to submit suggestion:', err)
+        console.warn('Falha ao enviar sugestão ao servidor, salvando offline:', err)
+        queuePendingSync(dashboardId, { suggestions: updatedSuggestions, updated_at: new Date().toISOString() })
+        setSuccessMessage(`Sugestão salva localmente (offline)! Será enviada ao app assim que a conexão voltar.`)
+        setSuggestionTitle('')
+        setSuggestionAmount('')
+        setIsModalOpen(false)
+        setTimeout(() => setSuccessMessage(null), 6000)
       } finally {
         setIsSubmitting(false)
       }
@@ -1006,7 +1081,11 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
       setEditingTx(null)
       setTimeout(() => setSuccessMessage(null), 6000)
     } catch (err: unknown) {
-      console.error('Failed to submit edit suggestion:', err)
+      console.warn('Falha ao enviar edição ao servidor, salvando offline:', err)
+      queuePendingSync(dashboardId, { suggestions: updatedSuggestions, updated_at: new Date().toISOString() })
+      setSuccessMessage(`Edição salva offline! Será sincronizada assim que a internet voltar.`)
+      setEditingTx(null)
+      setTimeout(() => setSuccessMessage(null), 6000)
     } finally {
       setIsSubmittingEdit(false)
     }

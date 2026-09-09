@@ -83,11 +83,44 @@ fun CompleteTransactionsModal(
     }
 
     val monthsList = groupedByMonth.keys.toList()
-    val pagerState = rememberPagerState(pageCount = { if (monthsList.isEmpty()) 1 else monthsList.size })
+
+    val currentMonthTimestamp = remember {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.DAY_OF_MONTH, 1)
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        cal.timeInMillis
+    }
+
+    val defaultPageIndex = remember(monthsList, currentMonthTimestamp) {
+        if (monthsList.isEmpty()) 0
+        else {
+            val exactIdx = monthsList.indexOfFirst { it == currentMonthTimestamp }
+            if (exactIdx != -1) exactIdx
+            else {
+                val closest = monthsList.indexOfFirst { it <= currentMonthTimestamp }
+                if (closest != -1) closest else 0
+            }
+        }
+    }
+
+    val pagerState = rememberPagerState(
+        initialPage = defaultPageIndex,
+        pageCount = { if (monthsList.isEmpty()) 1 else monthsList.size }
+    )
+
+    LaunchedEffect(defaultPageIndex) {
+        if (defaultPageIndex in monthsList.indices && pagerState.currentPage != defaultPageIndex) {
+            pagerState.scrollToPage(defaultPageIndex)
+        }
+    }
 
     // Estado do modo de lote e filtros
     var isBatchMode by remember { mutableStateOf(initialFilterUnclassified) }
     var selectedFilterCategory by remember { mutableStateOf<String?>(if (initialFilterUnclassified) "Sem Categoria" else null) }
+    var selectedFilterAccount by remember { mutableStateOf<String?>(null) }
     val selectedTransactionIds = remember { mutableStateListOf<Int>() }
 
     var showBulkCategoryDialog by remember { mutableStateOf(false) }
@@ -258,14 +291,25 @@ fun CompleteTransactionsModal(
                                 }
                             }
 
+                            val distinctAccounts = remember(monthTransactions) {
+                                monthTransactions.map { it.accountOrCardName.trim() }
+                                    .filter { it.isNotBlank() }
+                                    .distinct()
+                                    .sorted()
+                            }
+
                             // Transações filtradas
-                            val filteredMonthTransactions = remember(monthTransactions, selectedFilterCategory) {
+                            val filteredMonthTransactions = remember(monthTransactions, selectedFilterCategory, selectedFilterAccount) {
+                                var list = monthTransactions
+                                if (selectedFilterAccount != null) {
+                                    list = list.filter { it.accountOrCardName.equals(selectedFilterAccount, ignoreCase = true) }
+                                }
                                 when (selectedFilterCategory) {
-                                    null -> monthTransactions
-                                    "Sem Categoria" -> monthTransactions.filter {
+                                    null -> list
+                                    "Sem Categoria" -> list.filter {
                                         it.category.isBlank() || it.category.equals("Outros", ignoreCase = true) || it.category.equals("Sem Categoria", ignoreCase = true)
                                     }
-                                    else -> monthTransactions.filter { it.category.equals(selectedFilterCategory, ignoreCase = true) }
+                                    else -> list.filter { it.category.equals(selectedFilterCategory, ignoreCase = true) }
                                 }
                             }
 
@@ -287,16 +331,207 @@ fun CompleteTransactionsModal(
                                     .fillMaxSize()
                                     .padding(horizontal = 20.dp)
                             ) {
-                                // Título do mês
-                                Text(
-                                    text = formattedMonthName,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF71D7CD),
-                                    modifier = Modifier.padding(bottom = 8.dp)
-                                )
+                                // Título do mês e indicador de Mês Atual
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Text(
+                                            text = formattedMonthName,
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF71D7CD)
+                                        )
+                                        if (currentMonthKey == currentMonthTimestamp) {
+                                            Surface(
+                                                shape = RoundedCornerShape(6.dp),
+                                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                                            ) {
+                                                Text(
+                                                    text = "Mês Atual",
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                        }
+                                    }
 
-                                // Barra de Filtros Rápidos (Chips)
+                                    if (currentMonthKey != currentMonthTimestamp && defaultPageIndex in monthsList.indices) {
+                                        TextButton(
+                                            onClick = {
+                                                coroutineScope.launch {
+                                                    pagerState.animateScrollToPage(defaultPageIndex)
+                                                }
+                                            },
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = "Ir para Mês Atual",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Card Resumo Financeiro do Extrato (Entradas, Saídas e Saldo)
+                                val monthTotalIncome = remember(filteredMonthTransactions) {
+                                    filteredMonthTransactions.filter { it.isIncome }.sumOf { it.value }
+                                }
+                                val monthTotalExpense = remember(filteredMonthTransactions) {
+                                    filteredMonthTransactions.filter { !it.isIncome }.sumOf { it.value }
+                                }
+                                val monthNetBalance = monthTotalIncome - monthTotalExpense
+
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 12.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = themedSubtleBackground(),
+                                    border = BorderStroke(1.dp, themedCardBorder())
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 12.dp, horizontal = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceEvenly,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text(
+                                                text = "ENTRADAS",
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color(0xFF81C784),
+                                                letterSpacing = 0.5.sp
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = String.format(Locale("pt", "BR"), "+R$ %,.2f", monthTotalIncome),
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF81C784)
+                                            )
+                                        }
+
+                                        Box(
+                                            modifier = Modifier
+                                                .width(1.dp)
+                                                .height(26.dp)
+                                                .background(themedSubtleBorder())
+                                        )
+
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text(
+                                                text = "SAÍDAS",
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color(0xFFEF5350),
+                                                letterSpacing = 0.5.sp
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = String.format(Locale("pt", "BR"), "-R$ %,.2f", monthTotalExpense),
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFFEF5350)
+                                            )
+                                        }
+
+                                        Box(
+                                            modifier = Modifier
+                                                .width(1.dp)
+                                                .height(26.dp)
+                                                .background(themedSubtleBorder())
+                                        )
+
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text(
+                                                text = "SALDO",
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                letterSpacing = 0.5.sp
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = String.format(
+                                                    Locale("pt", "BR"),
+                                                    if (monthNetBalance >= 0) "R$ %,.2f" else "-R$ %,.2f",
+                                                    Math.abs(monthNetBalance)
+                                                ),
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (monthNetBalance >= 0) Color(0xFF71D7CD) else Color(0xFFEF5350)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Filtro por Conta/Cartão se houver mais de uma
+                                if (distinctAccounts.size > 1) {
+                                    LazyRow(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 8.dp)
+                                    ) {
+                                        item {
+                                            FilterChip(
+                                                selected = selectedFilterAccount == null,
+                                                onClick = { selectedFilterAccount = null },
+                                                label = { Text("Todas as Contas", fontSize = 11.sp) },
+                                                shape = RoundedCornerShape(8.dp),
+                                                colors = FilterChipDefaults.filterChipColors(
+                                                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                                    selectedLabelColor = MaterialTheme.colorScheme.primary
+                                                ),
+                                                border = FilterChipDefaults.filterChipBorder(
+                                                    enabled = true,
+                                                    selected = selectedFilterAccount == null,
+                                                    borderColor = themedCardBorder(),
+                                                    selectedBorderColor = MaterialTheme.colorScheme.primary
+                                                )
+                                            )
+                                        }
+
+                                        items(distinctAccounts) { accName ->
+                                            val countInAcc = monthTransactions.count { it.accountOrCardName.equals(accName, ignoreCase = true) }
+                                            FilterChip(
+                                                selected = selectedFilterAccount == accName,
+                                                onClick = {
+                                                    selectedFilterAccount = if (selectedFilterAccount == accName) null else accName
+                                                },
+                                                label = { Text("$accName ($countInAcc)", fontSize = 11.sp) },
+                                                shape = RoundedCornerShape(8.dp),
+                                                colors = FilterChipDefaults.filterChipColors(
+                                                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                                    selectedLabelColor = MaterialTheme.colorScheme.primary
+                                                ),
+                                                border = FilterChipDefaults.filterChipBorder(
+                                                    enabled = true,
+                                                    selected = selectedFilterAccount == accName,
+                                                    borderColor = themedCardBorder(),
+                                                    selectedBorderColor = MaterialTheme.colorScheme.primary
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Barra de Filtros Rápidos (Chips de Categoria)
                                 LazyRow(
                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                                     modifier = Modifier

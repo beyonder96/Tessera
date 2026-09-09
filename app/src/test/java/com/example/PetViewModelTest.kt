@@ -112,6 +112,29 @@ class FakeTesseraDao : TesseraDao {
     override suspend fun insertWaterRecord(record: WaterRecord): Long = 0L
     override suspend fun deleteWaterRecord(record: WaterRecord) {}
     override suspend fun deleteWaterRecordById(id: Int) {}
+
+    // ActivityRecord methods
+    override fun getAllActivityRecords(): Flow<List<ActivityRecord>> = flowOf(emptyList())
+    override fun getActivityRecordsForDate(date: String): Flow<List<ActivityRecord>> = flowOf(emptyList())
+    override suspend fun insertActivityRecord(record: ActivityRecord): Long = 0L
+    override suspend fun deleteActivityRecord(record: ActivityRecord) {}
+    override suspend fun deleteActivityRecordById(id: Int) {}
+
+    // Sleep & Steps lookup methods
+    override suspend fun findSleepRecord(startTime: Long, endTime: Long): SleepRecord? = null
+    override suspend fun findStepsRecordForDayAndSource(startOfDay: Long, endOfDay: Long, source: String): StepsRecord? = null
+    override suspend fun updateStepsRecord(record: StepsRecord) {}
+    override suspend fun updateSleepRecord(record: SleepRecord) {}
+
+    // Bible methods
+    override fun getVerseVideosForChapter(bookAbbrev: String, chapter: Int): Flow<List<BibleVerseVideo>> = flowOf(emptyList())
+    override fun getAllVerseVideos(): Flow<List<BibleVerseVideo>> = flowOf(emptyList())
+    override suspend fun insertVerseVideo(video: BibleVerseVideo): Long = 0L
+    override suspend fun deleteVerseVideo(video: BibleVerseVideo) {}
+    override suspend fun deleteVerseVideoById(id: Int) {}
+    override fun getDistinctReadingDates(): Flow<List<String>> = flowOf(emptyList())
+    override fun getAllReadingSessions(): Flow<List<BibleReadingSession>> = flowOf(emptyList())
+    override suspend fun insertReadingSession(session: BibleReadingSession): Long = 0L
 }
 
 class PetViewModelTest {

@@ -16,6 +16,7 @@ import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 
 data class SharedTaskItem(
     val id: String,
@@ -39,9 +40,10 @@ class SupabaseTasksSyncManager(
     private var syncJob: Job? = null
 
     private val prefs = context.getSharedPreferences("tessera_supabase_prefs", Context.MODE_PRIVATE)
-    private val hubId: String = prefs.getString("tasks_hub_id", null) ?: "tasks_default".also {
-        prefs.edit().putString("tasks_hub_id", it).apply()
-    }
+    private val hubId: String = prefs.getString("tasks_hub_id", null)?.takeIf { it != "tasks_default" } 
+        ?: UUID.randomUUID().toString().also {
+            prefs.edit().putString("tasks_hub_id", it).apply()
+        }
 
     private val notifiedTaskIds = mutableSetOf<String>().apply {
         addAll(prefs.getStringSet("notified_task_ids", emptySet()) ?: emptySet())

@@ -292,6 +292,16 @@ fun TesseraApp() {
             var isBiometricEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("biometric_enabled", false)) }
             var isUnlocked by remember { mutableStateOf(!isBiometricEnabled) }
 
+            // Proteção contra capturas e pré-visualização de tela multitarefas (Overview) quando a biometria/privacidade estiver ativa
+            LaunchedEffect(isBiometricEnabled) {
+                val activity = context as? android.app.Activity
+                if (isBiometricEnabled) {
+                    activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                } else {
+                    activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                }
+            }
+
             if (!isUnlocked) {
                 LockScreen(onUnlocked = { isUnlocked = true })
                 return@MyApplicationTheme

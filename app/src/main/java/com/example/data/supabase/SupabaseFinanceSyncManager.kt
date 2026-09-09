@@ -65,6 +65,8 @@ class SupabaseFinanceSyncManager(
     private var cachedSuggestionsJson = JSONArray()
     private var cachedAccountsJson = JSONArray()
     private var cachedCardsJson = JSONArray()
+    @Volatile
+    private var hasInitialPullCompleted = false
 
     private var currentSpendableBalance: Double? = null
     private var currentSalaryValue: Double? = null
@@ -89,7 +91,7 @@ class SupabaseFinanceSyncManager(
     }
 
     fun generateNewShareId(): String {
-        val newId = UUID.randomUUID().toString().take(8)
+        val newId = UUID.randomUUID().toString()
         _activeShareId.value = newId
         lastUploadedHash = null
         context.getSharedPreferences("tessera_supabase_prefs", Context.MODE_PRIVATE)
@@ -119,9 +121,27 @@ class SupabaseFinanceSyncManager(
             generateNewShareId()
         }
 
-        // 1. Observe local transactions, accounts, cards, benefits and debts and push to Supabase in real-time
+        // 1. Poll remote suggestions from Supabase (executa com prioridade máxima)
+        if (remotePollJob?.isActive != true) {
+            remotePollJob = scope.launch {
+                while (isActive) {
+                    pullSuggestionsFromSupabase()
+                    hasInitialPullCompleted = true
+                    delay(5000)
+                }
+            }
+        }
+
+        // 2. Observe local transactions, accounts, cards, benefits and debts and push to Supabase in real-time
         if (localSyncJob?.isActive != true) {
             localSyncJob = scope.launch {
+                // Aguarda até o primeiro pull remoto concluir (máx 3s para tolerar modo offline sem travar)
+                var waitCycles = 0
+                while (!hasInitialPullCompleted && waitCycles < 30 && isActive) {
+                    delay(100)
+                    waitCycles++
+                }
+
                 combine(
                     repository.allTransactions,
                     repository.allBankAccounts,
@@ -143,16 +163,6 @@ class SupabaseFinanceSyncManager(
                 }.collect()
             }
         }
-
-        // 2. Poll remote suggestions from Supabase
-        if (remotePollJob?.isActive != true) {
-            remotePollJob = scope.launch {
-                while (isActive) {
-                    pullSuggestionsFromSupabase()
-                    delay(5000)
-                }
-            }
-        }
     }
 
     fun stopContinuousSync() {
@@ -167,6 +177,7 @@ class SupabaseFinanceSyncManager(
         lastUploadedHash = null
         scope.launch {
             pullSuggestionsFromSupabase()
+            hasInitialPullCompleted = true
             val transactions = repository.allTransactions.first()
             val accounts = repository.allBankAccounts.first()
             val cards = repository.allCreditCards.first()
@@ -738,6 +749,11 @@ class SupabaseFinanceSyncManager(
         _syncStatus.value = SyncStatus.SYNCING
         withContext(Dispatchers.IO) {
             try {
+                // Se as sugestões em cache ainda não foram carregadas, tenta um pull antes de sobrescrever
+                if (cachedSuggestionsJson.length() == 0) {
+                    pullSuggestionsFromSupabase()
+                }
+
                 // Categorias JSON
                 val categoriesArray = JSONArray()
                 categoryMap.entries.sortedByDescending { it.value }.take(8).forEach { entry ->
@@ -749,9 +765,9 @@ class SupabaseFinanceSyncManager(
                     categoriesArray.put(catObj)
                 }
 
-                // Últimas 30 transações JSON enriquecidas
+                // Histórico enriquecido com as últimas 200 transações ordenadas cronologicamente
                 val txArray = JSONArray()
-                transactions.take(30).forEach { tx ->
+                transactions.sortedByDescending { if (it.dueDate > 0L) it.dueDate else it.timestamp }.take(200).forEach { tx ->
                     val obj = JSONObject().apply {
                         put("id", tx.id)
                         put("title", tx.title)

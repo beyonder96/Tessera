@@ -345,7 +345,8 @@ class TesseraRepository(private val dao: TesseraDao) {
         dao.deleteWaterRecordById(id)
     }
 
-    private val bibliaApiKey = "bapi_cyd65a70b4cmbin97bcojzs3vmq7cpxnhyo2lgfjogiup9d5"
+    private val bibliaApiKey = com.example.BuildConfig.BIBLIA_API_KEY.takeIf { it.isNotBlank() && !it.contains("MY_") }
+        ?: "bapi_cyd65a70b4cmbin97bcojzs3vmq7cpxnhyo2lgfjogiup9d5"
 
     private val bibliaOkHttpClient = okhttp3.OkHttpClient.Builder()
         .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)

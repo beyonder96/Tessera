@@ -173,6 +173,16 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    // Validação de autenticação obrigatória do cliente Supabase (impede chamadas públicas anônimas não autorizadas)
+    const authHeader = req.headers.get("authorization") || req.headers.get("Authorization")
+    const apikeyHeader = req.headers.get("apikey")
+    if (!authHeader && !apikeyHeader) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Acesso não autorizado. Forneça cabeçalho de autenticação ou apikey." }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      )
+    }
+
     const apiKey = Deno.env.get("GEMINI_API_KEY")
     if (!apiKey) {
       return new Response(

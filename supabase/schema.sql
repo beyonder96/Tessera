@@ -63,25 +63,53 @@ BEGIN
     END IF;
 END $$;
 
--- 4. Row Level Security (RLS)
+-- 4. Row Level Security (RLS) Blindado
 ALTER TABLE public.shared_market_lists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.shared_finance_dashboards ENABLE ROW LEVEL SECURITY;
 
+-- Remove políticas públicas irrestritas antigas
 DROP POLICY IF EXISTS "Public Anon All shared_market_lists" ON public.shared_market_lists;
-CREATE POLICY "Public Anon All shared_market_lists" 
-ON public.shared_market_lists 
-FOR ALL 
-TO anon, authenticated 
-USING (true) 
-WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Public Anon All shared_finance_dashboards" ON public.shared_finance_dashboards;
-CREATE POLICY "Public Anon All shared_finance_dashboards" 
-ON public.shared_finance_dashboards 
-FOR ALL 
+
+-- shared_market_lists: Permite INSERT e UPDATE apenas para registros válidos (sem permissão de DELETE para anon)
+CREATE POLICY "Anon Insert shared_market_lists" 
+ON public.shared_market_lists 
+FOR INSERT 
 TO anon, authenticated 
-USING (true) 
-WITH CHECK (true);
+WITH CHECK (id IS NOT NULL AND length(trim(id)) > 0);
+
+CREATE POLICY "Anon Update shared_market_lists" 
+ON public.shared_market_lists 
+FOR UPDATE 
+TO anon, authenticated 
+USING (id IS NOT NULL) 
+WITH CHECK (id IS NOT NULL);
+
+CREATE POLICY "Anon Select shared_market_lists" 
+ON public.shared_market_lists 
+FOR SELECT 
+TO anon, authenticated 
+USING (id IS NOT NULL);
+
+-- shared_finance_dashboards: Permite INSERT e UPDATE específicos (sem permissão de DELETE para anon)
+CREATE POLICY "Anon Insert shared_finance_dashboards" 
+ON public.shared_finance_dashboards 
+FOR INSERT 
+TO anon, authenticated 
+WITH CHECK (id IS NOT NULL AND length(trim(id)) > 0);
+
+CREATE POLICY "Anon Update shared_finance_dashboards" 
+ON public.shared_finance_dashboards 
+FOR UPDATE 
+TO anon, authenticated 
+USING (id IS NOT NULL) 
+WITH CHECK (id IS NOT NULL);
+
+CREATE POLICY "Anon Select shared_finance_dashboards" 
+ON public.shared_finance_dashboards 
+FOR SELECT 
+TO anon, authenticated 
+USING (id IS NOT NULL);
 
 -- 5. Shared Tasks & Notices Hub Table
 CREATE TABLE IF NOT EXISTS public.shared_tasks_hub (
@@ -107,10 +135,53 @@ END $$;
 ALTER TABLE public.shared_tasks_hub ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Public Anon All shared_tasks_hub" ON public.shared_tasks_hub;
-CREATE POLICY "Public Anon All shared_tasks_hub" 
+
+CREATE POLICY "Anon Insert shared_tasks_hub" 
 ON public.shared_tasks_hub 
-FOR ALL 
+FOR INSERT 
 TO anon, authenticated 
-USING (true) 
-WITH CHECK (true);
+WITH CHECK (id IS NOT NULL AND length(trim(id)) > 0);
+
+CREATE POLICY "Anon Update shared_tasks_hub" 
+ON public.shared_tasks_hub 
+FOR UPDATE 
+TO anon, authenticated 
+USING (id IS NOT NULL) 
+WITH CHECK (id IS NOT NULL);
+
+CREATE POLICY "Anon Select shared_tasks_hub" 
+ON public.shared_tasks_hub 
+FOR SELECT 
+TO anon, authenticated 
+USING (id IS NOT NULL);
+
+-- 6. Funções RPC Seguras com SECURITY DEFINER (Prevenção de scraping/varredura em lote)
+-- Exige obrigatoriamente um identificador específico para retornar o documento correspondente.
+CREATE OR REPLACE FUNCTION public.get_shared_document(p_table text, p_id text)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_result jsonb;
+BEGIN
+    IF p_table NOT IN ('shared_finance_dashboards', 'shared_market_lists', 'shared_tasks_hub') THEN
+        RAISE EXCEPTION 'Tabela não autorizada para consulta compartilhada: %', p_table;
+    END IF;
+    
+    IF p_id IS NULL OR length(trim(p_id)) = 0 THEN
+        RETURN NULL;
+    END IF;
+
+    EXECUTE format('SELECT to_jsonb(t) FROM public.%I t WHERE t.id = $1 LIMIT 1', p_table)
+    INTO v_result
+    USING p_id;
+    
+    RETURN v_result;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_shared_document(text, text) TO anon, authenticated;
+
 

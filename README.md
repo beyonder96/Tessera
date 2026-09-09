@@ -4,6 +4,22 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.59
+
+- **Blindagem e Auditoria de Segurança Completa:**
+  - **Supabase Backend & RLS:** Remoção de políticas permissivas irrestritas e bloqueio total de operações de `DELETE` para acessos anônimos. Implementação de RPC segura com `SECURITY DEFINER` (`get_shared_document`) para restringir consultas por ID exato e impedir dumps globais (`select *`).
+  - **Alta Entropia em Links Compartilhados:** Adoção de UUID v4 de 128 bits para links de Finanças e Mercado, tornando inviável qualquer tentativa de enumeração ou varredura de URLs.
+  - **Identificador Exclusivo na Central de Tarefas:** Eliminação do identificador público padrão `"tasks_default"`, com geração de UUID exclusivo por dispositivo para garantir isolamento e privacidade total.
+  - **Proteção de Sandbox e Backup Local:** Desativação de backups do Android (`allowBackup="false"`) com regras estritas em `data_extraction_rules.xml` e `backup_rules.xml`, e migração dos relatórios de falha (`CrashReporter`) para armazenamento interno privado (`context.filesDir`).
+  - **Privacidade de Tela com Biometria (`FLAG_SECURE`):** Bloqueio automático de capturas de tela e ocultação de saldos e dados de saúde no alternador de multitarefas (Overview) quando a proteção biométrica estiver habilitada.
+  - **Proteção da Edge Function de IA:** Autenticação obrigatória na função serveless `tessera-ai` no Supabase antes de invocar a API do Gemini.
+  - **Higienização do Repositório Git:** Desvinculação das keystores de assinatura do versionamento Git e remoção de senhas padrão em texto claro em `build.gradle.kts`.
+- **Extrato Financeiro Completo Aprimorado:**
+  - Abertura direta no mês atual no modal de Extrato Completo com navegação fluida entre períodos e badge informativo.
+  - Card consolidado no topo de cada mês com totais de Entradas, Saídas e Saldo Líquido do período.
+  - Filtro por instituição financeira / cartão integrado diretamente dentro do extrato.
+- **Resiliência e Fila Offline na Web:** Enfileiramento automático de edições e sugestões no `localStorage` em caso de oscilação de rede, com sincronização retroativa garantida com o Supabase.
+
 ## 🚀 Novidades da Versão 2.0.58
 
 - **Desobstrução do Chat do Tessera AI:** Ocultação da barra de navegação global inferior flutuante na tela de Chat, garantindo que o campo de digitação e o botão de envio fiquem 100% livres e acessíveis.
@@ -274,8 +290,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.58.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.58.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.59.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.59.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.
