@@ -27,6 +27,10 @@ import {
   Pencil,
   Download
 } from 'lucide-react'
+import { useTheme } from '../hooks/useTheme'
+import { usePwaInstall } from '../hooks/usePwaInstall'
+import { PwaInstructionsModal } from '../components/PwaInstructionsModal'
+import { saveRecentItem } from '../utils/recentStorage'
 
 interface CategoryBreakdown {
   name: string
@@ -34,7 +38,18 @@ interface CategoryBreakdown {
   percentage: number
 }
 
-interface TransactionItem {
+export type TransactionStatus = 'pago' | 'pendente' | 'atrasado'
+
+export interface TransactionStatusInfo {
+  status: TransactionStatus
+  label: string
+  color: string
+  bg: string
+  border: string
+  isOverdue: boolean
+}
+
+export interface TransactionItem {
   id: number | string
   title: string
   subtitle?: string
@@ -48,6 +63,56 @@ interface TransactionItem {
   due_date?: string | number
 }
 
+export function getTransactionStatus(tx: TransactionItem): TransactionStatusInfo {
+  const isIncome = tx.type?.toUpperCase() === 'INCOME'
+  const isRealized = tx.is_realized !== false
+
+  let dueDate = 0
+  if (typeof tx.due_date === 'number' && tx.due_date > 0) {
+    dueDate = tx.due_date
+  } else if (typeof tx.due_date === 'string') {
+    const num = Number(tx.due_date)
+    if (!isNaN(num) && num > 0) {
+      dueDate = num
+    } else {
+      const parsed = Date.parse(tx.due_date)
+      if (!isNaN(parsed) && parsed > 0) dueDate = parsed
+    }
+  }
+
+  const isOverdue = !isRealized && dueDate > 0 && dueDate < Date.now()
+
+  if (!isRealized) {
+    if (isOverdue) {
+      return {
+        status: 'atrasado',
+        label: 'Atrasado',
+        color: 'var(--danger)',
+        bg: 'var(--danger-subtle)',
+        border: 'rgba(239, 68, 68, 0.35)',
+        isOverdue: true
+      }
+    }
+    return {
+      status: 'pendente',
+      label: 'Pendente',
+      color: 'var(--warning)',
+      bg: 'var(--warning-subtle)',
+      border: 'rgba(234, 179, 8, 0.35)',
+      isOverdue: false
+    }
+  }
+
+  return {
+    status: 'pago',
+    label: isIncome ? 'Recebido' : 'Pago',
+    color: 'var(--accent)',
+    bg: 'var(--accent-subtle)',
+    border: 'rgba(45, 212, 191, 0.3)',
+    isOverdue: false
+  }
+}
+
 export interface DebtItem {
   id: number | string
   title: string
@@ -58,11 +123,6 @@ export interface DebtItem {
   installments_total: number
   installments_paid: number
 }
-
-import { useTheme } from '../hooks/useTheme'
-import { usePwaInstall } from '../hooks/usePwaInstall'
-import { PwaInstructionsModal } from '../components/PwaInstructionsModal'
-import { saveRecentItem } from '../utils/recentStorage'
 
 export interface DebtsSummary {
   count: number
@@ -150,6 +210,7 @@ export interface FinanceSuggestionDoc {
   due_date?: number
   auto_approved?: boolean
   is_own?: boolean
+  is_realized?: boolean
 }
 
 interface FinanceDashboardDoc {
@@ -556,6 +617,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
     const dd = String(today.getDate()).padStart(2, '0')
     return `${yyyy}-${mm}-${dd}`
   })
+  const [suggestionIsRealized, setSuggestionIsRealized] = useState<boolean>(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
@@ -890,29 +952,35 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
         date: txDateMillis,
         due_date: txDateMillis,
         account_or_card_name: suggestionOrigin,
-        is_realized: true
+        is_realized: suggestionIsRealized
       }
 
       const currentTransactions = doc.transactions || []
       const updatedTransactions = [newTx, ...currentTransactions]
 
-      const updatedAccounts = currentAccounts.map(acc => {
-        if (acc.name === suggestionOrigin) {
-          const newBal = isIncome ? acc.balance + amount : acc.balance - amount
-          return { ...acc, balance: newBal }
-        }
-        return acc
-      })
+      const updatedAccounts = suggestionIsRealized
+        ? currentAccounts.map(acc => {
+            if (acc.name === suggestionOrigin) {
+              const newBal = isIncome ? acc.balance + amount : acc.balance - amount
+              return { ...acc, balance: newBal }
+            }
+            return acc
+          })
+        : currentAccounts
 
-      const updatedCards = currentCards.map(c => {
-        if (c.name === suggestionOrigin) {
-          const newUsed = isIncome ? Math.max(0, c.used_limit - amount) : c.used_limit + amount
-          return { ...c, used_limit: newUsed, available_limit: Math.max(0, c.limit - newUsed) }
-        }
-        return c
-      })
+      const updatedCards = suggestionIsRealized
+        ? currentCards.map(c => {
+            if (c.name === suggestionOrigin) {
+              const newUsed = isIncome ? Math.max(0, c.used_limit - amount) : c.used_limit + amount
+              return { ...c, used_limit: newUsed, available_limit: Math.max(0, c.limit - newUsed) }
+            }
+            return c
+          })
+        : currentCards
 
-      const newTotalBalance = isIncome ? (doc.total_balance || 0) + amount : (doc.total_balance || 0) - amount
+      const newTotalBalance = suggestionIsRealized
+        ? (isIncome ? (doc.total_balance || 0) + amount : (doc.total_balance || 0) - amount)
+        : (doc.total_balance || 0)
 
       // Auto-aprovada para inserção transparente no Room do Android
       const autoApprovedSug: FinanceSuggestionDoc = {
@@ -928,7 +996,8 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
         action: 'create',
         account_or_card_name: suggestionOrigin,
         auto_approved: true,
-        is_own: true
+        is_own: true,
+        is_realized: suggestionIsRealized
       }
 
       const updatedSuggestions = [autoApprovedSug, ...(doc.suggestions || [])]
@@ -962,6 +1031,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
         setSuccessMessage(`Lançamento de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount)} adicionado com sucesso!`)
         setSuggestionTitle('')
         setSuggestionAmount('')
+        setSuggestionIsRealized(true)
         setIsModalOpen(false)
         setTimeout(() => setSuccessMessage(null), 5000)
       } catch (err: unknown) {
@@ -977,6 +1047,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
         setSuccessMessage(`Lançamento salvo localmente (offline)! Será sincronizado com o Tessera assim que a internet voltar.`)
         setSuggestionTitle('')
         setSuggestionAmount('')
+        setSuggestionIsRealized(true)
         setIsModalOpen(false)
         setTimeout(() => setSuccessMessage(null), 6000)
       } finally {
@@ -995,7 +1066,8 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
         created_at: new Date().toISOString(),
         status: 'pending',
         action: 'create',
-        account_or_card_name: suggestionOrigin
+        account_or_card_name: suggestionOrigin,
+        is_realized: suggestionIsRealized
       }
 
       const currentSuggestions = doc.suggestions || []
@@ -1014,6 +1086,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
         setSuccessMessage(`Sugestão de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount)} enviada! Ela aparecerá no aplicativo para aprovação.`)
         setSuggestionTitle('')
         setSuggestionAmount('')
+        setSuggestionIsRealized(true)
         setIsModalOpen(false)
         setTimeout(() => setSuccessMessage(null), 5000)
       } catch (err: unknown) {
@@ -1022,6 +1095,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
         setSuccessMessage(`Sugestão salva localmente (offline)! Será enviada ao app assim que a conexão voltar.`)
         setSuggestionTitle('')
         setSuggestionAmount('')
+        setSuggestionIsRealized(true)
         setIsModalOpen(false)
         setTimeout(() => setSuccessMessage(null), 6000)
       } finally {
@@ -1958,6 +2032,8 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
             {doc.transactions.map((tx) => {
               const isIncome = tx.type?.toUpperCase() === 'INCOME'
               const hasPendingEdit = pendingSuggestions.some(s => s.action === 'edit' && String(s.target_tx_id) === String(tx.id))
+              const statusInfo = getTransactionStatus(tx)
+
               return (
                 <div 
                   key={tx.id}
@@ -1969,9 +2045,10 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
                     gap: 12,
                     padding: '12px 14px',
                     background: 'var(--bg-card)',
-                    border: '1px solid var(--border)',
+                    border: statusInfo.isOverdue ? '1px solid rgba(239, 68, 68, 0.45)' : '1px solid var(--border)',
                     borderLeft: isIncome ? '3px solid var(--success)' : '3px solid var(--danger)',
                     borderRadius: 'var(--radius-md)',
+                    transition: 'all 180ms ease-out',
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
@@ -2002,13 +2079,43 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
                       <div style={{ 
                         fontSize: 11, 
                         color: 'var(--text-muted)', 
-                        marginTop: 2,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
+                        marginTop: 4,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        flexWrap: 'wrap'
                       }}>
                         <span style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>{tx.category}</span>
                         {tx.date ? ` • ${formatDate(tx.date)}` : ''}
+                        {tx.account_or_card_name && (
+                          <span style={{
+                            fontSize: 9,
+                            fontWeight: 600,
+                            padding: '1px 5px',
+                            borderRadius: 4,
+                            background: 'var(--bg-surface)',
+                            border: '1px solid var(--border)',
+                            color: 'var(--text-muted)',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {tx.account_or_card_name}
+                          </span>
+                        )}
+                        <span style={{
+                          fontSize: 9,
+                          fontWeight: 600,
+                          padding: '1px 6px',
+                          borderRadius: 4,
+                          background: statusInfo.bg,
+                          color: statusInfo.color,
+                          border: `0.5px solid ${statusInfo.border}`,
+                          textTransform: 'uppercase',
+                          letterSpacing: 0.5,
+                          whiteSpace: 'nowrap',
+                          lineHeight: '13px'
+                        }}>
+                          {statusInfo.label}
+                        </span>
                       </div>
                       {hasPendingEdit && (
                         <div style={{ 
@@ -2200,9 +2307,30 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
                 </select>
               </div>
 
-              {/* Data do Lançamento */}
+              {/* Status do Lançamento (Pago/Recebido vs Pendente) */}
               <div>
-                <label className="input-label">Data do Lançamento</label>
+                <label className="input-label">Status do Lançamento</label>
+                <div className="segmented-control">
+                  <button 
+                    type="button"
+                    className={`segmented-btn ${suggestionIsRealized ? 'active' : ''}`}
+                    onClick={() => setSuggestionIsRealized(true)}
+                  >
+                    {suggestionType === 'income' ? '✓ Recebido' : '✓ Pago'}
+                  </button>
+                  <button 
+                    type="button"
+                    className={`segmented-btn ${!suggestionIsRealized ? 'active' : ''}`}
+                    onClick={() => setSuggestionIsRealized(false)}
+                  >
+                    ⏳ Pendente
+                  </button>
+                </div>
+              </div>
+
+              {/* Data do Lançamento / Vencimento */}
+              <div>
+                <label className="input-label">{suggestionIsRealized ? 'Data do Lançamento' : 'Data de Vencimento'}</label>
                 <input 
                   type="date"
                   className="input-field"
