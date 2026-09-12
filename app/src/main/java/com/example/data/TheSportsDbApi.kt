@@ -76,6 +76,59 @@ data class TSDBTableResponse(
     @Json(name = "table") val table: List<TSDBTableItem>?
 )
 
+@JsonClass(generateAdapter = true)
+data class TSDBTimelineItem(
+    @Json(name = "idTimeline") val idTimeline: String?,
+    @Json(name = "idEvent") val idEvent: String?,
+    @Json(name = "strTimeline") val strTimeline: String?,
+    @Json(name = "strTimelineDetail") val strTimelineDetail: String?,
+    @Json(name = "strHome") val strHome: String?,
+    @Json(name = "strPlayer") val strPlayer: String?,
+    @Json(name = "strAssist") val strAssist: String?,
+    @Json(name = "intTime") val intTime: String?,
+    @Json(name = "strTeam") val strTeam: String?,
+    @Json(name = "strComment") val strComment: String?
+)
+
+@JsonClass(generateAdapter = true)
+data class TSDBTimelineResponse(
+    @Json(name = "timeline") val timeline: List<TSDBTimelineItem>?
+)
+
+@JsonClass(generateAdapter = true)
+data class TSDBEventStatItem(
+    @Json(name = "idStatistic") val idStatistic: String?,
+    @Json(name = "idEvent") val idEvent: String?,
+    @Json(name = "strStat") val strStat: String?,
+    @Json(name = "intHome") val intHome: String?,
+    @Json(name = "intAway") val intAway: String?
+)
+
+@JsonClass(generateAdapter = true)
+data class TSDBEventStatsResponse(
+    @Json(name = "eventstats") val eventstats: List<TSDBEventStatItem>?
+)
+
+@JsonClass(generateAdapter = true)
+data class TSDBLineupItem(
+    @Json(name = "idLineup") val idLineup: String?,
+    @Json(name = "idEvent") val idEvent: String?,
+    @Json(name = "strPosition") val strPosition: String?,
+    @Json(name = "strHome") val strHome: String?,
+    @Json(name = "strSubstitute") val strSubstitute: String?,
+    @Json(name = "intSquadNumber") val intSquadNumber: String?,
+    @Json(name = "idPlayer") val idPlayer: String?,
+    @Json(name = "strPlayer") val strPlayer: String?,
+    @Json(name = "strCutout") val strCutout: String?,
+    @Json(name = "idTeam") val idTeam: String?,
+    @Json(name = "strTeam") val strTeam: String?
+)
+
+@JsonClass(generateAdapter = true)
+data class TSDBLineupResponse(
+    @Json(name = "lineup") val lineup: List<TSDBLineupItem>?
+)
+
 interface TheSportsDbService {
     @GET("searchteams.php")
     suspend fun searchTeam(@Query("t") teamName: String): TSDBTeamsResponse
@@ -91,6 +144,15 @@ interface TheSportsDbService {
         @Query("l") leagueId: String = "4351",
         @Query("s") season: String
     ): TSDBTableResponse
+
+    @GET("lookuptimeline.php")
+    suspend fun getTimeline(@Query("id") eventId: String): TSDBTimelineResponse
+
+    @GET("lookupeventstats.php")
+    suspend fun getEventStats(@Query("id") eventId: String): TSDBEventStatsResponse
+
+    @GET("lookuplineup.php")
+    suspend fun getLineup(@Query("id") eventId: String): TSDBLineupResponse
 }
 
 fun formatUtcMatchDateTime(dateStr: String?, timeStr: String?): String {

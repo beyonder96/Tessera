@@ -4,6 +4,20 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.61
+
+- **Tabela do Brasileirão:**
+  - **Escudo Oficial da Competição:** Correção do escudo na tabela de classificação do Brasileirão, substituindo a exibição indevida do escudo do Palmeiras pelo escudo oficial ativo da Série A do Campeonato Brasileiro.
+- **Widget de Futebol com Lances e Estatísticas:**
+  - **Aba Lances em Tempo Real:** Visualização cronológica detalhada dos lances da partida com ícones contextuais para gols (com indicação de assistência), cartões amarelos e vermelhos e substituições de jogadores com minutagem precisa.
+  - **Aba Estatísticas Comparativas:** Gráficos de barras horizontais proporcionais comparando posse de bola, chutes no gol, finalizações totais, passes certos, faltas e escanteios entre os clubes.
+  - **Escalações Aprimoradas:** Relação completa de titulares e banco de reservas com número de camisa e posicionamento tático.
+- **Redesign Minimalista do Reprodutor de Música (`SmartMediaCard`):**
+  - **Design Contemporâneo:** Layout espaçoso e sofisticado alinhado com o Design System de Minimalismo Rigoroso do Tessera.
+  - **Capa Ampliada e Detalhes de Áudio:** Miniatura de 56dp com cantos arredondados, mini equalizador animado com barras pulsantes durante a reprodução e badge da plataforma de streaming.
+  - **Linha do Tempo e Minutagem:** Barra de progresso contínua com indicadores de tempo decorrido e duração total (`01:24 / 03:45`).
+  - **Controles Táteis Refinados:** Botões circulares limpos e com contraste WCAG AA, e botão dedicado de acesso rápido às letras e dossiê musical.
+
 ## 🚀 Novidades da Versão 2.0.60
 
 - **Indicadores de Status Financeiro na Versão Web:**
@@ -299,8 +313,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.60.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.60.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.61.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.61.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.

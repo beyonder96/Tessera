@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit
 object BrasileiraoRepository {
     private const val TAG = "BrasileiraoRepo"
     private const val GE_URL = "https://ge.globo.com/futebol/brasileirao-serie-a/"
+    const val BRASILEIRAO_SERIE_A_LOGO = "https://r2.thesportsdb.com/images/media/league/badge/lywv7t1766787179.png"
 
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -62,7 +63,7 @@ object BrasileiraoRepository {
                             id = 4351L,
                             name = "Brasileirão Série A",
                             country = "Brasil",
-                            logo = "https://www.thesportsdb.com/images/media/league/badge/2d3b5b1535384163.png",
+                            logo = BRASILEIRAO_SERIE_A_LOGO,
                             season = seasonStr.toIntOrNull() ?: currentYear,
                             standings = listOf(ranks)
                         )
@@ -183,7 +184,7 @@ object BrasileiraoRepository {
                 id = 4351L,
                 name = "Brasileirão Série A",
                 country = "Brasil",
-                logo = "https://s.sde.globo.com/media/organizations/2019/07/06/Palmeiras.svg",
+                logo = BRASILEIRAO_SERIE_A_LOGO,
                 season = editionYear,
                 standings = listOf(ranksList)
             )

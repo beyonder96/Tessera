@@ -23,7 +23,14 @@ data class DetailedFixture(
     val venueName: String?,
     val events: List<MatchEvent>,
     val homeLineup: List<MatchLineup>,
-    val awayLineup: List<MatchLineup>
+    val awayLineup: List<MatchLineup>,
+    val statistics: List<MatchStatistic> = emptyList()
+)
+
+data class MatchStatistic(
+    val name: String,
+    val homeValue: String,
+    val awayValue: String
 )
 
 data class MatchEvent(
@@ -32,12 +39,18 @@ data class MatchEvent(
     val typeName: String,
     val typeCode: String?,
     val playerName: String,
-    val isHomeTeam: Boolean
+    val isHomeTeam: Boolean,
+    val assistName: String? = null,
+    val detail: String? = null
 )
 
 data class MatchLineup(
     val playerId: Long,
     val playerName: String,
-    val playerImage: String?,
-    val position: Int?
+    val playerImage: String? = null,
+    val position: Int? = null,
+    val squadNumber: String? = null,
+    val positionName: String? = null,
+    val isSubstitute: Boolean = false,
+    val isHomeTeam: Boolean = true
 )

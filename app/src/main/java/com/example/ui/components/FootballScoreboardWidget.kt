@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Square
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.SportsSoccer
 import androidx.compose.material.icons.outlined.Stadium
+import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -58,7 +59,7 @@ fun DetailedMatchWidget(
     val matchStandings by viewModel.matchStandings.collectAsState()
     val isLoading by viewModel.isLoadingFootball.collectAsState()
     var selectedTab by remember { mutableStateOf("RESUMO") }
-    val tabs = listOf("RESUMO", "EVENTOS", "ESCALAÇÕES")
+    val tabs = listOf("RESUMO", "LANCES", "ESTATÍSTICAS", "ESCALAÇÕES")
     val pagerState = rememberPagerState(pageCount = { 2 })
 
     LaunchedEffect(Unit) {
@@ -373,7 +374,8 @@ fun DetailedMatchWidget(
                 ) { targetTab ->
                     when (targetTab) {
                         "RESUMO" -> MatchSummaryTab(m)
-                        "EVENTOS" -> MatchEventsTab(m)
+                        "LANCES" -> MatchEventsTab(m)
+                        "ESTATÍSTICAS" -> MatchStatsTab(m)
                         "ESCALAÇÕES" -> MatchLineupsTab(m)
                     }
                 }
@@ -451,26 +453,265 @@ fun MatchSummaryTab(match: DetailedFixture) {
 fun MatchEventsTab(match: DetailedFixture) {
     val events = match.events
     if (events.isEmpty()) {
-        Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-            Text("Nenhum evento registrado até o momento.", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f), fontSize = 12.sp)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp, horizontal = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "Nenhum lance registrado até o momento.",
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = "Gols, cartões e substituições em tempo real aparecerão com a partida em andamento.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    fontSize = 11.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     } else {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            events.take(5).forEach { event ->
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 280.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
+            events.forEach { event ->
+                val isGoal = event.typeName.contains("Gol", ignoreCase = true) || event.typeCode?.contains("goal", ignoreCase = true) == true
+                val isRedCard = event.typeName.contains("Vermelho", ignoreCase = true) || event.detail?.contains("red", ignoreCase = true) == true
+                val isYellowCard = !isRedCard && (event.typeName.contains("Amarelo", ignoreCase = true) || event.detail?.contains("yellow", ignoreCase = true) == true || event.typeCode?.contains("card", ignoreCase = true) == true)
+                val isSub = event.typeName.contains("Substituição", ignoreCase = true) || event.typeCode?.contains("subst", ignoreCase = true) == true
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
-                        .padding(12.dp),
+                        .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(text = "${event.minute}'", fontWeight = FontWeight.Bold, color = Color(0xFFF97316), fontSize = 12.sp)
-                        Text(text = event.playerName, color = MaterialTheme.colorScheme.onBackground, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        // Minuto Badge
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0xFFF97316).copy(alpha = 0.15f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "${event.minute}'",
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFF97316),
+                                fontSize = 11.sp
+                            )
+                        }
+
+                        // Ícone do Lance
+                        when {
+                            isGoal -> {
+                                Icon(
+                                    imageVector = Icons.Outlined.SportsSoccer,
+                                    contentDescription = "Gol",
+                                    tint = Color(0xFF10B981),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            isRedCard -> {
+                                Box(
+                                    modifier = Modifier
+                                        .size(width = 12.dp, height = 16.dp)
+                                        .clip(RoundedCornerShape(2.dp))
+                                        .background(Color(0xFFEF4444))
+                                )
+                            }
+                            isYellowCard -> {
+                                Box(
+                                    modifier = Modifier
+                                        .size(width = 12.dp, height = 16.dp)
+                                        .clip(RoundedCornerShape(2.dp))
+                                        .background(Color(0xFFFACC15))
+                                )
+                            }
+                            isSub -> {
+                                Icon(
+                                    imageVector = Icons.Outlined.SwapHoriz,
+                                    contentDescription = "Substituição",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            else -> {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFF97316))
+                                )
+                            }
+                        }
+
+                        // Jogador e Detalhe
+                        Column {
+                            Text(
+                                text = event.playerName,
+                                color = MaterialTheme.colorScheme.onBackground,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (!event.assistName.isNullOrBlank()) {
+                                Text(
+                                    text = if (isSub) "Saiu: ${event.assistName}" else "Assistência: ${event.assistName}",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                    fontSize = 11.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
                     }
-                    Text(text = event.typeName.uppercase(), color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f), fontSize = 11.sp)
+
+                    // Badge do time e tipo
+                    val teamSideLabel = if (event.isHomeTeam) match.matchDetail.homeTeamName.take(3).uppercase() else match.matchDetail.awayTeamName.take(3).uppercase()
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "$teamSideLabel • ${event.typeName.uppercase()}",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MatchStatsTab(match: DetailedFixture) {
+    val stats = match.statistics
+    if (stats.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp, horizontal = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "Estatísticas ainda não disponíveis.",
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = "Posse de bola, finalizações e passes são computados ao longo do jogo.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    fontSize = 11.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    } else {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 280.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
+            stats.forEach { stat ->
+                val homeNum = stat.homeValue.replace("%", "").trim().toFloatOrNull() ?: 0f
+                val awayNum = stat.awayValue.replace("%", "").trim().toFloatOrNull() ?: 0f
+                val total = (homeNum + awayNum).coerceAtLeast(1f)
+                val homeFraction = (homeNum / total).coerceIn(0.05f, 0.95f)
+                val awayFraction = 1f - homeFraction
+
+                val homeDominant = homeNum > awayNum
+                val awayDominant = awayNum > homeNum
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f))
+                        .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f), RoundedCornerShape(10.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stat.homeValue,
+                            fontSize = 12.sp,
+                            fontWeight = if (homeDominant) FontWeight.Bold else FontWeight.Medium,
+                            color = if (homeDominant) Color(0xFFF97316) else MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            text = stat.name.uppercase(),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            letterSpacing = 0.5.sp
+                        )
+                        Text(
+                            text = stat.awayValue,
+                            fontSize = 12.sp,
+                            fontWeight = if (awayDominant) FontWeight.Bold else FontWeight.Medium,
+                            color = if (awayDominant) Color(0xFFF97316) else MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+
+                    // Barra Comparativa Horizontal Proporcional
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(homeFraction)
+                                .fillMaxHeight()
+                                .background(if (homeDominant) Color(0xFFF97316) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f))
+                        )
+                        Box(
+                            modifier = Modifier
+                                .weight(awayFraction)
+                                .fillMaxHeight()
+                                .background(if (awayDominant) Color(0xFFF97316) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f))
+                        )
+                    }
                 }
             }
         }
@@ -484,22 +725,93 @@ fun MatchLineupsTab(match: DetailedFixture) {
             Text("Escalações disponíveis próximo ao início do jogo.", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f), fontSize = 12.sp)
         }
     } else {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(match.matchDetail.homeTeamName.uppercase(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                match.homeLineup.take(11).forEach { player ->
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("${player.position ?: "-"}", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), fontSize = 10.sp, modifier = Modifier.width(16.dp))
-                        Text(player.playerName, color = MaterialTheme.colorScheme.onBackground, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 280.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Time Casa
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        match.matchDetail.homeTeamName.uppercase(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                    match.homeLineup.forEach { player ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            val number = player.squadNumber ?: player.position?.toString() ?: "-"
+                            Box(
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = number,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Text(
+                                text = player.playerName,
+                                color = if (player.isSubstitute) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onBackground,
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
-            }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(match.matchDetail.awayTeamName.uppercase(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                match.awayLineup.take(11).forEach { player ->
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("${player.position ?: "-"}", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), fontSize = 10.sp, modifier = Modifier.width(16.dp))
-                        Text(player.playerName, color = MaterialTheme.colorScheme.onBackground, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+
+                // Time Fora
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        match.matchDetail.awayTeamName.uppercase(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                    match.awayLineup.forEach { player ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            val number = player.squadNumber ?: player.position?.toString() ?: "-"
+                            Box(
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = number,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Text(
+                                text = player.playerName,
+                                color = if (player.isSubstitute) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onBackground,
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
             }
@@ -574,8 +886,13 @@ fun StandingsCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (league.logo != null) {
-                    TeamLogo(league.logo, league.name, size = 22)
+                val leagueLogoUrl = when {
+                    league.logo?.contains("Palmeiras", ignoreCase = true) == true -> com.example.data.BrasileiraoRepository.BRASILEIRAO_SERIE_A_LOGO
+                    league.name.contains("Brasileir", ignoreCase = true) -> league.logo ?: com.example.data.BrasileiraoRepository.BRASILEIRAO_SERIE_A_LOGO
+                    else -> league.logo
+                }
+                if (leagueLogoUrl != null) {
+                    TeamLogo(leagueLogoUrl, league.name, size = 22)
                 }
                 Text(
                     text = league.name.uppercase(),

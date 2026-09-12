@@ -43,6 +43,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.combine
 import java.util.Calendar
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
 import android.content.SharedPreferences
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -2821,12 +2822,125 @@ class TesseraViewModel(
                         leagueName = league
                     )
 
+                    val eventId = selectedEvent.idEvent
+                    var eventsList = emptyList<com.example.data.MatchEvent>()
+                    var statsList = emptyList<com.example.data.MatchStatistic>()
+                    var homeLineupList = emptyList<com.example.data.MatchLineup>()
+                    var awayLineupList = emptyList<com.example.data.MatchLineup>()
+
+                    if (!eventId.isNullOrBlank()) {
+                        try {
+                            val timelineDeferred = async {
+                                try {
+                                    com.example.data.TheSportsDbApi.service.getTimeline(eventId).timeline ?: emptyList()
+                                } catch (e: Exception) {
+                                    Log.e("TesseraViewModel", "Erro ao buscar timeline: ${e.message}")
+                                    emptyList()
+                                }
+                            }
+                            val statsDeferred = async {
+                                try {
+                                    com.example.data.TheSportsDbApi.service.getEventStats(eventId).eventstats ?: emptyList()
+                                } catch (e: Exception) {
+                                    Log.e("TesseraViewModel", "Erro ao buscar estatísticas: ${e.message}")
+                                    emptyList()
+                                }
+                            }
+                            val lineupDeferred = async {
+                                try {
+                                    com.example.data.TheSportsDbApi.service.getLineup(eventId).lineup ?: emptyList()
+                                } catch (e: Exception) {
+                                    Log.e("TesseraViewModel", "Erro ao buscar escalação: ${e.message}")
+                                    emptyList()
+                                }
+                            }
+
+                            val rawTimeline = timelineDeferred.await()
+                            val rawStats = statsDeferred.await()
+                            val rawLineup = lineupDeferred.await()
+
+                            eventsList = rawTimeline.mapIndexed { index, tl ->
+                                val minute = tl.intTime?.toIntOrNull() ?: 0
+                                val rawType = tl.strTimeline ?: "Evento"
+                                val isHome = tl.strHome.equals("Yes", ignoreCase = true)
+                                val friendlyType = when {
+                                    rawType.contains("goal", ignoreCase = true) -> "Gol"
+                                    rawType.contains("card", ignoreCase = true) -> {
+                                        if (tl.strTimelineDetail?.contains("red", ignoreCase = true) == true) "Cartão Vermelho"
+                                        else "Cartão Amarelo"
+                                    }
+                                    rawType.contains("subst", ignoreCase = true) -> "Substituição"
+                                    else -> rawType
+                                }
+                                com.example.data.MatchEvent(
+                                    id = tl.idTimeline?.toLongOrNull() ?: index.toLong(),
+                                    minute = minute,
+                                    typeName = friendlyType,
+                                    typeCode = rawType,
+                                    playerName = tl.strPlayer ?: "Jogador",
+                                    isHomeTeam = isHome,
+                                    assistName = tl.strAssist?.takeIf { it.isNotBlank() && it != "NULL" },
+                                    detail = tl.strTimelineDetail
+                                )
+                            }.sortedBy { it.minute }
+
+                            statsList = rawStats.map { st ->
+                                val rawName = st.strStat ?: "Estatística"
+                                val friendlyName = when {
+                                    rawName.contains("possession", ignoreCase = true) -> "Posse de Bola"
+                                    rawName.contains("shots on goal", ignoreCase = true) || rawName.contains("shots insidebox", ignoreCase = true) -> "Finalizações na Área"
+                                    rawName.contains("shots outsidebox", ignoreCase = true) -> "Finalizações de Fora"
+                                    rawName.contains("total shots", ignoreCase = true) -> "Total de Finalizações"
+                                    rawName.contains("blocked shots", ignoreCase = true) -> "Chutes Bloqueados"
+                                    rawName.contains("passes accurate", ignoreCase = true) -> "Passes Certos"
+                                    rawName.contains("passes total", ignoreCase = true) -> "Total de Passes"
+                                    rawName.contains("fouls", ignoreCase = true) -> "Faltas Cometidas"
+                                    rawName.contains("free kicks", ignoreCase = true) -> "Tiros Livres / Faltas"
+                                    rawName.contains("corners", ignoreCase = true) || rawName.contains("corner", ignoreCase = true) -> "Escanteios"
+                                    rawName.contains("offsides", ignoreCase = true) || rawName.contains("offside", ignoreCase = true) -> "Impedimentos"
+                                    rawName.contains("yellow", ignoreCase = true) -> "Cartões Amarelos"
+                                    rawName.contains("red", ignoreCase = true) -> "Cartões Vermelhos"
+                                    rawName.contains("saves", ignoreCase = true) -> "Defesas do Goleiro"
+                                    else -> rawName
+                                }
+                                com.example.data.MatchStatistic(
+                                    name = friendlyName,
+                                    homeValue = st.intHome ?: "0",
+                                    awayValue = st.intAway ?: "0"
+                                )
+                            }
+
+                            val hLineup = mutableListOf<com.example.data.MatchLineup>()
+                            val aLineup = mutableListOf<com.example.data.MatchLineup>()
+                            rawLineup.forEachIndexed { idx, item ->
+                                val isHome = item.strHome.equals("Yes", ignoreCase = true)
+                                val isSub = item.strSubstitute.equals("Yes", ignoreCase = true)
+                                val entry = com.example.data.MatchLineup(
+                                    playerId = item.idPlayer?.toLongOrNull() ?: idx.toLong(),
+                                    playerName = item.strPlayer ?: "Jogador",
+                                    playerImage = item.strCutout,
+                                    position = item.intSquadNumber?.toIntOrNull(),
+                                    squadNumber = item.intSquadNumber,
+                                    positionName = item.strPosition,
+                                    isSubstitute = isSub,
+                                    isHomeTeam = isHome
+                                )
+                                if (isHome) hLineup.add(entry) else aLineup.add(entry)
+                            }
+                            homeLineupList = hLineup
+                            awayLineupList = aLineup
+                        } catch (e: Exception) {
+                            Log.e("TesseraViewModel", "Erro ao carregar detalhes enriquecidos da partida", e)
+                        }
+                    }
+
                     val detailedFixture = com.example.data.DetailedFixture(
                         matchDetail = matchDetail,
                         venueName = venue,
-                        events = emptyList(),
-                        homeLineup = emptyList(),
-                        awayLineup = emptyList()
+                        events = eventsList,
+                        homeLineup = homeLineupList,
+                        awayLineup = awayLineupList,
+                        statistics = statsList
                     )
 
                     _featuredMatch.value = detailedFixture
