@@ -177,6 +177,32 @@ async function maybeSendVoiceReply(chatId: number | string, text: string, should
   }
 }
 
+async function registerTelegramBotCommands(): Promise<void> {
+  if (!TELEGRAM_BOT_TOKEN) return
+  try {
+    const commands = [
+      { command: "app", description: "📱 Abrir central do Tessera em Mini App" },
+      { command: "saldo", description: "💰 Ver saldo livre, cartões e limites" },
+      { command: "tabela", description: "🏆 Tabela oficial do Brasileirão Série A" },
+      { command: "futebol", description: "⚽ Próximos jogos e últimos resultados" },
+      { command: "grafico", description: "📊 Gráfico visual de gastos por categoria" },
+      { command: "extrato", description: "📄 Baixar extrato do mês em CSV" },
+      { command: "mercado", description: "🛒 Ver lista de compras pendente" },
+      { command: "lembretes", description: "⏰ Ver tarefas e avisos pendentes" },
+      { command: "desejos", description: "🎁 Metas e lista de desejos" },
+      { command: "tempo", description: "🌤️ Previsão do tempo e chuva" },
+      { command: "ajuda", description: "❓ Guia de comandos e como usar" }
+    ]
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setMyCommands`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ commands })
+    })
+  } catch (err) {
+    console.error("Erro ao registrar comandos do bot:", err)
+  }
+}
+
 async function downloadTelegramFile(fileId: string): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {
   try {
     const fileInfo = await tgCall("getFile", { file_id: fileId })
@@ -781,7 +807,7 @@ async function searchTeamByName(teamQuery?: string): Promise<{ id: string; name:
   const clean = teamQuery.toLowerCase().trim()
   if (KNOWN_BRAZILIAN_TEAMS[clean]) return KNOWN_BRAZILIAN_TEAMS[clean]
   for (const [k, v] of Object.entries(KNOWN_BRAZILIAN_TEAMS)) {
-    if (clean.includes(k) || k.includes(clean)) return v
+    if (clean === v.id || clean.includes(k) || k.includes(clean)) return v
   }
   try {
     const res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(clean)}`)
@@ -852,6 +878,185 @@ function formatMatchDateTime(dateStr?: string, timeStr?: string): { formatted: s
   }
 }
 
+function formatGEDateTime(isoStr?: string): { formatted: string; spoken: string } {
+  if (!isoStr) return { formatted: "Data a definir", spoken: "em data a definir" }
+  try {
+    const [dPart, tPart] = isoStr.split("T")
+    const [year, month, day] = dPart.split("-")
+    const time = tPart ? tPart.slice(0, 5) : ""
+    const dayMonth = `${day}/${month}`
+    const formattedTime = time ? ` às ${time}` : ""
+
+    const now = new Date()
+    const todayBr = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" }).format(now)
+    const tomorrow = new Date(now.getTime() + 86400000)
+    const tomorrowBr = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" }).format(tomorrow)
+
+    const fullDate = `${day}/${month}/${year}`
+    let relative = `${dayMonth}${formattedTime}`
+    let spoken = `no dia ${dayMonth}${time ? ` às ${time}` : ""}`
+
+    if (fullDate === todayBr) {
+      relative = `Hoje (${dayMonth})${formattedTime}`
+      spoken = `hoje${time ? ` às ${time}` : ""}`
+    } else if (fullDate === tomorrowBr) {
+      relative = `Amanhã (${dayMonth})${formattedTime}`
+      spoken = `amanhã${time ? ` às ${time}` : ""}`
+    }
+
+    return { formatted: relative, spoken }
+  } catch (_e) {
+    return { formatted: isoStr, spoken: `em ${isoStr}` }
+  }
+}
+
+async function fetchGEBrasileiraoData(): Promise<{ table: any[]; matches: any[]; edition: string } | null> {
+  try {
+    const res = await fetch("https://ge.globo.com/futebol/brasileirao-serie-a/", {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+      }
+    })
+    if (!res.ok) return null
+    const html = await res.text()
+
+    let table: any[] = []
+    let edition = "Brasileirão Série A"
+    const classMarker = "const classificacao = "
+    const classIdx = html.indexOf(classMarker)
+    if (classIdx !== -1) {
+      const jsonStart = classIdx + classMarker.length
+      let openBraces = 0, jsonEnd = -1
+      for (let i = jsonStart; i < html.length; i++) {
+        if (html[i] === "{") openBraces++
+        else if (html[i] === "}") {
+          openBraces--
+          if (openBraces === 0) {
+            jsonEnd = i + 1
+            break
+          }
+        }
+      }
+      if (jsonEnd !== -1) {
+        const classObj = JSON.parse(html.substring(jsonStart, jsonEnd))
+        table = classObj.classificacao || []
+        if (classObj.edicao?.nome) edition = classObj.edicao.nome
+      }
+    }
+
+    let matches: any[] = []
+    const matchMarker = "const listaJogos = "
+    const matchIdx = html.indexOf(matchMarker)
+    if (matchIdx !== -1) {
+      const jsonStart = matchIdx + matchMarker.length
+      let openBrackets = 0, jsonEnd = -1
+      for (let i = jsonStart; i < html.length; i++) {
+        if (html[i] === "[" || html[i] === "{") openBrackets++
+        else if (html[i] === "]" || html[i] === "}") {
+          openBrackets--
+          if (openBrackets === 0) {
+            jsonEnd = i + 1
+            break
+          }
+        }
+      }
+      if (jsonEnd !== -1) {
+        matches = JSON.parse(html.substring(jsonStart, jsonEnd))
+      }
+    }
+
+    return { table, matches, edition }
+  } catch (err) {
+    console.error("Erro ao buscar dados do GE:", err)
+    return null
+  }
+}
+
+function formatTableMonospace(table: any[], edition: string, highlightTeamName = ""): { text: string; spokenText: string } {
+  function pad(str: any, len: number, alignLeft = true) {
+    const s = String(str ?? "")
+    if (s.length >= len) return s.slice(0, len)
+    return alignLeft ? s + " ".repeat(len - s.length) : " ".repeat(len - s.length) + s
+  }
+
+  let text = `🏆 <b>${edition} • Classificação Oficial</b>\n`
+  text += `<i>Atualização em tempo real (GE)</i>\n\n`
+  text += `<pre>\n`
+  text += `Pos Clube         PTS  J  V  SG\n`
+  text += `───────────────────────────────\n`
+
+  // 1º ao 4º: Libertadores
+  table.slice(0, 4).forEach((t: any) => {
+    const pos = pad(`${t.ordem}º`, 4, true)
+    const name = pad(t.nome_popular || t.nome || "Time", 13, true)
+    const pts = pad(t.pontos, 4, false)
+    const j = pad(t.jogos, 3, false)
+    const v = pad(t.vitorias, 3, false)
+    const sgVal = t.saldo_gols > 0 ? `+${t.saldo_gols}` : String(t.saldo_gols ?? 0)
+    const sg = pad(sgVal, 4, false)
+    text += `${pos}${name}${pts}${j}${v}${sg}\n`
+  })
+
+  text += `───────────────────────────────\n`
+  // 5º e 6º: Pré-Libertadores
+  table.slice(4, 6).forEach((t: any) => {
+    const pos = pad(`${t.ordem}º`, 4, true)
+    const name = pad(t.nome_popular || t.nome || "Time", 13, true)
+    const pts = pad(t.pontos, 4, false)
+    const j = pad(t.jogos, 3, false)
+    const v = pad(t.vitorias, 3, false)
+    const sgVal = t.saldo_gols > 0 ? `+${t.saldo_gols}` : String(t.saldo_gols ?? 0)
+    const sg = pad(sgVal, 4, false)
+    text += `${pos}${name}${pts}${j}${v}${sg}\n`
+  })
+
+  text += `───────────────────────────────\n`
+  // 17º ao 20º: Rebaixamento
+  table.slice(16, 20).forEach((t: any) => {
+    const pos = pad(`${t.ordem}º`, 4, true)
+    const name = pad(t.nome_popular || t.nome || "Time", 13, true)
+    const pts = pad(t.pontos, 4, false)
+    const j = pad(t.jogos, 3, false)
+    const v = pad(t.vitorias, 3, false)
+    const sgVal = t.saldo_gols > 0 ? `+${t.saldo_gols}` : String(t.saldo_gols ?? 0)
+    const sg = pad(sgVal, 4, false)
+    text += `${pos}${name}${pts}${j}${v}${sg}\n`
+  })
+  text += `</pre>\n`
+  text += `🟢 <i>1º ao 4º: Libertadores (Fase de Grupos)</i>\n`
+  text += `🔵 <i>5º e 6º: Pré-Libertadores</i>\n`
+  text += `🔴 <i>17º ao 20º: Zona de Rebaixamento (Z-4)</i>\n`
+
+  let spokenHighlight = ""
+  if (highlightTeamName) {
+    const clean = highlightTeamName.toLowerCase().trim()
+    const target = table.find((t: any) => (t.nome_popular || t.nome || "").toLowerCase().includes(clean))
+    if (target) {
+      const formIcons = (target.ultimos_jogos || []).map((f: string) => {
+        if (f.toLowerCase() === "v") return "🟢 V"
+        if (f.toLowerCase() === "e") return "🟡 E"
+        return "🔴 D"
+      }).join(" ")
+
+      text += `\n📌 <b>Destaque • ${target.nome_popular || target.nome}:</b>\n`
+      text += `• <b>Posição:</b> ${target.ordem}º lugar\n`
+      text += `• <b>Pontos:</b> ${target.pontos} pts (${target.jogos} jogos | ${target.vitorias} vitórias)\n`
+      const targetSg = target.saldo_gols > 0 ? `+${target.saldo_gols}` : target.saldo_gols
+      text += `• <b>Saldo de Gols:</b> ${targetSg}\n`
+      text += `• <b>Aproveitamento:</b> ${target.aproveitamento}%\n`
+      if (formIcons) text += `• <b>Forma Recente:</b> ${formIcons}\n`
+
+      spokenHighlight = ` O ${target.nome_popular || target.nome} está na ${target.ordem}ª posição com ${target.pontos} pontos em ${target.jogos} jogos.`
+    }
+  }
+
+  const leader = table[0]
+  const spokenText = `Na tabela do Brasileirão, o líder é o ${leader.nome_popular || leader.nome} com ${leader.pontos} pontos, seguido por ${table[1]?.nome_popular || table[1]?.nome} com ${table[1]?.pontos} pontos e ${table[2]?.nome_popular || table[2]?.nome} com ${table[2]?.pontos} pontos.${spokenHighlight}`
+
+  return { text, spokenText }
+}
+
 async function fetchSoccerInfo(
   soccer?: { team?: string; type?: "next" | "last" | "standings" | "general" },
   rawQuery = ""
@@ -870,6 +1075,29 @@ async function fetchSoccerInfo(
     queryLower.includes("pontos")
 
   if (isStandingsQuery) {
+    try {
+      const geData = await fetchGEBrasileiraoData()
+      if (geData && geData.table && geData.table.length > 0) {
+        const formatted = formatTableMonospace(geData.table, geData.edition, soccer?.team || rawQuery)
+        const replyMarkup = {
+          inline_keyboard: [
+            [
+              { text: "🔴 Próximo do Flamengo", callback_data: "soccer_team:flamengo" },
+              { text: "🟢 Próximo do Palmeiras", callback_data: "soccer_team:palmeiras" }
+            ],
+            [
+              { text: "⚪ Próximo do Corinthians", callback_data: "soccer_team:corinthians" },
+              { text: "⚫ Próximo do São Paulo", callback_data: "soccer_team:sao paulo" }
+            ]
+          ]
+        }
+        return { text: formatted.text, spokenText: formatted.spokenText, replyMarkup }
+      }
+    } catch (err) {
+      console.error("Erro ao buscar tabela GE:", err)
+    }
+
+    // Fallback: TheSportsDB
     try {
       const currentYear = new Date().getFullYear()
       let res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/lookuptable.php?l=4351&s=${currentYear}`)
@@ -894,41 +1122,16 @@ async function fetchSoccerInfo(
           })
         }
 
-        let teamHighlightSpoken = ""
-        if (soccer?.team) {
-          const targetTeam = table.find((t: any) => t.strTeam?.toLowerCase().includes(soccer.team!.toLowerCase()))
-          if (targetTeam) {
-            text += `\n📌 <b>${targetTeam.strTeam}:</b> ${targetTeam.intRank}º lugar com <b>${targetTeam.intPoints} pontos</b> em ${targetTeam.intPlayed} jogos.\n`
-            teamHighlightSpoken = ` O ${targetTeam.strTeam} está na ${targetTeam.intRank}ª posição com ${targetTeam.intPoints} pontos.`
-          }
-        }
-
-        text += `\n⚡ <i>Tabela completa e lances em tempo real na aba de Futebol do seu Tessera!</i>`
-
         const leader = table[0]
-        const spokenText = `Na tabela do Brasileirão, o líder é o ${leader.strTeam} com ${leader.intPoints} pontos, seguido por ${table[1]?.strTeam} com ${table[1]?.intPoints} pontos e ${table[2]?.strTeam} com ${table[2]?.intPoints} pontos.${teamHighlightSpoken}`
-
-        const replyMarkup = {
-          inline_keyboard: [
-            [
-              { text: "🔴 Próximo do Flamengo", callback_data: "soccer_team:flamengo" },
-              { text: "🟢 Próximo do Palmeiras", callback_data: "soccer_team:palmeiras" }
-            ],
-            [
-              { text: "⚪ Próximo do Corinthians", callback_data: "soccer_team:corinthians" },
-              { text: "⚫ Próximo do São Paulo", callback_data: "soccer_team:sao paulo" }
-            ]
-          ]
-        }
-
-        return { text, spokenText, replyMarkup }
+        const spokenText = `Na tabela do Brasileirão, o líder é o ${leader.strTeam} com ${leader.intPoints} pontos.`
+        return { text, spokenText }
       }
     } catch (err) {
-      console.error("Erro ao buscar tabela:", err)
+      console.error("Erro fallback tabela TheSportsDB:", err)
     }
   }
 
-  // 2. Consulta de Próximo Jogo ou Último Resultado de um Time
+  // 2. Consulta de Time (Próximo Jogo ou Último Resultado)
   const teamCandidate = soccer?.team || rawQuery
   const resolvedTeam = await searchTeamByName(teamCandidate)
 
@@ -944,7 +1147,82 @@ async function fetchSoccerInfo(
       queryLower.includes("ganhou") ||
       queryLower.includes("perdeu")
 
+    // Busca dados em tempo real da rodada atual do GloboEsporte
+    let geMatch: any = null
+    try {
+      const geData = await fetchGEBrasileiraoData()
+      if (geData?.matches) {
+        const cleanName = resolvedTeam.name.toLowerCase()
+        geMatch = geData.matches.find((m: any) => {
+          const mand = (m.equipes?.mandante?.nome_popular || "").toLowerCase()
+          const visi = (m.equipes?.visitante?.nome_popular || "").toLowerCase()
+          return mand.includes(cleanName) || cleanName.includes(mand) || visi.includes(cleanName) || cleanName.includes(visi)
+        })
+      }
+    } catch (_err) {
+      // Ignora erro e usa TheSportsDB
+    }
+
+    // A: Partida AO VIVO agora no GE
+    if (geMatch && geMatch.jogo_ja_comecou && geMatch.transmissao?.broadcast?.id === "AO_VIVO") {
+      const h = geMatch.equipes.mandante.nome_popular
+      const a = geMatch.equipes.visitante.nome_popular
+      const hs = geMatch.placar_oficial_mandante ?? 0
+      const as = geMatch.placar_oficial_visitante ?? 0
+      const venue = geMatch.sede?.nome_popular ? `🏟️ ${geMatch.sede.nome_popular}\n` : ""
+
+      const text = `⚽ <b>Partida em Andamento • ${resolvedTeam.name}</b>\n\n` +
+                   `🔴 <b>AO VIVO: ${h} ${hs} x ${as} ${a}</b>\n` +
+                   `🏆 <b>Brasileirão Série A • Rodada Atual</b>\n` +
+                   venue +
+                   `\n⚡ <i>Acompanhe estatísticas e lances minuto a minuto no app Tessera!</i>`
+
+      const spokenText = `O jogo do ${resolvedTeam.name} está acontecendo agora! O placar ao vivo é ${h} ${hs}, ${a} ${as}.`
+
+      const replyMarkup = {
+        inline_keyboard: [
+          [
+            { text: "🏆 Ver Tabela ao Vivo", callback_data: "soccer_table" }
+          ]
+        ]
+      }
+
+      return { text, spokenText, replyMarkup }
+    }
+
+    // B: Consulta de Último Jogo / Resultado Concluído
     if (isLastQuery) {
+      // Se na rodada atual do GE o jogo já encerrou, é o resultado mais recente
+      if (geMatch && geMatch.jogo_ja_comecou && (geMatch.transmissao?.broadcast?.id === "ENCERRADA" || (geMatch.placar_oficial_mandante !== null && geMatch.placar_oficial_visitante !== null))) {
+        const h = geMatch.equipes.mandante.nome_popular
+        const a = geMatch.equipes.visitante.nome_popular
+        const hs = geMatch.placar_oficial_mandante ?? 0
+        const as = geMatch.placar_oficial_visitante ?? 0
+        const dt = formatGEDateTime(geMatch.data_realizacao)
+        const venue = geMatch.sede?.nome_popular ? `🏟️ ${geMatch.sede.nome_popular}\n` : ""
+
+        const text = `⚽ <b>Último Jogo • ${resolvedTeam.name}</b>\n\n` +
+                     `🏁 <b>${h} ${hs} x ${as} ${a}</b>\n` +
+                     `🏆 <b>Brasileirão Série A • Rodada Atual</b>\n` +
+                     `📅 ${dt.formatted} • <b>Encerrado</b>\n` +
+                     venue +
+                     `\n⚡ <i>Lances e estatísticas completos no app Tessera!</i>`
+
+        const spokenText = `No último jogo pelo Brasileirão, o resultado foi ${h} ${hs}, ${a} ${as}.`
+
+        const replyMarkup = {
+          inline_keyboard: [
+            [
+              { text: `📅 Próximo Jogo do ${resolvedTeam.name}`, callback_data: `soccer_team:${resolvedTeam.name.toLowerCase()}` },
+              { text: "🏆 Ver Tabela", callback_data: "soccer_table" }
+            ]
+          ]
+        }
+
+        return { text, spokenText, replyMarkup }
+      }
+
+      // Se o jogo desta rodada ainda não ocorreu ou equipe não jogou hoje, busca último do TheSportsDB
       try {
         const res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/eventslast.php?id=${resolvedTeam.id}`)
         if (res.ok) {
@@ -959,14 +1237,27 @@ async function fetchSoccerInfo(
             const dt = formatMatchDateTime(event.dateEvent, event.strTime)
             const venue = event.strVenue ? `🏟️ ${event.strVenue}\n` : ""
 
-            const text = `⚽ <b>Último Jogo • ${resolvedTeam.name}</b>\n\n` +
+            let upcomingNote = ""
+            let upcomingSpoken = ""
+            if (geMatch && !geMatch.jogo_ja_comecou) {
+              const uH = geMatch.equipes.mandante.nome_popular
+              const uA = geMatch.equipes.visitante.nome_popular
+              const uDt = formatGEDateTime(geMatch.data_realizacao)
+              const uVenue = geMatch.sede?.nome_popular ? ` no ${geMatch.sede.nome_popular}` : ""
+              const opponent = resolvedTeam.name.toLowerCase().includes(uH.toLowerCase()) ? uA : uH
+              upcomingNote = `\n🔔 <b>Atenção:</b> O ${resolvedTeam.name} entra em campo <b>${uDt.formatted}</b> contra o ${opponent}${uVenue}!\n`
+              upcomingSpoken = ` E atenção: o ${resolvedTeam.name} joga ${uDt.spoken} contra o ${opponent}!`
+            }
+
+            const text = `⚽ <b>Último Confronto • ${resolvedTeam.name}</b>\n\n` +
                          `🏁 <b>${h} ${hs} x ${as} ${a}</b>\n` +
                          `🏆 <b>${league}</b>${event.intRound ? ` • ${event.intRound}ª Rodada` : ""}\n` +
                          `📅 ${dt.formatted} • <b>Encerrado</b>\n` +
                          venue +
+                         upcomingNote +
                          `\n⚡ <i>Lances e estatísticas completos no app Tessera!</i>`
 
-            const spokenText = `No último jogo pelo ${league}, o resultado foi ${h} ${hs}, ${a} ${as}.`
+            const spokenText = `No último jogo concluído pelo ${league}, o placar foi ${h} ${hs}, ${a} ${as}.${upcomingSpoken}`
 
             const replyMarkup = {
               inline_keyboard: [
@@ -975,17 +1266,49 @@ async function fetchSoccerInfo(
                   { text: "🏆 Ver Tabela", callback_data: "soccer_table" }
                 ]
               ]
-            }
+            };
 
             return { text, spokenText, replyMarkup }
           }
         }
       } catch (err) {
-        console.error("Erro ao buscar último jogo:", err)
+        console.error("Erro ao buscar último jogo TheSportsDB:", err)
       }
     }
 
-    // Busca de Próximo Jogo (Default)
+    // C: Consulta de Próximo Jogo (Default)
+    // Se temos partida agendada na rodada atual do GE
+    if (geMatch && !geMatch.jogo_ja_comecou) {
+      const h = geMatch.equipes.mandante.nome_popular
+      const a = geMatch.equipes.visitante.nome_popular
+      const dt = formatGEDateTime(geMatch.data_realizacao)
+      const venue = geMatch.sede?.nome_popular ? `🏟️ ${geMatch.sede.nome_popular}\n` : ""
+      const isHome = resolvedTeam.name.toLowerCase().includes(h.toLowerCase())
+      const mandoStr = isHome ? "(Em casa)" : "(Fora de casa)"
+      const opponent = isHome ? a : h
+
+      const text = `⚽ <b>Próximo Jogo • ${resolvedTeam.name}</b>\n\n` +
+                   `⚔️ <b>${h} vs ${a}</b> ${mandoStr}\n` +
+                   `🏆 <b>Brasileirão Série A • Rodada Atual</b>\n` +
+                   `📅 <b>${dt.formatted}</b> (Horário de Brasília)\n` +
+                   venue +
+                   `\n⚡ <i>Acompanhe escalações e estatísticas ao vivo na aba de Futebol do seu app Tessera!</i>`
+
+      const spokenText = `O próximo jogo do ${resolvedTeam.name} é contra o ${opponent}, ${dt.spoken}${geMatch.sede?.nome_popular ? `, no ${geMatch.sede.nome_popular}` : ""}, pelo Brasileirão.`
+
+      const replyMarkup = {
+        inline_keyboard: [
+          [
+            { text: "🏆 Tabela do Brasileirão", callback_data: "soccer_table" },
+            { text: "🏁 Último Resultado", callback_data: `soccer_last:${resolvedTeam.id}` }
+          ]
+        ]
+      }
+
+      return { text, spokenText, replyMarkup }
+    }
+
+    // Fallback para TheSportsDB para próximos jogos
     try {
       const res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/eventsnext.php?id=${resolvedTeam.id}`)
       if (res.ok) {
@@ -998,7 +1321,6 @@ async function fetchSoccerInfo(
           const dt = formatMatchDateTime(event.dateEvent, event.strTime)
           const venue = event.strVenue ? `🏟️ ${event.strVenue}\n` : ""
           const round = event.intRound ? ` • ${event.intRound}ª Rodada` : ""
-
           const opponent = resolvedTeam.name.toLowerCase().includes(h.toLowerCase()) ? a : h
           const isHome = resolvedTeam.name.toLowerCase().includes(h.toLowerCase())
           const mandoStr = isHome ? "(Em casa)" : "(Fora de casa)"
@@ -1022,34 +1344,10 @@ async function fetchSoccerInfo(
           }
 
           return { text, spokenText, replyMarkup }
-        } else {
-          // Se não houver partidas agendadas confirmadas para os próximos dias, busca último jogo
-          const lastRes = await fetch(`https://www.thesportsdb.com/api/v1/json/3/eventslast.php?id=${resolvedTeam.id}`)
-          if (lastRes.ok) {
-            const lastData = await lastRes.json()
-            const lastEvent = lastData.results?.[0] || lastData.events?.[0]
-            if (lastEvent) {
-              const h = lastEvent.strHomeTeam
-              const a = lastEvent.strAwayTeam
-              const hs = lastEvent.intHomeScore ?? 0
-              const as = lastEvent.intAwayScore ?? 0
-              const dt = formatMatchDateTime(lastEvent.dateEvent, lastEvent.strTime)
-
-              const text = `⚽ <b>${resolvedTeam.name}</b>\n\n` +
-                           `Não há partidas confirmadas para os próximos dias.\n\n` +
-                           `🏁 <b>Último Confronto Realizado:</b>\n` +
-                           `<b>${h} ${hs} x ${as} ${a}</b>\n` +
-                           `🏆 ${lastEvent.strLeague || "Brasileirão"} (${dt.formatted})`
-
-              const spokenText = `Não há partidas agendadas para os próximos dias para o ${resolvedTeam.name}. No último jogo, o placar foi ${h} ${hs} a ${as} contra o ${a}.`
-
-              return { text, spokenText }
-            }
-          }
         }
       }
     } catch (err) {
-      console.error("Erro ao buscar próximo jogo:", err)
+      console.error("Erro ao buscar próximo jogo TheSportsDB:", err)
     }
   }
 
@@ -2145,6 +2443,12 @@ Deno.serve(async (req: Request) => {
 
     if (cmd === "/futebol" || cmd === "/jogos") {
       const soccer = await fetchSoccerInfo({ type: "general" })
+      await sendTelegramMessage(chatId, soccer.text, soccer.replyMarkup)
+      return new Response("OK", { status: 200 })
+    }
+
+    if (cmd === "/tabela") {
+      const soccer = await fetchSoccerInfo({ type: "standings" })
       await sendTelegramMessage(chatId, soccer.text, soccer.replyMarkup)
       return new Response("OK", { status: 200 })
     }
