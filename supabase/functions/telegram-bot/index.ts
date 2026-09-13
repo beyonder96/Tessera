@@ -323,6 +323,23 @@ async function getFinanceDoc(): Promise<{ id: string; data: any } | null> {
   return null
 }
 
+function checkBudgetAlert(category: string, newAmount: number, doc: any): string | null {
+  if (!doc?.data?.categories || !Array.isArray(doc.data.categories)) return null
+  const cat = doc.data.categories.find((c: any) => (c.name || "").toLowerCase() === category.toLowerCase())
+  if (!cat || !cat.budget || Number(cat.budget) <= 0) return null
+  const budget = Number(cat.budget)
+  const current = Number(cat.value || 0) + newAmount
+  const pct = Math.round((current / budget) * 100)
+  if (pct >= 100) {
+    return `\n🚨 <b>Limite Estourado:</b> Você atingiu ${pct}% do orçamento de <b>${cat.name}</b>!`
+  } else if (pct >= 90) {
+    return `\n⚠️ <b>Atenção Crítica:</b> Você já consumiu <b>${pct}%</b> do teto de <b>${cat.name}</b> (restam R$ ${(budget - current).toFixed(2).replace(".", ",")})!`
+  } else if (pct >= 70) {
+    return `\n🔔 <b>Alerta de Orçamento:</b> Você atingiu <b>${pct}%</b> do limite mensal de <b>${cat.name}</b>.`
+  }
+  return null
+}
+
 async function addFinanceTransaction(tx: {
   title: string
   amount: number
@@ -330,7 +347,7 @@ async function addFinanceTransaction(tx: {
   category?: string
   accountOrCardName?: string
   date?: string
-}): Promise<{ id: string; title: string; amount: number; category: string; account: string } | null> {
+}): Promise<{ id: string; title: string; amount: number; category: string; account: string; budgetAlert?: string } | null> {
   const doc = await getFinanceDoc()
   if (!doc) {
     console.error("Nenhum dashboard de finanças encontrado no Supabase.")
@@ -387,12 +404,15 @@ async function addFinanceTransaction(tx: {
     })
   })
 
+  const budgetAlert = tx.type === "expense" ? checkBudgetAlert(newSuggestion.category, newSuggestion.amount, doc) : null
+
   return {
     id: newSuggestionId,
     title: newSuggestion.title,
     amount: newSuggestion.amount,
     category: newSuggestion.category,
-    account: newSuggestion.account_or_card_name || "Geral"
+    account: newSuggestion.account_or_card_name || "Geral",
+    budgetAlert: budgetAlert || undefined
   }
 }
 
@@ -1517,10 +1537,412 @@ async function fetchSoccerInfo(
 }
 
 // ============================================================================
+// MÓDULO MEU APÊ / EVOLUÇÃO DA OBRA & REFORMA
+// ============================================================================
+interface ApartmentState {
+  progress: number
+  expected_date: string
+  budget_total: number
+  spent_total: number
+  phases: Array<{ name: string; percent: number; status: "done" | "in_progress" | "pending" }>
+  recent_expenses: Array<{ title: string; amount: number; date: string }>
+}
+
+async function getApartmentDoc(): Promise<ApartmentState> {
+  try {
+    const docs = await supabaseRest(`telegram_bot_logs?action=eq.apartment_state&select=*&order=created_at.desc&limit=1`)
+    if (Array.isArray(docs) && docs.length > 0 && docs[0].payload) {
+      return docs[0].payload
+    }
+  } catch (err) {
+    console.error("Erro ao carregar apartment_state:", err)
+  }
+  return {
+    progress: 0.78,
+    expected_date: "Dez 2026",
+    budget_total: 120000,
+    spent_total: 45200,
+    phases: [
+      { name: "Alvenaria e Demolição", percent: 100, status: "done" },
+      { name: "Elétrica e Hidráulica", percent: 100, status: "done" },
+      { name: "Pisos e Revestimentos", percent: 70, status: "in_progress" },
+      { name: "Pintura e Gesso", percent: 40, status: "in_progress" },
+      { name: "Marcenaria e Móveis", percent: 15, status: "pending" }
+    ],
+    recent_expenses: [
+      { title: "Porcelanato e Pisos", amount: 4800, date: "10/09" },
+      { title: "Argamassa e Tintas", amount: 650, date: "11/09" }
+    ]
+  }
+}
+
+async function saveApartmentDoc(data: ApartmentState, userId = "admin"): Promise<void> {
+  try {
+    await supabaseRest("telegram_bot_logs", {
+      method: "POST",
+      body: JSON.stringify({
+        telegram_user_id: userId,
+        action: "apartment_state",
+        payload: data
+      })
+    })
+  } catch (err) {
+    console.error("Erro ao salvar apartment_state:", err)
+  }
+}
+
+function renderProgressBar(fraction: number, length = 10): string {
+  const percent = Math.min(Math.max(fraction, 0), 1)
+  const filled = Math.round(percent * length)
+  const empty = length - filled
+  return "▓".repeat(filled) + "░".repeat(empty)
+}
+
+function formatApartmentCard(data: ApartmentState): { text: string; spokenText: string; replyMarkup: any } {
+  const pct = Math.round(data.progress * 100)
+  const bar = renderProgressBar(data.progress, 12)
+  const spent = Number(data.spent_total || 0).toFixed(2).replace(".", ",")
+  const budget = Number(data.budget_total || 0).toFixed(2).replace(".", ",")
+
+  let text = `🏗️ <b>Evolução da Obra • Meu Apê</b>\n\n` +
+             `📊 <b>Progresso:</b> <code>[${bar}] ${pct}% Concluído</code>\n` +
+             `📅 <b>Previsão de Entrega:</b> ${data.expected_date || "Dez 2026"}\n` +
+             `💰 <b>Total Investido na Reforma:</b> R$ ${spent}\n`
+  if (data.budget_total > 0) {
+    text += `💵 <b>Orçamento Estimado:</b> R$ ${budget}\n`
+  }
+
+  if (Array.isArray(data.phases) && data.phases.length > 0) {
+    text += `\n🔨 <b>Etapas da Obra:</b>\n`
+    data.phases.forEach((ph) => {
+      const icon = ph.status === "done" ? "✅" : ph.status === "in_progress" ? "⏳" : "⚪"
+      text += `${icon} <b>${ph.name}:</b> ${ph.percent}%\n`
+    })
+  }
+
+  if (Array.isArray(data.recent_expenses) && data.recent_expenses.length > 0) {
+    text += `\n🧾 <b>Últimos Gastos Registrados:</b>\n`
+    data.recent_expenses.slice(0, 3).forEach((ex) => {
+      const val = Number(ex.amount || 0).toFixed(2).replace(".", ",")
+      text += `• ${ex.title}: R$ ${val} (${ex.date || "recente"})\n`
+    })
+  }
+
+  text += `\n⚡ <i>Diga "atualiza a obra para 80%" ou "adicionei gasto de R$ X na obra" a qualquer momento!</i>`
+
+  const spokenText = `A obra do seu apartamento está em ${pct}% de conclusão, com previsão de entrega para ${data.expected_date || "dezembro de 2026"}. O total investido até agora é de ${spent} reais.`
+
+  const replyMarkup = {
+    inline_keyboard: [
+      [
+        { text: "📱 Ver Maquete no Mini App", web_app: { url: "https://tessera-35c54.web.app" } }
+      ]
+    ]
+  }
+
+  return { text, spokenText, replyMarkup }
+}
+
+// ============================================================================
+// MÓDULO SAÚDE & BEM-ESTAR (ÁGUA, PESO, PASSOS, SONO)
+// ============================================================================
+interface HealthState {
+  today_water_ml: number
+  water_goal_ml: number
+  today_steps: number
+  steps_goal: number
+  latest_weight: number
+  latest_sleep_hours: number
+  date: string
+}
+
+async function getHealthDoc(): Promise<HealthState> {
+  const todayStr = new Date().toISOString().split("T")[0]
+  try {
+    const docs = await supabaseRest(`telegram_bot_logs?action=eq.health_state&select=*&order=created_at.desc&limit=1`)
+    if (Array.isArray(docs) && docs.length > 0 && docs[0].payload) {
+      const d = docs[0].payload
+      if (d.date !== todayStr) {
+        return {
+          ...d,
+          today_water_ml: 0,
+          today_steps: 0,
+          date: todayStr
+        }
+      }
+      return d
+    }
+  } catch (err) {
+    console.error("Erro ao carregar health_state:", err)
+  }
+  return {
+    today_water_ml: 0,
+    water_goal_ml: 2500,
+    today_steps: 0,
+    steps_goal: 10000,
+    latest_weight: 74.2,
+    latest_sleep_hours: 7.5,
+    date: todayStr
+  }
+}
+
+async function saveHealthDoc(data: HealthState, userId = "admin"): Promise<void> {
+  try {
+    await supabaseRest("telegram_bot_logs", {
+      method: "POST",
+      body: JSON.stringify({
+        telegram_user_id: userId,
+        action: "health_state",
+        payload: data
+      })
+    })
+  } catch (err) {
+    console.error("Erro ao salvar health_state:", err)
+  }
+}
+
+function formatHealthCard(data: HealthState): { text: string; spokenText: string; replyMarkup: any } {
+  const water = data.today_water_ml || 0
+  const waterGoal = data.water_goal_ml || 2500
+  const waterPct = Math.min(Math.round((water / waterGoal) * 100), 100)
+  const waterBar = renderProgressBar(water / waterGoal, 10)
+
+  const steps = data.today_steps || 0
+  const stepsGoal = data.steps_goal || 10000
+  const stepsPct = Math.min(Math.round((steps / stepsGoal) * 100), 100)
+
+  let text = `🩺 <b>Saúde & Hábitos Diários • Tessera</b>\n\n` +
+             `💧 <b>Hidratação Hoje:</b> <code>[${waterBar}] ${water}ml</code> / ${waterGoal}ml (${waterPct}%)\n` +
+             `🚶 <b>Passos:</b> <b>${steps.toLocaleString("pt-BR")}</b> / ${stepsGoal.toLocaleString("pt-BR")} (${stepsPct}%)\n`
+  if (data.latest_weight) {
+    text += `⚖️ <b>Peso Atual:</b> <b>${data.latest_weight} kg</b>\n`
+  }
+  if (data.latest_sleep_hours) {
+    text += `😴 <b>Último Sono:</b> <b>${data.latest_sleep_hours}h</b> registradas\n`
+  }
+
+  text += `\n💡 <i>Diga "bebi 500ml de água", "pesei 74kg" ou "dormi 8 horas" para registrar na hora!</i>`
+
+  const spokenText = `Você já bebeu ${water} ml de água hoje, o que representa ${waterPct}% da sua meta diária. Você deu ${steps} passos e seu último peso registrado foi de ${data.latest_weight || 74} quilos.`
+
+  const replyMarkup = {
+    inline_keyboard: [
+      [
+        { text: "💧 +250ml Água", callback_data: "health_water:250" },
+        { text: "💧 +500ml Água", callback_data: "health_water:500" }
+      ]
+    ]
+  }
+
+  return { text, spokenText, replyMarkup }
+}
+
+// ============================================================================
+// BRIEFING MATINAL INTELIGENTE (PROATIVO & SOB DEMANDA)
+// ============================================================================
+async function generateMorningBriefing(userFirstName = "Kenned"): Promise<{ text: string; spokenText: string; replyMarkup: any }> {
+  const now = new Date()
+  const dateFormatted = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric"
+  }).format(now)
+  const capDate = dateFormatted.charAt(0).toUpperCase() + dateFormatted.slice(1)
+
+  // 1. Clima de São Paulo
+  let weatherText = "☀️ Clima ameno em São Paulo."
+  let weatherSpoken = "O dia começa agradável."
+  try {
+    const res = await fetch("https://api.open-meteo.com/v1/forecast?latitude=-23.5505&longitude=-46.6333&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode&current_weather=true&timezone=America%2FSao_Paulo")
+    if (res.ok) {
+      const d = await res.json()
+      const cur = d.current_weather
+      const daily = d.daily
+      const maxT = Math.round(daily.temperature_2m_max[0])
+      const minT = Math.round(daily.temperature_2m_min[0])
+      const rainProb = daily.precipitation_probability_max[0] ?? 0
+      const curT = Math.round(cur.temperature)
+      const rainTip = rainProb > 40 ? `🌧️ Chance de chuva de ${rainProb}% (leve um guarda-chuva!)` : `☀️ Sem previsão de chuva (${rainProb}%)`
+      weatherText = `🌡️ <b>${curT}°C</b> (Máx: ${maxT}°C | Mín: ${minT}°C)\n${rainTip}`
+      weatherSpoken = `Em São Paulo temos temperatura de ${curT} graus, máxima de ${maxT} e ${rainProb > 40 ? "chance de chuva ao longo do dia" : "tempo estável"}.`
+    }
+  } catch (_e) {}
+
+  // 2. Tarefas prioritárias
+  let tasksText = "<i>Nenhuma tarefa urgente agendada para hoje! Aproveite para focar em novos projetos.</i>"
+  let tasksSpoken = "Você não tem nenhuma tarefa urgente para hoje."
+  try {
+    const taskDoc = await getTasksDoc()
+    const items = taskDoc && Array.isArray(taskDoc.data.items) ? taskDoc.data.items : []
+    const pending = items.filter((it: any) => it.status === "pending")
+    if (pending.length > 0) {
+      tasksText = ""
+      pending.slice(0, 3).forEach((it: any, i: number) => {
+        tasksText += `${i + 1}. <b>${it.title}</b>${it.due_time ? ` (às ${it.due_time})` : ""}\n`
+      })
+      if (pending.length > 3) {
+        tasksText += `<i>... e mais ${pending.length - 3} tarefas no painel.</i>\n`
+      }
+      tasksSpoken = `Você tem ${pending.length} tarefa${pending.length > 1 ? "s" : ""} na sua lista, começando por ${pending[0].title}.`
+    }
+  } catch (_e) {}
+
+  // 3. Finanças, Cartões, Vencimentos e Receitas
+  let financeDetails = ""
+  let financeSpoken = ""
+  try {
+    const finDoc = await getFinanceDoc()
+    if (finDoc) {
+      const d = finDoc.data
+      const spendable = Number(d.spendable_balance || 0).toFixed(2).replace(".", ",")
+      const total = Number(d.total_balance || 0).toFixed(2).replace(".", ",")
+      const salary = Number(d.salary_value || 0)
+
+      financeDetails += `• <b>Saldo Livre:</b> R$ ${spendable}\n`
+      financeDetails += `• <b>Saldo Total:</b> R$ ${total}\n`
+      if (salary > 0) {
+        financeDetails += `• <b>Receitas Previstas:</b> R$ ${salary.toFixed(2).replace(".", ",")}\n`
+      }
+
+      // Cartões com vencimento
+      const currentDay = now.getDate()
+      if (Array.isArray(d.cards) && d.cards.length > 0) {
+        financeDetails += `\n💳 <b>Cartões de Crédito:</b>\n`
+        d.cards.forEach((c: any) => {
+          const used = Number(c.usedLimit || c.used_limit || 0)
+          const dueDay = c.dueDay || c.due_day || 20
+          const diff = dueDay - currentDay
+          const dueMsg = diff === 0 ? "⚠️ Vence HOJE!" : diff > 0 && diff <= 7 ? `Vence dia ${dueDay} (em ${diff} dias)` : `Vence dia ${dueDay}`
+          financeDetails += `• <b>${c.name}:</b> Fatura R$ ${used.toFixed(2).replace(".", ",")} (${dueMsg})\n`
+        })
+      }
+
+      // Contas a vencer
+      if (Array.isArray(d.recurrents) && d.recurrents.length > 0) {
+        let upcomingBills = ""
+        d.recurrents.forEach((r: any) => {
+          const dueDay = r.dueDay || r.due_day || r.day
+          if (dueDay) {
+            const diff = dueDay - currentDay
+            if (diff >= 0 && diff <= 7) {
+              const val = Number(r.amount || r.value || 0).toFixed(2).replace(".", ",")
+              upcomingBills += `• <b>${r.name}:</b> R$ ${val} (dia ${dueDay})\n`
+            }
+          }
+        })
+        if (upcomingBills) {
+          financeDetails += `\n📅 <b>Contas a Vencer nos Próximos 7 Dias:</b>\n${upcomingBills}`
+        }
+      }
+
+      financeSpoken = `Seu saldo livre está em ${spendable} reais.`
+    }
+  } catch (_e) {}
+
+  // 4. Obra do Apê
+  let aptSummary = ""
+  try {
+    const apt = await getApartmentDoc()
+    const pct = Math.round(apt.progress * 100)
+    const bar = renderProgressBar(apt.progress, 10)
+    aptSummary = `📊 <code>[${bar}] ${pct}% Concluído</code> • Entrega: ${apt.expected_date || "Dez 2026"}\n💰 Investido: R$ ${Number(apt.spent_total || 0).toFixed(2).replace(".", ",")}`
+  } catch (_e) {}
+
+  // 5. Saúde & Hidratação
+  let healthSummary = ""
+  try {
+    const hl = await getHealthDoc()
+    healthSummary = `💧 <b>Hidratação:</b> ${hl.today_water_ml}ml / ${hl.water_goal_ml}ml • <i>Hora de tomar o 1º copo d'água!</i>`
+  } catch (_e) {}
+
+  // 6. Futebol / Mengão
+  let soccerSection = ""
+  let soccerSpoken = ""
+  try {
+    const soccerData = await fetchGEMultiCompetitionData()
+    if (soccerData?.matches) {
+      const todayIso = now.toISOString().split("T")[0]
+      const flaToday = soccerData.matches.find((m: any) => {
+        const d = (m.data_realizacao || "").split("T")[0]
+        const mand = (m.equipes?.mandante?.nome_popular || "").toLowerCase()
+        const visi = (m.equipes?.visitante?.nome_popular || "").toLowerCase()
+        return d === todayIso && (mand.includes("flamengo") || visi.includes("flamengo"))
+      })
+
+      if (flaToday) {
+        const h = flaToday.equipes.mandante.nome_popular
+        const a = flaToday.equipes.visitante.nome_popular
+        const time = flaToday.hora_realizacao || (flaToday.data_realizacao.includes("T") ? flaToday.data_realizacao.split("T")[1].slice(0, 5) : "17:30")
+        const venue = flaToday.sede?.nome_popular ? ` no ${flaToday.sede.nome_popular}` : ""
+        soccerSection = `🔥 <b>Hoje tem Mengão em campo!</b>\n<b>${h} vs ${a}</b> às <b>${time}</b>${venue} (${flaToday.torneio || "Futebol"})`
+        soccerSpoken = ` E atenção: hoje tem jogo do Flamengo contra o ${h.toLowerCase().includes("flamengo") ? a : h} às ${time}!`
+      } else {
+        const upcomingFla = soccerData.matches.filter((m: any) => {
+          const mand = (m.equipes?.mandante?.nome_popular || "").toLowerCase()
+          const visi = (m.equipes?.visitante?.nome_popular || "").toLowerCase()
+          return !m.jogo_ja_comecou && (mand.includes("flamengo") || visi.includes("flamengo"))
+        }).sort((a: any, b: any) => getMatchTimestamp(a) - getMatchTimestamp(b))[0]
+
+        if (upcomingFla) {
+          const uH = upcomingFla.equipes.mandante.nome_popular
+          const uA = upcomingFla.equipes.visitante.nome_popular
+          const dt = formatGEDateTime(upcomingFla.data_realizacao, upcomingFla.hora_realizacao)
+          soccerSection = `⚽ <b>Próximo Jogo do Flamengo:</b>\n${uH} vs ${uA} — <b>${dt.formatted}</b> (${upcomingFla.torneio})`
+        }
+      }
+    }
+  } catch (_e) {}
+
+  let text = `☀️ <b>Bom dia, ${userFirstName}! • Seu Briefing Tessera</b>\n` +
+             `<i>${capDate}</i>\n\n` +
+             `🌤️ <b>Clima & Tempo:</b>\n${weatherText}\n\n` +
+             `⏰ <b>Prioridades de Hoje:</b>\n${tasksText}\n\n`
+
+  if (financeDetails) {
+    text += `💰 <b>Termômetro Financeiro:</b>\n${financeDetails}\n`
+  }
+
+  if (aptSummary) {
+    text += `🏗️ <b>Obra do Apê:</b>\n${aptSummary}\n\n`
+  }
+
+  if (healthSummary) {
+    text += `🩺 <b>Saúde & Hábitos:</b>\n${healthSummary}\n\n`
+  }
+
+  if (soccerSection) {
+    text += `⚽ <b>Radar do Futebol:</b>\n${soccerSection}\n\n`
+  }
+
+  text += `📖 <b>Reflexão do Dia:</b>\n` +
+          `<i>"A disciplina diária é o combustível silencioso das grandes realizações."</i>\n\n` +
+          `⚡ <i>Tenha um dia extraordinário e abençoado!</i>`
+
+  const spokenText = `Bom dia, ${userFirstName}! Aqui está o seu briefing matinal para ${capDate}. ${weatherSpoken} ${tasksSpoken} ${financeSpoken}${soccerSpoken} Tenha um excelente dia!`
+
+  const replyMarkup = {
+    inline_keyboard: [
+      [
+        { text: "📱 Abrir Tessera Hub", web_app: { url: "https://tessera-35c54.web.app" } }
+      ],
+      [
+        { text: "🏗️ Ver Obra", callback_data: "menu_apartment" },
+        { text: "🩺 Ver Saúde", callback_data: "menu_health" },
+        { text: "💰 Ver Saldo", callback_data: "menu_saldo" }
+      ]
+    ]
+  }
+
+  return { text, spokenText, replyMarkup }
+}
+
+// ============================================================================
 // CÉREBRO MULTIMODAL GROQ (WHISPER LARGE V3 TURBO + LLAMA / QWEN VISION)
 // ============================================================================
 interface GroqIntentResponse {
-  action: "add_transaction" | "get_finances" | "get_chart" | "export_csv" | "add_task" | "get_tasks" | "query_wishes" | "complete_wish" | "add_wish" | "add_market_items" | "get_market_items" | "get_weather" | "get_soccer" | "chat_general"
+  action: "add_transaction" | "get_finances" | "get_chart" | "export_csv" | "add_task" | "get_tasks" | "query_wishes" | "complete_wish" | "add_wish" | "add_market_items" | "get_market_items" | "get_weather" | "get_soccer" | "get_briefing" | "get_apartment" | "update_apartment" | "get_health" | "update_health" | "chat_general"
   transcription?: string
   transaction?: {
     title: string
@@ -1550,6 +1972,19 @@ interface GroqIntentResponse {
   soccer?: {
     team?: string
     type?: "next" | "last" | "standings" | "general"
+  }
+  apartment?: {
+    progress?: number
+    spent_amount?: number
+    expense_title?: string
+    phase?: string
+    expected_date?: string
+  }
+  health?: {
+    water_ml?: number
+    weight?: number
+    steps?: number
+    sleep_hours?: number
   }
   query?: string
   location?: string
@@ -1755,7 +2190,7 @@ Você possui vasto conhecimento enciclopédico e analítico sobre história, teo
 Você deve analisar o texto ou comando do usuário e responder EXCLUSIVAMENTE em formato JSON (json_object) estruturado com o seguinte schema:
 
 {
-  "action": "add_transaction" | "get_finances" | "get_chart" | "export_csv" | "add_task" | "get_tasks" | "query_wishes" | "complete_wish" | "add_wish" | "add_market_items" | "get_market_items" | "get_weather" | "get_soccer" | "chat_general",
+  "action": "add_transaction" | "get_finances" | "get_chart" | "export_csv" | "add_task" | "get_tasks" | "query_wishes" | "complete_wish" | "add_wish" | "add_market_items" | "get_market_items" | "get_weather" | "get_soccer" | "get_briefing" | "get_apartment" | "update_apartment" | "get_health" | "update_health" | "chat_general",
   "transcription": "${audioTranscription ? audioTranscription.replace(/"/g, "'") : ""}",
   "transaction": {
     "title": "título curto e claro da despesa ou receita (ex: Padaria, Almoço, Salário, Gasolina)",
@@ -1788,6 +2223,19 @@ Você deve analisar o texto ou comando do usuário e responder EXCLUSIVAMENTE em
     "team": "nome do time de futebol se citado (ex: Flamengo, Palmeiras, Corinthians, Real Madrid)",
     "type": "next" ou "last" ou "standings" ou "general"
   },
+  "apartment": {
+    "progress": 75,
+    "spent_amount": 1500.0,
+    "expense_title": "Pisos e porcelanato",
+    "phase": "Acabamento",
+    "expected_date": "2026-11-30"
+  },
+  "health": {
+    "water_ml": 500,
+    "weight": 74.5,
+    "steps": 6000,
+    "sleep_hours": 7.5
+  },
   "query": "termo chave para busca ou time de futebol",
   "location": "nome da cidade para clima",
   "reply_text": "resposta completa, inteligente, precisa e bem fundamentada em português para o usuário"
@@ -1805,7 +2253,12 @@ Regras:
 9. Se perguntar de futebol, jogos, placares, próximos confrontos ou tabela do Brasileirão, defina action="get_soccer" e preencha "soccer".
 10. Se pedir gráfico visual ou como estão os gastos por categoria (ex: 'me mostra um gráfico', 'gráfico de despesas'), defina action="get_chart".
 11. Se pedir para baixar ou exportar o extrato em planilha/CSV (ex: 'me envia o extrato em excel', 'quero a planilha de gastos'), defina action="export_csv".
-12. Caso seja uma pergunta sobre história, teologia, filosofia, ciências, tecnologia, literatura, conselhos ou conversa geral, defina action="chat_general" e elabore uma resposta rica, didática, completa e bem formulada no campo "reply_text".`
+12. Caso seja uma pergunta sobre história, teologia, filosofia, ciências, tecnologia, literatura, conselhos ou conversa geral, defina action="chat_general" e elabore uma resposta rica, didática, completa e bem formulada no campo "reply_text".
+13. Se o usuário pedir um briefing, resumo do dia, panorama matinal ou disser "bom dia" / "me atualiza de tudo", defina action="get_briefing".
+14. Se o usuário perguntar da obra, status do apartamento ou quanto já gastou na reforma (ex: "como tá a obra?", "quanto gastei no apê?", "reforma do apê"), defina action="get_apartment".
+15. Se o usuário pedir para atualizar a obra, mudar porcentagem da reforma ou lançar gasto na obra (ex: "atualiza a obra para 80%", "gastei 1500 na obra com pisos", "avançou para acabamento"), defina action="update_apartment" e preencha "apartment".
+16. Se o usuário perguntar de saúde, água ingerida, peso ou sono (ex: "como tá minha saúde hoje?", "quanta água bebi?", "meta de água"), defina action="get_health".
+17. Se o usuário registrar ingestão de água, peso, passos ou sono (ex: "bebi 500ml de água", "tomei um copo de água", "pesei 74.2kg", "dormi 8 horas"), defina action="update_health" e preencha "health" (para 'um copo de água', use water_ml=250; para 'garrafa de água', use water_ml=500).`
 
   let response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -1880,16 +2333,19 @@ Regras:
 async function registerTelegramBotCommands(): Promise<void> {
   await tgCall("setMyCommands", {
     commands: [
-      { command: "app", description: "📱 Abrir Tessera Mini App" },
-      { command: "saldo", description: "💰 Ver saldo livre, contas e limites" },
-      { command: "tabela", description: "🏆 Tabela oficial do Brasileirão Série A" },
+      { command: "briefing", description: "🌅 Resumo completo do seu dia (áudio + texto)" },
+      { command: "obra", description: "🏗️ Status e evolução da obra do apê" },
+      { command: "saude", description: "🩺 Registro de água, peso e hábitos" },
+      { command: "saldo", description: "💰 Ver saldo livre, contas e faturas" },
       { command: "futebol", description: "⚽ Próximos jogos, tabela e placares" },
+      { command: "tabela", description: "🏆 Classificação da Série A" },
       { command: "grafico", description: "📊 Gráfico visual de gastos por categoria" },
       { command: "extrato", description: "📄 Baixar planilha CSV do extrato do mês" },
       { command: "mercado", description: "🛒 Ver lista de compras do supermercado" },
       { command: "lembretes", description: "⏰ Ver tarefas e avisos pendentes" },
       { command: "desejos", description: "🎁 Ver lista de desejos e metas" },
       { command: "tempo", description: "🌤️ Previsão do tempo e clima" },
+      { command: "app", description: "📱 Abrir Tessera Mini App" },
       { command: "ajuda", description: "❓ Guia de comandos e como usar" }
     ]
   })
@@ -1909,27 +2365,23 @@ async function registerTelegramBotCommands(): Promise<void> {
 // ============================================================================
 async function handleCronBriefing(cronEvent: string): Promise<void> {
   if (cronEvent === "morning_briefing") {
-    const weather = await fetchWeatherForecast("São Paulo")
-    const taskDoc = await getTasksDoc()
-    const items = taskDoc && Array.isArray(taskDoc.data.items) ? taskDoc.data.items : []
-    const pendingTasks = items.filter((it: any) => it.status === "pending")
-
-    const finDoc = await getFinanceDoc()
-    const spendable = finDoc ? Number(finDoc.data.spendable_balance || 0).toFixed(2).replace(".", ",") : "0,00"
-
-    let tasksSummary = "• Nenhuma tarefa urgente agendada para hoje! ✨\n"
-    if (pendingTasks.length > 0) {
-      tasksSummary = pendingTasks.slice(0, 5).map((t: any, i: number) => `• <b>${t.title}</b>${t.due_time ? ` (às ${t.due_time})` : ""}`).join("\n") + "\n"
-    }
-
-    const message = `🌅 <b>Bom dia, Kenned! Resumo matinal do Tessera:</b>\n\n` +
-      `💰 <b>Saldo Livre Atual:</b> R$ ${spendable}\n\n` +
-      `⏰ <b>Lembretes e Avisos (${pendingTasks.length}):</b>\n${tasksSummary}\n` +
-      `${weather}\n\n` +
-      `<i>Tenha um excelente dia! Para registrar gastos ou cupons, só enviar um áudio, foto ou texto. 🚀</i>`
-
-    for (const userId of TELEGRAM_ALLOWED_USER_IDS) {
-      await sendTelegramMessage(userId, message)
+    try {
+      const briefing = await generateMorningBriefing("Kenned")
+      for (const userId of TELEGRAM_ALLOWED_USER_IDS) {
+        await sendTelegramMessage(userId, briefing.text, briefing.replyMarkup)
+        if (ENABLE_VOICE_RESPONSES && briefing.spokenText) {
+          try {
+            const audioBuf = await synthesizeSpeechFrancisca(briefing.spokenText)
+            if (audioBuf) {
+              await sendTelegramVoice(userId, audioBuf)
+            }
+          } catch (vErr) {
+            console.error("Erro ao enviar áudio no cron briefing:", vErr)
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao gerar morning_briefing no cron:", err)
     }
   } else if (cronEvent === "night_briefing") {
     const finDoc = await getFinanceDoc()
@@ -2194,6 +2646,110 @@ Deno.serve(async (req: Request) => {
       return new Response("OK", { status: 200 })
     }
 
+    // Callback de Briefing Matinal
+    if (data === "cmd_briefing") {
+      await answerCallbackQuery(cq.id, "Gerando briefing matinal...")
+      const briefing = await generateMorningBriefing(userFirstName)
+      if (chatId) {
+        await sendTelegramMessage(chatId, briefing.text, briefing.replyMarkup)
+        if (ENABLE_VOICE_RESPONSES && briefing.spokenText) {
+          try {
+            const audioBuf = await synthesizeSpeechFrancisca(briefing.spokenText)
+            if (audioBuf) {
+              await sendTelegramVoice(chatId, audioBuf)
+            }
+          } catch (vErr) {
+            console.error("Erro ao sintetizar áudio no callback cmd_briefing:", vErr)
+          }
+        }
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    // Callbacks do Módulo de Obra e Apartamento
+    if (data === "menu_apartment") {
+      await answerCallbackQuery(cq.id, "Carregando status da obra...")
+      const doc = await getApartmentDoc()
+      const card = formatApartmentCard(doc)
+      if (chatId && messageId) {
+        await editTelegramMessage(chatId, messageId, card.text, card.replyMarkup)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    // Callbacks do Módulo de Saúde e Hábitos
+    if (data === "menu_health") {
+      await answerCallbackQuery(cq.id, "Carregando dados de saúde...")
+      const doc = await getHealthDoc()
+      const card = formatHealthCard(doc)
+      if (chatId && messageId) {
+        await editTelegramMessage(chatId, messageId, card.text, card.replyMarkup)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    if (data.startsWith("health_water:")) {
+      const addMl = parseInt(data.replace("health_water:", ""), 10) || 250
+      const doc = await getHealthDoc()
+      doc.today_water_ml = (doc.today_water_ml || 0) + addMl
+      await saveHealthDoc(doc)
+      await answerCallbackQuery(cq.id, `+${addMl}ml registrados! 💧`)
+      const card = formatHealthCard(doc)
+      if (chatId && messageId) {
+        await editTelegramMessage(chatId, messageId, card.text, card.replyMarkup)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    if (data === "health_log_weight") {
+      await answerCallbackQuery(cq.id, "Envie seu peso por áudio ou texto (ex: 'Pesei 74.5kg')")
+      return new Response("OK", { status: 200 })
+    }
+
+    // Callback de Saldo Rápido
+    if (data === "menu_saldo") {
+      await answerCallbackQuery(cq.id, "Consultando finanças...")
+      const finDoc = await getFinanceDoc()
+      const d = finDoc?.data || {}
+      const spendable = Number(d.spendable_balance || 0).toFixed(2).replace(".", ",")
+      const total = Number(d.total_balance || 0).toFixed(2).replace(".", ",")
+      const committed = Number(d.committed_percentage || 0).toFixed(0)
+
+      let cardsText = ""
+      if (Array.isArray(d.cards) && d.cards.length > 0) {
+        cardsText = "\n💳 <b>Cartões de Crédito:</b>\n"
+        for (const card of d.cards) {
+          const limit = Number(card.limit || 0)
+          const used = Number(card.usedLimit || card.used_limit || 0)
+          const available = Math.max(0, limit - used)
+          cardsText += `• <b>${card.name}:</b> Fatura R$ ${used.toFixed(2).replace(".", ",")} | Disp. R$ ${available.toFixed(2).replace(".", ",")}\n`
+        }
+      }
+
+      const text = `📊 <b>Resumo Financeiro • Tessera</b>\n\n` +
+        `💰 <b>Saldo Livre:</b> R$ ${spendable}\n` +
+        `💵 <b>Saldo Total:</b> R$ ${total}\n` +
+        `📌 <b>Renda Comprometida:</b> ${committed}%\n` +
+        cardsText
+
+      const replyMarkup = {
+        inline_keyboard: [
+          [
+            { text: "📊 Ver Detalhes no Mini App", web_app: { url: "https://tessera-35c54.web.app/finance" } }
+          ],
+          [
+            { text: "🏗️ Ver Obra", callback_data: "menu_apartment" },
+            { text: "🩺 Ver Saúde", callback_data: "menu_health" }
+          ]
+        ]
+      }
+
+      if (chatId && messageId) {
+        await editTelegramMessage(chatId, messageId, text, replyMarkup)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
     await answerCallbackQuery(cq.id)
     return new Response("OK", { status: 200 })
   }
@@ -2365,14 +2921,19 @@ Deno.serve(async (req: Request) => {
       const welcomeText = `🤖 <b>Assistente Oficial Tessera</b>\n\n` +
         `Olá, ${userFirstName}! Aqui você tem controle total do seu aplicativo Tessera por voz, texto ou fotos:\n\n` +
         `<b>Comandos Rápidos no Teclado:</b>\n` +
-        `• /app — Abrir a central do Tessera em Mini App interativo\n` +
+        `• /briefing — Resumo matinal completo (áudio + texto)\n` +
+        `• /obra — Status e evolução da obra do apartamento\n` +
+        `• /saude — Registro de hidratação, peso e hábitos\n` +
         `• /saldo — Saldo livre, limites de cartão e faturas\n` +
+        `• /futebol — Próximos jogos, tabela e placares\n` +
+        `• /tabela — Classificação oficial da Série A\n` +
         `• /grafico — Gráfico visual de gastos por categoria\n` +
         `• /extrato — Baixar extrato do mês em planilha CSV\n` +
         `• /mercado — Ver lista de compras pendente\n` +
         `• /lembretes — Ver tarefas e avisos pendentes\n` +
         `• /desejos — Metas e lista de compras planejadas\n` +
         `• /tempo — Previsão do tempo e chuva\n` +
+        `• /app — Abrir a central do Tessera em Mini App\n` +
         `• /ajuda — Este guia de atalhos\n\n` +
         `<b>Superpoderes Ativos:</b>\n` +
         `📱 <b>Mini App Integrado:</b> Abra o Tessera direto no Telegram pelo botão no rodapé ou /app!\n` +
@@ -2387,12 +2948,48 @@ Deno.serve(async (req: Request) => {
             { text: "📱 Abrir Tessera Hub", web_app: { url: "https://tessera-35c54.web.app" } }
           ],
           [
+            { text: "🌅 Briefing", callback_data: "cmd_briefing" },
+            { text: "🏗️ Obra", callback_data: "menu_apartment" },
+            { text: "🩺 Saúde", callback_data: "menu_health" }
+          ],
+          [
             { text: "🛒 Mercado", web_app: { url: "https://tessera-35c54.web.app/market" } },
             { text: "📊 Finanças", web_app: { url: "https://tessera-35c54.web.app/finance" } }
           ]
         ]
       }
       await sendTelegramMessage(chatId, welcomeText, welcomeMarkup)
+      return new Response("OK", { status: 200 })
+    }
+
+    if (cmd === "/briefing" || cmd === "/bomdia") {
+      await sendChatAction(chatId, "typing")
+      const briefing = await generateMorningBriefing(userFirstName)
+      await sendTelegramMessage(chatId, briefing.text, briefing.replyMarkup)
+      if (ENABLE_VOICE_RESPONSES && briefing.spokenText) {
+        try {
+          const audioBuf = await synthesizeSpeechFrancisca(briefing.spokenText)
+          if (audioBuf) {
+            await sendTelegramVoice(chatId, audioBuf)
+          }
+        } catch (vErr) {
+          console.error("Erro ao enviar áudio do briefing:", vErr)
+        }
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    if (cmd === "/obra" || cmd === "/ape" || cmd === "/apartamento" || cmd === "/reforma") {
+      const doc = await getApartmentDoc()
+      const card = formatApartmentCard(doc)
+      await sendTelegramMessage(chatId, card.text, card.replyMarkup)
+      return new Response("OK", { status: 200 })
+    }
+
+    if (cmd === "/saude" || cmd === "/agua" || cmd === "/peso") {
+      const doc = await getHealthDoc()
+      const card = formatHealthCard(doc)
+      await sendTelegramMessage(chatId, card.text, card.replyMarkup)
       return new Response("OK", { status: 200 })
     }
 
@@ -2712,12 +3309,19 @@ Deno.serve(async (req: Request) => {
         const emoji = isExpense ? "💸" : "💰"
         const typeLabel = isExpense ? "Despesa" : "Receita"
         const formattedAmount = `R$ ${result.amount.toFixed(2).replace(".", ",")}`
+        const valStr = `${result.amount.toFixed(2).replace(".", ",")} reais`
+
+        let alertSection = ""
+        if (result.budgetAlert) {
+          alertSection = `\n\n${result.budgetAlert}`
+        }
 
         const responseText = `${transcriptionNote}✅ <b>${typeLabel} Lançada com Sucesso!</b>\n\n` +
           `${emoji} <b>${result.title}:</b> <code>${formattedAmount}</code>\n` +
           `📁 <b>Categoria:</b> ${result.category}\n` +
-          `🏦 <b>Conta/Cartão:</b> ${result.account}\n\n` +
-          `⚡ <i>Sincronizado em tempo real com seu Tessera!</i>`
+          `🏦 <b>Conta/Cartão:</b> ${result.account}` +
+          alertSection +
+          `\n\n⚡ <i>Sincronizado em tempo real com seu Tessera!</i>`
 
         const replyMarkup = {
           inline_keyboard: [
@@ -3000,6 +3604,144 @@ Deno.serve(async (req: Request) => {
       await sendTelegramMessage(chatId, `${transcriptionNote}${soccer.text}`, soccer.replyMarkup)
       if (message.voice) {
         await maybeSendVoiceReply(chatId, soccer.spokenText, true)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    // Ação: Briefing Matinal Completo
+    if (aiResult.action === "get_briefing") {
+      const briefing = await generateMorningBriefing(userFirstName)
+      await sendTelegramMessage(chatId, `${transcriptionNote}${briefing.text}`, briefing.replyMarkup)
+      if (ENABLE_VOICE_RESPONSES && briefing.spokenText) {
+        try {
+          const audioBuf = await synthesizeSpeechFrancisca(briefing.spokenText)
+          if (audioBuf) {
+            await sendTelegramVoice(chatId, audioBuf)
+          }
+        } catch (vErr) {
+          console.error("Erro ao sintetizar áudio no briefing AI:", vErr)
+        }
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    // Ação: Consultar Status da Obra / Apartamento
+    if (aiResult.action === "get_apartment") {
+      const doc = await getApartmentDoc()
+      const card = formatApartmentCard(doc)
+      await sendTelegramMessage(chatId, `${transcriptionNote}${card.text}`, card.replyMarkup)
+      if (message.voice) {
+        const spoken = `A obra do seu apartamento está com ${doc.progress || 0}% de conclusão na fase de ${doc.phase || "Reforma"}. O total investido até o momento é de ${Number(doc.total_spent || 0).toFixed(0)} reais.`
+        await maybeSendVoiceReply(chatId, spoken, true)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    // Ação: Atualizar Obra / Lançar Gasto da Obra
+    if (aiResult.action === "update_apartment") {
+      const doc = await getApartmentDoc()
+      const ap = aiResult.apartment || {}
+      let changeMsg = ""
+
+      if (typeof ap.progress === "number" && !isNaN(ap.progress)) {
+        doc.progress = Math.min(100, Math.max(0, ap.progress))
+        changeMsg += `📈 Progresso atualizado para <b>${doc.progress}%</b>.\n`
+      }
+      if (ap.phase) {
+        doc.phase = ap.phase
+        changeMsg += `🏷️ Fase alterada para <b>${doc.phase}</b>.\n`
+      }
+      if (ap.expected_date) {
+        doc.expected_completion = ap.expected_date
+      }
+
+      if (ap.spent_amount && ap.spent_amount > 0) {
+        const expenseTitle = ap.expense_title || "Reforma do Apartamento"
+        doc.total_spent = (doc.total_spent || 0) + ap.spent_amount
+        doc.expenses = doc.expenses || []
+        doc.expenses.push({
+          title: expenseTitle,
+          amount: ap.spent_amount,
+          date: new Date().toISOString().split("T")[0]
+        })
+
+        // Sincroniza também como transação no dashboard financeiro principal
+        try {
+          await addFinanceTransaction({
+            title: `Obra: ${expenseTitle}`,
+            amount: ap.spent_amount,
+            type: "expense",
+            category: "Moradia",
+            accountOrCardName: "Cartão / Conta"
+          })
+        } catch (fErr) {
+          console.error("Erro ao sincronizar despesa da obra nas finanças:", fErr)
+        }
+
+        changeMsg += `💸 Lançado gasto de <b>R$ ${ap.spent_amount.toFixed(2).replace(".", ",")}</b> em <i>${expenseTitle}</i>.\n`
+      }
+
+      await saveApartmentDoc(doc)
+      const card = formatApartmentCard(doc)
+
+      const replyText = `${transcriptionNote}🏗️ <b>Obra Atualizada com Sucesso!</b>\n\n` +
+        (changeMsg ? `${changeMsg}\n` : "") +
+        card.text
+
+      await sendTelegramMessage(chatId, replyText, card.replyMarkup)
+      if (message.voice) {
+        const spoken = `Atualizei a obra do apartamento para ${doc.progress}% de conclusão. Total investido agora é de ${Number(doc.total_spent || 0).toFixed(0)} reais.`
+        await maybeSendVoiceReply(chatId, spoken, true)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    // Ação: Consultar Saúde e Hábitos
+    if (aiResult.action === "get_health") {
+      const doc = await getHealthDoc()
+      const card = formatHealthCard(doc)
+      await sendTelegramMessage(chatId, `${transcriptionNote}${card.text}`, card.replyMarkup)
+      if (message.voice) {
+        const spoken = `Você registrou ${doc.today_water_ml || 0} ml de água hoje, de uma meta de ${doc.water_goal_ml || 2500} ml. Seu peso atual é de ${doc.weight ? doc.weight + " quilos" : "não registrado"}.`
+        await maybeSendVoiceReply(chatId, spoken, true)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    // Ação: Registrar Água, Peso, Sono ou Passos
+    if (aiResult.action === "update_health") {
+      const doc = await getHealthDoc()
+      const h = aiResult.health || {}
+      let logMsg = ""
+
+      if (h.water_ml && h.water_ml > 0) {
+        doc.today_water_ml = (doc.today_water_ml || 0) + h.water_ml
+        logMsg += `💧 +${h.water_ml}ml de água registrados (Total hoje: ${doc.today_water_ml}ml / ${doc.water_goal_ml}ml).\n`
+      }
+      if (h.weight && h.weight > 0) {
+        doc.weight = h.weight
+        logMsg += `⚖️ Peso registrado: <b>${doc.weight} kg</b>.\n`
+      }
+      if (h.steps && h.steps > 0) {
+        doc.today_steps = (doc.today_steps || 0) + h.steps
+        logMsg += `👟 +${h.steps} passos registrados (Total hoje: ${doc.today_steps}).\n`
+      }
+      if (h.sleep_hours && h.sleep_hours > 0) {
+        doc.sleep_hours = h.sleep_hours
+        logMsg += `😴 Sono registrado: <b>${doc.sleep_hours}h</b> de descanso.\n`
+      }
+
+      await saveHealthDoc(doc)
+      const card = formatHealthCard(doc)
+
+      const replyText = `${transcriptionNote}🩺 <b>Saúde & Hábitos Atualizados!</b>\n\n` +
+        (logMsg ? `${logMsg}\n` : "") +
+        card.text
+
+      await sendTelegramMessage(chatId, replyText, card.replyMarkup)
+      if (message.voice) {
+        const spoken = `Registrado com sucesso na sua rotina de saúde! Continue focado nas suas metas.`
+        await maybeSendVoiceReply(chatId, spoken, true)
       }
       return new Response("OK", { status: 200 })
     }
