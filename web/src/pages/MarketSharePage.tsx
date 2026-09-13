@@ -71,13 +71,30 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
           .eq('id', listId)
           .single()
 
-        if (sbError) throw sbError
+        if (sbError && sbError.code !== 'PGRST116') throw sbError
 
         if (data) {
           const listDoc = data as MarketListDoc
           setList(listDoc)
           localStorage.setItem(`tessera_market_${listId}`, JSON.stringify(listDoc))
           saveRecentItem({ type: 'market', id: listId, title: listDoc.title || 'Lista de Mercado' })
+        } else {
+          // Inicializa permanentemente no Supabase
+          const initialDoc: MarketListDoc = {
+            id: listId,
+            title: 'Lista de Compras',
+            items: [],
+            updated_at: new Date().toISOString()
+          }
+          setList(initialDoc)
+          localStorage.setItem(`tessera_market_${listId}`, JSON.stringify(initialDoc))
+          saveRecentItem({ type: 'market', id: listId, title: initialDoc.title })
+          await supabase.from('shared_market_lists').upsert({
+            id: listId,
+            title: initialDoc.title,
+            items: [],
+            updated_at: new Date().toISOString()
+          })
         }
       } catch (err: unknown) {
         console.error('Error fetching market list:', err)
@@ -140,8 +157,12 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
     try {
       await supabase
         .from('shared_market_lists')
-        .update({ items: updatedItems, updated_at: new Date().toISOString() })
-        .eq('id', listId)
+        .upsert({
+          id: listId,
+          title: list.title || 'Lista de Compras',
+          items: updatedItems,
+          updated_at: new Date().toISOString()
+        })
     } catch (err: unknown) {
       console.error('Erro ao sincronizar com Supabase:', err)
     }

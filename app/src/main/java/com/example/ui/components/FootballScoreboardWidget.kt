@@ -352,15 +352,18 @@ fun DetailedMatchWidget(
                                 .clip(RoundedCornerShape(10.dp))
                                 .background(if (isSelected) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f) else Color.Transparent)
                                 .clickable { selectedTab = tab }
-                                .padding(vertical = 8.dp),
+                                .padding(horizontal = 2.dp, vertical = 7.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = tab,
                                 color = if (isSelected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 10.sp,
+                                fontSize = 9.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                letterSpacing = 1.sp
+                                letterSpacing = 0.2.sp,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }

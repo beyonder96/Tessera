@@ -206,4 +206,80 @@ object NotificationHelper {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(notificationId, builder.build())
     }
+
+    const val CHANNEL_METRO_ALERTS_ID = "tessera_metro_alerts_v1"
+    private const val CHANNEL_METRO_ALERTS_NAME = "Alertas de Metrô e Transporte"
+
+    fun createMetroNotificationChannel(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            val audioAttributes = android.media.AudioAttributes.Builder()
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
+                .build()
+
+            val channel = NotificationChannel(
+                CHANNEL_METRO_ALERTS_ID,
+                CHANNEL_METRO_ALERTS_NAME,
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notificações programadas de status do metrô e trem"
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 400, 200, 400)
+                setShowBadge(true)
+                setLockscreenVisibility(android.app.Notification.VISIBILITY_PUBLIC)
+                setSound(soundUri, audioAttributes)
+            }
+            val notificationManager: NotificationManager =
+                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    fun showMetroAlertNotification(
+        context: Context,
+        time: String,
+        notificationId: Int = 9993
+    ) {
+        createMetroNotificationChannel(context)
+
+        val intent = Intent(context, MainActivity::class.java).apply {
+            action = "ACTION_OPEN_METRO_STATUS"
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+
+        val pendingIntent: PendingIntent = PendingIntent.getActivity(
+            context,
+            notificationId,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                android.util.Log.w("NotificationHelper", "Permissão POST_NOTIFICATIONS não concedida para alertas de metrô")
+                return
+            }
+        }
+
+        val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        val title = "🚆 Status do Metrô e Trem • $time"
+        val message = "Toque para ver o status em tempo real das suas linhas monitoradas no Tessera."
+
+        val builder = NotificationCompat.Builder(context, CHANNEL_METRO_ALERTS_ID)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setVibrate(longArrayOf(0, 400, 200, 400))
+            .setSound(soundUri)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(notificationId, builder.build())
+    }
 }

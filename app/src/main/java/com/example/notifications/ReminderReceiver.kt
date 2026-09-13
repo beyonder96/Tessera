@@ -46,14 +46,13 @@ class ReminderReceiver : BroadcastReceiver() {
                 notificationId = 9993
                 val timeString = intent.getStringExtra("EXTRA_TIME") ?: "00:00"
                 AlarmScheduler.scheduleDailyReminder(context, "METRO_$timeString", timeString)
-                intent.putExtra("REMINDER_TYPE", "METRO_$timeString") // so we don't fall into default
             }
             else -> {
                 if (type.startsWith("METRO_")) {
+                    val timeString = type.removePrefix("METRO_")
                     title = "Status do Metrô e Trem"
                     message = "Verifique o status das suas linhas monitoradas no Tessera."
                     notificationId = type.hashCode()
-                    val timeString = type.removePrefix("METRO_")
                     AlarmScheduler.scheduleDailyReminder(context, type, timeString)
                 } else {
                     return
@@ -61,7 +60,21 @@ class ReminderReceiver : BroadcastReceiver() {
             }
         }
 
-        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M || android.provider.Settings.canDrawOverlays(context)) {
+        // SEMPRE exibe notificação de alta prioridade no aparelho
+        if (type == "METRO" || type.startsWith("METRO_")) {
+            val alertTime = if (type.startsWith("METRO_")) type.removePrefix("METRO_") else (intent.getStringExtra("EXTRA_TIME") ?: "00:00")
+            NotificationHelper.showMetroAlertNotification(context, alertTime, notificationId)
+        } else {
+            NotificationHelper.showBasicNotification(
+                context = context,
+                title = title,
+                message = message,
+                notificationId = notificationId
+            )
+        }
+
+        // Se o usuário tiver permissão de sobreposição de tela concedida, tenta também abrir o overlay flutuante
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && android.provider.Settings.canDrawOverlays(context)) {
             val serviceIntent = Intent(context, GlobalOverlayService::class.java).apply {
                 putExtra("REMINDER_TYPE", if (type.startsWith("METRO_")) "METRO" else type)
             }
@@ -72,15 +85,8 @@ class ReminderReceiver : BroadcastReceiver() {
                     context.startService(serviceIntent)
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                android.util.Log.w("ReminderReceiver", "Não foi possível iniciar serviço de overlay: ${e.message}")
             }
-        } else {
-            NotificationHelper.showBasicNotification(
-                context = context,
-                title = title,
-                message = message,
-                notificationId = notificationId
-            )
         }
     }
 }

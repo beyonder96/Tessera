@@ -4,6 +4,22 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.63
+
+- **Widget de Futebol: Tipografia e Abas Aperfeiçoadas:**
+  - **Eliminação de Quebra de Linha:** Ajuste tipográfico e restrição `maxLines = 1` com `softWrap = false` e reticências elegantes para a aba **"ESTATÍSTICAS"**, impedindo que a letra "S" quebre para uma segunda linha mesmo em aparelhos com telas compactas ou fontes ampliadas.
+  - **Espaçamento Balanceado:** Calibração da densidade do seletor com padding otimizado e tracking harmonizado (`letterSpacing = 0.2.sp`).
+- **Sistema de Notificações de Transporte & Trânsito (Metrô e Trem):**
+  - **Canal de Notificação Prioritário Dedicado (`tessera_metro_alerts_v1`):** Implementação de canal de alta prioridade com alerta sonoro e padrão de vibração expressivo para os horários agendados pelo usuário (ex: 04:00, 17:00).
+  - **Eliminação de Bloqueio em Background:** Removido o bloqueio em que o app dependia de permissão de overlay flutuante para avisar o usuário; agora a notificação nativa com ação rápida é **sempre disparada**.
+  - **Acesso Direto ao Status:** Toque na notificação abre instantaneamente o popup e detalhes em tempo real das linhas metroferroviárias monitoradas.
+  - **Agendamento Resiliente:** Resolução de falhas de agendamento: os horários cadastrados são agora revalidados e reagendados automaticamente no `AlarmManager` ao reiniciar o celular (`BootReceiver`) e ao inicializar o app (`MainActivity`).
+  - **Diagnóstico e Permissões nas Configurações:** Novo banner informativo na tela de configurações alertando se as notificações do sistema estiverem desativadas, com redirecionamento direto para autorização em um toque.
+- **Persistência em Tempo Real e Definitiva no Supabase (Web & App):**
+  - **Transição de LocalStorage para Nuvem:** Todas as mutações na Web (adição e edição de itens de mercado, contas, cartões, despesas, receitas, sugestões financeiras, tarefas e desejos) agora utilizam `.upsert(...)` diretamente nas tabelas Supabase com persistência permanente na nuvem e WebSockets em tempo real.
+  - **Auto-Criação de Listas e Dashboards Padrão:** Acesso direto a rotas sem parâmetros (`/market`, `/finance`, `/tasks`, `/wishes`) inicializa instantaneamente os hubs no Supabase sem erros de 404 nem dependência de cache local prévio.
+  - **Central de Módulos Conectados na Home:** Nova grade organizada com acesso rápido aos 4 pilares: Lista de Compras, Resumo Financeiro, Tarefas & Avisos e Lista de Desejos.
+
 ## 🚀 Novidades da Versão 2.0.62
 
 - **Módulo de Desejos (Wishlist) no Tessera Web:**
@@ -328,8 +344,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.62.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.62.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.63.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.63.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.

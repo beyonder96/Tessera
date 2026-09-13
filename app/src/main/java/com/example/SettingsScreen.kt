@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -1122,10 +1123,64 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                 color = MaterialTheme.colorScheme.onBackground
                             )
                             Text(
-                                text = "O pop-up de status do metrô e trem será exibido na tela inicial nos horários configurados.",
+                                text = "O pop-up e a notificação de status do metrô e trem serão disparados nos horários configurados.",
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                             )
+
+                            val notifManager = remember { context.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager }
+                            val areNotifsEnabled = remember(notifManager) { notifManager?.areNotificationsEnabled() ?: true }
+                            val hasPostNotifs = remember {
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                    androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                                } else true
+                            }
+
+                            if (!areNotifsEnabled || !hasPostNotifs) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFFF59E0B).copy(alpha = 0.15f))
+                                        .border(1.dp, Color(0xFFF59E0B).copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                        .clickable {
+                                            try {
+                                                val intent = android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                                    putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                                }
+                                                context.startActivity(intent)
+                                            } catch (e: Exception) {
+                                                val intent = android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                                    data = android.net.Uri.fromParts("package", context.packageName, null)
+                                                }
+                                                context.startActivity(intent)
+                                            }
+                                        }
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = "Notificações Desativadas",
+                                        tint = Color(0xFFF59E0B),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Notificações desativadas no aparelho",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFFF59E0B)
+                                        )
+                                        Text(
+                                            text = "Toque para autorizar o Tessera a enviar os alertas nos horários programados.",
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                                        )
+                                    }
+                                }
+                            }
                             
                             if (alertTimes.value.isEmpty()) {
                                 Box(

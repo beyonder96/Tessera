@@ -31,6 +31,11 @@ class BootReceiver : BroadcastReceiver() {
                     
                     val sleepTime = sharedPrefs.getString("sleep_reminder_time", "08:00") ?: "08:00"
                     AlarmScheduler.scheduleDailyReminder(context, "SLEEP", sleepTime)
+
+                    val metroAlertTimes = sharedPrefs.getStringSet("metro_alert_times", emptySet()) ?: emptySet()
+                    for (time in metroAlertTimes) {
+                        AlarmScheduler.scheduleDailyReminder(context, "METRO_$time", time)
+                    }
                 } catch (e: Exception) {
                     e.printStackTrace()
                 } finally {

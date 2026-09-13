@@ -21,11 +21,11 @@ function parseRoute(): RouteInfo {
   const params = new URLSearchParams(window.location.search)
 
   // 1. Direct path /market/:id, /finance/:id, /tasks/:id or /wishes/:id
-  const marketMatch = path.match(/^\/market\/([^/]+)/)
-  if (marketMatch) return { type: 'market', id: decodeURIComponent(marketMatch[1]) }
+  const marketMatch = path.match(/^\/market(?:\/([^/]+))?/)
+  if (marketMatch) return { type: 'market', id: marketMatch[1] ? decodeURIComponent(marketMatch[1]) : 'market_default' }
 
-  const financeMatch = path.match(/^\/finance\/([^/]+)/)
-  if (financeMatch) return { type: 'finance', id: decodeURIComponent(financeMatch[1]) }
+  const financeMatch = path.match(/^\/finance(?:\/([^/]+))?/)
+  if (financeMatch) return { type: 'finance', id: financeMatch[1] ? decodeURIComponent(financeMatch[1]) : 'finance_default' }
 
   const tasksMatch = path.match(/^\/tasks(?:\/([^/]+))?/)
   if (tasksMatch) return { type: 'tasks', id: tasksMatch[1] ? decodeURIComponent(tasksMatch[1]) : 'tasks_default' }
@@ -34,11 +34,11 @@ function parseRoute(): RouteInfo {
   if (wishesMatch) return { type: 'wishes', id: wishesMatch[1] ? decodeURIComponent(wishesMatch[1]) : 'wishes_default' }
 
   // 2. Hash routes #/market/:id, #/finance/:id, #/tasks or #/wishes
-  const hashMarket = hash.match(/^#\/?market\/([^/]+)/)
-  if (hashMarket) return { type: 'market', id: decodeURIComponent(hashMarket[1]) }
+  const hashMarket = hash.match(/^#\/?market(?:\/([^/]+))?/)
+  if (hashMarket) return { type: 'market', id: hashMarket[1] ? decodeURIComponent(hashMarket[1]) : 'market_default' }
 
-  const hashFinance = hash.match(/^#\/?finance\/([^/]+)/)
-  if (hashFinance) return { type: 'finance', id: decodeURIComponent(hashFinance[1]) }
+  const hashFinance = hash.match(/^#\/?finance(?:\/([^/]+))?/)
+  if (hashFinance) return { type: 'finance', id: hashFinance[1] ? decodeURIComponent(hashFinance[1]) : 'finance_default' }
 
   const hashTasks = hash.match(/^#\/?tasks(?:\/([^/]+))?/)
   if (hashTasks) return { type: 'tasks', id: hashTasks[1] ? decodeURIComponent(hashTasks[1]) : 'tasks_default' }
@@ -61,8 +61,8 @@ function parseRoute(): RouteInfo {
 
   const typeParam = params.get('type')
   const idParam = params.get('id')
-  if (typeParam === 'finance' && idParam) return { type: 'finance', id: idParam }
-  if (typeParam === 'market' && idParam) return { type: 'market', id: idParam }
+  if (typeParam === 'finance') return { type: 'finance', id: idParam || 'finance_default' }
+  if (typeParam === 'market') return { type: 'market', id: idParam || 'market_default' }
   if (typeParam === 'tasks') return { type: 'tasks', id: idParam || 'tasks_default' }
   if (typeParam === 'wishes') return { type: 'wishes', id: idParam || 'wishes_default' }
   if (idParam) return { type: 'market', id: idParam }

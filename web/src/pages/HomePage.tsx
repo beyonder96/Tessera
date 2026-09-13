@@ -304,111 +304,87 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
         </div>
       ) : null}
 
-      {/* Acesso Rápido: Central de Tarefas & Avisos (exibido apenas se ainda não estiver nos Acessos Recentes) */}
-      {!recents.some(item => item.type === 'tasks') && (
-        <div 
-          onClick={() => onNavigate('tasks', 'tasks_default')}
-          className="card interactive-card"
-          style={{
-            padding: '16px 18px',
-            marginBottom: 14,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            cursor: 'pointer',
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-active)'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{
-              width: 40,
-              height: 40,
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--accent-subtle)',
-              border: '1px solid var(--border-active)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
-            }}>
-              <Bell size={20} color="var(--accent)" />
-            </div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
-                Central de Tarefas & Avisos
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-                Envie lembretes e avisos ao Kenned em tempo real
-              </div>
-            </div>
-          </div>
-          <div style={{
-            width: 32,
-            height: 32,
-            borderRadius: 'var(--radius-sm)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'var(--bg-surface)'
-          }}>
-            <ArrowRight size={16} color="var(--accent)" />
-          </div>
+      {/* Seção de Módulos Conectados */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Sparkles size={14} color="var(--accent)" />
+          <span>Módulos Conectados</span>
         </div>
-      )}
 
-      {/* Acesso Rápido: Lista de Desejos (exibido apenas se ainda não estiver nos Acessos Recentes) */}
-      {!recents.some(item => item.type === 'wishes') && (
-        <div 
-          onClick={() => onNavigate('wishes', 'wishes_default')}
-          className="card interactive-card"
-          style={{
-            padding: '16px 18px',
-            marginBottom: 20,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            cursor: 'pointer',
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-active)'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{
-              width: 40,
-              height: 40,
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--accent-subtle)',
-              border: '1px solid var(--border-active)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
-            }}>
-              <Heart size={20} color="var(--accent)" />
-            </div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
-                Lista de Desejos
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+          {/* Mercado */}
+          <div 
+            onClick={() => onNavigate('market', 'market_default')}
+            className="card interactive-card"
+            style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', background: 'var(--bg-card)' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-sm)', background: 'var(--accent-subtle)', border: '1px solid var(--border-active)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <ShoppingCart size={20} color="var(--accent)" />
               </div>
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-                Cadastre e veja os desejos e compras planejadas
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Lista de Compras</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Planejamento e compras no mercado</div>
               </div>
             </div>
+            <ArrowRight size={16} color="var(--accent)" />
           </div>
-          <div style={{
-            width: 32,
-            height: 32,
-            borderRadius: 'var(--radius-sm)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'var(--bg-surface)'
-          }}>
+
+          {/* Finanças */}
+          <div 
+            onClick={() => onNavigate('finance', 'finance_default')}
+            className="card interactive-card"
+            style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', background: 'var(--bg-card)' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-sm)', background: 'var(--accent-subtle)', border: '1px solid var(--border-active)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <TrendingUp size={20} color="var(--accent)" />
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Resumo Financeiro</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Contas, cartões e lançamentos</div>
+              </div>
+            </div>
+            <ArrowRight size={16} color="var(--accent)" />
+          </div>
+
+          {/* Tarefas */}
+          <div 
+            onClick={() => onNavigate('tasks', 'tasks_default')}
+            className="card interactive-card"
+            style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', background: 'var(--bg-card)' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-sm)', background: 'var(--accent-subtle)', border: '1px solid var(--border-active)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Bell size={20} color="var(--accent)" />
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Tarefas & Avisos</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Lembretes e recados com notificação</div>
+              </div>
+            </div>
+            <ArrowRight size={16} color="var(--accent)" />
+          </div>
+
+          {/* Desejos */}
+          <div 
+            onClick={() => onNavigate('wishes', 'wishes_default')}
+            className="card interactive-card"
+            style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', background: 'var(--bg-card)' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-sm)', background: 'var(--accent-subtle)', border: '1px solid var(--border-active)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Heart size={20} color="var(--accent)" />
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Lista de Desejos</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Desejos e compras planejadas</div>
+              </div>
+            </div>
             <ArrowRight size={16} color="var(--accent)" />
           </div>
         </div>
-      )}
+      </div>
 
       {/* Seção 2: Acesso por Link ou ID */}
       <div className="card" style={{ padding: '20px 20px', marginBottom: 24 }}>

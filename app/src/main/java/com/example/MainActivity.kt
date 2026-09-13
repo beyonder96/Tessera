@@ -187,6 +187,9 @@ class MainActivity : FragmentActivity() {
             val targetTab = intent.getIntExtra("TARGET_TAB", 2)
             AppState.pendingZenithTab = targetTab
         }
+        if (intent?.action == "ACTION_OPEN_METRO_STATUS") {
+            AppState.pendingMetroPopup = true
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -361,7 +364,7 @@ fun TesseraApp() {
             }
         }
 
-        // Re-agenda todos os alarmes de medicamentos no início do app para garantir que estão registrados no AlarmManager
+        // Re-agenda todos os alarmes de medicamentos e metrô no início do app para garantir que estão registrados no AlarmManager
         launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 val db = AppDatabase.getDatabase(context)
@@ -369,8 +372,13 @@ fun TesseraApp() {
                 for (med in meds) {
                     com.example.notifications.AlarmScheduler.scheduleMedicationAlarm(context, med.name, med.dosage, med.time)
                 }
+                val metroPrefs = context.getSharedPreferences("tessera_prefs", android.content.Context.MODE_PRIVATE)
+                val metroAlertTimes = metroPrefs.getStringSet("metro_alert_times", emptySet()) ?: emptySet()
+                for (time in metroAlertTimes) {
+                    com.example.notifications.AlarmScheduler.scheduleDailyReminder(context, "METRO_$time", time)
+                }
             } catch (e: Exception) {
-                Log.e("MainActivity", "Erro ao agendar alarmes de medicamentos", e)
+                Log.e("MainActivity", "Erro ao agendar alarmes de medicamentos e metrô", e)
             }
         }
     }
@@ -858,6 +866,14 @@ fun DailyScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScr
     val metroStatus by mainViewModel.metroStatus.collectAsState()
     val isLoadingMetroStatus by mainViewModel.isLoadingMetroStatus.collectAsState()
     val metroError by mainViewModel.metroError.collectAsState()
+
+    LaunchedEffect(Unit) {
+        if (AppState.pendingMetroPopup) {
+            AppState.pendingMetroPopup = false
+            mainViewModel.fetchMetroStatus()
+            showMetroPopup = true
+        }
+    }
 
     // LaunchedEffect periódico para monitorar horários programados
     LaunchedEffect(Unit) {

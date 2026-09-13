@@ -551,8 +551,7 @@ async function flushPendingSync(id: string) {
     const payload = JSON.parse(rawPending) as Record<string, unknown>
     const { error: syncErr } = await supabase
       .from('shared_finance_dashboards')
-      .update(payload)
-      .eq('id', id)
+      .upsert({ id, ...payload, updated_at: new Date().toISOString() })
     if (!syncErr) {
       localStorage.removeItem(pendingKey)
     }
@@ -668,7 +667,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
           .eq('id', dashboardId)
           .single()
 
-        if (sbError) {
+        if (sbError && sbError.code !== 'PGRST116') {
           throw sbError
         }
 
@@ -677,6 +676,27 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
           setDoc(finDoc)
           localStorage.setItem(`tessera_finance_${dashboardId}`, JSON.stringify(finDoc))
           saveRecentItem({ type: 'finance', id: dashboardId, title: finDoc.title || 'Resumo Financeiro' })
+        } else {
+          // Inicializa dashboard padrão no Supabase de forma permanente
+          const initialFinDoc: FinanceDashboardDoc = {
+            id: dashboardId,
+            title: 'Resumo Financeiro Tessera',
+            month_label: 'Mês Atual',
+            total_balance: 0,
+            spendable_balance: 0,
+            salary_value: 0,
+            committed_value: 0,
+            committed_percentage: 0,
+            categories: [],
+            transactions: [],
+            suggestions: [],
+            is_live: true,
+            updated_at: new Date().toISOString()
+          }
+          setDoc(initialFinDoc)
+          localStorage.setItem(`tessera_finance_${dashboardId}`, JSON.stringify(initialFinDoc))
+          saveRecentItem({ type: 'finance', id: dashboardId, title: initialFinDoc.title })
+          await supabase.from('shared_finance_dashboards').upsert(initialFinDoc)
         }
       } catch (err: unknown) {
         console.error('Error fetching finance dashboard:', err)
@@ -831,8 +851,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
     try {
       await supabase
         .from('shared_finance_dashboards')
-        .update({ accounts: updatedAccounts, updated_at: new Date().toISOString() })
-        .eq('id', dashboardId)
+        .upsert({ id: dashboardId, accounts: updatedAccounts, updated_at: new Date().toISOString() })
 
       setSuccessMessage(`Conta "${newAcc.name}" cadastrada com sucesso!`)
       setAccName('')
@@ -886,8 +905,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
     try {
       await supabase
         .from('shared_finance_dashboards')
-        .update({ cards: updatedCards, updated_at: new Date().toISOString() })
-        .eq('id', dashboardId)
+        .upsert({ id: dashboardId, cards: updatedCards, updated_at: new Date().toISOString() })
 
       setSuccessMessage(`Cartão "${newCard.name}" cadastrado com sucesso!`)
       setCardName('')
@@ -1018,7 +1036,8 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
       try {
         await supabase
           .from('shared_finance_dashboards')
-          .update({
+          .upsert({
+            id: dashboardId,
             transactions: updatedTransactions,
             accounts: updatedAccounts,
             cards: updatedCards,
@@ -1026,7 +1045,6 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
             suggestions: updatedSuggestions,
             updated_at: new Date().toISOString()
           })
-          .eq('id', dashboardId)
 
         setSuccessMessage(`Lançamento de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount)} adicionado com sucesso!`)
         setSuggestionTitle('')
@@ -1080,8 +1098,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
       try {
         await supabase
           .from('shared_finance_dashboards')
-          .update({ suggestions: updatedSuggestions, updated_at: new Date().toISOString() })
-          .eq('id', dashboardId)
+          .upsert({ id: dashboardId, suggestions: updatedSuggestions, updated_at: new Date().toISOString() })
 
         setSuccessMessage(`Sugestão de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount)} enviada! Ela aparecerá no aplicativo para aprovação.`)
         setSuggestionTitle('')
@@ -1148,8 +1165,7 @@ export const FinanceSharePage: React.FC<{ dashboardId: string }> = ({ dashboardI
     try {
       await supabase
         .from('shared_finance_dashboards')
-        .update({ suggestions: updatedSuggestions, updated_at: new Date().toISOString() })
-        .eq('id', dashboardId)
+        .upsert({ id: dashboardId, suggestions: updatedSuggestions, updated_at: new Date().toISOString() })
 
       setSuccessMessage(`Edição de "${editingTx.title}" enviada! A alteração será aplicada no Tessera assim que for aprovada no app.`)
       setEditingTx(null)
