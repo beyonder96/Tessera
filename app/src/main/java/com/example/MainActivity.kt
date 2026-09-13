@@ -3868,6 +3868,7 @@ fun BottomNavBar(
     onCameraClick: () -> Unit = {}
 ) {
     var displayedRoute by remember { mutableStateOf(currentRoute) }
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(currentRoute) {
         if (currentRoute != displayedRoute) {
@@ -3984,6 +3985,19 @@ fun BottomNavBar(
                             isActive = false,
                             activeColor = PrimaryTeal,
                             onClick = { viewModel.triggerWishesAction(TesseraViewModel.WishesAction.SEARCH_WISHES) }
+                        )
+                        MinimalNavButton(
+                            icon = Icons.Outlined.Share,
+                            contentDescription = "Compartilhar",
+                            isActive = false,
+                            activeColor = PrimaryTeal,
+                            onClick = {
+                                val shareUrl = viewModel.supabaseWishesSync.getShareUrl()
+                                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                val clip = android.content.ClipData.newPlainText("Lista de Desejos Tessera", shareUrl)
+                                clipboard.setPrimaryClip(clip)
+                                android.widget.Toast.makeText(context, "Link de Desejos copiado!", android.widget.Toast.LENGTH_SHORT).show()
+                            }
                         )
                     }
                     else -> {

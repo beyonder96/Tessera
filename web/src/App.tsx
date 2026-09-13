@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react'
 import { MarketSharePage } from './pages/MarketSharePage'
 import { FinanceSharePage } from './pages/FinanceSharePage'
 import { TaskSharePage } from './pages/TaskSharePage'
+import { WishSharePage } from './pages/WishSharePage'
 import { HomePage } from './pages/HomePage'
 import { getLastActiveRoute } from './utils/recentStorage'
 
-export type RouteType = 'market' | 'finance' | 'tasks' | 'home'
+export type RouteType = 'market' | 'finance' | 'tasks' | 'wishes' | 'home'
 
 export interface RouteInfo {
   type: RouteType
@@ -19,7 +20,7 @@ function parseRoute(): RouteInfo {
   const hash = window.location.hash
   const params = new URLSearchParams(window.location.search)
 
-  // 1. Direct path /market/:id, /finance/:id or /tasks/:id
+  // 1. Direct path /market/:id, /finance/:id, /tasks/:id or /wishes/:id
   const marketMatch = path.match(/^\/market\/([^/]+)/)
   if (marketMatch) return { type: 'market', id: decodeURIComponent(marketMatch[1]) }
 
@@ -29,7 +30,10 @@ function parseRoute(): RouteInfo {
   const tasksMatch = path.match(/^\/tasks(?:\/([^/]+))?/)
   if (tasksMatch) return { type: 'tasks', id: tasksMatch[1] ? decodeURIComponent(tasksMatch[1]) : 'tasks_default' }
 
-  // 2. Hash routes #/market/:id, #/finance/:id or #/tasks
+  const wishesMatch = path.match(/^\/wishes(?:\/([^/]+))?/)
+  if (wishesMatch) return { type: 'wishes', id: wishesMatch[1] ? decodeURIComponent(wishesMatch[1]) : 'wishes_default' }
+
+  // 2. Hash routes #/market/:id, #/finance/:id, #/tasks or #/wishes
   const hashMarket = hash.match(/^#\/?market\/([^/]+)/)
   if (hashMarket) return { type: 'market', id: decodeURIComponent(hashMarket[1]) }
 
@@ -38,6 +42,9 @@ function parseRoute(): RouteInfo {
 
   const hashTasks = hash.match(/^#\/?tasks(?:\/([^/]+))?/)
   if (hashTasks) return { type: 'tasks', id: hashTasks[1] ? decodeURIComponent(hashTasks[1]) : 'tasks_default' }
+
+  const hashWishes = hash.match(/^#\/?wishes(?:\/([^/]+))?/)
+  if (hashWishes) return { type: 'wishes', id: hashWishes[1] ? decodeURIComponent(hashWishes[1]) : 'wishes_default' }
 
   // 3. Query params
   const listId = params.get('listId') || params.get('marketId')
@@ -49,11 +56,15 @@ function parseRoute(): RouteInfo {
   const taskId = params.get('taskId') || params.get('hubId')
   if (taskId) return { type: 'tasks', id: taskId }
 
+  const wishesId = params.get('wishesId') || params.get('wishId')
+  if (wishesId) return { type: 'wishes', id: wishesId }
+
   const typeParam = params.get('type')
   const idParam = params.get('id')
   if (typeParam === 'finance' && idParam) return { type: 'finance', id: idParam }
   if (typeParam === 'market' && idParam) return { type: 'market', id: idParam }
   if (typeParam === 'tasks') return { type: 'tasks', id: idParam || 'tasks_default' }
+  if (typeParam === 'wishes') return { type: 'wishes', id: idParam || 'wishes_default' }
   if (idParam) return { type: 'market', id: idParam }
 
   return { type: 'home', id: '' }
@@ -96,7 +107,7 @@ export function App() {
     }
   }, [])
 
-  const handleNavigate = (type: 'market' | 'finance' | 'tasks', id: string) => {
+  const handleNavigate = (type: 'market' | 'finance' | 'tasks' | 'wishes', id: string) => {
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('tessera_skip_autoredirect')
       const targetPath = `/${type}/${id}`
@@ -115,6 +126,10 @@ export function App() {
 
   if (routeInfo.type === 'tasks' && routeInfo.id) {
     return <TaskSharePage hubId={routeInfo.id} />
+  }
+
+  if (routeInfo.type === 'wishes' && routeInfo.id) {
+    return <WishSharePage hubId={routeInfo.id} />
   }
 
   return <HomePage onNavigate={handleNavigate} />

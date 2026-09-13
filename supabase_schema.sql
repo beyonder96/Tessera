@@ -118,7 +118,7 @@ AS $$
 DECLARE
     v_result jsonb;
 BEGIN
-    IF p_table NOT IN ('shared_finance_dashboards', 'shared_market_lists', 'shared_tasks_hub') THEN
+    IF p_table NOT IN ('shared_finance_dashboards', 'shared_market_lists', 'shared_tasks_hub', 'shared_wishes_hub') THEN
         RAISE EXCEPTION 'Tabela não autorizada: %', p_table;
     END IF;
     

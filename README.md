@@ -4,6 +4,21 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.62
+
+- **Módulo de Desejos (Wishlist) no Tessera Web:**
+  - **Visualização Completa de Desejos:** Interface contemporânea com cards glassmorphic, fotos em alta resolução, links diretos para lojas parceiras, categorias e classificação por prioridade (*Urgente*, *Alta*, *Moderado*, *Baixa*).
+  - **Adição Instantânea sem Aprovação:** Novos desejos cadastrados pela parceira entram imediatamente como ativos no mural e são sincronizados instantaneamente com o aplicativo Android do Kenned, sem passar por filas de aprovação.
+  - **Gestão de Conquistas e Métricas:** Alternância de status de compra/conquista com um toque, cálculo dinâmico de valor total planejado e realizado, filtros inteligentes (*Todos*, *Planejando*, *Conquistados*), filtro horizontal de categorias e barra de busca instantânea.
+  - **Sincronização em Tempo Real (Supabase Realtime):** Atualização bidirecional instantânea via WebSockets e polling de contingência com cache offline local em `localStorage`.
+- **Sincronização de Desejos no Aplicativo Android (`SupabaseWishesSyncManager`):**
+  - Integração contínua entre o banco local Room e o Supabase, inserindo automaticamente no dispositivo móvel os desejos adicionados pela Web.
+  - Alerta com notificação prioritária no celular ao receber novos desejos cadastrados na Web.
+  - Novos botões de compartilhamento rápido com a parceira na barra flutuante de navegação e no cabeçalho da tela de Desejos.
+- **Backend & RPC Segura:**
+  - Nova tabela `public.shared_wishes_hub` no Supabase com Row Level Security (RLS) e publicação em tempo real.
+  - Autorização na função RPC blindada `get_shared_document`.
+
 ## 🚀 Novidades da Versão 2.0.61
 
 - **Tabela do Brasileirão:**
@@ -313,8 +328,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.61.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.61.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.62.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.62.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.

@@ -127,6 +127,7 @@ suspend fun fetchOgImageFromUrl(urlStr: String): String? {
 fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
     val purchaseGoals by viewModel.allPurchaseGoals.collectAsStateWithLifecycle()
     val sharedWish by viewModel.sharedWishState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     var showAddGoalDialog by remember { mutableStateOf(false) }
     var goalToEdit by remember { mutableStateOf<PurchaseGoal?>(null) }
     var searchQuery by remember { mutableStateOf("") }
@@ -210,13 +211,38 @@ fun WishesScreen(onHomeClick: () -> Unit, viewModel: TesseraViewModel) {
                         letterSpacing = 1.5.sp,
                         color = com.example.ui.theme.SecondaryGold
                     )
-                    Text(
-                        text = "${activeGoals.size} ITENS",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.5.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "${activeGoals.size} ITENS",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.5.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        IconButton(
+                            onClick = {
+                                val shareUrl = viewModel.supabaseWishesSync.getShareUrl()
+                                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                val clip = android.content.ClipData.newPlainText("Lista de Desejos Tessera", shareUrl)
+                                clipboard.setPrimaryClip(clip)
+                                android.widget.Toast.makeText(context, "Link de Desejos copiado!", android.widget.Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.05f))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Share,
+                                contentDescription = "Compartilhar com Ela",
+                                tint = com.example.ui.theme.SecondaryGold,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
                 }
                 Spacer(modifier = Modifier.height(4.dp))
             }

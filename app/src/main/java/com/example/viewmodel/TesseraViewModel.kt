@@ -63,6 +63,7 @@ class TesseraViewModel(
     val supabaseMarketSync = com.example.data.supabase.SupabaseMarketSyncManager(applicationContext, repository)
     val supabaseFinanceSync = com.example.data.supabase.SupabaseFinanceSyncManager(applicationContext, repository)
     val supabaseTasksSync = com.example.data.supabase.SupabaseTasksSyncManager(applicationContext)
+    val supabaseWishesSync = com.example.data.supabase.SupabaseWishesSyncManager(applicationContext, repository)
 
     private val marketSharedPrefs = applicationContext.getSharedPreferences("tessera_market_prefs", Context.MODE_PRIVATE)
     val marketListId = MutableStateFlow<String?>(marketSharedPrefs.getString("shared_list_id", null))
@@ -72,6 +73,7 @@ class TesseraViewModel(
         supabaseMarketSync.startContinuousSync()
         supabaseFinanceSync.startContinuousSync()
         supabaseTasksSync.startContinuousSync()
+        supabaseWishesSync.startContinuousSync()
 
         marketListId.value?.let { id ->
             syncManager.startSync(id)

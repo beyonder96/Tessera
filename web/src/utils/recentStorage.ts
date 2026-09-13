@@ -1,5 +1,5 @@
 export interface RecentItem {
-  type: 'market' | 'finance' | 'tasks'
+  type: 'market' | 'finance' | 'tasks' | 'wishes'
   id: string
   title: string
   updatedAt: number
@@ -12,7 +12,7 @@ function isRecentItem(item: unknown): item is RecentItem {
   if (!item || typeof item !== 'object') return false
   const candidate = item as Record<string, unknown>
   return (
-    (candidate.type === 'market' || candidate.type === 'finance' || candidate.type === 'tasks') &&
+    (candidate.type === 'market' || candidate.type === 'finance' || candidate.type === 'tasks' || candidate.type === 'wishes') &&
     typeof candidate.id === 'string' &&
     candidate.id.trim().length > 0 &&
     typeof candidate.title === 'string' &&
@@ -20,13 +20,20 @@ function isRecentItem(item: unknown): item is RecentItem {
   )
 }
 
-export function saveRecentItem(item: { type: 'market' | 'finance' | 'tasks'; id: string; title: string }): void {
+export function saveRecentItem(item: { type: 'market' | 'finance' | 'tasks' | 'wishes'; id: string; title: string }): void {
   if (typeof window === 'undefined') return
   try {
     const trimmedId = item.id.trim()
     if (!trimmedId) return
 
-    const defaultTitle = item.type === 'market' ? 'Lista de Mercado' : item.type === 'finance' ? 'Resumo Financeiro' : 'Tarefas e Lembretes'
+    const defaultTitle = 
+      item.type === 'market' 
+        ? 'Lista de Mercado' 
+        : item.type === 'finance' 
+        ? 'Resumo Financeiro' 
+        : item.type === 'wishes'
+        ? 'Lista de Desejos'
+        : 'Tarefas e Lembretes'
     const newItem: RecentItem = {
       type: item.type,
       id: trimmedId,
@@ -77,7 +84,7 @@ export function getLastActiveRoute(): RecentItem | null {
   return null
 }
 
-export function removeRecentItem(type: 'market' | 'finance' | 'tasks', id: string): void {
+export function removeRecentItem(type: 'market' | 'finance' | 'tasks' | 'wishes', id: string): void {
   if (typeof window === 'undefined') return
   try {
     const existing = getRecentItems()

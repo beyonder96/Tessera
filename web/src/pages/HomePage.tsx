@@ -14,7 +14,8 @@ import {
   Moon,
   Download,
   Bell,
-  CheckSquare
+  CheckSquare,
+  Heart
 } from 'lucide-react'
 import { 
   getRecentItems, 
@@ -27,10 +28,10 @@ import { usePwaInstall } from '../hooks/usePwaInstall'
 import { PwaInstructionsModal } from '../components/PwaInstructionsModal'
 
 interface HomePageProps {
-  onNavigate: (type: 'market' | 'finance' | 'tasks', id: string) => void
+  onNavigate: (type: 'market' | 'finance' | 'tasks' | 'wishes', id: string) => void
 }
 
-function parseInputLink(input: string): { type: 'market' | 'finance' | 'tasks'; id: string } | null {
+function parseInputLink(input: string): { type: 'market' | 'finance' | 'tasks' | 'wishes'; id: string } | null {
   const trimmed = input.trim()
   if (!trimmed) return null
 
@@ -52,7 +53,13 @@ function parseInputLink(input: string): { type: 'market' | 'finance' | 'tasks'; 
     return { type: 'tasks', id: decodeURIComponent(tasksMatch[1]) }
   }
 
-  // 4. Fallback: ID direto (UUID ou alfanumérico)
+  // 4. Detect wishes link/path
+  const wishesMatch = trimmed.match(/(?:wishes\/|[?&](?:wishesId|wishId)=)([^/?&#\s]+)/i)
+  if (wishesMatch && wishesMatch[1]) {
+    return { type: 'wishes', id: decodeURIComponent(wishesMatch[1]) }
+  }
+
+  // 5. Fallback: ID direto (UUID ou alfanumérico)
   if (/^[a-zA-Z0-9_-]{6,}$/.test(trimmed)) {
     return { type: 'market', id: trimmed }
   }
@@ -85,11 +92,11 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
     setRecents(getRecentItems())
   }, [])
 
-  const handleOpenItem = (type: 'market' | 'finance' | 'tasks', id: string) => {
+  const handleOpenItem = (type: 'market' | 'finance' | 'tasks' | 'wishes', id: string) => {
     onNavigate(type, id)
   }
 
-  const handleRemove = (e: React.MouseEvent, type: 'market' | 'finance' | 'tasks', id: string) => {
+  const handleRemove = (e: React.MouseEvent, type: 'market' | 'finance' | 'tasks' | 'wishes', id: string) => {
     e.stopPropagation()
     removeRecentItem(type, id)
     setRecents(getRecentItems())
@@ -193,6 +200,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
             {recents.map((item) => {
               const isMarket = item.type === 'market'
               const isTasks = item.type === 'tasks'
+              const isWishes = item.type === 'wishes'
               return (
                 <div 
                   key={`${item.type}-${item.id}`}
@@ -224,6 +232,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                         <ShoppingCart size={18} color="var(--accent)" />
                       ) : isTasks ? (
                         <CheckSquare size={18} color="var(--accent)" />
+                      ) : isWishes ? (
+                        <Heart size={18} color="var(--accent)" />
                       ) : (
                         <TrendingUp size={18} color="var(--accent)" />
                       )}
@@ -253,7 +263,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                             borderRadius: 'var(--radius-full)'
                           }}
                         >
-                          {isMarket ? 'Mercado' : isTasks ? 'Tarefas' : 'Finanças'}
+                          {isMarket ? 'Mercado' : isTasks ? 'Tarefas' : isWishes ? 'Desejos' : 'Finanças'}
                         </span>
                         <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
                           <Clock size={11} /> {formatRelativeTime(item.updatedAt)}
@@ -301,7 +311,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           className="card interactive-card"
           style={{
             padding: '16px 18px',
-            marginBottom: 20,
+            marginBottom: 14,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -330,6 +340,59 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
                 Envie lembretes e avisos ao Kenned em tempo real
+              </div>
+            </div>
+          </div>
+          <div style={{
+            width: 32,
+            height: 32,
+            borderRadius: 'var(--radius-sm)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'var(--bg-surface)'
+          }}>
+            <ArrowRight size={16} color="var(--accent)" />
+          </div>
+        </div>
+      )}
+
+      {/* Acesso Rápido: Lista de Desejos (exibido apenas se ainda não estiver nos Acessos Recentes) */}
+      {!recents.some(item => item.type === 'wishes') && (
+        <div 
+          onClick={() => onNavigate('wishes', 'wishes_default')}
+          className="card interactive-card"
+          style={{
+            padding: '16px 18px',
+            marginBottom: 20,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            cursor: 'pointer',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-active)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{
+              width: 40,
+              height: 40,
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--accent-subtle)',
+              border: '1px solid var(--border-active)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              <Heart size={20} color="var(--accent)" />
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+                Lista de Desejos
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+                Cadastre e veja os desejos e compras planejadas
               </div>
             </div>
           </div>
