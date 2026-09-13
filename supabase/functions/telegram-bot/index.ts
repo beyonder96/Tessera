@@ -19,6 +19,9 @@ const ENV_TASKS_HUB_ID = Deno.env.get("TASKS_HUB_ID")
 const ENV_WISHES_HUB_ID = Deno.env.get("WISHES_HUB_ID")
 const ENV_MARKET_HUB_ID = Deno.env.get("MARKET_HUB_ID")
 
+// Cache de idempotência em memória para evitar reprocessamento de retries do Telegram
+const processedUpdates = new Set<number>()
+
 // ============================================================================
 // HELPERS TELEGRAM BOT API
 // ============================================================================
@@ -306,8 +309,29 @@ async function addFinanceTransaction(tx: {
   }
 
   const currentSuggestions = Array.isArray(doc.data.suggestions) ? doc.data.suggestions : []
-  const newSuggestionId = crypto.randomUUID()
   const todayStr = new Date().toISOString().split("T")[0]
+
+  // Deduplicação: se já existe um lançamento idêntico do Telegram criado nos últimos 30 segundos
+  const isDuplicate = currentSuggestions.some((s: any) =>
+    s.origin === "Telegram" &&
+    s.title?.trim().toLowerCase() === (tx.title || "Lançamento").trim().toLowerCase() &&
+    Math.abs(Number(s.amount || 0) - Number(tx.amount || 0)) < 0.01 &&
+    s.date === (tx.date || todayStr) &&
+    (Date.now() - new Date(s.created_at || 0).getTime() < 30000)
+  )
+
+  if (isDuplicate) {
+    console.log("Transação idêntica do Telegram detectada (< 30s). Ignorando duplicação.")
+    return {
+      id: "duplicate",
+      title: tx.title || "Lançamento",
+      amount: tx.amount,
+      category: tx.category || "Geral",
+      account: tx.accountOrCardName || "Geral"
+    }
+  }
+
+  const newSuggestionId = crypto.randomUUID()
 
   const newSuggestion = {
     id: newSuggestionId,
@@ -378,8 +402,19 @@ async function addTaskReminder(task: {
   due_time?: string
 }): Promise<any> {
   let doc = await getTasksDoc()
-  const taskId = crypto.randomUUID()
   const currentItems = doc && Array.isArray(doc.data.items) ? doc.data.items : []
+
+  // Deduplicação: não duplica se já existir uma tarefa pendente com o mesmo título
+  const isDuplicate = currentItems.some((t: any) =>
+    t.title?.trim().toLowerCase() === task.title?.trim().toLowerCase() &&
+    t.status === "pending"
+  )
+  if (isDuplicate) {
+    console.log("Tarefa idêntica pendente já existente. Ignorando duplicação.")
+    return { title: task.title }
+  }
+
+  const taskId = crypto.randomUUID()
 
   const newItem = {
     id: taskId,
@@ -467,8 +502,19 @@ async function addWishItem(wish: {
   category?: string
 }): Promise<any> {
   let doc = await getWishesDoc()
-  const wishId = crypto.randomUUID()
   const currentItems = doc && Array.isArray(doc.data.items) ? doc.data.items : []
+
+  // Deduplicação: não duplica se já existir um desejo pendente com o mesmo título
+  const isDuplicate = currentItems.some((w: any) =>
+    w.title?.trim().toLowerCase() === wish.title?.trim().toLowerCase() &&
+    !w.isBought
+  )
+  if (isDuplicate) {
+    console.log("Desejo idêntico pendente já existente. Ignorando duplicação.")
+    return { title: wish.title }
+  }
+
+  const wishId = crypto.randomUUID()
 
   const newItem = {
     id: wishId,
@@ -530,20 +576,35 @@ async function addMarketItems(itemsToAdd: Array<{ name: string; quantity?: numbe
 
   for (const it of itemsToAdd) {
     if (!it.name || it.name.trim().length === 0) continue
-    const newItem = {
-      name: it.name.trim(),
-      quantity: it.quantity || 1.0,
-      unit: it.unit || "un",
-      category: it.category || "Geral",
-      price: 0.0,
-      isChecked: false,
-      isBought: false,
-      inMarket: true,
-      needsApproval: false,
-      created_by: "Telegram"
+    const trimmedName = it.name.trim()
+
+    // Deduplicação: se já existe um item com o mesmo nome na lista pendente/mercado
+    const existingIndex = currentItems.findIndex((ci: any) =>
+      ci.name && ci.name.trim().toLowerCase() === trimmedName.toLowerCase() && !ci.isBought
+    )
+
+    if (existingIndex >= 0) {
+      const existing = currentItems[existingIndex]
+      existing.quantity = (Number(existing.quantity) || 1) + (Number(it.quantity) || 1)
+      existing.inMarket = true
+      existing.isChecked = false
+      newItemsCreated.push(existing)
+    } else {
+      const newItem = {
+        name: trimmedName,
+        quantity: it.quantity || 1.0,
+        unit: it.unit || "un",
+        category: it.category || "Geral",
+        price: 0.0,
+        isChecked: false,
+        isBought: false,
+        inMarket: true,
+        needsApproval: false,
+        created_by: "Telegram"
+      }
+      currentItems.push(newItem)
+      newItemsCreated.push(newItem)
     }
-    currentItems.push(newItem)
-    newItemsCreated.push(newItem)
   }
 
   if (doc) {
@@ -1120,6 +1181,19 @@ Deno.serve(async (req: Request) => {
     update = await req.json()
   } catch {
     return new Response("Invalid JSON", { status: 400 })
+  }
+
+  // Deduplicação de Webhook do Telegram (Impede re-execução em retries por timeout)
+  if (update?.update_id) {
+    if (processedUpdates.has(update.update_id)) {
+      console.log(`Update ${update.update_id} já processado. Ignorando retry do Telegram.`)
+      return new Response("OK (already processed)", { status: 200 })
+    }
+    processedUpdates.add(update.update_id)
+    if (processedUpdates.size > 2000) {
+      const oldest = Array.from(processedUpdates).slice(0, 500)
+      for (const id of oldest) processedUpdates.delete(id)
+    }
   }
 
   // 0. Disparo de Cron Proativo (Resumo Matinal 08:00 e Noturno 21:00)

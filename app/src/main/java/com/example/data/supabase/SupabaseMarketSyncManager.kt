@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -35,6 +37,7 @@ class SupabaseMarketSyncManager(
 
     private var lastUploadedHash: Int? = null
     private var isUpdatingFromRemote = false
+    private val pullMutex = Mutex()
 
     enum class SyncStatus {
         IDLE,
@@ -114,50 +117,52 @@ class SupabaseMarketSyncManager(
 
     suspend fun pullFromSupabase() {
         val shareId = _activeShareId.value ?: return
-        withContext(Dispatchers.IO) {
-            try {
-                val result = SupabaseClientProvider.getDocument("shared_market_lists", shareId)
-                if (result.isSuccess) {
-                    val responseStr = result.getOrNull() ?: return@withContext
-                    val jsonArray = JSONArray(responseStr)
-                    if (jsonArray.length() == 0) return@withContext
-                    val docObj = jsonArray.getJSONObject(0)
-                    val itemsJson = docObj.optJSONArray("items") ?: return@withContext
+        pullMutex.withLock {
+            withContext(Dispatchers.IO) {
+                try {
+                    val result = SupabaseClientProvider.getDocument("shared_market_lists", shareId)
+                    if (result.isSuccess) {
+                        val responseStr = result.getOrNull() ?: return@withContext
+                        val jsonArray = JSONArray(responseStr)
+                        if (jsonArray.length() == 0) return@withContext
+                        val docObj = jsonArray.getJSONObject(0)
+                        val itemsJson = docObj.optJSONArray("items") ?: return@withContext
 
-                    val remoteItems = mutableListOf<MarketItem>()
-                    for (i in 0 until itemsJson.length()) {
-                        val itemObj = itemsJson.getJSONObject(i)
-                        val name = itemObj.optString("name", "")
-                        if (name.isBlank()) continue
-                        val isChecked = itemObj.optBoolean("isChecked", false)
-                        val isBought = itemObj.optBoolean("isBought", false)
-                        val price = itemObj.optDouble("price", 0.0)
-                        val quantity = itemObj.optDouble("quantity", 1.0)
-                        val unit = itemObj.optString("unit", "un")
-                        val category = itemObj.optString("category", "Geral")
-                        val inMarket = itemObj.optBoolean("inMarket", false)
-                        val needsApproval = itemObj.optBoolean("needsApproval", false)
+                        val remoteItems = mutableListOf<MarketItem>()
+                        for (i in 0 until itemsJson.length()) {
+                            val itemObj = itemsJson.getJSONObject(i)
+                            val name = itemObj.optString("name", "")
+                            if (name.isBlank()) continue
+                            val isChecked = itemObj.optBoolean("isChecked", false)
+                            val isBought = itemObj.optBoolean("isBought", false)
+                            val price = itemObj.optDouble("price", 0.0)
+                            val quantity = itemObj.optDouble("quantity", 1.0)
+                            val unit = itemObj.optString("unit", "un")
+                            val category = itemObj.optString("category", "Geral")
+                            val inMarket = itemObj.optBoolean("inMarket", false)
+                            val needsApproval = itemObj.optBoolean("needsApproval", false)
 
-                        remoteItems.add(
-                            MarketItem(
-                                name = name,
-                                isChecked = isChecked,
-                                isBought = isBought,
-                                orderIndex = i,
-                                price = price,
-                                quantity = quantity,
-                                unit = unit,
-                                category = category,
-                                inMarket = inMarket,
-                                needsApproval = needsApproval
+                            remoteItems.add(
+                                MarketItem(
+                                    name = name,
+                                    isChecked = isChecked,
+                                    isBought = isBought,
+                                    orderIndex = i,
+                                    price = price,
+                                    quantity = quantity,
+                                    unit = unit,
+                                    category = category,
+                                    inMarket = inMarket,
+                                    needsApproval = needsApproval
+                                )
                             )
-                        )
-                    }
+                        }
 
-                    mergeRemoteItems(remoteItems)
+                        mergeRemoteItems(remoteItems)
+                    }
+                } catch (e: Exception) {
+                    Log.w("SupabaseMarketSync", "Failed to pull from Supabase: ${e.message}")
                 }
-            } catch (e: Exception) {
-                Log.w("SupabaseMarketSync", "Failed to pull from Supabase: ${e.message}")
             }
         }
     }
@@ -170,9 +175,25 @@ class SupabaseMarketSyncManager(
 
         val inserts = mutableListOf<MarketItem>()
         val updates = mutableListOf<MarketItem>()
+        val seenNames = mutableSetOf<String>()
 
         remoteItems.forEach { remoteItem ->
-            val existing = allLocal.find { it.name.equals(remoteItem.name, ignoreCase = true) }
+            val cleanName = remoteItem.name.trim()
+            if (cleanName.isBlank()) return@forEach
+            val nameKey = cleanName.lowercase()
+
+            // Previne duplicatas se a lista remota contiver o mesmo item repetido no lote
+            if (seenNames.contains(nameKey)) {
+                val existingInsert = inserts.find { it.name.trim().equals(cleanName, ignoreCase = true) }
+                if (existingInsert != null) {
+                    val idx = inserts.indexOf(existingInsert)
+                    inserts[idx] = existingInsert.copy(quantity = existingInsert.quantity + remoteItem.quantity)
+                }
+                return@forEach
+            }
+            seenNames.add(nameKey)
+
+            val existing = allLocal.find { it.name.trim().equals(cleanName, ignoreCase = true) }
             if (existing != null) {
                 // Se a web enviou para o mercado, mas o item ainda não foi aprovado localmente:
                 val resolvedNeedsApproval = if (remoteItem.inMarket && !existing.inMarket) {
@@ -209,7 +230,7 @@ class SupabaseMarketSyncManager(
             } else {
                 // Item novo vindo da web
                 val resolvedChecked = if (remoteItem.inMarket && remoteItem.needsApproval) false else remoteItem.isChecked
-                inserts.add(remoteItem.copy(isChecked = resolvedChecked))
+                inserts.add(remoteItem.copy(name = cleanName, isChecked = resolvedChecked))
             }
         }
 
