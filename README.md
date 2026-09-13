@@ -4,6 +4,13 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.65
+
+- **Blindagem Anti-Duplicação e Idempotência (Telegram & Android):**
+  - **Idempotência no Webhook do Telegram:** Registro e validação de `update_id` no backend da Edge Function no Supabase, neutralizando repetições automáticas em caso de timeout de rede ou processamento de áudio e IA.
+  - **Deduplicação Inteligente no Bot:** Agrupamento e soma automática de quantidades em itens já existentes na Lista de Mercado (`/mercado`), além de verificação de redundância com janela de segurança para transações financeiras, tarefas e lista de desejos.
+  - **Sincronização Concorrente Segura no App (`SupabaseMarketSyncManager`):** Implementação de trava assíncrona com `Mutex` (`pullMutex`) impedindo execuções encavaladas no banco local SQLite/Room, e consolidação de lotes remotos com `seenNames`.
+
 ## 🚀 Novidades da Versão 2.0.64
 
 - **Integração Total com Telegram Bot & Assistente Multimodal:**
@@ -357,8 +364,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.64.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.64.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.65.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.65.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.
