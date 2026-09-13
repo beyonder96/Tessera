@@ -717,18 +717,368 @@ async function fetchWeatherForecast(cityQuery = "São Paulo"): Promise<string> {
   }
 }
 
-async function fetchSoccerInfo(query = ""): Promise<string> {
+const KNOWN_BRAZILIAN_TEAMS: Record<string, { id: string; name: string }> = {
+  "flamengo": { id: "134287", name: "Flamengo" },
+  "palmeiras": { id: "134465", name: "Palmeiras" },
+  "corinthians": { id: "134284", name: "Corinthians" },
+  "timao": { id: "134284", name: "Corinthians" },
+  "timão": { id: "134284", name: "Corinthians" },
+  "sao paulo": { id: "134291", name: "São Paulo" },
+  "são paulo": { id: "134291", name: "São Paulo" },
+  "spfc": { id: "134291", name: "São Paulo" },
+  "vasco": { id: "134282", name: "Vasco da Gama" },
+  "vasco da gama": { id: "134282", name: "Vasco da Gama" },
+  "botafogo": { id: "134285", name: "Botafogo" },
+  "fogao": { id: "134285", name: "Botafogo" },
+  "fogão": { id: "134285", name: "Botafogo" },
+  "gremio": { id: "134288", name: "Grêmio" },
+  "grêmio": { id: "134288", name: "Grêmio" },
+  "internacional": { id: "134281", name: "Internacional" },
+  "inter": { id: "134281", name: "Internacional" },
+  "colorado": { id: "134281", name: "Internacional" },
+  "atletico mineiro": { id: "134299", name: "Atlético Mineiro" },
+  "atlético mineiro": { id: "134299", name: "Atlético Mineiro" },
+  "atletico-mg": { id: "134299", name: "Atlético Mineiro" },
+  "galo": { id: "134299", name: "Atlético Mineiro" },
+  "cruzeiro": { id: "134294", name: "Cruzeiro" },
+  "santos": { id: "134286", name: "Santos" },
+  "peixe": { id: "134286", name: "Santos" },
+  "bahia": { id: "134293", name: "Bahia" },
+  "fortaleza": { id: "136186", name: "Fortaleza" },
+  "fluminense": { id: "134296", name: "Fluminense" },
+  "flu": { id: "134296", name: "Fluminense" },
+  "athletico": { id: "134297", name: "Athletico Paranaense" },
+  "athletico paranaense": { id: "134297", name: "Athletico Paranaense" },
+  "athletico-pr": { id: "134297", name: "Athletico Paranaense" },
+  "furacao": { id: "134297", name: "Athletico Paranaense" },
+  "furacão": { id: "134297", name: "Athletico Paranaense" },
+  "bragantino": { id: "134736", name: "Red Bull Bragantino" },
+  "red bull bragantino": { id: "134736", name: "Red Bull Bragantino" },
+  "vitoria": { id: "134280", name: "Vitória" },
+  "vitória": { id: "134280", name: "Vitória" },
+  "juventude": { id: "134301", name: "Juventude" },
+  "criciuma": { id: "134300", name: "Criciúma" },
+  "criciúma": { id: "134300", name: "Criciúma" },
+  "cuiaba": { id: "136933", name: "Cuiabá" },
+  "cuiabá": { id: "136933", name: "Cuiabá" },
+  "mirassol": { id: "141181", name: "Mirassol" },
+  "sport": { id: "134290", name: "Sport" },
+  "ceara": { id: "134705", name: "Ceará" },
+  "ceará": { id: "134705", name: "Ceará" },
+  "coritiba": { id: "134704", name: "Coritiba" },
+  "coxa": { id: "134704", name: "Coritiba" },
+  "real madrid": { id: "133738", name: "Real Madrid" },
+  "barcelona": { id: "133739", name: "Barcelona" },
+  "manchester city": { id: "133613", name: "Manchester City" },
+  "manchester united": { id: "133612", name: "Manchester United" },
+  "liverpool": { id: "133602", name: "Liverpool" },
+  "arsenal": { id: "133604", name: "Arsenal" },
+  "psg": { id: "133714", name: "Paris Saint-Germain" }
+}
+
+async function searchTeamByName(teamQuery?: string): Promise<{ id: string; name: string } | null> {
+  if (!teamQuery || teamQuery.trim().length === 0) return null
+  const clean = teamQuery.toLowerCase().trim()
+  if (KNOWN_BRAZILIAN_TEAMS[clean]) return KNOWN_BRAZILIAN_TEAMS[clean]
+  for (const [k, v] of Object.entries(KNOWN_BRAZILIAN_TEAMS)) {
+    if (clean.includes(k) || k.includes(clean)) return v
+  }
   try {
-    const res = await fetch("https://ge.globo.com/futebol/brasileirao-serie-a/")
+    const res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(clean)}`)
     if (res.ok) {
-      return `⚽ <b>Brasileirão Série A • Central de Jogos</b>\n\n` +
-             `Os dados em tempo real da rodada estão sincronizados no seu app Tessera na aba de <b>Futebol</b>.\n` +
-             `Deseja saber a pontuação de algum clube específico? Me diga o nome do time (ex: <i>"Quanto tá o jogo do Palmeiras?"</i>)!`
+      const data = await res.json()
+      const t = data.teams?.[0]
+      if (t && t.idTeam) {
+        return { id: t.idTeam, name: t.strTeam }
+      }
     }
   } catch (err) {
-    console.error("Erro no futebol:", err)
+    console.error("Erro na busca de time:", err)
   }
-  return `⚽ <b>Futebol & Brasileirão:</b> Acompanhe os lances e estatísticas em tempo real direto pelo widget na tela inicial do seu app Tessera!`
+  return null
+}
+
+function formatMatchDateTime(dateStr?: string, timeStr?: string): { formatted: string; spoken: string } {
+  if (!dateStr) return { formatted: "Data a definir", spoken: "em data a definir" }
+  try {
+    let cleanTime = timeStr || "00:00:00"
+    if (!cleanTime.includes(":")) cleanTime += ":00:00"
+    else if (cleanTime.split(":").length === 2) cleanTime += ":00"
+
+    const utcIso = `${dateStr}T${cleanTime}Z`
+    const d = new Date(utcIso)
+
+    const brDate = new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric"
+    }).format(d)
+
+    const brTime = new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    }).format(d)
+
+    const [hours, minutes] = brTime.split(":")
+    const timeSpoken = minutes === "00" ? `${parseInt(hours, 10)} horas` : `${parseInt(hours, 10)} e ${minutes}`
+
+    const now = new Date()
+    const todayBr = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" }).format(now)
+    const tomorrow = new Date(now.getTime() + 86400000)
+    const tomorrowBr = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" }).format(tomorrow)
+
+    if (brDate === todayBr) {
+      return {
+        formatted: `Hoje (${brDate.slice(0, 5)}) às ${brTime}`,
+        spoken: `hoje às ${timeSpoken}`
+      }
+    } else if (brDate === tomorrowBr) {
+      return {
+        formatted: `Amanhã (${brDate.slice(0, 5)}) às ${brTime}`,
+        spoken: `amanhã às ${timeSpoken}`
+      }
+    } else {
+      const dayMonth = brDate.slice(0, 5)
+      return {
+        formatted: `${brDate} às ${brTime}`,
+        spoken: `no dia ${dayMonth} às ${timeSpoken}`
+      }
+    }
+  } catch (_e) {
+    return { formatted: dateStr, spoken: `no dia ${dateStr}` }
+  }
+}
+
+async function fetchSoccerInfo(
+  soccer?: { team?: string; type?: "next" | "last" | "standings" | "general" },
+  rawQuery = ""
+): Promise<{ text: string; spokenText: string; replyMarkup?: any }> {
+  const queryLower = (soccer?.team || rawQuery || "").toLowerCase()
+
+  // 1. Consulta de Tabela / Classificação
+  const isStandingsQuery = soccer?.type === "standings" ||
+    queryLower.includes("tabela") ||
+    queryLower.includes("classificacao") ||
+    queryLower.includes("classificação") ||
+    queryLower.includes("lider") ||
+    queryLower.includes("líder") ||
+    queryLower.includes("g4") ||
+    queryLower.includes("g-4") ||
+    queryLower.includes("pontos")
+
+  if (isStandingsQuery) {
+    try {
+      const currentYear = new Date().getFullYear()
+      let res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/lookuptable.php?l=4351&s=${currentYear}`)
+      let data = await res.json()
+      if (!data.table || data.table.length === 0) {
+        res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/lookuptable.php?l=4351&s=${currentYear - 1}`)
+        data = await res.json()
+      }
+
+      const table = data.table || []
+      if (table.length > 0) {
+        let text = `🏆 <b>Classificação • Brasileirão Série A</b>\n\n`
+        text += `🟢 <b>Zona de Libertadores (G4):</b>\n`
+        table.slice(0, 4).forEach((t: any) => {
+          text += `<b>${t.intRank}º</b> ${t.strTeam} — <b>${t.intPoints} pts</b> (${t.intPlayed}J | ${t.intGoalDifference}SG)\n`
+        })
+
+        if (table.length >= 6) {
+          text += `\n🔵 <b>Pré-Libertadores:</b>\n`
+          table.slice(4, 6).forEach((t: any) => {
+            text += `<b>${t.intRank}º</b> ${t.strTeam} — <b>${t.intPoints} pts</b> (${t.intPlayed}J)\n`
+          })
+        }
+
+        let teamHighlightSpoken = ""
+        if (soccer?.team) {
+          const targetTeam = table.find((t: any) => t.strTeam?.toLowerCase().includes(soccer.team!.toLowerCase()))
+          if (targetTeam) {
+            text += `\n📌 <b>${targetTeam.strTeam}:</b> ${targetTeam.intRank}º lugar com <b>${targetTeam.intPoints} pontos</b> em ${targetTeam.intPlayed} jogos.\n`
+            teamHighlightSpoken = ` O ${targetTeam.strTeam} está na ${targetTeam.intRank}ª posição com ${targetTeam.intPoints} pontos.`
+          }
+        }
+
+        text += `\n⚡ <i>Tabela completa e lances em tempo real na aba de Futebol do seu Tessera!</i>`
+
+        const leader = table[0]
+        const spokenText = `Na tabela do Brasileirão, o líder é o ${leader.strTeam} com ${leader.intPoints} pontos, seguido por ${table[1]?.strTeam} com ${table[1]?.intPoints} pontos e ${table[2]?.strTeam} com ${table[2]?.intPoints} pontos.${teamHighlightSpoken}`
+
+        const replyMarkup = {
+          inline_keyboard: [
+            [
+              { text: "🔴 Próximo do Flamengo", callback_data: "soccer_team:flamengo" },
+              { text: "🟢 Próximo do Palmeiras", callback_data: "soccer_team:palmeiras" }
+            ],
+            [
+              { text: "⚪ Próximo do Corinthians", callback_data: "soccer_team:corinthians" },
+              { text: "⚫ Próximo do São Paulo", callback_data: "soccer_team:sao paulo" }
+            ]
+          ]
+        }
+
+        return { text, spokenText, replyMarkup }
+      }
+    } catch (err) {
+      console.error("Erro ao buscar tabela:", err)
+    }
+  }
+
+  // 2. Consulta de Próximo Jogo ou Último Resultado de um Time
+  const teamCandidate = soccer?.team || rawQuery
+  const resolvedTeam = await searchTeamByName(teamCandidate)
+
+  if (resolvedTeam) {
+    const isLastQuery = soccer?.type === "last" ||
+      queryLower.includes("ultimo") ||
+      queryLower.includes("último") ||
+      queryLower.includes("resultado") ||
+      queryLower.includes("placar") ||
+      queryLower.includes("quanto foi") ||
+      queryLower.includes("ganhou") ||
+      queryLower.includes("perdeu")
+
+    if (isLastQuery) {
+      try {
+        const res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/eventslast.php?id=${resolvedTeam.id}`)
+        if (res.ok) {
+          const data = await res.json()
+          const event = data.results?.[0] || data.events?.[0]
+          if (event) {
+            const h = event.strHomeTeam || "Casa"
+            const a = event.strAwayTeam || "Fora"
+            const hs = event.intHomeScore ?? 0
+            const as = event.intAwayScore ?? 0
+            const league = event.strLeague === "Brazilian Serie A" ? "Brasileirão Série A" : (event.strLeague || "Brasileirão")
+            const dt = formatMatchDateTime(event.dateEvent, event.strTime)
+            const venue = event.strVenue ? `🏟️ ${event.strVenue}\n` : ""
+
+            const text = `⚽ <b>Último Jogo • ${resolvedTeam.name}</b>\n\n` +
+                         `🏁 <b>${h} ${hs} x ${as} ${a}</b>\n` +
+                         `🏆 <b>${league}</b>${event.intRound ? ` • ${event.intRound}ª Rodada` : ""}\n` +
+                         `📅 ${dt.formatted} • <b>Encerrado</b>\n` +
+                         venue +
+                         `\n⚡ <i>Lances e estatísticas completos no app Tessera!</i>`
+
+            const spokenText = `No último jogo pelo ${league}, o resultado foi ${h} ${hs}, ${a} ${as}.`
+
+            const replyMarkup = {
+              inline_keyboard: [
+                [
+                  { text: `📅 Ver Próximo Jogo do ${resolvedTeam.name}`, callback_data: `soccer_team:${resolvedTeam.name.toLowerCase()}` },
+                  { text: "🏆 Ver Tabela", callback_data: "soccer_table" }
+                ]
+              ]
+            }
+
+            return { text, spokenText, replyMarkup }
+          }
+        }
+      } catch (err) {
+        console.error("Erro ao buscar último jogo:", err)
+      }
+    }
+
+    // Busca de Próximo Jogo (Default)
+    try {
+      const res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/eventsnext.php?id=${resolvedTeam.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        const event = data.events?.[0]
+        if (event) {
+          const h = event.strHomeTeam || "Casa"
+          const a = event.strAwayTeam || "Fora"
+          const league = event.strLeague === "Brazilian Serie A" ? "Brasileirão Série A" : (event.strLeague || "Brasileirão")
+          const dt = formatMatchDateTime(event.dateEvent, event.strTime)
+          const venue = event.strVenue ? `🏟️ ${event.strVenue}\n` : ""
+          const round = event.intRound ? ` • ${event.intRound}ª Rodada` : ""
+
+          const opponent = resolvedTeam.name.toLowerCase().includes(h.toLowerCase()) ? a : h
+          const isHome = resolvedTeam.name.toLowerCase().includes(h.toLowerCase())
+          const mandoStr = isHome ? "(Em casa)" : "(Fora de casa)"
+
+          const text = `⚽ <b>Próximo Jogo • ${resolvedTeam.name}</b>\n\n` +
+                       `⚔️ <b>${h} vs ${a}</b> ${mandoStr}\n` +
+                       `🏆 <b>${league}</b>${round}\n` +
+                       `📅 <b>${dt.formatted}</b> (Horário de Brasília)\n` +
+                       venue +
+                       `\n⚡ <i>Acompanhe escalações e estatísticas ao vivo na aba de Futebol do seu app Tessera!</i>`
+
+          const spokenText = `O próximo jogo do ${resolvedTeam.name} é contra o ${opponent}, ${dt.spoken}${event.strVenue ? `, no ${event.strVenue}` : ""}, pelo ${league}.`
+
+          const replyMarkup = {
+            inline_keyboard: [
+              [
+                { text: "🏆 Tabela do Brasileirão", callback_data: "soccer_table" },
+                { text: "🏁 Último Resultado", callback_data: `soccer_last:${resolvedTeam.id}` }
+              ]
+            ]
+          }
+
+          return { text, spokenText, replyMarkup }
+        } else {
+          // Se não houver partidas agendadas confirmadas para os próximos dias, busca último jogo
+          const lastRes = await fetch(`https://www.thesportsdb.com/api/v1/json/3/eventslast.php?id=${resolvedTeam.id}`)
+          if (lastRes.ok) {
+            const lastData = await lastRes.json()
+            const lastEvent = lastData.results?.[0] || lastData.events?.[0]
+            if (lastEvent) {
+              const h = lastEvent.strHomeTeam
+              const a = lastEvent.strAwayTeam
+              const hs = lastEvent.intHomeScore ?? 0
+              const as = lastEvent.intAwayScore ?? 0
+              const dt = formatMatchDateTime(lastEvent.dateEvent, lastEvent.strTime)
+
+              const text = `⚽ <b>${resolvedTeam.name}</b>\n\n` +
+                           `Não há partidas confirmadas para os próximos dias.\n\n` +
+                           `🏁 <b>Último Confronto Realizado:</b>\n` +
+                           `<b>${h} ${hs} x ${as} ${a}</b>\n` +
+                           `🏆 ${lastEvent.strLeague || "Brasileirão"} (${dt.formatted})`
+
+              const spokenText = `Não há partidas agendadas para os próximos dias para o ${resolvedTeam.name}. No último jogo, o placar foi ${h} ${hs} a ${as} contra o ${a}.`
+
+              return { text, spokenText }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao buscar próximo jogo:", err)
+    }
+  }
+
+  // 3. Resposta Geral / Central de Futebol
+  const text = `⚽ <b>Futebol & Brasileirão • Central de Jogos</b>\n\n` +
+               `Você pode me perguntar a qualquer momento:\n` +
+               `• <i>"Qual o próximo jogo do Flamengo?"</i>\n` +
+               `• <i>"Quanto foi o último jogo do Palmeiras?"</i>\n` +
+               `• <i>"Como tá a tabela do Brasileirão?"</i>\n` +
+               `• <i>"Quando o Corinthians joga?"</i>\n\n` +
+               `Toque em um dos botões abaixo para ver agora:`
+
+  const spokenText = "Você pode me perguntar sobre os próximos jogos de qualquer time, os últimos resultados ou a classificação do Brasileirão. Sobre qual time você deseja saber?"
+
+  const replyMarkup = {
+    inline_keyboard: [
+      [
+        { text: "🏆 Tabela do Brasileirão", callback_data: "soccer_table" }
+      ],
+      [
+        { text: "🔴 Próximo do Flamengo", callback_data: "soccer_team:flamengo" },
+        { text: "🟢 Próximo do Palmeiras", callback_data: "soccer_team:palmeiras" }
+      ],
+      [
+        { text: "⚪ Próximo do Corinthians", callback_data: "soccer_team:corinthians" },
+        { text: "⚫ Próximo do São Paulo", callback_data: "soccer_team:sao paulo" }
+      ]
+    ]
+  }
+
+  return { text, spokenText, replyMarkup }
 }
 
 // ============================================================================
@@ -762,6 +1112,10 @@ interface GroqIntentResponse {
     unit?: string
     category?: string
   }>
+  soccer?: {
+    team?: string
+    type?: "next" | "last" | "standings" | "general"
+  }
   query?: string
   location?: string
   reply_text?: string
@@ -994,6 +1348,10 @@ Você deve analisar o texto ou comando do usuário e responder EXCLUSIVAMENTE em
       "category": "Laticínios" ou "Hortifruti" ou "Mercearia" ou "Limpeza" ou "Geral"
     }
   ],
+  "soccer": {
+    "team": "nome do time de futebol se citado (ex: Flamengo, Palmeiras, Corinthians, Real Madrid)",
+    "type": "next" ou "last" ou "standings" ou "general"
+  },
   "query": "termo chave para busca ou time de futebol",
   "location": "nome da cidade para clima",
   "reply_text": "resposta amigável e concisa em português para o usuário"
@@ -1008,7 +1366,7 @@ Regras:
 6. Se pedir para adicionar produtos à lista de compras do supermercado (ex: 'adiciona 2 caixas de leite e café no mercado'), defina action="add_market_items" e preencha "market_items".
 7. Se perguntar o que tem para comprar na lista de compras (ex: 'o que tem no mercado?', 'o que falta comprar?'), defina action="get_market_items".
 8. Se perguntar do tempo ou chuva, defina action="get_weather".
-9. Se perguntar de futebol, jogos ou classificação, defina action="get_soccer".
+9. Se perguntar de futebol, jogos, placares, próximos confrontos ou tabela do Brasileirão, defina action="get_soccer" e preencha "soccer".
 10. Se pedir gráfico visual ou como estão os gastos por categoria (ex: 'me mostra um gráfico', 'gráfico de despesas'), defina action="get_chart".
 11. Se pedir para baixar ou exportar o extrato em planilha/CSV (ex: 'me envia o extrato em excel', 'quero a planilha de gastos'), defina action="export_csv".
 12. Caso seja uma conversa normal, defina action="chat_general".`
@@ -1094,6 +1452,7 @@ async function registerTelegramBotCommands(): Promise<void> {
       { command: "lembretes", description: "⏰ Ver tarefas e avisos pendentes" },
       { command: "desejos", description: "🎁 Ver lista de desejos e metas" },
       { command: "tempo", description: "🌤️ Previsão do tempo e clima" },
+      { command: "futebol", description: "⚽ Próximos jogos, tabela e placares" },
       { command: "ajuda", description: "❓ Guia de comandos e como usar" }
     ]
   })
@@ -1364,6 +1723,36 @@ Deno.serve(async (req: Request) => {
       await answerCallbackQuery(cq.id, "Extrato descartado.")
       if (chatId && messageId) {
         await editTelegramMessage(chatId, messageId, "🗑️ <i>Importação de extrato bancário descartada. Nenhum lançamento foi registrado.</i>")
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    // Callbacks Interativos de Futebol
+    if (data === "soccer_table") {
+      await answerCallbackQuery(cq.id, "Carregando tabela...")
+      const soccer = await fetchSoccerInfo({ type: "standings" })
+      if (chatId && messageId) {
+        await editTelegramMessage(chatId, messageId, soccer.text, soccer.replyMarkup)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    if (data.startsWith("soccer_team:")) {
+      const teamKey = data.replace("soccer_team:", "")
+      await answerCallbackQuery(cq.id, `Buscando próximo jogo...`)
+      const soccer = await fetchSoccerInfo({ team: teamKey, type: "next" })
+      if (chatId && messageId) {
+        await editTelegramMessage(chatId, messageId, soccer.text, soccer.replyMarkup)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    if (data.startsWith("soccer_last:")) {
+      const teamId = data.replace("soccer_last:", "")
+      await answerCallbackQuery(cq.id, `Buscando último resultado...`)
+      const soccer = await fetchSoccerInfo({ type: "last" }, teamId)
+      if (chatId && messageId) {
+        await editTelegramMessage(chatId, messageId, soccer.text, soccer.replyMarkup)
       }
       return new Response("OK", { status: 200 })
     }
@@ -1749,6 +2138,12 @@ Deno.serve(async (req: Request) => {
     if (cmd === "/tempo") {
       const forecast = await fetchWeatherForecast("São Paulo")
       await sendTelegramMessage(chatId, forecast)
+      return new Response("OK", { status: 200 })
+    }
+
+    if (cmd === "/futebol" || cmd === "/jogos") {
+      const soccer = await fetchSoccerInfo({ type: "general" })
+      await sendTelegramMessage(chatId, soccer.text, soccer.replyMarkup)
       return new Response("OK", { status: 200 })
     }
 
@@ -2157,10 +2552,10 @@ Deno.serve(async (req: Request) => {
 
     // Ação: Futebol
     if (aiResult.action === "get_soccer") {
-      const soccer = await fetchSoccerInfo(aiResult.query || "")
-      await sendTelegramMessage(chatId, `${transcriptionNote}${soccer}`)
+      const soccer = await fetchSoccerInfo(aiResult.soccer, aiResult.query || promptText)
+      await sendTelegramMessage(chatId, `${transcriptionNote}${soccer.text}`, soccer.replyMarkup)
       if (message.voice) {
-        await maybeSendVoiceReply(chatId, soccer, true)
+        await maybeSendVoiceReply(chatId, soccer.spokenText, true)
       }
       return new Response("OK", { status: 200 })
     }
