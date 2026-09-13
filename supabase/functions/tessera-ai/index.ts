@@ -32,6 +32,7 @@ interface RequestPayload {
   systemInstruction?: string
   messages?: ChatMessage[]
   context?: SummaryContext
+  provider?: "groq" | "gemini" | "auto"
 }
 
 interface GeminiPart {
@@ -134,6 +135,57 @@ async function callGemini(
   return candidate.trim()
 }
 
+async function callGroq(
+  apiKey: string,
+  messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
+  modelName = "openai/gpt-oss-120b"
+): Promise<string> {
+  let response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: modelName,
+      messages,
+      temperature: 0.7,
+      max_completion_tokens: 1024,
+    }),
+  })
+
+  // Se o modelo 120b retornar 404, fallback automático para 20b
+  if (!response.ok && response.status === 404) {
+    console.log(`Modelo ${modelName} indisponível, tentando fallback para openai/gpt-oss-20b...`)
+    response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-oss-20b",
+        messages,
+        temperature: 0.7,
+        max_completion_tokens: 1024,
+      }),
+    })
+  }
+
+  if (!response.ok) {
+    const errText = await response.text()
+    throw new Error(`Erro Groq HTTP ${response.status}: ${errText}`)
+  }
+
+  const json = await response.json()
+  const candidate = json.choices?.[0]?.message?.content
+  if (!candidate) {
+    throw new Error("Groq não retornou texto de resposta válido.")
+  }
+
+  return candidate.trim()
+}
+
 function buildSummaryPrompt(ctx: SummaryContext): string {
   const user = ctx.userName || "Usuário"
   const details: string[] = []
@@ -183,10 +235,12 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    const apiKey = Deno.env.get("GEMINI_API_KEY")
-    if (!apiKey) {
+    const groqApiKey = Deno.env.get("GROQ_API_KEY")
+    const geminiApiKey = Deno.env.get("GEMINI_API_KEY")
+
+    if (!groqApiKey && !geminiApiKey) {
       return new Response(
-        JSON.stringify({ success: false, error: "GEMINI_API_KEY não configurada nas variáveis de ambiente do Supabase." }),
+        JSON.stringify({ success: false, error: "Nenhuma chave de IA (GROQ_API_KEY ou GEMINI_API_KEY) configurada no Supabase." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       )
     }
@@ -204,16 +258,36 @@ Deno.serve(async (req: Request) => {
     const mode = payload.mode || (payload.messages ? "chat" : "summary")
 
     if (mode === "models") {
-      const listResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`)
-      const listJson = await listResp.json()
+      const modelsList: any[] = []
+      if (groqApiKey) {
+        modelsList.push(
+          { name: "openai/gpt-oss-120b", provider: "groq", description: "Ultrarrápido (~100ms), 120B parâmetros" },
+          { name: "openai/gpt-oss-20b", provider: "groq", description: "Rápido e leve" }
+        )
+      }
+      if (geminiApiKey) {
+        try {
+          const listResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${geminiApiKey}`)
+          const listJson = await listResp.json()
+          return new Response(
+            JSON.stringify({ success: true, models: modelsList, gemini: listJson }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          )
+        } catch {
+          // segue retornando apenas groq
+        }
+      }
       return new Response(
-        JSON.stringify({ success: listResp.ok, data: listJson }),
-        { status: listResp.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: true, models: modelsList }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       )
     }
 
     let contents: GeminiContent[] = []
     const systemInstruction = payload.systemInstruction || TESSERA_SYSTEM_INSTRUCTION
+    const groqMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+      { role: "system", content: systemInstruction }
+    ]
 
     if (mode === "summary") {
       const summaryPrompt = payload.context
@@ -226,6 +300,7 @@ Deno.serve(async (req: Request) => {
           parts: [{ text: summaryPrompt }]
         }
       ]
+      groqMessages.push({ role: "user", content: summaryPrompt })
     } else {
       // Modo Chat
       if (payload.messages && payload.messages.length > 0) {
@@ -233,6 +308,12 @@ Deno.serve(async (req: Request) => {
           role: m.role === "assistant" || m.role === "model" ? "model" : "user",
           parts: [{ text: m.content }]
         }))
+        for (const m of payload.messages) {
+          groqMessages.push({
+            role: m.role === "assistant" || m.role === "model" ? "assistant" : "user",
+            content: m.content
+          })
+        }
       } else if (payload.prompt) {
         contents = [
           {
@@ -240,6 +321,7 @@ Deno.serve(async (req: Request) => {
             parts: [{ text: payload.prompt }]
           }
         ]
+        groqMessages.push({ role: "user", content: payload.prompt })
       } else {
         return new Response(
           JSON.stringify({ success: false, error: "No modo chat, envie 'messages' ou 'prompt'." }),
@@ -248,12 +330,47 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    const aiText = await callGemini(apiKey, contents, systemInstruction)
+    // Seleção de Provedor de IA com Fallback Automático e Resiliente
+    const preferredProvider = payload.provider || (groqApiKey ? "groq" : "gemini")
+    let aiText = ""
+    let usedProvider = preferredProvider
+
+    if (preferredProvider === "groq" && groqApiKey) {
+      try {
+        aiText = await callGroq(groqApiKey, groqMessages)
+        usedProvider = "groq"
+      } catch (groqErr) {
+        console.warn("Falha no provedor Groq, ativando fallback para Gemini:", groqErr)
+        if (geminiApiKey) {
+          aiText = await callGemini(geminiApiKey, contents, systemInstruction)
+          usedProvider = "gemini"
+        } else {
+          throw groqErr
+        }
+      }
+    } else if (geminiApiKey) {
+      try {
+        aiText = await callGemini(geminiApiKey, contents, systemInstruction)
+        usedProvider = "gemini"
+      } catch (geminiErr) {
+        console.warn("Falha no provedor Gemini, ativando fallback para Groq:", geminiErr)
+        if (groqApiKey) {
+          aiText = await callGroq(groqApiKey, groqMessages)
+          usedProvider = "groq"
+        } else {
+          throw geminiErr
+        }
+      }
+    } else if (groqApiKey) {
+      aiText = await callGroq(groqApiKey, groqMessages)
+      usedProvider = "groq"
+    }
 
     return new Response(
       JSON.stringify({
         success: true,
         mode,
+        provider: usedProvider,
         text: aiText
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

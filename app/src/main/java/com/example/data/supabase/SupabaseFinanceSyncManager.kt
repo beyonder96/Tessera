@@ -304,10 +304,12 @@ class SupabaseFinanceSyncManager(
             val sugCat = sugObj.optString("category", "Geral")
             val accountOrCard = if (sugObj.has("account_or_card_name") && !sugObj.isNull("account_or_card_name")) sugObj.optString("account_or_card_name") else ""
             val dueDateLong = sugObj.optLong("due_date", 0L).let { if (it > 0L) it else System.currentTimeMillis() }
+            val origin = sugObj.optString("origin", "").trim()
+            val originLabel = if (origin.equals("Telegram", ignoreCase = true)) "Via Telegram" else "Via Web"
 
             val newTx = Transaction(
                 title = sugTitle,
-                subtitle = "Via Web • $sugCat",
+                subtitle = "$originLabel • $sugCat",
                 value = sugAmount,
                 isIncome = isInc,
                 timestamp = dueDateLong,

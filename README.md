@@ -4,6 +4,19 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.64
+
+- **Integração Total com Telegram Bot & Assistente Multimodal:**
+  - **Identificação de Transações no Extrato:** Despesas e receitas lançadas via bot recebem o identificador nativo `"Via Telegram • {Categoria}"` no extrato financeiro do app.
+  - **Leitor Inteligente de Extratos Bancários em PDF (Itaú, Nubank e outros):** Suporte a conciliação bancária de arquivos PDF com visão computacional multimodal do Gemini, identificando tabelas complexas, débitos, créditos e importando lotes inteiros de transações com um único toque.
+  - **Respostas por Voz Ultra-Natural (Microsoft Edge Neural):** O assistente no Telegram agora responde mensagens de áudio com fala humana expressiva e fluida em português do Brasil (`pt-BR-FranciscaNeural`), eliminando sintetizadores robóticos.
+  - **Gráficos Visuais de Gastos no Telegram (`/grafico`):** Geração dinâmica de gráficos em donut com as maiores categorias de despesa do mês.
+  - **Exportação de Extrato em Planilha (`/extrato`):** Exportação direta de arquivo CSV formatado para Excel e Google Planilhas.
+  - **Sincronização em Tempo Real de Compras (`/mercado`):** Adição de itens na lista de compras por áudio e texto diretamente no banco `shared_market_lists`.
+  - **Push Proativo Matinal e Noturno:** Resumos automáticos às 08:00 (clima, saldo livre e tarefas) e às 21:00 (despesas do dia e compras) via `pg_cron`.
+- **Inteligência Central com Groq e Fallback Resiliente:**
+  - O chat interno do Tessera (`tessera-ai`) e o Telegram operam com inferência ultrarrápida do **Groq (`openai/gpt-oss-120b`)** (~100ms) com redundância automática para o **Gemini**.
+
 ## 🚀 Novidades da Versão 2.0.63
 
 - **Widget de Futebol: Tipografia e Abas Aperfeiçoadas:**
@@ -344,8 +357,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.63.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.63.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.64.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.64.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.
