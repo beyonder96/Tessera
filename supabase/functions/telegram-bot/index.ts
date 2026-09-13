@@ -205,31 +205,6 @@ async function maybeSendVoiceReply(chatId: number | string, text: string, should
   }
 }
 
-async function registerTelegramBotCommands(): Promise<void> {
-  if (!TELEGRAM_BOT_TOKEN) return
-  try {
-    const commands = [
-      { command: "app", description: "📱 Abrir central do Tessera em Mini App" },
-      { command: "saldo", description: "💰 Ver saldo livre, cartões e limites" },
-      { command: "tabela", description: "🏆 Tabela oficial do Brasileirão Série A" },
-      { command: "futebol", description: "⚽ Próximos jogos e últimos resultados" },
-      { command: "grafico", description: "📊 Gráfico visual de gastos por categoria" },
-      { command: "extrato", description: "📄 Baixar extrato do mês em CSV" },
-      { command: "mercado", description: "🛒 Ver lista de compras pendente" },
-      { command: "lembretes", description: "⏰ Ver tarefas e avisos pendentes" },
-      { command: "desejos", description: "🎁 Metas e lista de desejos" },
-      { command: "tempo", description: "🌤️ Previsão do tempo e chuva" },
-      { command: "ajuda", description: "❓ Guia de comandos e como usar" }
-    ]
-    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setMyCommands`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ commands })
-    })
-  } catch (err) {
-    console.error("Erro ao registrar comandos do bot:", err)
-  }
-}
 
 async function downloadTelegramFile(fileId: string): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {
   try {
@@ -1775,13 +1750,14 @@ async function registerTelegramBotCommands(): Promise<void> {
     commands: [
       { command: "app", description: "📱 Abrir Tessera Mini App" },
       { command: "saldo", description: "💰 Ver saldo livre, contas e limites" },
+      { command: "tabela", description: "🏆 Tabela oficial do Brasileirão Série A" },
+      { command: "futebol", description: "⚽ Próximos jogos, tabela e placares" },
       { command: "grafico", description: "📊 Gráfico visual de gastos por categoria" },
       { command: "extrato", description: "📄 Baixar planilha CSV do extrato do mês" },
       { command: "mercado", description: "🛒 Ver lista de compras do supermercado" },
       { command: "lembretes", description: "⏰ Ver tarefas e avisos pendentes" },
       { command: "desejos", description: "🎁 Ver lista de desejos e metas" },
       { command: "tempo", description: "🌤️ Previsão do tempo e clima" },
-      { command: "futebol", description: "⚽ Próximos jogos, tabela e placares" },
       { command: "ajuda", description: "❓ Guia de comandos e como usar" }
     ]
   })
