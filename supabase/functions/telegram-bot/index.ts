@@ -856,7 +856,7 @@ async function fetchSoccerInfo(
   soccer?: { team?: string; type?: "next" | "last" | "standings" | "general" },
   rawQuery = ""
 ): Promise<{ text: string; spokenText: string; replyMarkup?: any }> {
-  const queryLower = (soccer?.team || rawQuery || "").toLowerCase()
+  const queryLower = `${soccer?.team || ""} ${rawQuery || ""}`.toLowerCase()
 
   // 1. Consulta de Tabela / Classificação
   const isStandingsQuery = soccer?.type === "standings" ||
@@ -936,9 +936,11 @@ async function fetchSoccerInfo(
     const isLastQuery = soccer?.type === "last" ||
       queryLower.includes("ultimo") ||
       queryLower.includes("último") ||
+      queryLower.includes("anterior") ||
       queryLower.includes("resultado") ||
       queryLower.includes("placar") ||
       queryLower.includes("quanto foi") ||
+      queryLower.includes("quanto terminou") ||
       queryLower.includes("ganhou") ||
       queryLower.includes("perdeu")
 
@@ -2552,7 +2554,8 @@ Deno.serve(async (req: Request) => {
 
     // Ação: Futebol
     if (aiResult.action === "get_soccer") {
-      const soccer = await fetchSoccerInfo(aiResult.soccer, aiResult.query || promptText)
+      const queryStr = aiResult.query || textInput || aiResult.transcription || ""
+      const soccer = await fetchSoccerInfo(aiResult.soccer, queryStr)
       await sendTelegramMessage(chatId, `${transcriptionNote}${soccer.text}`, soccer.replyMarkup)
       if (message.voice) {
         await maybeSendVoiceReply(chatId, soccer.spokenText, true)
