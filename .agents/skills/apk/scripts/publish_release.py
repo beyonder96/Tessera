@@ -12,6 +12,15 @@ def get_github_token():
     if token:
         return token
 
+    # 2. Try GitHub CLI (gh auth token)
+    try:
+        import subprocess
+        res = subprocess.run(['gh', 'auth', 'token'], capture_output=True, text=True)
+        if res.returncode == 0 and res.stdout.strip():
+            return res.stdout.strip()
+    except Exception:
+        pass
+
     # 2. Try ~/.git-credentials
     cred_path = os.path.expanduser('~/.git-credentials')
     if os.path.exists(cred_path):
