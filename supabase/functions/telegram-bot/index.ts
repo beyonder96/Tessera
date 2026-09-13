@@ -49,13 +49,32 @@ async function sendTelegramMessage(
   text: string,
   replyMarkup?: Record<string, unknown>
 ): Promise<any> {
-  return await tgCall("sendMessage", {
-    chat_id: chatId,
-    text,
-    parse_mode: "HTML",
-    disable_web_page_preview: true,
-    ...(replyMarkup ? { reply_markup: replyMarkup } : {})
-  })
+  if (!text) return
+  try {
+    const res = await tgCall("sendMessage", {
+      chat_id: chatId,
+      text: text.slice(0, 4000),
+      parse_mode: "HTML",
+      disable_web_page_preview: true,
+      ...(replyMarkup ? { reply_markup: replyMarkup } : {})
+    })
+    if (res && res.ok === false && (res.description?.includes("can't parse entities") || res.description?.includes("entity"))) {
+      return await tgCall("sendMessage", {
+        chat_id: chatId,
+        text: text.replace(/<[^>]*>/g, "").slice(0, 4000),
+        disable_web_page_preview: true,
+        ...(replyMarkup ? { reply_markup: replyMarkup } : {})
+      })
+    }
+    return res
+  } catch (_err) {
+    return await tgCall("sendMessage", {
+      chat_id: chatId,
+      text: text.replace(/<[^>]*>/g, "").slice(0, 4000),
+      disable_web_page_preview: true,
+      ...(replyMarkup ? { reply_markup: replyMarkup } : {})
+    })
+  }
 }
 
 async function editTelegramMessage(
@@ -151,11 +170,20 @@ async function generateSpeechAudio(text: string, voice = "pt-BR-FranciscaNeural"
   try {
     const { EdgeTTS } = await import("npm:@andresaya/edge-tts")
     const tts = new EdgeTTS()
-    const cleanText = text
+    let cleanText = text
       .replace(/<[^>]*>/g, "")
       .replace(/•/g, "")
+      .replace(/[*_~`]/g, "")
       .replace(/\n+/g, " ")
-      .slice(0, 350)
+      .trim()
+
+    // Se o texto for longo, trunca respeitando o ponto final da última frase completa
+    if (cleanText.length > 500) {
+      const sub = cleanText.slice(0, 500)
+      const lastPeriod = Math.max(sub.lastIndexOf("."), sub.lastIndexOf("!"), sub.lastIndexOf("?"))
+      cleanText = lastPeriod > 200 ? sub.slice(0, lastPeriod + 1) : sub
+    }
+
     await tts.synthesize(cleanText, voice)
     const buf = tts.toBuffer()
     return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
@@ -1613,8 +1641,9 @@ async function processWithGroq(
     promptText = audioTranscription
   }
 
-  const systemPrompt = `Você é o assistente financeiro e hub inteligente do ecossistema Tessera para o usuário ${contextInfo.userFirstName}.
+  const systemPrompt = `Você é o assistente pessoal, conselheiro e hub inteligente de IA do ecossistema Tessera para o usuário ${contextInfo.userFirstName}.
 Data de hoje: ${contextInfo.todayDate}.
+Você possui vasto conhecimento enciclopédico e analítico sobre história, teologia, filosofia, ciências, literatura, tecnologia, finanças pessoais e cultura geral.
 
 Você deve analisar o texto ou comando do usuário e responder EXCLUSIVAMENTE em formato JSON (json_object) estruturado com o seguinte schema:
 
@@ -1654,7 +1683,7 @@ Você deve analisar o texto ou comando do usuário e responder EXCLUSIVAMENTE em
   },
   "query": "termo chave para busca ou time de futebol",
   "location": "nome da cidade para clima",
-  "reply_text": "resposta amigável e concisa em português para o usuário"
+  "reply_text": "resposta completa, inteligente, precisa e bem fundamentada em português para o usuário"
 }
 
 Regras:
@@ -1669,7 +1698,7 @@ Regras:
 9. Se perguntar de futebol, jogos, placares, próximos confrontos ou tabela do Brasileirão, defina action="get_soccer" e preencha "soccer".
 10. Se pedir gráfico visual ou como estão os gastos por categoria (ex: 'me mostra um gráfico', 'gráfico de despesas'), defina action="get_chart".
 11. Se pedir para baixar ou exportar o extrato em planilha/CSV (ex: 'me envia o extrato em excel', 'quero a planilha de gastos'), defina action="export_csv".
-12. Caso seja uma conversa normal, defina action="chat_general".`
+12. Caso seja uma pergunta sobre história, teologia, filosofia, ciências, tecnologia, literatura, conselhos ou conversa geral, defina action="chat_general" e elabore uma resposta rica, didática, completa e bem formulada no campo "reply_text".`
 
   let response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
