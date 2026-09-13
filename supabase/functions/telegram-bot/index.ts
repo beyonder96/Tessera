@@ -748,15 +748,28 @@ async function fetchWeatherForecast(cityQuery = "São Paulo"): Promise<string> {
 
 const KNOWN_BRAZILIAN_TEAMS: Record<string, { id: string; name: string }> = {
   "flamengo": { id: "134287", name: "Flamengo" },
+  "fla": { id: "134287", name: "Flamengo" },
+  "mengo": { id: "134287", name: "Flamengo" },
+  "mengao": { id: "134287", name: "Flamengo" },
+  "mengão": { id: "134287", name: "Flamengo" },
+  "rubro-negro": { id: "134287", name: "Flamengo" },
+  "rubro negro": { id: "134287", name: "Flamengo" },
   "palmeiras": { id: "134465", name: "Palmeiras" },
+  "verdao": { id: "134465", name: "Palmeiras" },
+  "verdão": { id: "134465", name: "Palmeiras" },
   "corinthians": { id: "134284", name: "Corinthians" },
   "timao": { id: "134284", name: "Corinthians" },
   "timão": { id: "134284", name: "Corinthians" },
+  "coringao": { id: "134284", name: "Corinthians" },
+  "coringão": { id: "134284", name: "Corinthians" },
   "sao paulo": { id: "134291", name: "São Paulo" },
   "são paulo": { id: "134291", name: "São Paulo" },
   "spfc": { id: "134291", name: "São Paulo" },
+  "tricolor": { id: "134291", name: "São Paulo" },
   "vasco": { id: "134282", name: "Vasco da Gama" },
   "vasco da gama": { id: "134282", name: "Vasco da Gama" },
+  "vascao": { id: "134282", name: "Vasco da Gama" },
+  "vascão": { id: "134282", name: "Vasco da Gama" },
   "botafogo": { id: "134285", name: "Botafogo" },
   "fogao": { id: "134285", name: "Botafogo" },
   "fogão": { id: "134285", name: "Botafogo" },
@@ -770,6 +783,7 @@ const KNOWN_BRAZILIAN_TEAMS: Record<string, { id: string; name: string }> = {
   "atletico-mg": { id: "134299", name: "Atlético Mineiro" },
   "galo": { id: "134299", name: "Atlético Mineiro" },
   "cruzeiro": { id: "134294", name: "Cruzeiro" },
+  "raposa": { id: "134294", name: "Cruzeiro" },
   "santos": { id: "134286", name: "Santos" },
   "peixe": { id: "134286", name: "Santos" },
   "bahia": { id: "134293", name: "Bahia" },
@@ -796,6 +810,22 @@ const KNOWN_BRAZILIAN_TEAMS: Record<string, { id: string; name: string }> = {
   "ceará": { id: "134705", name: "Ceará" },
   "coritiba": { id: "134704", name: "Coritiba" },
   "coxa": { id: "134704", name: "Coritiba" },
+  "del valle": { id: "135687", name: "Independiente del Valle" },
+  "independiente del valle": { id: "135687", name: "Independiente del Valle" },
+  "boca": { id: "134266", name: "Boca Juniors" },
+  "boca juniors": { id: "134266", name: "Boca Juniors" },
+  "river": { id: "134267", name: "River Plate" },
+  "river plate": { id: "134267", name: "River Plate" },
+  "racing": { id: "134269", name: "Racing Club" },
+  "penarol": { id: "135114", name: "Peñarol" },
+  "peñarol": { id: "135114", name: "Peñarol" },
+  "nacional": { id: "135115", name: "Nacional" },
+  "olimpia": { id: "135649", name: "Olimpia" },
+  "cerro porteno": { id: "135650", name: "Cerro Porteño" },
+  "cerro porteño": { id: "135650", name: "Cerro Porteño" },
+  "ldu": { id: "135688", name: "LDU" },
+  "colo-colo": { id: "135249", name: "Colo-Colo" },
+  "colo colo": { id: "135249", name: "Colo-Colo" },
   "real madrid": { id: "133738", name: "Real Madrid" },
   "barcelona": { id: "133739", name: "Barcelona" },
   "manchester city": { id: "133613", name: "Manchester City" },
@@ -881,12 +911,26 @@ function formatMatchDateTime(dateStr?: string, timeStr?: string): { formatted: s
   }
 }
 
-function formatGEDateTime(isoStr?: string): { formatted: string; spoken: string } {
-  if (!isoStr) return { formatted: "Data a definir", spoken: "em data a definir" }
+function formatGEDateTime(dateOrIsoStr?: string, timeStr?: string): { formatted: string; spoken: string } {
+  if (!dateOrIsoStr) return { formatted: "Data a definir", spoken: "em data a definir" }
   try {
-    const [dPart, tPart] = isoStr.split("T")
-    const [year, month, day] = dPart.split("-")
-    const time = tPart ? tPart.slice(0, 5) : ""
+    let year = "", month = "", day = "", time = timeStr ? timeStr.slice(0, 5) : ""
+    if (dateOrIsoStr.includes("T")) {
+      const [dPart, tPart] = dateOrIsoStr.split("T")
+      const parts = dPart.split("-")
+      year = parts[0]
+      month = parts[1]
+      day = parts[2]
+      if (!time && tPart) time = tPart.slice(0, 5)
+    } else if (dateOrIsoStr.includes("-")) {
+      const parts = dateOrIsoStr.split("-")
+      year = parts[0]
+      month = parts[1]
+      day = parts[2]
+    } else {
+      return { formatted: dateOrIsoStr, spoken: `em ${dateOrIsoStr}` }
+    }
+
     const dayMonth = `${day}/${month}`
     const formattedTime = time ? ` às ${time}` : ""
 
@@ -909,71 +953,118 @@ function formatGEDateTime(isoStr?: string): { formatted: string; spoken: string 
 
     return { formatted: relative, spoken }
   } catch (_e) {
-    return { formatted: isoStr, spoken: `em ${isoStr}` }
+    return { formatted: dateOrIsoStr, spoken: `em ${dateOrIsoStr}` }
+  }
+}
+
+function getMatchTimestamp(m: any): number {
+  if (!m.data_realizacao) return 0
+  const dStr = m.data_realizacao.includes("T") ? m.data_realizacao.split("T")[0] : m.data_realizacao
+  const tStr = m.hora_realizacao || (m.data_realizacao.includes("T") ? m.data_realizacao.split("T")[1].slice(0, 5) : "00:00")
+  return new Date(`${dStr}T${tStr}:00`).getTime() || 0
+}
+
+async function fetchGEMultiCompetitionData(): Promise<{ table: any[]; matches: any[]; edition: string } | null> {
+  const urls = [
+    { url: "https://ge.globo.com/futebol/brasileirao-serie-a/", defaultLeague: "Brasileirão Série A", isSerieA: true },
+    { url: "https://ge.globo.com/futebol/libertadores/", defaultLeague: "Copa Libertadores", isSerieA: false },
+    { url: "https://ge.globo.com/futebol/copa-do-brasil/", defaultLeague: "Copa do Brasil", isSerieA: false }
+  ]
+
+  let table: any[] = []
+  let edition = "Brasileirão Série A"
+  const allMatches: any[] = []
+
+  try {
+    const results = await Promise.allSettled(urls.map(async (u) => {
+      const res = await fetch(u.url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+        }
+      })
+      if (!res.ok) return { config: u, html: null }
+      const html = await res.text()
+      return { config: u, html }
+    }))
+
+    for (const r of results) {
+      if (r.status !== "fulfilled" || !r.value.html) continue
+      const { config, html } = r.value
+
+      const classMarker = "const classificacao = "
+      const classIdx = html.indexOf(classMarker)
+      if (classIdx !== -1) {
+        const jsonStart = classIdx + classMarker.length
+        let openBraces = 0, jsonEnd = -1
+        for (let i = jsonStart; i < html.length; i++) {
+          if (html[i] === "{") openBraces++
+          else if (html[i] === "}") {
+            openBraces--
+            if (openBraces === 0) { jsonEnd = i + 1; break; }
+          }
+        }
+        if (jsonEnd !== -1) {
+          try {
+            const classObj = JSON.parse(html.substring(jsonStart, jsonEnd))
+            if (config.isSerieA) {
+              table = classObj.classificacao || []
+              if (classObj.edicao?.nome) edition = classObj.edicao.nome
+            }
+            const leagueName = classObj.edicao?.nome || config.defaultLeague
+            if (classObj.secao && Array.isArray(classObj.secao)) {
+              classObj.secao.forEach((s: any) => {
+                (s.chave || []).forEach((ch: any) => {
+                  (ch.jogos || []).forEach((j: any) => {
+                    allMatches.push({
+                      ...j,
+                      torneio: leagueName,
+                      faseNome: ch.nome || classObj.fase?.nome || "Mata-mata"
+                    })
+                  })
+                })
+              })
+            }
+          } catch (_e) {}
+        }
+      }
+
+      const matchMarker = "const listaJogos = "
+      const matchIdx = html.indexOf(matchMarker)
+      if (matchIdx !== -1) {
+        const jsonStart = matchIdx + matchMarker.length
+        let openBrackets = 0, jsonEnd = -1
+        for (let i = jsonStart; i < html.length; i++) {
+          if (html[i] === "[" || html[i] === "{") openBrackets++
+          else if (html[i] === "]" || html[i] === "}") {
+            openBrackets--
+            if (openBrackets === 0) { jsonEnd = i + 1; break; }
+          }
+        }
+        if (jsonEnd !== -1) {
+          try {
+            const games = JSON.parse(html.substring(jsonStart, jsonEnd))
+            games.forEach((g: any) => {
+              allMatches.push({
+                ...g,
+                torneio: config.defaultLeague,
+                faseNome: "Rodada Atual"
+              })
+            })
+          } catch (_e) {}
+        }
+      }
+    }
+
+    return { table, matches: allMatches, edition }
+  } catch (err) {
+    console.error("Erro ao buscar dados multi-competições do GE:", err)
+    return null
   }
 }
 
 async function fetchGEBrasileiraoData(): Promise<{ table: any[]; matches: any[]; edition: string } | null> {
-  try {
-    const res = await fetch("https://ge.globo.com/futebol/brasileirao-serie-a/", {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
-      }
-    })
-    if (!res.ok) return null
-    const html = await res.text()
-
-    let table: any[] = []
-    let edition = "Brasileirão Série A"
-    const classMarker = "const classificacao = "
-    const classIdx = html.indexOf(classMarker)
-    if (classIdx !== -1) {
-      const jsonStart = classIdx + classMarker.length
-      let openBraces = 0, jsonEnd = -1
-      for (let i = jsonStart; i < html.length; i++) {
-        if (html[i] === "{") openBraces++
-        else if (html[i] === "}") {
-          openBraces--
-          if (openBraces === 0) {
-            jsonEnd = i + 1
-            break
-          }
-        }
-      }
-      if (jsonEnd !== -1) {
-        const classObj = JSON.parse(html.substring(jsonStart, jsonEnd))
-        table = classObj.classificacao || []
-        if (classObj.edicao?.nome) edition = classObj.edicao.nome
-      }
-    }
-
-    let matches: any[] = []
-    const matchMarker = "const listaJogos = "
-    const matchIdx = html.indexOf(matchMarker)
-    if (matchIdx !== -1) {
-      const jsonStart = matchIdx + matchMarker.length
-      let openBrackets = 0, jsonEnd = -1
-      for (let i = jsonStart; i < html.length; i++) {
-        if (html[i] === "[" || html[i] === "{") openBrackets++
-        else if (html[i] === "]" || html[i] === "}") {
-          openBrackets--
-          if (openBrackets === 0) {
-            jsonEnd = i + 1
-            break
-          }
-        }
-      }
-      if (jsonEnd !== -1) {
-        matches = JSON.parse(html.substring(jsonStart, jsonEnd))
-      }
-    }
-
-    return { table, matches, edition }
-  } catch (err) {
-    console.error("Erro ao buscar dados do GE:", err)
-    return null
-  }
+  return fetchGEMultiCompetitionData()
 }
 
 function formatTableMonospace(table: any[], edition: string, highlightTeamName = ""): { text: string; spokenText: string } {
@@ -1150,33 +1241,43 @@ async function fetchSoccerInfo(
       queryLower.includes("ganhou") ||
       queryLower.includes("perdeu")
 
-    // Busca dados em tempo real da rodada atual do GloboEsporte
-    let geMatch: any = null
+    // Busca dados em tempo real multi-competições do GloboEsporte (Brasileirão, Libertadores, Copa do Brasil)
+    let geMatches: any[] = []
     try {
-      const geData = await fetchGEBrasileiraoData()
+      const geData = await fetchGEMultiCompetitionData()
       if (geData?.matches) {
-        const cleanName = resolvedTeam.name.toLowerCase()
-        geMatch = geData.matches.find((m: any) => {
-          const mand = (m.equipes?.mandante?.nome_popular || "").toLowerCase()
-          const visi = (m.equipes?.visitante?.nome_popular || "").toLowerCase()
-          return mand.includes(cleanName) || cleanName.includes(mand) || visi.includes(cleanName) || cleanName.includes(visi)
-        })
+        geMatches = geData.matches
       }
     } catch (_err) {
       // Ignora erro e usa TheSportsDB
     }
 
+    const cleanName = resolvedTeam.name.toLowerCase()
+    const teamMatches = geMatches.filter((m: any) => {
+      const mand = (m.equipes?.mandante?.nome_popular || m.equipes?.mandante?.sigla || m.equipes?.mandante?.nome || "").toLowerCase()
+      const visi = (m.equipes?.visitante?.nome_popular || m.equipes?.visitante?.sigla || m.equipes?.visitante?.nome || "").toLowerCase()
+      return mand.includes(cleanName) || cleanName.includes(mand) || visi.includes(cleanName) || cleanName.includes(visi)
+    })
+
+    const liveMatch = teamMatches.find((m: any) => m.jogo_ja_comecou && m.transmissao?.broadcast?.id === "AO_VIVO")
+    const completedMatches = teamMatches.filter((m: any) => m.jogo_ja_comecou && (m.transmissao?.broadcast?.id === "ENCERRADA" || (m.placar_oficial_mandante !== null && m.placar_oficial_visitante !== null)))
+    completedMatches.sort((a, b) => getMatchTimestamp(b) - getMatchTimestamp(a))
+    const upcomingMatches = teamMatches.filter((m: any) => !m.jogo_ja_comecou)
+    upcomingMatches.sort((a, b) => getMatchTimestamp(a) - getMatchTimestamp(b))
+
     // A: Partida AO VIVO agora no GE
-    if (geMatch && geMatch.jogo_ja_comecou && geMatch.transmissao?.broadcast?.id === "AO_VIVO") {
-      const h = geMatch.equipes.mandante.nome_popular
-      const a = geMatch.equipes.visitante.nome_popular
-      const hs = geMatch.placar_oficial_mandante ?? 0
-      const as = geMatch.placar_oficial_visitante ?? 0
-      const venue = geMatch.sede?.nome_popular ? `🏟️ ${geMatch.sede.nome_popular}\n` : ""
+    if (liveMatch) {
+      const h = liveMatch.equipes.mandante.nome_popular || liveMatch.equipes.mandante.nome
+      const a = liveMatch.equipes.visitante.nome_popular || liveMatch.equipes.visitante.nome
+      const hs = liveMatch.placar_oficial_mandante ?? 0
+      const as = liveMatch.placar_oficial_visitante ?? 0
+      const venue = liveMatch.sede?.nome_popular ? `🏟️ ${liveMatch.sede.nome_popular}\n` : ""
+      const fase = liveMatch.faseNome ? ` • ${liveMatch.faseNome}` : ""
+      const torneio = liveMatch.torneio || "Futebol"
 
       const text = `⚽ <b>Partida em Andamento • ${resolvedTeam.name}</b>\n\n` +
                    `🔴 <b>AO VIVO: ${h} ${hs} x ${as} ${a}</b>\n` +
-                   `🏆 <b>Brasileirão Série A • Rodada Atual</b>\n` +
+                   `🏆 <b>${torneio}</b>${fase}\n` +
                    venue +
                    `\n⚡ <i>Acompanhe estatísticas e lances minuto a minuto no app Tessera!</i>`
 
@@ -1195,23 +1296,39 @@ async function fetchSoccerInfo(
 
     // B: Consulta de Último Jogo / Resultado Concluído
     if (isLastQuery) {
-      // Se na rodada atual do GE o jogo já encerrou, é o resultado mais recente
-      if (geMatch && geMatch.jogo_ja_comecou && (geMatch.transmissao?.broadcast?.id === "ENCERRADA" || (geMatch.placar_oficial_mandante !== null && geMatch.placar_oficial_visitante !== null))) {
-        const h = geMatch.equipes.mandante.nome_popular
-        const a = geMatch.equipes.visitante.nome_popular
-        const hs = geMatch.placar_oficial_mandante ?? 0
-        const as = geMatch.placar_oficial_visitante ?? 0
-        const dt = formatGEDateTime(geMatch.data_realizacao)
-        const venue = geMatch.sede?.nome_popular ? `🏟️ ${geMatch.sede.nome_popular}\n` : ""
+      if (completedMatches.length > 0) {
+        const lastMatch = completedMatches[0]
+        const h = lastMatch.equipes.mandante.nome_popular || lastMatch.equipes.mandante.nome
+        const a = lastMatch.equipes.visitante.nome_popular || lastMatch.equipes.visitante.nome
+        const hs = lastMatch.placar_oficial_mandante ?? 0
+        const as = lastMatch.placar_oficial_visitante ?? 0
+        const dt = formatGEDateTime(lastMatch.data_realizacao, lastMatch.hora_realizacao)
+        const venue = lastMatch.sede?.nome_popular ? `🏟️ ${lastMatch.sede.nome_popular}\n` : ""
+        const fase = lastMatch.faseNome ? ` • ${lastMatch.faseNome}` : ""
+        const torneio = lastMatch.torneio || "Competição Oficial"
 
-        const text = `⚽ <b>Último Jogo • ${resolvedTeam.name}</b>\n\n` +
+        let upcomingNote = ""
+        let upcomingSpoken = ""
+        if (upcomingMatches.length > 0) {
+          const u = upcomingMatches[0]
+          const uH = u.equipes.mandante.nome_popular || u.equipes.mandante.nome
+          const uA = u.equipes.visitante.nome_popular || u.equipes.visitante.nome
+          const uDt = formatGEDateTime(u.data_realizacao, u.hora_realizacao)
+          const uOpponent = resolvedTeam.name.toLowerCase().includes(uH.toLowerCase()) ? uA : uH
+          const uTorneio = u.torneio || "Futebol"
+          upcomingNote = `\n🔔 <b>Atenção:</b> O ${resolvedTeam.name} entra em campo <b>${uDt.formatted}</b> contra o ${uOpponent} (${uTorneio})!\n`
+          upcomingSpoken = ` E atenção: o ${resolvedTeam.name} volta a campo ${uDt.spoken} contra o ${uOpponent} pelo ${uTorneio}.`
+        }
+
+        const text = `⚽ <b>Último Confronto • ${resolvedTeam.name}</b>\n\n` +
                      `🏁 <b>${h} ${hs} x ${as} ${a}</b>\n` +
-                     `🏆 <b>Brasileirão Série A • Rodada Atual</b>\n` +
+                     `🏆 <b>${torneio}</b>${fase}\n` +
                      `📅 ${dt.formatted} • <b>Encerrado</b>\n` +
                      venue +
+                     upcomingNote +
                      `\n⚡ <i>Lances e estatísticas completos no app Tessera!</i>`
 
-        const spokenText = `No último jogo pelo Brasileirão, o resultado foi ${h} ${hs}, ${a} ${as}.`
+        const spokenText = `No último jogo pela ${torneio}, o resultado foi ${h} ${hs}, ${a} ${as}.${upcomingSpoken}`
 
         const replyMarkup = {
           inline_keyboard: [
@@ -1242,14 +1359,15 @@ async function fetchSoccerInfo(
 
             let upcomingNote = ""
             let upcomingSpoken = ""
-            if (geMatch && !geMatch.jogo_ja_comecou) {
-              const uH = geMatch.equipes.mandante.nome_popular
-              const uA = geMatch.equipes.visitante.nome_popular
-              const uDt = formatGEDateTime(geMatch.data_realizacao)
-              const uVenue = geMatch.sede?.nome_popular ? ` no ${geMatch.sede.nome_popular}` : ""
-              const opponent = resolvedTeam.name.toLowerCase().includes(uH.toLowerCase()) ? uA : uH
-              upcomingNote = `\n🔔 <b>Atenção:</b> O ${resolvedTeam.name} entra em campo <b>${uDt.formatted}</b> contra o ${opponent}${uVenue}!\n`
-              upcomingSpoken = ` E atenção: o ${resolvedTeam.name} joga ${uDt.spoken} contra o ${opponent}!`
+            if (upcomingMatches.length > 0) {
+              const u = upcomingMatches[0]
+              const uH = u.equipes.mandante.nome_popular || u.equipes.mandante.nome
+              const uA = u.equipes.visitante.nome_popular || u.equipes.visitante.nome
+              const uDt = formatGEDateTime(u.data_realizacao, u.hora_realizacao)
+              const uOpponent = resolvedTeam.name.toLowerCase().includes(uH.toLowerCase()) ? uA : uH
+              const uTorneio = u.torneio || "Futebol"
+              upcomingNote = `\n🔔 <b>Atenção:</b> O ${resolvedTeam.name} entra em campo <b>${uDt.formatted}</b> contra o ${uOpponent} (${uTorneio})!\n`
+              upcomingSpoken = ` E atenção: o ${resolvedTeam.name} volta a campo ${uDt.spoken} contra o ${uOpponent} pelo ${uTorneio}.`
             }
 
             const text = `⚽ <b>Último Confronto • ${resolvedTeam.name}</b>\n\n` +
@@ -1280,30 +1398,44 @@ async function fetchSoccerInfo(
     }
 
     // C: Consulta de Próximo Jogo (Default)
-    // Se temos partida agendada na rodada atual do GE
-    if (geMatch && !geMatch.jogo_ja_comecou) {
-      const h = geMatch.equipes.mandante.nome_popular
-      const a = geMatch.equipes.visitante.nome_popular
-      const dt = formatGEDateTime(geMatch.data_realizacao)
-      const venue = geMatch.sede?.nome_popular ? `🏟️ ${geMatch.sede.nome_popular}\n` : ""
+    if (upcomingMatches.length > 0) {
+      const nextMatch = upcomingMatches[0]
+      const h = nextMatch.equipes.mandante.nome_popular || nextMatch.equipes.mandante.nome
+      const a = nextMatch.equipes.visitante.nome_popular || nextMatch.equipes.visitante.nome
+      const dt = formatGEDateTime(nextMatch.data_realizacao, nextMatch.hora_realizacao)
+      const venue = nextMatch.sede?.nome_popular ? `🏟️ ${nextMatch.sede.nome_popular}\n` : ""
+      const fase = nextMatch.faseNome ? ` • ${nextMatch.faseNome}` : ""
+      const torneio = nextMatch.torneio || "Competição Oficial"
       const isHome = resolvedTeam.name.toLowerCase().includes(h.toLowerCase())
       const mandoStr = isHome ? "(Em casa)" : "(Fora de casa)"
       const opponent = isHome ? a : h
 
+      let subsequentList = ""
+      if (upcomingMatches.length > 1) {
+        subsequentList = "\n🗓️ <b>Jogos Seguintes:</b>\n"
+        upcomingMatches.slice(1, 3).forEach((sub: any) => {
+          const sH = sub.equipes.mandante.nome_popular || sub.equipes.mandante.nome
+          const sA = sub.equipes.visitante.nome_popular || sub.equipes.visitante.nome
+          const sDt = formatGEDateTime(sub.data_realizacao, sub.hora_realizacao)
+          subsequentList += `• <b>${sDt.formatted}</b>: ${sH} vs ${sA} (${sub.torneio})\n`
+        })
+      }
+
       const text = `⚽ <b>Próximo Jogo • ${resolvedTeam.name}</b>\n\n` +
                    `⚔️ <b>${h} vs ${a}</b> ${mandoStr}\n` +
-                   `🏆 <b>Brasileirão Série A • Rodada Atual</b>\n` +
+                   `🏆 <b>${torneio}</b>${fase}\n` +
                    `📅 <b>${dt.formatted}</b> (Horário de Brasília)\n` +
                    venue +
+                   subsequentList +
                    `\n⚡ <i>Acompanhe escalações e estatísticas ao vivo na aba de Futebol do seu app Tessera!</i>`
 
-      const spokenText = `O próximo jogo do ${resolvedTeam.name} é contra o ${opponent}, ${dt.spoken}${geMatch.sede?.nome_popular ? `, no ${geMatch.sede.nome_popular}` : ""}, pelo Brasileirão.`
+      const spokenText = `O próximo jogo do ${resolvedTeam.name} é contra o ${opponent}, ${dt.spoken}${nextMatch.sede?.nome_popular ? `, no ${nextMatch.sede.nome_popular}` : ""}, pelo ${torneio}.`
 
       const replyMarkup = {
         inline_keyboard: [
           [
             { text: "🏆 Tabela do Brasileirão", callback_data: "soccer_table" },
-            { text: "🏁 Último Resultado", callback_data: `soccer_last:${resolvedTeam.id}` }
+            { text: "🏁 Último Resultado", callback_data: `soccer_last:${resolvedTeam.name.toLowerCase()}` }
           ]
         ]
       }
@@ -1341,7 +1473,7 @@ async function fetchSoccerInfo(
             inline_keyboard: [
               [
                 { text: "🏆 Tabela do Brasileirão", callback_data: "soccer_table" },
-                { text: "🏁 Último Resultado", callback_data: `soccer_last:${resolvedTeam.id}` }
+                { text: "🏁 Último Resultado", callback_data: `soccer_last:${resolvedTeam.name.toLowerCase()}` }
               ]
             ]
           }
