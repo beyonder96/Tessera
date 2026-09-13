@@ -20,6 +20,7 @@ import { useTheme } from '../hooks/useTheme'
 import { usePwaInstall } from '../hooks/usePwaInstall'
 import { PwaInstructionsModal } from '../components/PwaInstructionsModal'
 import { saveRecentItem } from '../utils/recentStorage'
+import { tgHaptic } from '../utils/telegram'
 
 export interface MarketItem {
   id: number
@@ -192,6 +193,7 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
 
     const updatedItems = [...list.items, newItem]
     await persistItems(updatedItems)
+    tgHaptic('success')
 
     // Reset formulário limpo
     setNewItemName('')
@@ -203,6 +205,7 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
   // 2. Ticar item no Planejamento: move para o Mercado com pendência de aprovação no app
   const handleSendToMarket = async (itemToMove: MarketItem) => {
     if (!list) return
+    tgHaptic('medium')
     const updatedItems = list.items.map(item => {
       if (item.id === itemToMove.id) {
         return {
@@ -220,6 +223,7 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
   // 3. Desticar item do Mercado: traz de volta para o planejamento
   const handleReturnToPlanning = async (itemToReturn: MarketItem) => {
     if (!list) return
+    tgHaptic('light')
     const updatedItems = list.items.map(item => {
       if (item.id === itemToReturn.id) {
         return {
@@ -235,6 +239,7 @@ export const MarketSharePage: React.FC<{ listId: string }> = ({ listId }) => {
   }
 
   const handleShare = () => {
+    tgHaptic('selection')
     if (navigator.clipboard) {
       navigator.clipboard.writeText(window.location.href)
       setCopied(true)

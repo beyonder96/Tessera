@@ -5,6 +5,8 @@ import { TaskSharePage } from './pages/TaskSharePage'
 import { WishSharePage } from './pages/WishSharePage'
 import { HomePage } from './pages/HomePage'
 import { getLastActiveRoute } from './utils/recentStorage'
+import { initTelegramWebApp, setupTelegramBackButton, tgHaptic } from './utils/telegram'
+import { useTheme } from './hooks/useTheme'
 
 export type RouteType = 'market' | 'finance' | 'tasks' | 'wishes' | 'home'
 
@@ -95,7 +97,26 @@ function getInitialRoute(): RouteInfo {
 }
 
 export function App() {
+  const { theme } = useTheme()
   const [routeInfo, setRouteInfo] = useState<RouteInfo>(getInitialRoute)
+
+  // Inicializa o Telegram WebApp (ready, expand, status bar colors)
+  useEffect(() => {
+    initTelegramWebApp(theme)
+  }, [theme])
+
+  // Vincula o botão Voltar nativo do Telegram à navegação para Home
+  useEffect(() => {
+    if (routeInfo.type !== 'home') {
+      return setupTelegramBackButton(() => {
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('tessera_skip_autoredirect', 'true')
+          window.history.pushState(null, '', '/?home=true')
+        }
+        setRouteInfo({ type: 'home', id: '' })
+      })
+    }
+  }, [routeInfo.type])
 
   useEffect(() => {
     const handleLocationChange = () => setRouteInfo(parseRoute())
@@ -108,6 +129,7 @@ export function App() {
   }, [])
 
   const handleNavigate = (type: 'market' | 'finance' | 'tasks' | 'wishes', id: string) => {
+    tgHaptic('light')
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('tessera_skip_autoredirect')
       const targetPath = `/${type}/${id}`

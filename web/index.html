@@ -11,13 +11,15 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Tessera" />
     <title>Tessera • Conexão em Tempo Real</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
       (function() {
         try {
+          var tgTheme = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.colorScheme;
           var saved = localStorage.getItem('tessera_theme');
-          var theme = (saved === 'light' || saved === 'dark')
+          var theme = tgTheme || ((saved === 'light' || saved === 'dark')
             ? saved
-            : (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+            : (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
           document.documentElement.setAttribute('data-theme', theme);
           var meta = document.querySelector('meta[name="theme-color"]');
           if (meta) meta.setAttribute('content', theme === 'dark' ? '#0B0D13' : '#F4F6F9');

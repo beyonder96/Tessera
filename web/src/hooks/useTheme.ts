@@ -7,6 +7,10 @@ const STORAGE_KEY = 'tessera_theme'
 function getInitialTheme(): Theme {
   if (typeof window === 'undefined') return 'dark'
   try {
+    // Se aberto dentro do Telegram, respeita o tema nativo do Telegram
+    if (window.Telegram?.WebApp?.colorScheme) {
+      return window.Telegram.WebApp.colorScheme === 'light' ? 'light' : 'dark'
+    }
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved === 'dark' || saved === 'light') return saved
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
@@ -26,6 +30,19 @@ function applyTheme(theme: Theme) {
   const metaThemeColor = document.querySelector('meta[name="theme-color"]')
   if (metaThemeColor) {
     metaThemeColor.setAttribute('content', theme === 'dark' ? '#0B0D13' : '#F4F6F9')
+  }
+
+  // Atualiza cores do cabeçalho e fundo no Telegram WebApp
+  if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+    try {
+      const color = theme === 'dark' ? '#0B0D13' : '#F4F6F9'
+      if (typeof window.Telegram.WebApp.setHeaderColor === 'function') {
+        window.Telegram.WebApp.setHeaderColor(color)
+      }
+      if (typeof window.Telegram.WebApp.setBackgroundColor === 'function') {
+        window.Telegram.WebApp.setBackgroundColor(color)
+      }
+    } catch {}
   }
 }
 
@@ -50,6 +67,28 @@ export function useTheme() {
     }
     window.addEventListener('storage', handleStorage)
     return () => window.removeEventListener('storage', handleStorage)
+  }, [])
+
+  // Escuta alteração dinâmica de tema disparada pelo Telegram
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.Telegram?.WebApp) return
+
+    const handleTgTheme = () => {
+      const tgScheme = window.Telegram?.WebApp?.colorScheme
+      if (tgScheme === 'light' || tgScheme === 'dark') {
+        setThemeState(tgScheme)
+      }
+    }
+
+    try {
+      window.Telegram.WebApp.onEvent('themeChanged', handleTgTheme)
+    } catch {}
+
+    return () => {
+      try {
+        window.Telegram?.WebApp?.offEvent('themeChanged', handleTgTheme)
+      } catch {}
+    }
   }, [])
 
   const toggleTheme = useCallback(() => {

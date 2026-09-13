@@ -26,6 +26,7 @@ import {
 import { useTheme } from '../hooks/useTheme'
 import { usePwaInstall } from '../hooks/usePwaInstall'
 import { PwaInstructionsModal } from '../components/PwaInstructionsModal'
+import { isTelegramWebApp, tgHaptic, getTelegramUser } from '../utils/telegram'
 
 interface HomePageProps {
   onNavigate: (type: 'market' | 'finance' | 'tasks' | 'wishes', id: string) => void
@@ -88,21 +89,27 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   const [inputError, setInputError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const isTg = isTelegramWebApp()
+  const tgUser = getTelegramUser()
+
   useEffect(() => {
     setRecents(getRecentItems())
   }, [])
 
   const handleOpenItem = (type: 'market' | 'finance' | 'tasks' | 'wishes', id: string) => {
+    tgHaptic('medium')
     onNavigate(type, id)
   }
 
   const handleRemove = (e: React.MouseEvent, type: 'market' | 'finance' | 'tasks' | 'wishes', id: string) => {
     e.stopPropagation()
+    tgHaptic('light')
     removeRecentItem(type, id)
     setRecents(getRecentItems())
   }
 
   const handleClearAll = () => {
+    tgHaptic('warning')
     clearRecentItems()
     setRecents([])
   }
@@ -113,45 +120,87 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
 
     const parsed = parseInputLink(inputValue)
     if (!parsed) {
+      tgHaptic('error')
       setInputError('Link ou código inválido. Cole a URL gerada pelo app Tessera.')
       return
     }
 
+    tgHaptic('success')
     setIsSubmitting(true)
     setTimeout(() => {
       onNavigate(parsed.type, parsed.id)
     }, 150)
   }
 
+  const handleToggleThemeWithHaptic = () => {
+    tgHaptic('selection')
+    toggleTheme()
+  }
+
   return (
     <div className="container" style={{ paddingTop: 24, paddingBottom: 60, maxWidth: 560 }}>
-      {/* Top Bar: Ações Globais (Instalar App & Alternar Tema) */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-        {!isInstalled && (
+      {/* Top Bar: Ações Globais (Badge Telegram Mini App / Instalar App & Alternar Tema) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+        <div>
+          {isTg ? (
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 12px',
+              borderRadius: 'var(--radius-full)',
+              background: 'rgba(59, 130, 246, 0.12)',
+              border: '1px solid rgba(59, 130, 246, 0.25)',
+              fontSize: 11,
+              color: '#60A5FA',
+              fontWeight: 500
+            }}>
+              <Sparkles size={13} color="#60A5FA" />
+              <span>Telegram Mini App{tgUser?.first_name ? ` • ${tgUser.first_name}` : ''}</span>
+            </div>
+          ) : (
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '4px 10px',
+              borderRadius: 'var(--radius-full)',
+              background: 'rgba(255, 255, 255, 0.05)',
+              fontSize: 11,
+              color: 'var(--text-muted)'
+            }}>
+              <span>Tessera Web Hub</span>
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {!isTg && !isInstalled && (
+            <button 
+              type="button"
+              className="btn btn-outline" 
+              onClick={installApp}
+              title="Instalar como aplicativo no celular ou desktop"
+              style={{ padding: '6px 12px', fontSize: 11, height: 36, borderRadius: 'var(--radius-full)', gap: 6, display: 'inline-flex', alignItems: 'center' }}
+            >
+              <Download size={14} color="var(--accent)" />
+              <span>Instalar App</span>
+            </button>
+          )}
           <button 
             type="button"
-            className="btn btn-outline" 
-            onClick={installApp}
-            title="Instalar como aplicativo no celular ou desktop"
-            style={{ padding: '6px 12px', fontSize: 11, height: 36, borderRadius: 'var(--radius-full)', gap: 6, display: 'inline-flex', alignItems: 'center' }}
+            className="theme-toggle-btn"
+            onClick={handleToggleThemeWithHaptic}
+            title={theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+            aria-label={theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'}
           >
-            <Download size={14} color="var(--accent)" />
-            <span>Instalar App</span>
+            {theme === 'dark' ? (
+              <Sun key="sun" size={17} color="#F59E0B" className="theme-icon-enter" />
+            ) : (
+              <Moon key="moon" size={17} color="#4A90E2" className="theme-icon-enter" />
+            )}
           </button>
-        )}
-        <button 
-          type="button"
-          className="theme-toggle-btn"
-          onClick={toggleTheme}
-          title={theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
-          aria-label={theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'}
-        >
-          {theme === 'dark' ? (
-            <Sun key="sun" size={17} color="#F59E0B" className="theme-icon-enter" />
-          ) : (
-            <Moon key="moon" size={17} color="#4A90E2" className="theme-icon-enter" />
-          )}
-        </button>
+        </div>
       </div>
 
       {/* Header Minimalista */}

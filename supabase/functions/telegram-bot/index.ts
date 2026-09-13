@@ -1025,6 +1025,7 @@ Regras:
 async function registerTelegramBotCommands(): Promise<void> {
   await tgCall("setMyCommands", {
     commands: [
+      { command: "app", description: "📱 Abrir Tessera Mini App" },
       { command: "saldo", description: "💰 Ver saldo livre, contas e limites" },
       { command: "grafico", description: "📊 Gráfico visual de gastos por categoria" },
       { command: "extrato", description: "📄 Baixar planilha CSV do extrato do mês" },
@@ -1034,6 +1035,15 @@ async function registerTelegramBotCommands(): Promise<void> {
       { command: "tempo", description: "🌤️ Previsão do tempo e clima" },
       { command: "ajuda", description: "❓ Guia de comandos e como usar" }
     ]
+  })
+  await tgCall("setChatMenuButton", {
+    menu_button: {
+      type: "web_app",
+      text: "📱 Tessera Hub",
+      web_app: {
+        url: "https://tessera-35c54.web.app"
+      }
+    }
   })
 }
 
@@ -1455,6 +1465,7 @@ Deno.serve(async (req: Request) => {
       const welcomeText = `🤖 <b>Assistente Oficial Tessera</b>\n\n` +
         `Olá, ${userFirstName}! Aqui você tem controle total do seu aplicativo Tessera por voz, texto ou fotos:\n\n` +
         `<b>Comandos Rápidos no Teclado:</b>\n` +
+        `• /app — Abrir a central do Tessera em Mini App interativo\n` +
         `• /saldo — Saldo livre, limites de cartão e faturas\n` +
         `• /grafico — Gráfico visual de gastos por categoria\n` +
         `• /extrato — Baixar extrato do mês em planilha CSV\n` +
@@ -1464,12 +1475,46 @@ Deno.serve(async (req: Request) => {
         `• /tempo — Previsão do tempo e chuva\n` +
         `• /ajuda — Este guia de atalhos\n\n` +
         `<b>Superpoderes Ativos:</b>\n` +
+        `📱 <b>Mini App Integrado:</b> Abra o Tessera direto no Telegram pelo botão no rodapé ou /app!\n` +
         `🎙️ <b>Voz Ultra-Natural:</b> Fale por áudio e receba respostas em voz neural humana!\n` +
         `📑 <b>Leitor de Extrato PDF:</b> Arraste o PDF do Itaú ou qualquer banco para conciliação automática!\n` +
         `🛒 <b>Mercado:</b> Diga <i>"Adiciona 2 caixas de leite e café no mercado"</i>\n` +
         `📸 <b>Foto:</b> Envie foto de cupom fiscal ou comprovante PIX\n` +
         `🛍️ <b>Desejos:</b> Diga <i>"Comprei o fone bluetooth"</i> para dar baixa e lançar!`
-      await sendTelegramMessage(chatId, welcomeText)
+      const welcomeMarkup = {
+        inline_keyboard: [
+          [
+            { text: "📱 Abrir Tessera Hub", web_app: { url: "https://tessera-35c54.web.app" } }
+          ],
+          [
+            { text: "🛒 Mercado", web_app: { url: "https://tessera-35c54.web.app/market" } },
+            { text: "📊 Finanças", web_app: { url: "https://tessera-35c54.web.app/finance" } }
+          ]
+        ]
+      }
+      await sendTelegramMessage(chatId, welcomeText, welcomeMarkup)
+      return new Response("OK", { status: 200 })
+    }
+
+    if (cmd === "/app" || cmd === "/menu") {
+      const appCard = `📱 <b>Tessera Mini App • Central Conectada</b>\n\n` +
+        `Abra qualquer módulo em tela cheia com interface interativa, sincronização em tempo real e vibração tátil direto no Telegram:`
+      const appMarkup = {
+        inline_keyboard: [
+          [
+            { text: "📱 Abrir Tessera Hub Completo", web_app: { url: "https://tessera-35c54.web.app" } }
+          ],
+          [
+            { text: "🛒 Lista de Supermercado", web_app: { url: "https://tessera-35c54.web.app/market" } },
+            { text: "📊 Dashboard Financeiro", web_app: { url: "https://tessera-35c54.web.app/finance" } }
+          ],
+          [
+            { text: "⏰ Tarefas & Avisos", web_app: { url: "https://tessera-35c54.web.app/tasks" } },
+            { text: "🎁 Mural de Desejos", web_app: { url: "https://tessera-35c54.web.app/wishes" } }
+          ]
+        ]
+      }
+      await sendTelegramMessage(chatId, appCard, appMarkup)
       return new Response("OK", { status: 200 })
     }
 
@@ -1510,7 +1555,15 @@ Deno.serve(async (req: Request) => {
         `📌 <b>Renda Comprometida:</b> ${committed}%\n` +
         cardsText + accountsText
 
-      await sendTelegramMessage(chatId, reply)
+      const replyMarkup = {
+        inline_keyboard: [
+          [
+            { text: "📊 Ver Detalhes e Faturas no Mini App", web_app: { url: "https://tessera-35c54.web.app/finance" } }
+          ]
+        ]
+      }
+
+      await sendTelegramMessage(chatId, reply, replyMarkup)
       return new Response("OK", { status: 200 })
     }
 
@@ -1520,7 +1573,14 @@ Deno.serve(async (req: Request) => {
       const pending = items.filter((it: any) => !it.isChecked && !it.isBought)
 
       if (pending.length === 0) {
-        await sendTelegramMessage(chatId, "🎉 Sua lista de compras está vazia! Não há nenhum item pendente.")
+        const emptyMarkup = {
+          inline_keyboard: [
+            [
+              { text: "🛒 Abrir Lista no Mini App", web_app: { url: "https://tessera-35c54.web.app/market" } }
+            ]
+          ]
+        }
+        await sendTelegramMessage(chatId, "🎉 Sua lista de compras está vazia! Não há nenhum item pendente.", emptyMarkup)
         return new Response("OK", { status: 200 })
       }
 
@@ -1529,9 +1589,17 @@ Deno.serve(async (req: Request) => {
         const qty = it.quantity ? `${it.quantity} ${it.unit || "un"} ` : ""
         listText += `${idx + 1}. <b>${qty}${it.name}</b> (${it.category || "Geral"})\n`
       })
-      listText += `\n<i>Diga "comprei X" ou use os botões para marcar como comprado!</i>`
+      listText += `\n<i>Diga "comprei X" ou abra o Mini App para ticar com feedback tátil!</i>`
 
-      await sendTelegramMessage(chatId, listText)
+      const replyMarkup = {
+        inline_keyboard: [
+          [
+            { text: "🛒 Abrir & Marcar Itens no Mini App", web_app: { url: "https://tessera-35c54.web.app/market" } }
+          ]
+        ]
+      }
+
+      await sendTelegramMessage(chatId, listText, replyMarkup)
       return new Response("OK", { status: 200 })
     }
 
@@ -1541,7 +1609,14 @@ Deno.serve(async (req: Request) => {
       const pending = items.filter((it: any) => it.status === "pending")
 
       if (pending.length === 0) {
-        await sendTelegramMessage(chatId, "🎉 Você não tem nenhum lembrete ou tarefa pendente!")
+        const emptyMarkup = {
+          inline_keyboard: [
+            [
+              { text: "⏰ Ver Painel de Tarefas", web_app: { url: "https://tessera-35c54.web.app/tasks" } }
+            ]
+          ]
+        }
+        await sendTelegramMessage(chatId, "🎉 Você não tem nenhum lembrete ou tarefa pendente!", emptyMarkup)
         return new Response("OK", { status: 200 })
       }
 
@@ -1550,7 +1625,15 @@ Deno.serve(async (req: Request) => {
         listText += `${idx + 1}. <b>${it.title}</b>${it.due_time ? ` (às ${it.due_time})` : ""}\n`
       })
 
-      await sendTelegramMessage(chatId, listText)
+      const replyMarkup = {
+        inline_keyboard: [
+          [
+            { text: "⏰ Gerenciar Tarefas no Mini App", web_app: { url: "https://tessera-35c54.web.app/tasks" } }
+          ]
+        ]
+      }
+
+      await sendTelegramMessage(chatId, listText, replyMarkup)
       return new Response("OK", { status: 200 })
     }
 
@@ -1560,7 +1643,14 @@ Deno.serve(async (req: Request) => {
       const active = items.filter((it: any) => !it.isBought)
 
       if (active.length === 0) {
-        await sendTelegramMessage(chatId, "✨ Sua lista de desejos está em dia! Nenhuma meta pendente.")
+        const emptyMarkup = {
+          inline_keyboard: [
+            [
+              { text: "🎁 Ver Mural de Desejos", web_app: { url: "https://tessera-35c54.web.app/wishes" } }
+            ]
+          ]
+        }
+        await sendTelegramMessage(chatId, "✨ Sua lista de desejos está em dia! Nenhuma meta pendente.", emptyMarkup)
         return new Response("OK", { status: 200 })
       }
 
@@ -1570,7 +1660,15 @@ Deno.serve(async (req: Request) => {
         listText += `${idx + 1}. <b>${it.title}</b>${val}\n`
       })
 
-      await sendTelegramMessage(chatId, listText)
+      const replyMarkup = {
+        inline_keyboard: [
+          [
+            { text: "🎁 Ver Mural de Desejos no Mini App", web_app: { url: "https://tessera-35c54.web.app/wishes" } }
+          ]
+        ]
+      }
+
+      await sendTelegramMessage(chatId, listText, replyMarkup)
       return new Response("OK", { status: 200 })
     }
 
