@@ -36,32 +36,35 @@ function parseInputLink(input: string): { type: 'market' | 'finance' | 'tasks' |
   const trimmed = input.trim()
   if (!trimmed) return null
 
-  // 1. Detect market link/path
-  const marketMatch = trimmed.match(/(?:market\/|[?&](?:listId|marketId)=)([^/?&#\s]+)/i)
-  if (marketMatch && marketMatch[1]) {
-    return { type: 'market', id: decodeURIComponent(marketMatch[1]) }
+  // 1. Detect wishes link/path/id
+  const wishesMatch = trimmed.match(/(?:wishes(?:\/|[?&](?:wishesId|wishId)=)?)([^/?&#\s]*)/i)
+  if (wishesMatch && (trimmed.includes('wishes') || trimmed.includes('wish'))) {
+    return { type: 'wishes', id: wishesMatch[1] ? decodeURIComponent(wishesMatch[1]) : 'wishes_default' }
   }
 
-  // 2. Detect finance link/path
-  const financeMatch = trimmed.match(/(?:finance\/|[?&](?:financeId|dashboardId)=)([^/?&#\s]+)/i)
-  if (financeMatch && financeMatch[1]) {
-    return { type: 'finance', id: decodeURIComponent(financeMatch[1]) }
+  // 2. Detect market link/path/id
+  const marketMatch = trimmed.match(/(?:market(?:\/|[?&](?:listId|marketId)=)?)([^/?&#\s]*)/i)
+  if (marketMatch && (trimmed.includes('market') || trimmed.includes('mercado'))) {
+    return { type: 'market', id: marketMatch[1] ? decodeURIComponent(marketMatch[1]) : 'market_default' }
   }
 
-  // 3. Detect tasks link/path
-  const tasksMatch = trimmed.match(/(?:tasks\/|[?&](?:taskId|hubId)=)([^/?&#\s]+)/i)
-  if (tasksMatch && tasksMatch[1]) {
-    return { type: 'tasks', id: decodeURIComponent(tasksMatch[1]) }
+  // 3. Detect finance link/path/id
+  const financeMatch = trimmed.match(/(?:finance(?:\/|[?&](?:financeId|dashboardId)=)?)([^/?&#\s]*)/i)
+  if (financeMatch && (trimmed.includes('finance') || trimmed.includes('financas'))) {
+    return { type: 'finance', id: financeMatch[1] ? decodeURIComponent(financeMatch[1]) : 'finance_default' }
   }
 
-  // 4. Detect wishes link/path
-  const wishesMatch = trimmed.match(/(?:wishes\/|[?&](?:wishesId|wishId)=)([^/?&#\s]+)/i)
-  if (wishesMatch && wishesMatch[1]) {
-    return { type: 'wishes', id: decodeURIComponent(wishesMatch[1]) }
+  // 4. Detect tasks link/path/id
+  const tasksMatch = trimmed.match(/(?:tasks(?:\/|[?&](?:taskId|hubId)=)?)([^/?&#\s]*)/i)
+  if (tasksMatch && (trimmed.includes('tasks') || trimmed.includes('tarefas'))) {
+    return { type: 'tasks', id: tasksMatch[1] ? decodeURIComponent(tasksMatch[1]) : 'tasks_default' }
   }
 
   // 5. Fallback: ID direto (UUID ou alfanumérico)
   if (/^[a-zA-Z0-9_-]{6,}$/.test(trimmed)) {
+    if (trimmed.startsWith('wishes') || trimmed.startsWith('wish')) return { type: 'wishes', id: trimmed }
+    if (trimmed.startsWith('tasks') || trimmed.startsWith('task')) return { type: 'tasks', id: trimmed }
+    if (trimmed.startsWith('finance') || trimmed.startsWith('dashboard')) return { type: 'finance', id: trimmed }
     return { type: 'market', id: trimmed }
   }
 

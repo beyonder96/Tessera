@@ -18,6 +18,7 @@ const ENV_FINANCE_HUB_ID = Deno.env.get("FINANCE_HUB_ID")
 const ENV_TASKS_HUB_ID = Deno.env.get("TASKS_HUB_ID")
 const ENV_WISHES_HUB_ID = Deno.env.get("WISHES_HUB_ID")
 const ENV_MARKET_HUB_ID = Deno.env.get("MARKET_HUB_ID")
+const ENABLE_VOICE_RESPONSES = Deno.env.get("ENABLE_VOICE_RESPONSES") === "true"
 
 // Cache de idempotência em memória para evitar reprocessamento de retries do Telegram
 const processedUpdates = new Set<number>()
@@ -83,14 +84,24 @@ async function editTelegramMessage(
   text: string,
   replyMarkup?: Record<string, unknown>
 ): Promise<any> {
-  return await tgCall("editMessageText", {
+  const res = await tgCall("editMessageText", {
     chat_id: chatId,
     message_id: messageId,
-    text,
+    text: text.slice(0, 4000),
     parse_mode: "HTML",
     disable_web_page_preview: true,
     ...(replyMarkup ? { reply_markup: replyMarkup } : {})
   })
+
+  // Se a edição falhar por erro de parser HTML ou restrição de edição, faz fallback para envio de nova mensagem
+  if (res && res.ok === false) {
+    if (res.description?.includes("message is not modified")) {
+      return res
+    }
+    console.warn("editTelegramMessage falhou, enviando mensagem direta como fallback:", res.description)
+    return await sendTelegramMessage(chatId, text, replyMarkup)
+  }
+  return res
 }
 
 async function answerCallbackQuery(callbackQueryId: string, text?: string): Promise<any> {
@@ -203,6 +214,14 @@ async function maybeSendVoiceReply(chatId: number | string, text: string, should
   } catch (err) {
     console.error("Erro ao enviar áudio neural:", err)
   }
+}
+
+async function synthesizeSpeechFrancisca(text: string): Promise<ArrayBuffer | null> {
+  return await generateSpeechAudio(text, "pt-BR-FranciscaNeural")
+}
+
+async function sendTelegramVoice(chatId: number | string, audioBuffer: ArrayBuffer): Promise<any> {
+  return await sendTelegramVoiceAudio(chatId, audioBuffer)
 }
 
 
@@ -1541,38 +1560,31 @@ async function fetchSoccerInfo(
 // ============================================================================
 interface ApartmentState {
   progress: number
-  expected_date: string
-  budget_total: number
-  spent_total: number
-  phases: Array<{ name: string; percent: number; status: "done" | "in_progress" | "pending" }>
-  recent_expenses: Array<{ title: string; amount: number; date: string }>
+  client_portal_url: string
+  updated_at: string
+  notes?: string
 }
 
 async function getApartmentDoc(): Promise<ApartmentState> {
+  const defaultPortal = "https://relacionamento.planoeplano.app/painel/home"
   try {
     const docs = await supabaseRest(`telegram_bot_logs?action=eq.apartment_state&select=*&order=created_at.desc&limit=1`)
     if (Array.isArray(docs) && docs.length > 0 && docs[0].payload) {
-      return docs[0].payload
+      const p = docs[0].payload
+      return {
+        progress: typeof p.progress === "number" ? p.progress : 78,
+        client_portal_url: p.client_portal_url || defaultPortal,
+        updated_at: p.updated_at || docs[0].created_at || new Date().toISOString(),
+        notes: p.notes
+      }
     }
   } catch (err) {
     console.error("Erro ao carregar apartment_state:", err)
   }
   return {
-    progress: 0.78,
-    expected_date: "Dez 2026",
-    budget_total: 120000,
-    spent_total: 45200,
-    phases: [
-      { name: "Alvenaria e Demolição", percent: 100, status: "done" },
-      { name: "Elétrica e Hidráulica", percent: 100, status: "done" },
-      { name: "Pisos e Revestimentos", percent: 70, status: "in_progress" },
-      { name: "Pintura e Gesso", percent: 40, status: "in_progress" },
-      { name: "Marcenaria e Móveis", percent: 15, status: "pending" }
-    ],
-    recent_expenses: [
-      { title: "Porcelanato e Pisos", amount: 4800, date: "10/09" },
-      { title: "Argamassa e Tintas", amount: 650, date: "11/09" }
-    ]
+    progress: 78,
+    client_portal_url: defaultPortal,
+    updated_at: new Date().toISOString()
   }
 }
 
@@ -1599,43 +1611,42 @@ function renderProgressBar(fraction: number, length = 10): string {
 }
 
 function formatApartmentCard(data: ApartmentState): { text: string; spokenText: string; replyMarkup: any } {
-  const pct = Math.round(data.progress * 100)
-  const bar = renderProgressBar(data.progress, 12)
-  const spent = Number(data.spent_total || 0).toFixed(2).replace(".", ",")
-  const budget = Number(data.budget_total || 0).toFixed(2).replace(".", ",")
+  const rawProg = typeof data.progress === "number" ? data.progress : 78
+  const pct = Math.min(100, Math.max(0, Math.round(rawProg <= 1 ? rawProg * 100 : rawProg)))
+  const bar = renderProgressBar(pct / 100, 12)
+  const portalUrl = data.client_portal_url || "https://relacionamento.planoeplano.app/painel/home"
 
-  let text = `🏗️ <b>Evolução da Obra • Meu Apê</b>\n\n` +
-             `📊 <b>Progresso:</b> <code>[${bar}] ${pct}% Concluído</code>\n` +
-             `📅 <b>Previsão de Entrega:</b> ${data.expected_date || "Dez 2026"}\n` +
-             `💰 <b>Total Investido na Reforma:</b> R$ ${spent}\n`
-  if (data.budget_total > 0) {
-    text += `💵 <b>Orçamento Estimado:</b> R$ ${budget}\n`
+  let dateFormatted = "Hoje"
+  if (data.updated_at) {
+    try {
+      dateFormatted = new Intl.DateTimeFormat("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      }).format(new Date(data.updated_at))
+    } catch {
+      dateFormatted = "Recente"
+    }
   }
 
-  if (Array.isArray(data.phases) && data.phases.length > 0) {
-    text += `\n🔨 <b>Etapas da Obra:</b>\n`
-    data.phases.forEach((ph) => {
-      const icon = ph.status === "done" ? "✅" : ph.status === "in_progress" ? "⏳" : "⚪"
-      text += `${icon} <b>${ph.name}:</b> ${ph.percent}%\n`
-    })
-  }
+  const text = `🏗️ <b>Evolução da Obra • Meu Apê</b>\n\n` +
+               `📊 <b>Progresso:</b> <code>[${bar}] ${pct}% Concluído</code>\n` +
+               `🕒 <b>Última Atualização:</b> ${dateFormatted}\n\n` +
+               `⚡ <i>Para atualizar, basta dizer por exemplo: "atualiza a obra para 80%" ou "apê em 85%".</i>`
 
-  if (Array.isArray(data.recent_expenses) && data.recent_expenses.length > 0) {
-    text += `\n🧾 <b>Últimos Gastos Registrados:</b>\n`
-    data.recent_expenses.slice(0, 3).forEach((ex) => {
-      const val = Number(ex.amount || 0).toFixed(2).replace(".", ",")
-      text += `• ${ex.title}: R$ ${val} (${ex.date || "recente"})\n`
-    })
-  }
-
-  text += `\n⚡ <i>Diga "atualiza a obra para 80%" ou "adicionei gasto de R$ X na obra" a qualquer momento!</i>`
-
-  const spokenText = `A obra do seu apartamento está em ${pct}% de conclusão, com previsão de entrega para ${data.expected_date || "dezembro de 2026"}. O total investido até agora é de ${spent} reais.`
+  const spokenText = `A obra do seu apartamento está com ${pct}% de conclusão.`
 
   const replyMarkup = {
     inline_keyboard: [
       [
-        { text: "📱 Ver Maquete no Mini App", web_app: { url: "https://tessera-35c54.web.app" } }
+        { text: "🌐 Acessar Portal do Cliente (Plano&Plano)", url: portalUrl }
+      ],
+      [
+        { text: "🔄 Atualizar Status", callback_data: "menu_apartment" },
+        { text: "🔙 Menu Principal", callback_data: "cmd_menu" }
       ]
     ]
   }
@@ -1654,6 +1665,8 @@ interface HealthState {
   latest_weight: number
   latest_sleep_hours: number
   date: string
+  weight?: number
+  sleep_hours?: number
 }
 
 async function getHealthDoc(): Promise<HealthState> {
@@ -1845,9 +1858,10 @@ async function generateMorningBriefing(userFirstName = "Kenned"): Promise<{ text
   let aptSummary = ""
   try {
     const apt = await getApartmentDoc()
-    const pct = Math.round(apt.progress * 100)
-    const bar = renderProgressBar(apt.progress, 10)
-    aptSummary = `📊 <code>[${bar}] ${pct}% Concluído</code> • Entrega: ${apt.expected_date || "Dez 2026"}\n💰 Investido: R$ ${Number(apt.spent_total || 0).toFixed(2).replace(".", ",")}`
+    const rawProg = typeof apt.progress === "number" ? apt.progress : 78
+    const pct = Math.min(100, Math.max(0, Math.round(rawProg <= 1 ? rawProg * 100 : rawProg)))
+    const bar = renderProgressBar(pct / 100, 10)
+    aptSummary = `📊 <code>[${bar}] ${pct}% Concluído</code> • Construtora Plano&Plano`
   } catch (_e) {}
 
   // 5. Saúde & Hidratação
@@ -2080,6 +2094,170 @@ O valor deve ser um número float no campo amount (ex: 45.90).`
   }
 }
 
+// ============================================================================
+// PARSER DE EXTRATO BANCÁRIO VIA GROQ (LLAMA 3.3 70B) & EXTRAÇÃO DE TEXTO PDF
+// ============================================================================
+async function extractTextFromPdfBuffer(buffer: ArrayBuffer): Promise<string> {
+  const bytes = new Uint8Array(buffer)
+  const decoder = new TextDecoder("latin1")
+  const raw = decoder.decode(bytes)
+
+  let extracted = ""
+
+  // 1. Extração direta de strings não comprimidas entre parênteses Tj e arrays TJ
+  const directTjRegex = new RegExp("\\(([^()\\\\]*(?:\\\\.[^()\\\\]*)*)\\)\\s*(?:Tj|['\"])", "g")
+  let tjMatch: RegExpExecArray | null
+  while ((tjMatch = directTjRegex.exec(raw)) !== null) {
+    const cleaned = tjMatch[1].replace(/\\([()\\])/g, "$1")
+    if (cleaned.trim()) extracted += cleaned + " "
+  }
+
+  const directTJArrayRegex = /\[([\s\S]*?)\]\s*TJ/g
+  let tjArrMatch: RegExpExecArray | null
+  const subStrRegex = new RegExp("\\(([^()\\\\]*(?:\\\\.[^()\\\\]*)*)\\)", "g")
+  while ((tjArrMatch = directTJArrayRegex.exec(raw)) !== null) {
+    const inner = tjArrMatch[1]
+    let sMatch: RegExpExecArray | null
+    let line = ""
+    subStrRegex.lastIndex = 0
+    while ((sMatch = subStrRegex.exec(inner)) !== null) {
+      line += sMatch[1].replace(/\\([()\\])/g, "$1")
+    }
+    if (line.trim()) extracted += line + "\n"
+  }
+
+  // 2. Extração de streams comprimidos (FlateDecode) usando DecompressionStream nativo da Web API
+  const streamRegex = /stream[\r\n]+([\s\S]*?)[\r\n]+endstream/g
+  let streamMatch: RegExpExecArray | null
+  while ((streamMatch = streamRegex.exec(raw)) !== null) {
+    try {
+      const streamContent = streamMatch[1]
+      const streamBytes = new Uint8Array(streamContent.length)
+      for (let i = 0; i < streamContent.length; i++) {
+        streamBytes[i] = streamContent.charCodeAt(i)
+      }
+
+      const ds = new DecompressionStream("deflate")
+      const writer = ds.writable.getWriter()
+      writer.write(streamBytes)
+      writer.close()
+      const resp = new Response(ds.readable)
+      const decompressedBytes = await resp.arrayBuffer()
+      const decompText = new TextDecoder("latin1").decode(decompressedBytes)
+
+      let innerMatch: RegExpExecArray | null
+      const inTjRegex = new RegExp("\\(([^()\\\\]*(?:\\\\.[^()\\\\]*)*)\\)\\s*(?:Tj|['\"])", "g")
+      while ((innerMatch = inTjRegex.exec(decompText)) !== null) {
+        const val = innerMatch[1].replace(/\\([()\\])/g, "$1")
+        if (val.trim()) extracted += val + " "
+      }
+
+      const inTJArrayRegex = /\[([\s\S]*?)\]\s*TJ/g
+      let inArrMatch: RegExpExecArray | null
+      while ((inArrMatch = inTJArrayRegex.exec(decompText)) !== null) {
+        const inner = inArrMatch[1]
+        let subM: RegExpExecArray | null
+        let l = ""
+        subStrRegex.lastIndex = 0
+        while ((subM = subStrRegex.exec(inner)) !== null) {
+          l += subM[1].replace(/\\([()\\])/g, "$1")
+        }
+        if (l.trim()) extracted += l + "\n"
+      }
+    } catch {
+      // Ignora streams que não forem zlib/deflate válidos
+    }
+  }
+
+  return extracted.trim()
+}
+
+async function processBankStatementPdfWithGroq(pdfBuffer: ArrayBuffer, pdfBase64: string): Promise<{
+  bankName: string
+  period?: string
+  totalIncome: number
+  totalExpense: number
+  transactions: Array<{
+    date: string
+    title: string
+    amount: number
+    type: "expense" | "income"
+    category: string
+  }>
+}> {
+  // 1. Extração nativa de texto do PDF
+  const text = await extractTextFromPdfBuffer(pdfBuffer)
+
+  // 2. Se houver texto suficiente extraído, analisa via Groq Llama 3.3 70B (sem depender do Gemini)
+  if (text.length > 50 && GROQ_API_KEY) {
+    console.log(`Texto extraído do PDF (${text.length} caracteres). Analisando com Groq Llama 3.3 70B...`)
+    const groqPrompt = `Você é um analista contábil e de conciliação bancária sênior do aplicativo financeiro Tessera.
+Analise com extrema precisão este extrato bancário em formato texto (ex: Itaú, Nubank, Bradesco, Santander, Inter, etc.):
+
+Diretrizes estritas de conciliação:
+1. Identifique o banco emissor (ex: "Itaú", "Nubank", "Bradesco", etc.) e o período do extrato (ex: "01/09/2026 a 12/09/2026").
+2. Identifique cada transação financeira individual do período:
+   - "date": data no formato YYYY-MM-DD (se ano omitido no extrato, use o ano corrente).
+   - "title": descrição limpa e legível (ex: "Supermercado Pão de Açúcar", "Posto Shell", "PIX Enviado - João", "Salário", etc. - remova códigos de transação ou numerações inúteis).
+   - "amount": valor numérico estritamente positivo (ex: 45.90).
+   - "type": "expense" se for saída/débito/pagamento/compra; "income" se for entrada/crédito/salário/PIX recebido.
+   - "category": uma categoria concisa (ex: "Mercado", "Alimentação", "Transporte", "Moradia", "Saúde", "Lazer", "Salário", "Serviços", "Geral").
+3. NUNCA inclua linhas de "Saldo Anterior", "Saldo do Dia", "Saldo Final", "Total de Débitos", "Bloqueios" ou totais acumulados como transações. Apenas eventos reais de movimentação.
+4. Calcule "totalIncome" (soma das entradas), "totalExpense" (soma das saídas) e liste todas as transações em "transactions".
+
+Texto bruto do extrato:
+"""
+${text.slice(0, 45000)}
+"""
+
+Responda EXCLUSIVAMENTE com um JSON no formato:
+{
+  "bankName": "Itaú",
+  "period": "01/09/2026 a 12/09/2026",
+  "totalIncome": 4500.00,
+  "totalExpense": 1830.45,
+  "transactions": [
+    { "date": "2026-09-02", "title": "Supermercado Pão de Açúcar", "amount": 342.10, "type": "expense", "category": "Mercado" }
+  ]
+}`
+
+    try {
+      const gRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${GROQ_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [
+            { role: "system", content: "Você é um extrator e auditor contábil JSON estrito. Responda apenas JSON válido." },
+            { role: "user", content: groqPrompt }
+          ],
+          temperature: 0.1,
+          response_format: { type: "json_object" }
+        })
+      })
+
+      if (gRes.ok) {
+        const gData = await gRes.json()
+        const content = gData.choices?.[0]?.message?.content || "{}"
+        const parsed = JSON.parse(content)
+        if (Array.isArray(parsed.transactions) && parsed.transactions.length > 0) {
+          return parsed
+        }
+      } else {
+        console.warn("Groq retornou status não-OK:", gRes.status, await gRes.text())
+      }
+    } catch (gErr) {
+      console.error("Erro na análise via Groq:", gErr)
+    }
+  }
+
+  // 3. Fallback inteligente para Gemini com descoberta dinâmica de modelos (para PDFs digitalizados via foto/scanner)
+  return await processBankStatementPdfWithGemini(pdfBase64)
+}
+
 async function processBankStatementPdfWithGemini(pdfBase64: string): Promise<{
   bankName: string
   period?: string
@@ -2095,7 +2273,26 @@ async function processBankStatementPdfWithGemini(pdfBase64: string): Promise<{
 }> {
   const geminiKey = Deno.env.get("GEMINI_API_KEY") || ""
   if (!geminiKey) {
-    throw new Error("GEMINI_API_KEY não configurada para análise de documentos PDF.")
+    throw new Error("Não foi possível extrair texto legível do extrato e GEMINI_API_KEY não está configurada.")
+  }
+
+  // Descoberta dinâmica de modelos disponíveis na chave para eliminar erros 404
+  let targetModel = "gemini-2.0-flash"
+  try {
+    const listResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${geminiKey}`)
+    if (listResp.ok) {
+      const listData = await listResp.json() as { models?: Array<{ name: string; supportedGenerationMethods?: string[] }> }
+      const availableModels = (listData.models || [])
+        .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
+        .map((m) => m.name.replace("models/", ""))
+
+      const candidate = availableModels.find((m) => m.includes("2.0-flash"))
+        || availableModels.find((m) => m.includes("flash"))
+        || availableModels[0]
+      if (candidate) targetModel = candidate
+    }
+  } catch (lErr) {
+    console.warn("Aviso ao consultar modelos Gemini disponíveis:", lErr)
   }
 
   const prompt = `Você é um analista contábil e de conciliação bancária sênior do aplicativo financeiro Tessera.
@@ -2122,7 +2319,7 @@ Responda APENAS com um objeto JSON válido no formato:
   ]
 }`
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${geminiKey}`
   const body = {
     contents: [
       {
@@ -2143,21 +2340,11 @@ Responda APENAS com um objeto JSON válido no formato:
     }
   }
 
-  let response = await fetch(url, {
+  const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
   })
-
-  // Fallback automático para gemini-1.5-flash se 2.5 não disponível
-  if (!response.ok && response.status === 404) {
-    const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`
-    response = await fetch(fallbackUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    })
-  }
 
   if (!response.ok) {
     const errText = await response.text()
@@ -2247,18 +2434,19 @@ Regras:
 3. Se pedir para lembrar de algo ou criar aviso (ex: 'me lembra de pagar a luz amanhã às 9h'), defina action="add_task".
 4. Se disser que comprou algo que queria ou da lista de desejos (ex: 'comprei o fone', 'consegui comprar o tênis'), defina action="complete_wish".
 5. Se pedir para adicionar algo na lista de desejos, defina action="add_wish".
-6. Se pedir para adicionar produtos à lista de compras do supermercado (ex: 'adiciona 2 caixas de leite e café no mercado'), defina action="add_market_items" e preencha "market_items".
-7. Se perguntar o que tem para comprar na lista de compras (ex: 'o que tem no mercado?', 'o que falta comprar?'), defina action="get_market_items".
-8. Se perguntar do tempo ou chuva, defina action="get_weather".
-9. Se perguntar de futebol, jogos, placares, próximos confrontos ou tabela do Brasileirão, defina action="get_soccer" e preencha "soccer".
-10. Se pedir gráfico visual ou como estão os gastos por categoria (ex: 'me mostra um gráfico', 'gráfico de despesas'), defina action="get_chart".
-11. Se pedir para baixar ou exportar o extrato em planilha/CSV (ex: 'me envia o extrato em excel', 'quero a planilha de gastos'), defina action="export_csv".
-12. Caso seja uma pergunta sobre história, teologia, filosofia, ciências, tecnologia, literatura, conselhos ou conversa geral, defina action="chat_general" e elabore uma resposta rica, didática, completa e bem formulada no campo "reply_text".
-13. Se o usuário pedir um briefing, resumo do dia, panorama matinal ou disser "bom dia" / "me atualiza de tudo", defina action="get_briefing".
-14. Se o usuário perguntar da obra, status do apartamento ou quanto já gastou na reforma (ex: "como tá a obra?", "quanto gastei no apê?", "reforma do apê"), defina action="get_apartment".
-15. Se o usuário pedir para atualizar a obra, mudar porcentagem da reforma ou lançar gasto na obra (ex: "atualiza a obra para 80%", "gastei 1500 na obra com pisos", "avançou para acabamento"), defina action="update_apartment" e preencha "apartment".
-16. Se o usuário perguntar de saúde, água ingerida, peso ou sono (ex: "como tá minha saúde hoje?", "quanta água bebi?", "meta de água"), defina action="get_health".
-17. Se o usuário registrar ingestão de água, peso, passos ou sono (ex: "bebi 500ml de água", "tomei um copo de água", "pesei 74.2kg", "dormi 8 horas"), defina action="update_health" e preencha "health" (para 'um copo de água', use water_ml=250; para 'garrafa de água', use water_ml=500).`
+6. Se o usuário perguntar da lista de desejos, painel de desejos ou compras planejadas (ex: 'painel de desejos', 'o que tem na lista de desejos?', 'meus desejos', 'ver desejos'), defina action="query_wishes".
+7. Se pedir para adicionar produtos à lista de compras do supermercado (ex: 'adiciona 2 caixas de leite e café no mercado'), defina action="add_market_items" e preencha "market_items".
+8. Se perguntar o que tem para comprar na lista de compras (ex: 'o que tem no mercado?', 'o que falta comprar?'), defina action="get_market_items".
+9. Se perguntar do tempo ou chuva, defina action="get_weather".
+10. Se perguntar de futebol, jogos, placares, próximos confrontos ou tabela do Brasileirão, defina action="get_soccer" e preencha "soccer".
+11. Se pedir gráfico visual ou como estão os gastos por categoria (ex: 'me mostra um gráfico', 'gráfico de despesas'), defina action="get_chart".
+12. Se pedir para baixar ou exportar o extrato em planilha/CSV (ex: 'me envia o extrato em excel', 'quero a planilha de gastos'), defina action="export_csv".
+13. Caso seja uma pergunta sobre história, teologia, filosofia, ciências, tecnologia, literatura, conselhos ou conversa geral, defina action="chat_general" e elabore uma resposta rica, didática, completa e bem formulada no campo "reply_text".
+14. Se o usuário pedir um briefing, resumo do dia, panorama matinal ou disser "bom dia" / "me atualiza de tudo", defina action="get_briefing".
+15. Se o usuário perguntar da obra, status do apartamento, apê, reforma ou portal do cliente (ex: "como tá a obra?", "obra do apê", "status do apê", "portal do cliente"), defina action="get_apartment".
+16. Se o usuário pedir para atualizar a porcentagem da obra ou informar novo progresso (ex: "atualiza a obra para 80%", "apê em 85%", "obra 82%"), defina action="update_apartment" e preencha "apartment.progress" com o número inteiro (ex: 80). Se enviar uma URL, coloque em "apartment.portal_url".
+17. Se o usuário perguntar de saúde, água ingerida, peso ou sono (ex: "como tá minha saúde hoje?", "quanta água bebi?", "meta de água"), defina action="get_health".
+18. Se o usuário registrar ingestão de água, peso, passos ou sono (ex: "bebi 500ml de água", "tomei um copo de água", "pesei 74.2kg", "dormi 8 horas"), defina action="update_health" e preencha "health" (para 'um copo de água', use water_ml=250; para 'garrafa de água', use water_ml=500).`
 
   let response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -2459,12 +2647,15 @@ Deno.serve(async (req: Request) => {
     const chatId = cq.message?.chat?.id
     const messageId = cq.message?.message_id
     const data = cq.data || ""
+    const userFirstName = cq.from?.first_name || "Kenned"
 
     // Verificação de Segurança
     if (TELEGRAM_ALLOWED_USER_IDS.length > 0 && !TELEGRAM_ALLOWED_USER_IDS.includes(fromId)) {
       await answerCallbackQuery(cq.id, "Acesso não autorizado.")
       return new Response("Forbidden", { status: 200 })
     }
+
+    try {
 
     // Desfazer Transação
     if (data.startsWith("undo_tx:")) {
@@ -2750,9 +2941,46 @@ Deno.serve(async (req: Request) => {
       return new Response("OK", { status: 200 })
     }
 
+    // Callback para Voltar ao Menu Principal
+    if (data === "cmd_menu") {
+      await answerCallbackQuery(cq.id)
+      const welcomeMarkup = {
+        inline_keyboard: [
+          [
+            { text: "📱 Abrir Tessera Hub", web_app: { url: "https://tessera-35c54.web.app" } }
+          ],
+          [
+            { text: "🌅 Briefing", callback_data: "cmd_briefing" },
+            { text: "🏗️ Obra", callback_data: "menu_apartment" },
+            { text: "🩺 Saúde", callback_data: "menu_health" }
+          ],
+          [
+            { text: "🛒 Mercado", web_app: { url: "https://tessera-35c54.web.app/market" } },
+            { text: "📊 Finanças", web_app: { url: "https://tessera-35c54.web.app/finance" } }
+          ]
+        ]
+      }
+      const welcomeText = `🤖 <b>Assistente Oficial Tessera</b>\n\n` +
+        `Olá, ${userFirstName}! Escolha uma das opções rápidas abaixo ou me envie áudio/texto a qualquer momento:`
+      if (chatId && messageId) {
+        await editTelegramMessage(chatId, messageId, welcomeText, welcomeMarkup)
+      } else if (chatId) {
+        await sendTelegramMessage(chatId, welcomeText, welcomeMarkup)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
     await answerCallbackQuery(cq.id)
     return new Response("OK", { status: 200 })
+  } catch (cqErr: any) {
+    console.error("Erro no callback query:", cqErr)
+    await answerCallbackQuery(cq.id, "Erro ao processar.")
+    if (chatId) {
+      await sendTelegramMessage(chatId, `⚠️ Erro ao processar o botão: ${cqErr?.message || cqErr}`)
+    }
+    return new Response("OK", { status: 200 })
   }
+}
 
   // 2. Processar Mensagens (Texto, Áudio ou Foto)
   const message = update.message
@@ -2842,7 +3070,7 @@ Deno.serve(async (req: Request) => {
 
     try {
       const pdfBase64 = arrayBufferToBase64(pdfFile.buffer)
-      const parsedBank = await processBankStatementPdfWithGemini(pdfBase64)
+      const parsedBank = await processBankStatementPdfWithGroq(pdfFile.buffer, pdfBase64)
       const txs = parsedBank.transactions || []
 
       if (txs.length === 0) {
@@ -3287,6 +3515,7 @@ Deno.serve(async (req: Request) => {
     if (aiResult.transcription) {
       transcriptionNote = `🎙️ <i>"${aiResult.transcription}"</i>\n\n`
     }
+    const rawText = (textInput || aiResult.transcription || "").trim()
 
     // ------------------------------------------------------------------------
     // ROTEAMENTO DE AÇÕES
@@ -3487,6 +3716,45 @@ Deno.serve(async (req: Request) => {
       return new Response("OK", { status: 200 })
     }
 
+    // Ação: Consultar Lista / Painel de Desejos
+    if (aiResult.action === "query_wishes") {
+      const wishDoc = await getWishesDoc()
+      const items = wishDoc && Array.isArray(wishDoc.data.items) ? wishDoc.data.items : []
+      const active = items.filter((it: any) => !it.isBought)
+
+      if (active.length === 0) {
+        const emptyMarkup = {
+          inline_keyboard: [
+            [
+              { text: "🎁 Ver Mural de Desejos", web_app: { url: "https://tessera-35c54.web.app/wishes" } }
+            ]
+          ]
+        }
+        await sendTelegramMessage(chatId, `${transcriptionNote}✨ Sua lista de desejos está em dia! Nenhuma meta pendente.`, emptyMarkup)
+        return new Response("OK", { status: 200 })
+      }
+
+      let listText = `${transcriptionNote}🎁 <b>Lista de Desejos e Metas (${active.length}):</b>\n\n`
+      active.forEach((it: any, idx: number) => {
+        const val = it.targetValue ? ` — R$ ${Number(it.targetValue).toFixed(2).replace(".", ",")}` : ""
+        listText += `${idx + 1}. <b>${it.title}</b>${val}\n`
+      })
+
+      const replyMarkup = {
+        inline_keyboard: [
+          [
+            { text: "🎁 Ver Mural de Desejos no Mini App", web_app: { url: "https://tessera-35c54.web.app/wishes" } }
+          ]
+        ]
+      }
+
+      await sendTelegramMessage(chatId, listText, replyMarkup)
+      if (message.voice) {
+        await maybeSendVoiceReply(chatId, `Você tem ${active.length} item${active.length > 1 ? "s" : ""} na sua lista de desejos.`, true)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
     // Ação: Adicionar Itens à Lista de Compras (Mercado)
     if (aiResult.action === "add_market_items") {
       const itemsToAdd = aiResult.market_items || []
@@ -3631,66 +3899,48 @@ Deno.serve(async (req: Request) => {
       const card = formatApartmentCard(doc)
       await sendTelegramMessage(chatId, `${transcriptionNote}${card.text}`, card.replyMarkup)
       if (message.voice) {
-        const spoken = `A obra do seu apartamento está com ${doc.progress || 0}% de conclusão na fase de ${doc.phase || "Reforma"}. O total investido até o momento é de ${Number(doc.total_spent || 0).toFixed(0)} reais.`
+        const spoken = card.spokenText
         await maybeSendVoiceReply(chatId, spoken, true)
       }
       return new Response("OK", { status: 200 })
     }
 
-    // Ação: Atualizar Obra / Lançar Gasto da Obra
+    // Ação: Atualizar Obra / Apartamento (Progresso e Portal)
     if (aiResult.action === "update_apartment") {
       const doc = await getApartmentDoc()
       const ap = aiResult.apartment || {}
       let changeMsg = ""
 
-      if (typeof ap.progress === "number" && !isNaN(ap.progress)) {
-        doc.progress = Math.min(100, Math.max(0, ap.progress))
+      // Tenta extrair número de porcentagem da fala/texto se a IA não mapeou direto
+      let parsedProgress = typeof ap.progress === "number" && !isNaN(ap.progress) ? ap.progress : null
+      if (parsedProgress === null) {
+        const numMatch = rawText.match(/(\d{1,3})\s*%/i) || rawText.match(/(?:para|em|obra|apê|ape)\s*(\d{1,3})/i)
+        if (numMatch) parsedProgress = parseInt(numMatch[1], 10)
+      }
+
+      if (parsedProgress !== null) {
+        doc.progress = Math.min(100, Math.max(0, parsedProgress))
         changeMsg += `📈 Progresso atualizado para <b>${doc.progress}%</b>.\n`
       }
-      if (ap.phase) {
-        doc.phase = ap.phase
-        changeMsg += `🏷️ Fase alterada para <b>${doc.phase}</b>.\n`
-      }
-      if (ap.expected_date) {
-        doc.expected_completion = ap.expected_date
-      }
 
-      if (ap.spent_amount && ap.spent_amount > 0) {
-        const expenseTitle = ap.expense_title || "Reforma do Apartamento"
-        doc.total_spent = (doc.total_spent || 0) + ap.spent_amount
-        doc.expenses = doc.expenses || []
-        doc.expenses.push({
-          title: expenseTitle,
-          amount: ap.spent_amount,
-          date: new Date().toISOString().split("T")[0]
-        })
-
-        // Sincroniza também como transação no dashboard financeiro principal
-        try {
-          await addFinanceTransaction({
-            title: `Obra: ${expenseTitle}`,
-            amount: ap.spent_amount,
-            type: "expense",
-            category: "Moradia",
-            accountOrCardName: "Cartão / Conta"
-          })
-        } catch (fErr) {
-          console.error("Erro ao sincronizar despesa da obra nas finanças:", fErr)
-        }
-
-        changeMsg += `💸 Lançado gasto de <b>R$ ${ap.spent_amount.toFixed(2).replace(".", ",")}</b> em <i>${expenseTitle}</i>.\n`
+      // Se o usuário passou link do portal
+      const urlMatch = rawText.match(/https?:\/\/[^\s]+/i)
+      if (urlMatch) {
+        doc.client_portal_url = urlMatch[0]
+        changeMsg += `🌐 Link do Portal do Cliente atualizado.\n`
       }
 
-      await saveApartmentDoc(doc)
+      doc.updated_at = new Date().toISOString()
+      await saveApartmentDoc(doc, fromId)
       const card = formatApartmentCard(doc)
 
-      const replyText = `${transcriptionNote}🏗️ <b>Obra Atualizada com Sucesso!</b>\n\n` +
+      const replyText = `${transcriptionNote}🏗️ <b>Obra do Apê Atualizada!</b>\n\n` +
         (changeMsg ? `${changeMsg}\n` : "") +
         card.text
 
       await sendTelegramMessage(chatId, replyText, card.replyMarkup)
       if (message.voice) {
-        const spoken = `Atualizei a obra do apartamento para ${doc.progress}% de conclusão. Total investido agora é de ${Number(doc.total_spent || 0).toFixed(0)} reais.`
+        const spoken = `Atualizei o progresso da obra para ${doc.progress} por cento.`
         await maybeSendVoiceReply(chatId, spoken, true)
       }
       return new Response("OK", { status: 200 })
