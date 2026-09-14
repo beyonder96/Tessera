@@ -673,6 +673,9 @@ fun TesseraApp() {
                         }
                     })
                 }
+                composable("focus") {
+                    PomodoroScreen()
+                }
                 composable("daily") {
                     DailyScreen(
                         viewModel = viewModel,
