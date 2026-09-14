@@ -27,7 +27,7 @@ Gere um relatório de auditoria técnica para a equipe de desenvolvimento conten
 4. 🎯 **Checklist de Próximos Passos**: 3 a 5 tarefas acionáveis e prioritárias para implementar."""
 
             payload = {
-                "model": "meta-llama/llama-3-8b-instruct:free",
+                "model": "openrouter/free",
                 "messages": [
                     {
                         "role": "system",
