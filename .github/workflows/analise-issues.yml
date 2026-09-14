@@ -1,7 +1,7 @@
 name: Auditoria de Código e Criação de Issues
 
 on:
-  # Roda de forma automática toda segunda-feira às 08:00
+  # Roda de forma automática toda segunda-feira às 08:00 UTC
   schedule:
     - cron: '0 8 * * 1'
   # Permite que você clique em um botão no GitHub para rodar manualmente quando quiser
@@ -18,40 +18,16 @@ jobs:
       - name: Checkout do Código
         uses: actions/checkout@v4
 
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Analisar Código com OpenRouter (Llama 3)
         id: ai_analysis
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY || secrets.LLM_API_KEY }}
-        run: |
-          echo "Enviando requisição para análise..."
-
-          # Chama o endpoint de chat completions do OpenRouter
-          RESPONSE=$(curl -s -X POST "https://openrouter.ai/api/v1/chat/completions" \
-            -H "Authorization: Bearer $OPENROUTER_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "model": "meta-llama/llama-3-8b-instruct:free",
-              "messages": [
-                {"role": "system", "content": "Você é um auditor de código sênior. Liste pontos de melhoria, refatoração ou possíveis bugs estruturais no projeto em formato Markdown para uma issue do GitHub. Responda em português com tópicos bem organizados e sugestões práticas."},
-                {"role": "user", "content": "Analise a qualidade estrutural, arquitetura e boas práticas desse repositório."}
-              ]
-            }')
-
-          # Extrai o texto da resposta da IA
-          TEXT=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
-
-          # Se não houver retorno da IA (ex: chave inválida ou limite), registra o aviso
-          if [ -z "$TEXT" ]; then
-            echo "Aviso: Resposta da IA vazia ou erro na API:"
-            echo "$RESPONSE"
-            TEXT="⚠️ Não foi possível obter a análise da IA nesta execução. Detalhes do retorno da API:\n\`\`\`json\n$RESPONSE\n\`\`\`"
-          fi
-
-          # Salva o resultado para o próximo passo usar de forma segura no GITHUB_ENV
-          DELIMITER="EOF_REPORT_$(date +%s)"
-          echo "REPORT<<$DELIMITER" >> $GITHUB_ENV
-          echo "$TEXT" >> $GITHUB_ENV
-          echo "$DELIMITER" >> $GITHUB_ENV
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER || secrets.OPENROUTER_API_KEY || secrets.LLM_API_KEY }}
+        run: python3 .github/scripts/audit_repo.py
 
       - name: Criar a Issue Automaticamente
         uses: jasonetco/create-an-issue@v2
