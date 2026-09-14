@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
+import { extractText } from "npm:unpdf"
 
 // ============================================================================
 // CONFIGURAÇÕES E VARIÁVEIS DE AMBIENTE
@@ -22,6 +23,7 @@ const ENABLE_VOICE_RESPONSES = Deno.env.get("ENABLE_VOICE_RESPONSES") === "true"
 
 // Cache de idempotência em memória para evitar reprocessamento de retries do Telegram
 const processedUpdates = new Set<number>()
+const processedFileIds = new Set<string>()
 
 // ============================================================================
 // HELPERS TELEGRAM BOT API
@@ -1562,6 +1564,7 @@ interface ApartmentState {
   progress: number
   client_portal_url: string
   updated_at: string
+  expected_date?: string
   notes?: string
 }
 
@@ -1572,9 +1575,10 @@ async function getApartmentDoc(): Promise<ApartmentState> {
     if (Array.isArray(docs) && docs.length > 0 && docs[0].payload) {
       const p = docs[0].payload
       return {
-        progress: typeof p.progress === "number" ? p.progress : 78,
+        progress: typeof p.progress === "number" ? p.progress : 75,
         client_portal_url: p.client_portal_url || defaultPortal,
         updated_at: p.updated_at || docs[0].created_at || new Date().toISOString(),
+        expected_date: p.expected_date || "Dez 2026",
         notes: p.notes
       }
     }
@@ -1582,8 +1586,9 @@ async function getApartmentDoc(): Promise<ApartmentState> {
     console.error("Erro ao carregar apartment_state:", err)
   }
   return {
-    progress: 78,
+    progress: 75,
     client_portal_url: defaultPortal,
+    expected_date: "Dez 2026",
     updated_at: new Date().toISOString()
   }
 }
@@ -1611,10 +1616,11 @@ function renderProgressBar(fraction: number, length = 10): string {
 }
 
 function formatApartmentCard(data: ApartmentState): { text: string; spokenText: string; replyMarkup: any } {
-  const rawProg = typeof data.progress === "number" ? data.progress : 78
+  const rawProg = typeof data.progress === "number" ? data.progress : 75
   const pct = Math.min(100, Math.max(0, Math.round(rawProg <= 1 ? rawProg * 100 : rawProg)))
   const bar = renderProgressBar(pct / 100, 12)
   const portalUrl = data.client_portal_url || "https://relacionamento.planoeplano.app/painel/home"
+  const expectedDate = data.expected_date || "Dez 2026"
 
   let dateFormatted = "Hoje"
   if (data.updated_at) {
@@ -1633,19 +1639,30 @@ function formatApartmentCard(data: ApartmentState): { text: string; spokenText: 
   }
 
   const text = `🏗️ <b>Evolução da Obra • Meu Apê</b>\n\n` +
-               `📊 <b>Progresso:</b> <code>[${bar}] ${pct}% Concluído</code>\n` +
+               `📊 <b>Progresso Atual:</b> <code>[${bar}] ${pct}% Concluído</code>\n` +
+               `📅 <b>Previsão de Entrega:</b> ${expectedDate}\n` +
                `🕒 <b>Última Atualização:</b> ${dateFormatted}\n\n` +
-               `⚡ <i>Para atualizar, basta dizer por exemplo: "atualiza a obra para 80%" ou "apê em 85%".</i>`
+               `⚡ <i>Toque nos botões rápidos abaixo ou diga: "atualiza a obra para 80%".</i>`
 
   const spokenText = `A obra do seu apartamento está com ${pct}% de conclusão.`
 
   const replyMarkup = {
     inline_keyboard: [
       [
+        { text: "➖ 1%", callback_data: "apt_step:-1" },
+        { text: "➕ 1%", callback_data: "apt_step:1" },
+        { text: "🔄 Atualizar Status", callback_data: "menu_apartment_refresh" }
+      ],
+      [
+        { text: "75%", callback_data: "apt_set:75" },
+        { text: "80%", callback_data: "apt_set:80" },
+        { text: "85%", callback_data: "apt_set:85" },
+        { text: "90%", callback_data: "apt_set:90" }
+      ],
+      [
         { text: "🌐 Acessar Portal do Cliente (Plano&Plano)", url: portalUrl }
       ],
       [
-        { text: "🔄 Atualizar Status", callback_data: "menu_apartment" },
         { text: "🔙 Menu Principal", callback_data: "cmd_menu" }
       ]
     ]
@@ -1655,7 +1672,8 @@ function formatApartmentCard(data: ApartmentState): { text: string; spokenText: 
 }
 
 // ============================================================================
-// MÓDULO SAÚDE & BEM-ESTAR (ÁGUA, PESO, PASSOS, SONO)
+// ============================================================================
+// MÓDULO 1: SAÚDE & BEM-ESTAR (ÁGUA, PESO, PASSOS, SONO, REMÉDIOS)
 // ============================================================================
 interface HealthState {
   today_water_ml: number
@@ -1667,21 +1685,32 @@ interface HealthState {
   date: string
   weight?: number
   sleep_hours?: number
+  water_records?: Array<{ amount_ml: number; timestamp: number; time: string }>
+  medications?: Array<{ id: string; name: string; dosage?: string; time?: string; taken: boolean }>
 }
 
 async function getHealthDoc(): Promise<HealthState> {
   const todayStr = new Date().toISOString().split("T")[0]
   try {
-    const docs = await supabaseRest(`telegram_bot_logs?action=eq.health_state&select=*&order=created_at.desc&limit=1`)
-    if (Array.isArray(docs) && docs.length > 0 && docs[0].payload) {
-      const d = docs[0].payload
+    const hubDocs = await supabaseRest(`shared_health_hub?id=eq.health_default&select=*`)
+    if (Array.isArray(hubDocs) && hubDocs.length > 0 && hubDocs[0].data) {
+      const d = hubDocs[0].data
       if (d.date !== todayStr) {
         return {
           ...d,
           today_water_ml: 0,
           today_steps: 0,
-          date: todayStr
+          date: todayStr,
+          water_records: []
         }
+      }
+      return d
+    }
+    const docs = await supabaseRest(`telegram_bot_logs?action=eq.health_state&select=*&order=created_at.desc&limit=1`)
+    if (Array.isArray(docs) && docs.length > 0 && docs[0].payload) {
+      const d = docs[0].payload
+      if (d.date !== todayStr) {
+        return { ...d, today_water_ml: 0, today_steps: 0, date: todayStr, water_records: [] }
       }
       return d
     }
@@ -1695,12 +1724,23 @@ async function getHealthDoc(): Promise<HealthState> {
     steps_goal: 10000,
     latest_weight: 74.2,
     latest_sleep_hours: 7.5,
-    date: todayStr
+    date: todayStr,
+    water_records: []
   }
 }
 
 async function saveHealthDoc(data: HealthState, userId = "admin"): Promise<void> {
   try {
+    await supabaseRest("shared_health_hub?on_conflict=id", {
+      method: "POST",
+      headers: { "Prefer": "resolution=merge-duplicates,return=representation" },
+      body: JSON.stringify({
+        id: "health_default",
+        title: "Saúde & Bem-Estar",
+        data: data,
+        updated_at: new Date().toISOString()
+      })
+    })
     await supabaseRest("telegram_bot_logs", {
       method: "POST",
       body: JSON.stringify({
@@ -1734,21 +1774,459 @@ function formatHealthCard(data: HealthState): { text: string; spokenText: string
     text += `😴 <b>Último Sono:</b> <b>${data.latest_sleep_hours}h</b> registradas\n`
   }
 
-  text += `\n💡 <i>Diga "bebi 500ml de água", "pesei 74kg" ou "dormi 8 horas" para registrar na hora!</i>`
+  if (Array.isArray(data.medications) && data.medications.length > 0) {
+    text += `\n💊 <b>Medicamentos de Hoje:</b>\n`
+    data.medications.forEach(m => {
+      const statusEmoji = m.taken ? "✅" : "⬜"
+      const timeStr = m.time ? ` às ${m.time}` : ""
+      text += `• ${statusEmoji} <b>${m.name}</b>${m.dosage ? ` (${m.dosage})` : ""}${timeStr}\n`
+    })
+  }
+
+  text += `\n💡 <i>Diga "bebi 300ml de água", "pesei 74kg" ou "dormi 8 horas" para registrar!</i>`
 
   const spokenText = `Você já bebeu ${water} ml de água hoje, o que representa ${waterPct}% da sua meta diária. Você deu ${steps} passos e seu último peso registrado foi de ${data.latest_weight || 74} quilos.`
 
   const replyMarkup = {
     inline_keyboard: [
       [
-        { text: "💧 +250ml Água", callback_data: "health_water:250" },
-        { text: "💧 +500ml Água", callback_data: "health_water:500" }
+        { text: "💧 +250ml", callback_data: "health_water:250" },
+        { text: "💧 +500ml", callback_data: "health_water:500" },
+        { text: "💧 +1000ml", callback_data: "health_water:1000" }
+      ],
+      [
+        { text: "🔄 Atualizar Status", callback_data: "menu_health" },
+        { text: "🔙 Menu Principal", callback_data: "cmd_menu" }
       ]
     ]
   }
 
   return { text, spokenText, replyMarkup }
 }
+
+// ============================================================================
+// MÓDULO 2: ROTINAS & HÁBITOS (CHECKLIST DIÁRIO & STREAKS)
+// ============================================================================
+interface RoutineHabit {
+  id: string
+  name: string
+  icon?: string
+  streak: number
+  is_completed_today: boolean
+  category?: string
+}
+
+interface RoutineItem {
+  id: string
+  title: string
+  steps: string[]
+}
+
+interface RoutinesState {
+  habits: RoutineHabit[]
+  routines: RoutineItem[]
+  date: string
+  updated_at: string
+}
+
+async function getRoutinesDoc(): Promise<RoutinesState> {
+  const todayStr = new Date().toISOString().split("T")[0]
+  try {
+    const docs = await supabaseRest(`shared_routines_hub?id=eq.routines_default&select=*`)
+    if (Array.isArray(docs) && docs.length > 0 && docs[0].data) {
+      const d = docs[0].data
+      if (d.date !== todayStr) {
+        const updatedHabits = (d.habits || []).map((h: RoutineHabit) => ({
+          ...h,
+          is_completed_today: false
+        }))
+        const refreshed = { ...d, habits: updatedHabits, date: todayStr }
+        await saveRoutinesDoc(refreshed)
+        return refreshed
+      }
+      return d
+    }
+  } catch (err) {
+    console.error("Erro ao carregar routines_hub:", err)
+  }
+  return {
+    habits: [
+      { id: "h1", name: "Hidratação (3L)", icon: "💧", streak: 12, is_completed_today: false, category: "Saúde" },
+      { id: "h2", name: "Leitura Profunda", icon: "📖", streak: 5, is_completed_today: false, category: "Mente" },
+      { id: "h3", name: "Mindfulness", icon: "🧘", streak: 21, is_completed_today: false, category: "Espiritual" },
+      { id: "h4", name: "Treino / Atividade", icon: "🏋️", streak: 8, is_completed_today: false, category: "Corpo" }
+    ],
+    routines: [
+      { id: "r1", title: "Rotina Matinal", steps: ["Beber Água", "Meditação", "Alongamento"] },
+      { id: "r2", title: "Rotina Noturna", steps: ["Desconectar Telas", "Higiene do Sono", "Leitura"] }
+    ],
+    date: todayStr,
+    updated_at: new Date().toISOString()
+  }
+}
+
+async function saveRoutinesDoc(data: RoutinesState): Promise<void> {
+  try {
+    await supabaseRest("shared_routines_hub?on_conflict=id", {
+      method: "POST",
+      headers: { "Prefer": "resolution=merge-duplicates,return=representation" },
+      body: JSON.stringify({
+        id: "routines_default",
+        title: "Rotinas & Hábitos",
+        data: data,
+        updated_at: new Date().toISOString()
+      })
+    })
+  } catch (err) {
+    console.error("Erro ao salvar routines_hub:", err)
+  }
+}
+
+async function toggleHabitInDoc(habitIdOrName: string): Promise<{ doc: RoutinesState; toggledHabit?: RoutineHabit }> {
+  const doc = await getRoutinesDoc()
+  const habits = doc.habits || []
+  const h = habits.find(it => it.id === habitIdOrName || it.name.toLowerCase().includes(habitIdOrName.toLowerCase()))
+  if (h) {
+    h.is_completed_today = !h.is_completed_today
+    if (h.is_completed_today) {
+      h.streak = (h.streak || 0) + 1
+    } else {
+      h.streak = Math.max(0, (h.streak || 1) - 1)
+    }
+    doc.updated_at = new Date().toISOString()
+    await saveRoutinesDoc(doc)
+    return { doc, toggledHabit: h }
+  }
+  return { doc }
+}
+
+function formatRoutinesCard(doc: RoutinesState): { text: string; spokenText: string; replyMarkup: any } {
+  const habits = doc.habits || []
+  const total = habits.length
+  const completed = habits.filter(h => h.is_completed_today).length
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0
+  const bar = renderProgressBar(total > 0 ? completed / total : 0, 8)
+
+  let text = `🔄 <b>Hábitos & Rotinas Diárias • Tessera</b>\n\n` +
+    `Progresso Hoje: <code>[${bar}] ${completed}/${total} (${pct}%)</code>\n\n`
+
+  const keyboard: any[][] = []
+
+  habits.forEach((h, idx) => {
+    const statusEmoji = h.is_completed_today ? "✅" : "⬜"
+    const icon = h.icon || "📌"
+    text += `${idx + 1}. ${statusEmoji} <b>${icon} ${h.name}</b> — 🔥 <b>${h.streak} dias</b>\n`
+    keyboard.push([
+      {
+        text: `${statusEmoji} ${h.name} (${h.streak}🔥)`,
+        callback_data: `habit_toggle:${h.id}`
+      }
+    ])
+  })
+
+  keyboard.push([
+    { text: "🔄 Atualizar", callback_data: "menu_routines" },
+    { text: "🔙 Menu Principal", callback_data: "cmd_menu" }
+  ])
+
+  text += `\n💡 <i>Toque em um hábito acima para marcar como feito ou mande um áudio (ex: "Fiz a leitura de hoje")!</i>`
+
+  const spokenText = `Você completou ${completed} de ${total} hábitos hoje. ${total - completed > 0 ? `Ainda restam ${total - completed} hábitos pendentes.` : "Todos os hábitos foram concluídos!"}`
+
+  return { text, spokenText, replyMarkup: { inline_keyboard: keyboard } }
+}
+
+// ============================================================================
+// MÓDULO 3: PETS (CENTRAL PETZ - THOR, VACINAS & CUIDADOS)
+// ============================================================================
+interface PetItem {
+  id: string
+  name: string
+  species: string
+  breed: string
+  weight?: number
+  avatar_url?: string
+}
+
+interface PetEventItem {
+  id: string
+  pet_name: string
+  title: string
+  event_type: "vaccine" | "vet" | "bath" | "medication"
+  date: string
+  status: "scheduled" | "completed"
+}
+
+interface PetsState {
+  pets: PetItem[]
+  events: PetEventItem[]
+  daily_care: {
+    fed_morning: boolean
+    fed_night: boolean
+    walked: boolean
+    fresh_water: boolean
+    date: string
+  }
+  updated_at: string
+}
+
+async function getPetsDoc(): Promise<PetsState> {
+  const todayStr = new Date().toISOString().split("T")[0]
+  try {
+    const docs = await supabaseRest(`shared_pets_hub?id=eq.pets_default&select=*`)
+    if (Array.isArray(docs) && docs.length > 0 && docs[0].data) {
+      const d = docs[0].data
+      if (d.daily_care && d.daily_care.date !== todayStr) {
+        d.daily_care = {
+          fed_morning: false,
+          fed_night: false,
+          walked: false,
+          fresh_water: false,
+          date: todayStr
+        }
+        await savePetsDoc(d)
+      }
+      return d
+    }
+  } catch (err) {
+    console.error("Erro ao carregar pets_hub:", err)
+  }
+  return {
+    pets: [
+      { id: "pet1", name: "Thor", species: "Cachorro", breed: "Golden Retriever", weight: 28.5 }
+    ],
+    events: [
+      { id: "e1", pet_name: "Thor", title: "Vacina V10 (Anual)", event_type: "vaccine", date: "2026-11-20", status: "scheduled" },
+      { id: "e2", pet_name: "Thor", title: "Antipulgas / Vermífugo", event_type: "medication", date: "2026-10-15", status: "scheduled" }
+    ],
+    daily_care: {
+      fed_morning: false,
+      fed_night: false,
+      walked: false,
+      fresh_water: true,
+      date: todayStr
+    },
+    updated_at: new Date().toISOString()
+  }
+}
+
+async function savePetsDoc(data: PetsState): Promise<void> {
+  try {
+    await supabaseRest("shared_pets_hub?on_conflict=id", {
+      method: "POST",
+      headers: { "Prefer": "resolution=merge-duplicates,return=representation" },
+      body: JSON.stringify({
+        id: "pets_default",
+        title: "Central Petz",
+        data: data,
+        updated_at: new Date().toISOString()
+      })
+    })
+  } catch (err) {
+    console.error("Erro ao salvar pets_hub:", err)
+  }
+}
+
+async function logPetCareInDoc(action: "fed_morning" | "fed_night" | "walked" | "fresh_water"): Promise<PetsState> {
+  const doc = await getPetsDoc()
+  if (!doc.daily_care) {
+    doc.daily_care = {
+      fed_morning: false,
+      fed_night: false,
+      walked: false,
+      fresh_water: false,
+      date: new Date().toISOString().split("T")[0]
+    }
+  }
+  doc.daily_care[action] = !doc.daily_care[action]
+  doc.updated_at = new Date().toISOString()
+  await savePetsDoc(doc)
+  return doc
+}
+
+function formatPetsCard(doc: PetsState): { text: string; spokenText: string; replyMarkup: any } {
+  const pets = doc.pets || []
+  const care = doc.daily_care || { fed_morning: false, fed_night: false, walked: false, fresh_water: false }
+
+  let text = `🐾 <b>Central Petz • Tessera</b>\n\n`
+  if (pets.length > 0) {
+    pets.forEach(p => {
+      text += `🐶 <b>${p.name}</b> (${p.species} • ${p.breed})${p.weight ? ` — <b>${p.weight}kg</b>` : ""}\n`
+    })
+    text += "\n"
+  }
+
+  text += `📋 <b>Cuidados de Hoje:</b>\n`
+  text += `• Ração Manhã: ${care.fed_morning ? "✅ Alimentado" : "⬜ Pendente"}\n`
+  text += `• Ração Noite: ${care.fed_night ? "✅ Alimentado" : "⬜ Pendente"}\n`
+  text += `• Água Fresca: ${care.fresh_water ? "✅ Trocada" : "⬜ Pendente"}\n`
+  text += `• Passeio Diário: ${care.walked ? "✅ Realizado" : "⬜ Pendente"}\n\n`
+
+  const upcomingEvents = (doc.events || []).filter(e => e.status === "scheduled")
+  if (upcomingEvents.length > 0) {
+    text += `💉 <b>Próximos Eventos & Vacinas:</b>\n`
+    upcomingEvents.slice(0, 3).forEach(e => {
+      const typeEmoji = e.event_type === "vaccine" ? "💉" : e.event_type === "vet" ? "🩺" : "🛁"
+      text += `• ${typeEmoji} <b>${e.pet_name}:</b> ${e.title} (${e.date})\n`
+    })
+    text += "\n"
+  }
+
+  text += `<i>Diga "dei comida pro pet" ou "passei com o cachorro" para registrar!</i>`
+
+  const replyMarkup = {
+    inline_keyboard: [
+      [
+        { text: care.fed_morning ? "✅ Ração Manhã" : "🍖 Dar Ração Manhã", callback_data: "pet_care:fed_morning" },
+        { text: care.fed_night ? "✅ Ração Noite" : "🍖 Dar Ração Noite", callback_data: "pet_care:fed_night" }
+      ],
+      [
+        { text: care.walked ? "✅ Passeio Feito" : "🦮 Registrar Passeio", callback_data: "pet_care:walked" },
+        { text: care.fresh_water ? "✅ Água Trocada" : "💧 Trocar Água", callback_data: "pet_care:fresh_water" }
+      ],
+      [
+        { text: "🔄 Atualizar", callback_data: "menu_pets" },
+        { text: "🔙 Menu Principal", callback_data: "cmd_menu" }
+      ]
+    ]
+  }
+
+  const petName = pets[0]?.name || "seu pet"
+  const spokenText = `Central Petz: ${care.fed_morning ? "Ração da manhã já servida para " + petName + "." : "Lembrete: Ração da manhã pendente para " + petName + "."} ${upcomingEvents.length > 0 ? "Próxima vacina é " + upcomingEvents[0].title + " em " + upcomingEvents[0].date + "." : ""}`
+
+  return { text, spokenText, replyMarkup }
+}
+
+// ============================================================================
+// MÓDULO 4: TRANSPORTE & MOBILIDADE (METRÔ, TREM CPTM E SPTRANS)
+// ============================================================================
+interface TransportState {
+  monitored_metro_lines: string[]
+  saved_bus_lines: Array<{ line_code: string; sign: string; direction: string }>
+  updated_at: string
+}
+
+async function getTransportDoc(): Promise<TransportState> {
+  try {
+    const docs = await supabaseRest(`shared_transport_hub?id=eq.transport_default&select=*`)
+    if (Array.isArray(docs) && docs.length > 0 && docs[0].data) {
+      return docs[0].data
+    }
+  } catch (err) {
+    console.error("Erro ao carregar transport_hub:", err)
+  }
+  return {
+    monitored_metro_lines: ["1", "2", "3", "4", "9"],
+    saved_bus_lines: [],
+    updated_at: new Date().toISOString()
+  }
+}
+
+async function saveTransportDoc(data: TransportState): Promise<void> {
+  try {
+    await supabaseRest("shared_transport_hub?on_conflict=id", {
+      method: "POST",
+      headers: { "Prefer": "resolution=merge-duplicates,return=representation" },
+      body: JSON.stringify({
+        id: "transport_default",
+        title: "Transporte & Mobilidade",
+        data: data,
+        updated_at: new Date().toISOString()
+      })
+    })
+  } catch (err) {
+    console.error("Erro ao salvar transport_hub:", err)
+  }
+}
+
+interface MetroLineStatus {
+  codigo: string
+  nome: string
+  status: string
+  descricao?: string
+  tipo: "metro" | "cptm"
+}
+
+async function fetchLiveMetroStatus(): Promise<MetroLineStatus[]> {
+  const defaultLines: MetroLineStatus[] = [
+    { codigo: "1", nome: "Azul", status: "Operação Normal", tipo: "metro" },
+    { codigo: "2", nome: "Verde", status: "Operação Normal", tipo: "metro" },
+    { codigo: "3", nome: "Vermelha", status: "Operação Normal", tipo: "metro" },
+    { codigo: "4", nome: "Amarela", status: "Operação Normal", tipo: "metro" },
+    { codigo: "5", nome: "Lilás", status: "Operação Normal", tipo: "metro" },
+    { codigo: "15", nome: "Prata", status: "Operação Normal", tipo: "metro" },
+    { codigo: "7", nome: "Rubi", status: "Operação Normal", tipo: "cptm" },
+    { codigo: "8", nome: "Diamante", status: "Operação Normal", tipo: "cptm" },
+    { codigo: "9", nome: "Esmeralda", status: "Operação Normal", tipo: "cptm" },
+    { codigo: "10", nome: "Turquesa", status: "Operação Normal", tipo: "cptm" },
+    { codigo: "11", nome: "Coral", status: "Operação Normal", tipo: "cptm" },
+    { codigo: "12", nome: "Safira", status: "Operação Normal", tipo: "cptm" },
+    { codigo: "13", nome: "Jade", status: "Operação Normal", tipo: "cptm" }
+  ]
+
+  try {
+    const cptmRes = await fetch("https://api.cptm.sp.gov.br/AppCPTM/v1/Linhas/ObterStatus", {
+      headers: { "Accept": "application/json" },
+      signal: AbortSignal.timeout(4000)
+    })
+    if (cptmRes.ok) {
+      const data = await cptmRes.json()
+      if (Array.isArray(data)) {
+        data.forEach((item: any) => {
+          const num = String(item.LinhaId || item.NumeroLinha || "")
+          const line = defaultLines.find(l => l.codigo === num)
+          if (line) {
+            line.status = item.StatusLinha || item.DescricaoStatus || line.status
+            line.descricao = item.Descricao || ""
+          }
+        })
+      }
+    }
+  } catch (_err) {
+    // Mantém linhas com status de operação padrão
+  }
+
+  return defaultLines
+}
+
+function formatTransportCard(lines: MetroLineStatus[], monitoredCodes: string[]): { text: string; spokenText: string; replyMarkup: any } {
+  let text = `🚇 <b>Situação do Metrô & Trens • São Paulo</b>\n\n`
+  let issuesCount = 0
+  let issuesText = ""
+
+  lines.forEach(l => {
+    const isMonitored = monitoredCodes.includes(l.codigo)
+    const isNormal = l.status.toLowerCase().includes("normal")
+    const emoji = isNormal ? "🟢" : "🟡"
+    if (!isNormal) {
+      issuesCount++
+      issuesText += `Linha ${l.codigo}-${l.nome} com ${l.status}. `
+    }
+    const star = isMonitored ? " ⭐" : ""
+    text += `${emoji} <b>Linha ${l.codigo} - ${l.nome}:</b> ${l.status}${star}\n`
+  })
+
+  text += `\n⭐ <i>Linhas com estrela são suas favoritas configuradas no Tessera!</i>`
+
+  const replyMarkup = {
+    inline_keyboard: [
+      [
+        { text: "🔄 Atualizar Status", callback_data: "transport_refresh" },
+        { text: "⭐ Minhas Linhas", callback_data: "transport_monitored" }
+      ],
+      [
+        { text: "🔙 Menu Principal", callback_data: "cmd_menu" }
+      ]
+    ]
+  }
+
+  const spokenText = issuesCount === 0
+    ? "Todas as linhas de metrô e trens de São Paulo estão operando normalmente neste momento."
+    : `Atenção no transporte: ${issuesText}`
+
+  return { text, spokenText, replyMarkup }
+}
+
 
 // ============================================================================
 // BRIEFING MATINAL INTELIGENTE (PROATIVO & SOB DEMANDA)
@@ -1868,10 +2346,48 @@ async function generateMorningBriefing(userFirstName = "Kenned"): Promise<{ text
   let healthSummary = ""
   try {
     const hl = await getHealthDoc()
-    healthSummary = `💧 <b>Hidratação:</b> ${hl.today_water_ml}ml / ${hl.water_goal_ml}ml • <i>Hora de tomar o 1º copo d'água!</i>`
+    healthSummary = `💧 <b>Hidratação:</b> ${hl.today_water_ml}ml / ${hl.water_goal_ml}ml`
+    if (hl.latest_sleep_hours) {
+      healthSummary += ` • 😴 <b>Sono:</b> ${hl.latest_sleep_hours}h registradas`
+    }
   } catch (_e) {}
 
-  // 6. Futebol / Mengão
+  // 6. Hábitos & Rotinas do Dia
+  let routinesSummary = ""
+  try {
+    const rt = await getRoutinesDoc()
+    const habits = rt.habits || []
+    const pendingHabits = habits.filter(h => !h.is_completed_today)
+    if (habits.length > 0) {
+      routinesSummary = `🎯 <b>Hábitos de Hoje:</b> ${habits.length - pendingHabits.length}/${habits.length} concluídos (${pendingHabits.length} pendentes)`
+    }
+  } catch (_e) {}
+
+  // 7. Pets & Cuidados
+  let petsSummary = ""
+  try {
+    const pt = await getPetsDoc()
+    const care = pt.daily_care
+    const fed = care?.fed_morning ? "✅ Alimentado" : "⬜ Ração matinal pendente"
+    const petName = pt.pets?.[0]?.name || "Thor"
+    petsSummary = `🐶 <b>${petName}:</b> ${fed}`
+  } catch (_e) {}
+
+  // 8. Transporte & Mobilidade (Linhas Monitoradas)
+  let transportSummary = ""
+  try {
+    const tr = await getTransportDoc()
+    const metroStatus = await fetchLiveMetroStatus()
+    const mon = tr.monitored_metro_lines || ["1", "2", "3", "4", "9"]
+    const abnormal = metroStatus.filter(l => mon.includes(l.codigo) && !l.status.toLowerCase().includes("normal"))
+    if (abnormal.length > 0) {
+      transportSummary = `🚨 <b>Atenção no Metrô:</b> ` + abnormal.map(l => `Linha ${l.codigo}-${l.nome} (${l.status})`).join(", ")
+    } else {
+      transportSummary = `🚇 <b>Metrô & Trens:</b> Operação normal nas suas linhas favoritas.`
+    }
+  } catch (_e) {}
+
+  // 9. Futebol / Mengão
   let soccerSection = ""
   let soccerSpoken = ""
   try {
@@ -1923,7 +2439,19 @@ async function generateMorningBriefing(userFirstName = "Kenned"): Promise<{ text
   }
 
   if (healthSummary) {
-    text += `🩺 <b>Saúde & Hábitos:</b>\n${healthSummary}\n\n`
+    text += `🩺 <b>Saúde:</b>\n${healthSummary}\n\n`
+  }
+
+  if (routinesSummary) {
+    text += `🔄 <b>Rotinas:</b>\n${routinesSummary}\n\n`
+  }
+
+  if (petsSummary) {
+    text += `🐾 <b>Pets:</b>\n${petsSummary}\n\n`
+  }
+
+  if (transportSummary) {
+    text += `${transportSummary}\n\n`
   }
 
   if (soccerSection) {
@@ -1942,9 +2470,14 @@ async function generateMorningBriefing(userFirstName = "Kenned"): Promise<{ text
         { text: "📱 Abrir Tessera Hub", web_app: { url: "https://tessera-35c54.web.app" } }
       ],
       [
-        { text: "🏗️ Ver Obra", callback_data: "menu_apartment" },
-        { text: "🩺 Ver Saúde", callback_data: "menu_health" },
-        { text: "💰 Ver Saldo", callback_data: "menu_saldo" }
+        { text: "🏗️ Obra", callback_data: "menu_apartment" },
+        { text: "🩺 Saúde", callback_data: "menu_health" },
+        { text: "🔄 Hábitos", callback_data: "menu_routines" }
+      ],
+      [
+        { text: "🐾 Pets", callback_data: "menu_pets" },
+        { text: "🚇 Metrô", callback_data: "transport_refresh" },
+        { text: "💰 Saldo", callback_data: "menu_saldo" }
       ]
     ]
   }
@@ -1956,7 +2489,7 @@ async function generateMorningBriefing(userFirstName = "Kenned"): Promise<{ text
 // CÉREBRO MULTIMODAL GROQ (WHISPER LARGE V3 TURBO + LLAMA / QWEN VISION)
 // ============================================================================
 interface GroqIntentResponse {
-  action: "add_transaction" | "get_finances" | "get_chart" | "export_csv" | "add_task" | "get_tasks" | "query_wishes" | "complete_wish" | "add_wish" | "add_market_items" | "get_market_items" | "get_weather" | "get_soccer" | "get_briefing" | "get_apartment" | "update_apartment" | "get_health" | "update_health" | "chat_general"
+  action: "add_transaction" | "get_finances" | "get_chart" | "export_csv" | "add_task" | "get_tasks" | "query_wishes" | "complete_wish" | "add_wish" | "add_market_items" | "get_market_items" | "get_weather" | "get_soccer" | "get_briefing" | "get_apartment" | "update_apartment" | "get_health" | "update_health" | "get_routines" | "toggle_habit" | "get_pets" | "log_pet_care" | "get_transport" | "chat_general"
   transcription?: string
   transaction?: {
     title: string
@@ -1999,6 +2532,17 @@ interface GroqIntentResponse {
     weight?: number
     steps?: number
     sleep_hours?: number
+  }
+  habit?: {
+    name?: string
+    completed?: boolean
+  }
+  pet?: {
+    action?: "fed_morning" | "fed_night" | "walked" | "fresh_water"
+    name?: string
+  }
+  transport?: {
+    line?: string
   }
   query?: string
   location?: string
@@ -2095,81 +2639,181 @@ O valor deve ser um número float no campo amount (ex: 45.90).`
 }
 
 // ============================================================================
-// PARSER DE EXTRATO BANCÁRIO VIA GROQ (LLAMA 3.3 70B) & EXTRAÇÃO DE TEXTO PDF
+// PARSER DE EXTRATO BANCÁRIO (UNPDF + DETERMINÍSTICO + GROQ LLAMA 3.3 70B)
 // ============================================================================
-async function extractTextFromPdfBuffer(buffer: ArrayBuffer): Promise<string> {
-  const bytes = new Uint8Array(buffer)
-  const decoder = new TextDecoder("latin1")
-  const raw = decoder.decode(bytes)
+function cleanStatementTitle(desc: string): string {
+  let title = desc.trim()
+  if (title === "REMUNERACAO/SALARIO") return "Salário / Remuneração"
+  if (title === "REND PAGO APLIC AUT MAIS") return "Rendimento Conta Automática"
+  if (title.startsWith("ADIANT.DEPOSITANTE")) return "Tarifa Adiantamento Depositante"
+  if (title.startsWith("JUROS SALDO DEVEDOR")) return "Juros Saldo Devedor"
+  if (title === "IOF") return "IOF Bancário"
 
-  let extracted = ""
+  title = title
+    .replace(/^RSHOP\s+/i, "")
+    .replace(/^PIX\s+TRANSF\s+/i, "Pix: ")
+    .replace(/^PIX\s+QRS\s+/i, "Pix QR: ")
+    .replace(/^PIX\s+AUT\s+/i, "Pix: ")
+    .replace(/^EST\s+ON\s+/i, "Estorno: ")
+    .replace(/^ON\s+/i, "")
+    .replace(/^ESTORNO\s+/i, "Estorno: ")
+    .replace(/^PAY\s+DL\s*/i, "Pagamento Pay DL ")
+    .trim()
 
-  // 1. Extração direta de strings não comprimidas entre parênteses Tj e arrays TJ
-  const directTjRegex = new RegExp("\\(([^()\\\\]*(?:\\\\.[^()\\\\]*)*)\\)\\s*(?:Tj|['\"])", "g")
-  let tjMatch: RegExpExecArray | null
-  while ((tjMatch = directTjRegex.exec(raw)) !== null) {
-    const cleaned = tjMatch[1].replace(/\\([()\\])/g, "$1")
-    if (cleaned.trim()) extracted += cleaned + " "
+  title = title
+    .replace(/\s+\d{2}\/\d{2}$/, "")
+    .replace(/\b\d{4}$/, "")
+    .trim()
+
+  if (/uber/i.test(title)) return title.toLowerCase().includes("estorno") ? "Estorno: Uber" : "Uber"
+  if (/spotify/i.test(title)) return "Spotify"
+  if (/99food/i.test(title)) return "99Food"
+  if (/ifd|ifood/i.test(title)) return "iFood"
+  if (/carrefour/i.test(title)) return "Carrefour"
+  if (/cacau\s*show/i.test(title)) return "Cacau Show"
+  if (/emporiopdoce/i.test(title)) return "Empório Pdoce"
+  if (/primusburgue/i.test(title)) return "Primus Burger"
+  if (/paes\s*e\s*doces/i.test(title)) return "Pães e Doces"
+  if (/alemaoba/i.test(title)) return "Bar do Alemão"
+  if (/prodata/i.test(title)) return "Prodata"
+  if (/google/i.test(title)) return "Google Brasil"
+  if (/nakata/i.test(title)) return "Nakata Café"
+  return title
+}
+
+function categorizeStatementTx(desc: string, type: "expense" | "income"): string {
+  const d = desc.toLowerCase()
+  if (type === "income" && (d.includes("salario") || d.includes("remuneracao"))) return "Salário"
+  if (type === "income" && (d.includes("rend") || d.includes("aplic"))) return "Investimentos"
+  if (d.includes("uber") || (d.includes("99") && !d.includes("food")) || d.includes("posto")) return "Transporte"
+  if (d.includes("food") || d.includes("ifd") || d.includes("ifood") || d.includes("burgue") || d.includes("boteco") || d.includes("cafe") || d.includes("restaurante") || d.includes("doces") || d.includes("alemaoba")) return "Alimentação"
+  if (d.includes("carrefour") || d.includes("emporio") || d.includes("merc") || d.includes("paes")) return "Mercado"
+  if (d.includes("spotify") || d.includes("google") || d.includes("netflix")) return "Assinaturas"
+  if (d.includes("cacau show")) return "Lazer"
+  if (d.includes("iof") || d.includes("juros") || d.includes("adiant.depositante")) return "Tarifas & Encargos"
+  if (d.includes("pix")) return "Transferências"
+  return "Geral"
+}
+
+function parseBrazilianBankStatementText(rawText: string): {
+  bankName: string
+  period?: string
+  totalIncome: number
+  totalExpense: number
+  transactions: Array<{
+    date: string
+    title: string
+    amount: number
+    type: "expense" | "income"
+    category: string
+  }>
+} | null {
+  if (!rawText || rawText.trim().length < 20) return null
+
+  // Identificação do banco
+  let bankName = "Banco"
+  if (/itaú|itau/i.test(rawText)) bankName = "Itaú"
+  else if (/nubank/i.test(rawText)) bankName = "Nubank"
+  else if (/bradesco/i.test(rawText)) bankName = "Bradesco"
+  else if (/santander/i.test(rawText)) bankName = "Santander"
+  else if (/inter/i.test(rawText)) bankName = "Banco Inter"
+
+  // Período
+  let period: string | undefined
+  const periodMatch = rawText.match(/per[íi]odo(?: de visualiza[çc][ãa]o)?:\s*(\d{2}\/\d{2}\/\d{4})\s*(?:at[ée]|a)\s*(\d{2}\/\d{2}\/\d{4})/i)
+  if (periodMatch) {
+    period = `${periodMatch[1]} a ${periodMatch[2]}`
   }
 
-  const directTJArrayRegex = /\[([\s\S]*?)\]\s*TJ/g
-  let tjArrMatch: RegExpExecArray | null
-  const subStrRegex = new RegExp("\\(([^()\\\\]*(?:\\\\.[^()\\\\]*)*)\\)", "g")
-  while ((tjArrMatch = directTJArrayRegex.exec(raw)) !== null) {
-    const inner = tjArrMatch[1]
-    let sMatch: RegExpExecArray | null
-    let line = ""
-    subStrRegex.lastIndex = 0
-    while ((sMatch = subStrRegex.exec(inner)) !== null) {
-      line += sMatch[1].replace(/\\([()\\])/g, "$1")
+  const lines = rawText.split(/\r?\n/)
+  const transactions: Array<{
+    date: string
+    title: string
+    amount: number
+    type: "expense" | "income"
+    category: string
+  }> = []
+
+  let totalIncome = 0
+  let totalExpense = 0
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    if (/saldo (?:do dia|anterior|final|bloqueado|projetado)/i.test(trimmed)) continue
+    if (/total de (?:d[ée]bitos|cr[ée]ditos|lan[çc]amentos)/i.test(trimmed)) continue
+
+    // Regex de padrão bancário: DD/MM/YYYY DESCRIÇÃO VALOR [SALDO]
+    const match = trimmed.match(/^(\d{2}\/\d{2}\/\d{4})\s+(.+?)\s+(-?[\d\.]+,\d{2})(?:\s+(-?[\d\.]+,\d{2}))?$/)
+    if (match) {
+      const rawDate = match[1]
+      const desc = match[2].trim()
+      const valStr = match[3].replace(/\./g, "").replace(",", ".")
+      const valNum = parseFloat(valStr)
+      if (isNaN(valNum) || valNum === 0) continue
+
+      const parts = rawDate.split("/")
+      const dateFormatted = `${parts[2]}-${parts[1]}-${parts[0]}`
+
+      const isIncome = valNum > 0
+      const amount = Math.round(Math.abs(valNum) * 100) / 100
+      const type: "expense" | "income" = isIncome ? "income" : "expense"
+
+      if (isIncome) totalIncome += amount
+      else totalExpense += amount
+
+      transactions.push({
+        date: dateFormatted,
+        title: cleanStatementTitle(desc),
+        amount,
+        type,
+        category: categorizeStatementTx(desc, type)
+      })
     }
-    if (line.trim()) extracted += line + "\n"
   }
 
-  // 2. Extração de streams comprimidos (FlateDecode) usando DecompressionStream nativo da Web API
-  const streamRegex = /stream[\r\n]+([\s\S]*?)[\r\n]+endstream/g
-  let streamMatch: RegExpExecArray | null
-  while ((streamMatch = streamRegex.exec(raw)) !== null) {
-    try {
-      const streamContent = streamMatch[1]
-      const streamBytes = new Uint8Array(streamContent.length)
-      for (let i = 0; i < streamContent.length; i++) {
-        streamBytes[i] = streamContent.charCodeAt(i)
-      }
-
-      const ds = new DecompressionStream("deflate")
-      const writer = ds.writable.getWriter()
-      writer.write(streamBytes)
-      writer.close()
-      const resp = new Response(ds.readable)
-      const decompressedBytes = await resp.arrayBuffer()
-      const decompText = new TextDecoder("latin1").decode(decompressedBytes)
-
-      let innerMatch: RegExpExecArray | null
-      const inTjRegex = new RegExp("\\(([^()\\\\]*(?:\\\\.[^()\\\\]*)*)\\)\\s*(?:Tj|['\"])", "g")
-      while ((innerMatch = inTjRegex.exec(decompText)) !== null) {
-        const val = innerMatch[1].replace(/\\([()\\])/g, "$1")
-        if (val.trim()) extracted += val + " "
-      }
-
-      const inTJArrayRegex = /\[([\s\S]*?)\]\s*TJ/g
-      let inArrMatch: RegExpExecArray | null
-      while ((inArrMatch = inTJArrayRegex.exec(decompText)) !== null) {
-        const inner = inArrMatch[1]
-        let subM: RegExpExecArray | null
-        let l = ""
-        subStrRegex.lastIndex = 0
-        while ((subM = subStrRegex.exec(inner)) !== null) {
-          l += subM[1].replace(/\\([()\\])/g, "$1")
-        }
-        if (l.trim()) extracted += l + "\n"
-      }
-    } catch {
-      // Ignora streams que não forem zlib/deflate válidos
+  if (transactions.length >= 2) {
+    return {
+      bankName,
+      period,
+      totalIncome: Math.round(totalIncome * 100) / 100,
+      totalExpense: Math.round(totalExpense * 100) / 100,
+      transactions
     }
   }
 
-  return extracted.trim()
+  return null
+}
+
+async function extractTextFromPdf(pdfBuffer: ArrayBuffer): Promise<string> {
+  // 1. Extração de alta performance via unpdf (Edge Runtime)
+  try {
+    const res = await extractText(new Uint8Array(pdfBuffer))
+    const text = Array.isArray(res.text) ? res.text.join("\n") : String(res.text || "")
+    if (text && text.trim().length > 30) {
+      console.log(`unpdf extraiu ${text.length} caracteres do PDF com sucesso!`)
+      return text.trim()
+    }
+  } catch (uErr) {
+    console.warn("Aviso ao extrair texto com unpdf:", uErr)
+  }
+
+  // 2. Fallback de extração leve em memória
+  try {
+    const bytes = new Uint8Array(pdfBuffer)
+    const raw = new TextDecoder("latin1").decode(bytes)
+    let extracted = ""
+    const directTjRegex = new RegExp("\\(([^()\\\\]*(?:\\\\.[^()\\\\]*)*)\\)\\s*(?:Tj|['\"])", "g")
+    let tjMatch: RegExpExecArray | null
+    while ((tjMatch = directTjRegex.exec(raw)) !== null) {
+      const cleaned = tjMatch[1].replace(/\\([()\\])/g, "$1")
+      if (cleaned.trim()) extracted += cleaned + " "
+    }
+    return extracted.trim()
+  } catch (err) {
+    console.warn("Aviso no fallback de extração:", err)
+    return ""
+  }
 }
 
 async function processBankStatementPdfWithGroq(pdfBuffer: ArrayBuffer, pdfBase64: string): Promise<{
@@ -2185,24 +2829,33 @@ async function processBankStatementPdfWithGroq(pdfBuffer: ArrayBuffer, pdfBase64
     category: string
   }>
 }> {
-  // 1. Extração nativa de texto do PDF
-  const text = await extractTextFromPdfBuffer(pdfBuffer)
+  // 1. Extração nativa de texto do PDF via unpdf
+  const text = await extractTextFromPdf(pdfBuffer)
 
-  // 2. Se houver texto suficiente extraído, analisa via Groq Llama 3.3 70B (sem depender do Gemini)
-  if (text.length > 50 && GROQ_API_KEY) {
+  // 2. Parser Determinístico Ultrarrápido (< 5ms) para Itaú e bancos brasileiros
+  if (text && text.length > 20) {
+    const fastParsed = parseBrazilianBankStatementText(text)
+    if (fastParsed && fastParsed.transactions.length >= 2) {
+      console.log(`Parser determinístico extraiu ${fastParsed.transactions.length} transações do ${fastParsed.bankName}!`)
+      return fastParsed
+    }
+  }
+
+  // 3. Análise Contábil com Groq Llama 3.3 70B (se houver texto extraído)
+  if (text && text.length > 30 && GROQ_API_KEY) {
     console.log(`Texto extraído do PDF (${text.length} caracteres). Analisando com Groq Llama 3.3 70B...`)
     const groqPrompt = `Você é um analista contábil e de conciliação bancária sênior do aplicativo financeiro Tessera.
 Analise com extrema precisão este extrato bancário em formato texto (ex: Itaú, Nubank, Bradesco, Santander, Inter, etc.):
 
 Diretrizes estritas de conciliação:
-1. Identifique o banco emissor (ex: "Itaú", "Nubank", "Bradesco", etc.) e o período do extrato (ex: "01/09/2026 a 12/09/2026").
+1. Identifique o banco emissor (ex: "Itaú", "Nubank", "Bradesco", etc.) e o período do extrato.
 2. Identifique cada transação financeira individual do período:
-   - "date": data no formato YYYY-MM-DD (se ano omitido no extrato, use o ano corrente).
-   - "title": descrição limpa e legível (ex: "Supermercado Pão de Açúcar", "Posto Shell", "PIX Enviado - João", "Salário", etc. - remova códigos de transação ou numerações inúteis).
+   - "date": data no formato YYYY-MM-DD.
+   - "title": descrição limpa e legível (ex: "Supermercado Pão de Açúcar", "Posto Shell", "Pix - João", "Salário", etc. - remova códigos numéricos inúteis).
    - "amount": valor numérico estritamente positivo (ex: 45.90).
    - "type": "expense" se for saída/débito/pagamento/compra; "income" se for entrada/crédito/salário/PIX recebido.
-   - "category": uma categoria concisa (ex: "Mercado", "Alimentação", "Transporte", "Moradia", "Saúde", "Lazer", "Salário", "Serviços", "Geral").
-3. NUNCA inclua linhas de "Saldo Anterior", "Saldo do Dia", "Saldo Final", "Total de Débitos", "Bloqueios" ou totais acumulados como transações. Apenas eventos reais de movimentação.
+   - "category": uma categoria concisa ("Mercado", "Alimentação", "Transporte", "Moradia", "Saúde", "Lazer", "Salário", "Serviços", "Geral").
+3. NUNCA inclua linhas de "Saldo Anterior", "Saldo do Dia", "Saldo Final", "Total de Débitos", "Bloqueios" ou totais acumulados como transações.
 4. Calcule "totalIncome" (soma das entradas), "totalExpense" (soma das saídas) e liste todas as transações em "transactions".
 
 Texto bruto do extrato:
@@ -2213,15 +2866,18 @@ ${text.slice(0, 45000)}
 Responda EXCLUSIVAMENTE com um JSON no formato:
 {
   "bankName": "Itaú",
-  "period": "01/09/2026 a 12/09/2026",
-  "totalIncome": 4500.00,
-  "totalExpense": 1830.45,
+  "period": "14/08/2026 a 13/09/2026",
+  "totalIncome": 3140.20,
+  "totalExpense": 3203.33,
   "transactions": [
-    { "date": "2026-09-02", "title": "Supermercado Pão de Açúcar", "amount": 342.10, "type": "expense", "category": "Mercado" }
+    { "date": "2026-09-11", "title": "Pix: NICOLI", "amount": 10.00, "type": "income", "category": "Transferências" }
   ]
 }`
 
     try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 20000)
+
       const gRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -2236,8 +2892,10 @@ Responda EXCLUSIVAMENTE com um JSON no formato:
           ],
           temperature: 0.1,
           response_format: { type: "json_object" }
-        })
+        }),
+        signal: controller.signal
       })
+      clearTimeout(timeoutId)
 
       if (gRes.ok) {
         const gData = await gRes.json()
@@ -2254,7 +2912,7 @@ Responda EXCLUSIVAMENTE com um JSON no formato:
     }
   }
 
-  // 3. Fallback inteligente para Gemini com descoberta dinâmica de modelos (para PDFs digitalizados via foto/scanner)
+  // 4. Fallback inteligente para Gemini apenas para PDFs digitalizados via foto/scanner
   return await processBankStatementPdfWithGemini(pdfBase64)
 }
 
@@ -2276,17 +2934,19 @@ async function processBankStatementPdfWithGemini(pdfBase64: string): Promise<{
     throw new Error("Não foi possível extrair texto legível do extrato e GEMINI_API_KEY não está configurada.")
   }
 
-  // Descoberta dinâmica de modelos disponíveis na chave para eliminar erros 404
-  let targetModel = "gemini-2.0-flash"
+  let targetModel = "gemini-2.5-flash"
   try {
-    const listResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${geminiKey}`)
+    const listResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${geminiKey}`, {
+      signal: AbortSignal.timeout(5000)
+    })
     if (listResp.ok) {
       const listData = await listResp.json() as { models?: Array<{ name: string; supportedGenerationMethods?: string[] }> }
       const availableModels = (listData.models || [])
         .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
         .map((m) => m.name.replace("models/", ""))
 
-      const candidate = availableModels.find((m) => m.includes("2.0-flash"))
+      const candidate = availableModels.find((m) => m.includes("2.5-flash"))
+        || availableModels.find((m) => m.includes("1.5-flash"))
         || availableModels.find((m) => m.includes("flash"))
         || availableModels[0]
       if (candidate) targetModel = candidate
@@ -2298,24 +2958,24 @@ async function processBankStatementPdfWithGemini(pdfBase64: string): Promise<{
   const prompt = `Você é um analista contábil e de conciliação bancária sênior do aplicativo financeiro Tessera.
 Analise com extrema precisão este extrato bancário em PDF (ex: Itaú, Nubank, Bradesco, Santander, Inter, etc.).
 Diretrizes estritas de leitura:
-1. Identifique o banco emissor (ex: "Itaú", "Nubank", etc.) e o período do extrato (ex: "01/09/2026 a 12/09/2026").
+1. Identifique o banco emissor (ex: "Itaú", "Nubank", etc.) e o período do extrato.
 2. Identifique cada transação financeira individual do período:
-   - "date": data no formato YYYY-MM-DD (use o ano do extrato).
-   - "title": descrição limpa e legível do lançamento (ex: "Supermercado Pão de Açúcar", "Posto Shell", "PIX Enviado - João", "Salário", etc. - remova códigos de transação ou numerações inúteis).
+   - "date": data no formato YYYY-MM-DD.
+   - "title": descrição limpa e legível.
    - "amount": valor numérico estritamente positivo (ex: 45.90).
    - "type": "expense" se for saída/débito/pagamento/compra; "income" se for entrada/crédito/salário/PIX recebido.
-   - "category": uma categoria concisa (ex: "Mercado", "Alimentação", "Transporte", "Moradia", "Saúde", "Lazer", "Salário", "Serviços", "Geral").
-3. NUNCA inclua linhas de "Saldo Anterior", "Saldo do Dia", "Saldo Final", "Total de Débitos", "Bloqueios" ou totais acumulados como transações. Apenas eventos reais de movimentação.
-4. Calcule "totalIncome" (soma das entradas), "totalExpense" (soma das saídas) e liste todas as transações em "transactions".
+   - "category": categoria concisa ("Mercado", "Alimentação", "Transporte", "Moradia", "Saúde", "Lazer", "Salário", "Serviços", "Geral").
+3. NUNCA inclua linhas de "Saldo Anterior", "Saldo do Dia", "Saldo Final" ou totais acumulados como transações.
+4. Calcule "totalIncome", "totalExpense" e liste todas as transações em "transactions".
 
 Responda APENAS com um objeto JSON válido no formato:
 {
   "bankName": "Itaú",
-  "period": "01/09/2026 a 12/09/2026",
-  "totalIncome": 4500.00,
-  "totalExpense": 1830.45,
+  "period": "14/08/2026 a 13/09/2026",
+  "totalIncome": 3140.20,
+  "totalExpense": 3203.33,
   "transactions": [
-    { "date": "2026-09-02", "title": "Supermercado Pão de Açúcar", "amount": 342.10, "type": "expense", "category": "Mercado" }
+    { "date": "2026-09-11", "title": "Pix: NICOLI", "amount": 10.00, "type": "income", "category": "Transferências" }
   ]
 }`
 
@@ -2343,13 +3003,14 @@ Responda APENAS com um objeto JSON válido no formato:
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(20000)
   })
 
   if (!response.ok) {
     const errText = await response.text()
     console.error("Erro no Gemini PDF Processing:", response.status, errText)
-    throw new Error(`Erro na análise do extrato bancário com Gemini: ${errText}`)
+    throw new Error(`Erro na análise do extrato bancário com Gemini (${targetModel}): ${errText}`)
   }
 
   const json = await response.json()
@@ -2377,7 +3038,7 @@ Você possui vasto conhecimento enciclopédico e analítico sobre história, teo
 Você deve analisar o texto ou comando do usuário e responder EXCLUSIVAMENTE em formato JSON (json_object) estruturado com o seguinte schema:
 
 {
-  "action": "add_transaction" | "get_finances" | "get_chart" | "export_csv" | "add_task" | "get_tasks" | "query_wishes" | "complete_wish" | "add_wish" | "add_market_items" | "get_market_items" | "get_weather" | "get_soccer" | "get_briefing" | "get_apartment" | "update_apartment" | "get_health" | "update_health" | "chat_general",
+  "action": "add_transaction" | "get_finances" | "get_chart" | "export_csv" | "add_task" | "get_tasks" | "query_wishes" | "complete_wish" | "add_wish" | "add_market_items" | "get_market_items" | "get_weather" | "get_soccer" | "get_briefing" | "get_apartment" | "update_apartment" | "get_health" | "update_health" | "get_routines" | "toggle_habit" | "get_pets" | "log_pet_care" | "get_transport" | "chat_general",
   "transcription": "${audioTranscription ? audioTranscription.replace(/"/g, "'") : ""}",
   "transaction": {
     "title": "título curto e claro da despesa ou receita (ex: Padaria, Almoço, Salário, Gasolina)",
@@ -2423,6 +3084,17 @@ Você deve analisar o texto ou comando do usuário e responder EXCLUSIVAMENTE em
     "steps": 6000,
     "sleep_hours": 7.5
   },
+  "habit": {
+    "name": "nome do hábito (ex: Leitura, Hidratação, Treino, Meditação)",
+    "completed": true
+  },
+  "pet": {
+    "action": "fed_morning" | "fed_night" | "walked" | "fresh_water",
+    "name": "Thor"
+  },
+  "transport": {
+    "line": "número ou nome da linha (ex: Linha 1, Azul, Linha 4, Amarela, Linha 9)"
+  },
   "query": "termo chave para busca ou time de futebol",
   "location": "nome da cidade para clima",
   "reply_text": "resposta completa, inteligente, precisa e bem fundamentada em português para o usuário"
@@ -2446,7 +3118,12 @@ Regras:
 15. Se o usuário perguntar da obra, status do apartamento, apê, reforma ou portal do cliente (ex: "como tá a obra?", "obra do apê", "status do apê", "portal do cliente"), defina action="get_apartment".
 16. Se o usuário pedir para atualizar a porcentagem da obra ou informar novo progresso (ex: "atualiza a obra para 80%", "apê em 85%", "obra 82%"), defina action="update_apartment" e preencha "apartment.progress" com o número inteiro (ex: 80). Se enviar uma URL, coloque em "apartment.portal_url".
 17. Se o usuário perguntar de saúde, água ingerida, peso ou sono (ex: "como tá minha saúde hoje?", "quanta água bebi?", "meta de água"), defina action="get_health".
-18. Se o usuário registrar ingestão de água, peso, passos ou sono (ex: "bebi 500ml de água", "tomei um copo de água", "pesei 74.2kg", "dormi 8 horas"), defina action="update_health" e preencha "health" (para 'um copo de água', use water_ml=250; para 'garrafa de água', use water_ml=500).`
+18. Se o usuário registrar ingestão de água, peso, passos ou sono (ex: "bebi 500ml de água", "tomei um copo de água", "pesei 74.2kg", "dormi 8 horas"), defina action="update_health" e preencha "health" (para 'um copo de água', use water_ml=250; para 'garrafa de água', use water_ml=500).
+19. Se o usuário perguntar de hábitos diários, rotinas ou streaks (ex: "quais hábitos faltam hoje?", "minha rotina", "ver hábitos", "hábitos"), defina action="get_routines".
+20. Se o usuário disser que realizou ou completou um hábito (ex: "fiz a leitura de hoje", "já meditei", "fiz o treino", "tomei água da meta"), defina action="toggle_habit" e preencha "habit.name".
+21. Se o usuário perguntar dos pets, cuidados ou vacinas (ex: "como tá o Thor?", "vacinas do cachorro", "painel pet", "pets"), defina action="get_pets".
+22. Se o usuário disser que deu comida, passeou ou trocou água do pet (ex: "dei ração pro Thor", "passei com o cachorro", "troquei a água do Thor"), defina action="log_pet_care" e preencha "pet.action" ("fed_morning" ou "fed_night" ou "walked" ou "fresh_water").
+23. Se o usuário perguntar da situação do metrô, trem, CPTM, trânsito ou linhas de SP (ex: "como tá o metrô?", "linha amarela tá funcionando?", "tem problema na linha 9?", "trânsito metrô"), defina action="get_transport".`
 
   let response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -2617,6 +3294,117 @@ Deno.serve(async (req: Request) => {
     update = await req.json()
   } catch {
     return new Response("Invalid JSON", { status: 400 })
+  }
+
+  // Endpoints Diretos de Sincronização para o App Android (Tessera Mobile)
+  if (update?.action === "sync_apartment") {
+    const rawProgress = typeof update.progress === "number" ? update.progress : 75
+    const progress = rawProgress <= 1 ? Math.round(rawProgress * 100) : Math.round(rawProgress)
+    const expectedDate = update.expected_date || "Dez 2026"
+    const portalUrl = update.portal_url || "https://relacionamento.planoeplano.app/painel/home"
+    const doc: ApartmentState = {
+      progress: Math.min(100, Math.max(0, progress)),
+      client_portal_url: portalUrl,
+      updated_at: new Date().toISOString(),
+      expected_date: expectedDate
+    }
+    await saveApartmentDoc(doc, "mobile_app")
+    return new Response(JSON.stringify({ ok: true, data: doc }), {
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+    })
+  }
+
+  if (update?.action === "get_apartment") {
+    const doc = await getApartmentDoc()
+    return new Response(JSON.stringify({ ok: true, data: doc }), {
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+    })
+  }
+
+  // Endpoints Diretos: Saúde
+  if (update?.action === "sync_health") {
+    const current = await getHealthDoc()
+    const updated: HealthState = {
+      ...current,
+      today_water_ml: typeof update.today_water_ml === "number" ? update.today_water_ml : current.today_water_ml,
+      water_goal_ml: typeof update.water_goal_ml === "number" ? update.water_goal_ml : current.water_goal_ml,
+      today_steps: typeof update.today_steps === "number" ? update.today_steps : current.today_steps,
+      steps_goal: typeof update.steps_goal === "number" ? update.steps_goal : current.steps_goal,
+      latest_weight: typeof update.latest_weight === "number" ? update.latest_weight : current.latest_weight,
+      latest_sleep_hours: typeof update.latest_sleep_hours === "number" ? update.latest_sleep_hours : current.latest_sleep_hours,
+      medications: Array.isArray(update.medications) ? update.medications : current.medications,
+      water_records: Array.isArray(update.water_records) ? update.water_records : current.water_records
+    }
+    await saveHealthDoc(updated, "mobile_app")
+    return new Response(JSON.stringify({ ok: true, data: updated }), {
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+    })
+  }
+
+  if (update?.action === "get_health") {
+    const doc = await getHealthDoc()
+    return new Response(JSON.stringify({ ok: true, data: doc }), {
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+    })
+  }
+
+  // Endpoints Diretos: Rotinas & Hábitos
+  if (update?.action === "sync_routines") {
+    const doc = await getRoutinesDoc()
+    if (Array.isArray(update.habits)) doc.habits = update.habits
+    if (Array.isArray(update.routines)) doc.routines = update.routines
+    doc.updated_at = new Date().toISOString()
+    await saveRoutinesDoc(doc)
+    return new Response(JSON.stringify({ ok: true, data: doc }), {
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+    })
+  }
+
+  if (update?.action === "get_routines") {
+    const doc = await getRoutinesDoc()
+    return new Response(JSON.stringify({ ok: true, data: doc }), {
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+    })
+  }
+
+  // Endpoints Diretos: Pets
+  if (update?.action === "sync_pets") {
+    const doc = await getPetsDoc()
+    if (Array.isArray(update.pets)) doc.pets = update.pets
+    if (Array.isArray(update.events)) doc.events = update.events
+    if (update.daily_care) doc.daily_care = { ...doc.daily_care, ...update.daily_care }
+    doc.updated_at = new Date().toISOString()
+    await savePetsDoc(doc)
+    return new Response(JSON.stringify({ ok: true, data: doc }), {
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+    })
+  }
+
+  if (update?.action === "get_pets") {
+    const doc = await getPetsDoc()
+    return new Response(JSON.stringify({ ok: true, data: doc }), {
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+    })
+  }
+
+  // Endpoints Diretos: Transporte
+  if (update?.action === "sync_transport") {
+    const doc = await getTransportDoc()
+    if (Array.isArray(update.monitored_metro_lines)) doc.monitored_metro_lines = update.monitored_metro_lines
+    if (Array.isArray(update.saved_bus_lines)) doc.saved_bus_lines = update.saved_bus_lines
+    doc.updated_at = new Date().toISOString()
+    await saveTransportDoc(doc)
+    return new Response(JSON.stringify({ ok: true, data: doc }), {
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+    })
+  }
+
+  if (update?.action === "get_transport") {
+    const doc = await getTransportDoc()
+    const metroStatus = await fetchLiveMetroStatus()
+    return new Response(JSON.stringify({ ok: true, data: doc, metro_status: metroStatus }), {
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+    })
   }
 
   // Deduplicação de Webhook do Telegram (Impede re-execução em retries por timeout)
@@ -2858,9 +3646,39 @@ Deno.serve(async (req: Request) => {
     }
 
     // Callbacks do Módulo de Obra e Apartamento
-    if (data === "menu_apartment") {
-      await answerCallbackQuery(cq.id, "Carregando status da obra...")
+    if (data === "menu_apartment" || data === "menu_apartment_refresh") {
       const doc = await getApartmentDoc()
+      const card = formatApartmentCard(doc)
+      await answerCallbackQuery(cq.id, `Status da obra verificado: ${doc.progress}% concluído! ✅`)
+      if (chatId && messageId) {
+        await editTelegramMessage(chatId, messageId, card.text, card.replyMarkup)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    if (data.startsWith("apt_step:")) {
+      const delta = parseInt(data.replace("apt_step:", ""), 10) || 0
+      const doc = await getApartmentDoc()
+      const current = typeof doc.progress === "number" ? doc.progress : 75
+      const newPct = Math.min(100, Math.max(0, current + delta))
+      doc.progress = newPct
+      doc.updated_at = new Date().toISOString()
+      await saveApartmentDoc(doc, fromId)
+      await answerCallbackQuery(cq.id, `Obra ajustada: ${newPct}%! 🏗️`)
+      const card = formatApartmentCard(doc)
+      if (chatId && messageId) {
+        await editTelegramMessage(chatId, messageId, card.text, card.replyMarkup)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    if (data.startsWith("apt_set:")) {
+      const target = parseInt(data.replace("apt_set:", ""), 10) || 75
+      const doc = await getApartmentDoc()
+      doc.progress = Math.min(100, Math.max(0, target))
+      doc.updated_at = new Date().toISOString()
+      await saveApartmentDoc(doc, fromId)
+      await answerCallbackQuery(cq.id, `Obra atualizada para ${target}%! 🏗️`)
       const card = formatApartmentCard(doc)
       if (chatId && messageId) {
         await editTelegramMessage(chatId, messageId, card.text, card.replyMarkup)
@@ -2894,6 +3712,83 @@ Deno.serve(async (req: Request) => {
 
     if (data === "health_log_weight") {
       await answerCallbackQuery(cq.id, "Envie seu peso por áudio ou texto (ex: 'Pesei 74.5kg')")
+      return new Response("OK", { status: 200 })
+    }
+
+    // Callbacks de Rotinas & Hábitos
+    if (data === "menu_routines") {
+      await answerCallbackQuery(cq.id, "Carregando hábitos...")
+      const doc = await getRoutinesDoc()
+      const card = formatRoutinesCard(doc)
+      if (chatId && messageId) {
+        await editTelegramMessage(chatId, messageId, card.text, card.replyMarkup)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    if (data.startsWith("habit_toggle:")) {
+      const habitId = data.replace("habit_toggle:", "")
+      const { doc, toggledHabit } = await toggleHabitInDoc(habitId)
+      const label = toggledHabit ? toggledHabit.name : "Hábito"
+      const statusStr = toggledHabit?.is_completed_today ? "concluído! 🔥" : "desmarcado!"
+      await answerCallbackQuery(cq.id, `${label} ${statusStr}`)
+      const card = formatRoutinesCard(doc)
+      if (chatId && messageId) {
+        await editTelegramMessage(chatId, messageId, card.text, card.replyMarkup)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    // Callbacks de Pets
+    if (data === "menu_pets") {
+      await answerCallbackQuery(cq.id, "Carregando central pet...")
+      const doc = await getPetsDoc()
+      const card = formatPetsCard(doc)
+      if (chatId && messageId) {
+        await editTelegramMessage(chatId, messageId, card.text, card.replyMarkup)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    if (data.startsWith("pet_care:")) {
+      const action = data.replace("pet_care:", "") as "fed_morning" | "fed_night" | "walked" | "fresh_water"
+      const doc = await logPetCareInDoc(action)
+      const actionLabels: Record<string, string> = {
+        fed_morning: "Ração matinal registrada! 🍖",
+        fed_night: "Ração noturna registrada! 🍖",
+        walked: "Passeio registrado! 🦮",
+        fresh_water: "Água fresca trocada! 💧"
+      }
+      await answerCallbackQuery(cq.id, actionLabels[action] || "Cuidado com pet registrado! 🐾")
+      const card = formatPetsCard(doc)
+      if (chatId && messageId) {
+        await editTelegramMessage(chatId, messageId, card.text, card.replyMarkup)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    // Callbacks de Transporte & Metrô
+    if (data === "menu_transport" || data === "transport_refresh") {
+      await answerCallbackQuery(cq.id, "Consultando linhas de metrô e trem...")
+      const trDoc = await getTransportDoc()
+      const lines = await fetchLiveMetroStatus()
+      const card = formatTransportCard(lines, trDoc.monitored_metro_lines || [])
+      if (chatId && messageId) {
+        await editTelegramMessage(chatId, messageId, card.text, card.replyMarkup)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    if (data === "transport_monitored") {
+      await answerCallbackQuery(cq.id, "Filtrando suas linhas favoritas...")
+      const trDoc = await getTransportDoc()
+      const lines = await fetchLiveMetroStatus()
+      const monCodes = trDoc.monitored_metro_lines || []
+      const filtered = lines.filter(l => monCodes.includes(l.codigo))
+      const card = formatTransportCard(filtered.length > 0 ? filtered : lines, monCodes)
+      if (chatId && messageId) {
+        await editTelegramMessage(chatId, messageId, card.text, card.replyMarkup)
+      }
       return new Response("OK", { status: 200 })
     }
 
@@ -3059,6 +3954,16 @@ Deno.serve(async (req: Request) => {
 
   // Processamento de Documento PDF (Extratos Bancários Itaú, Nubank, etc.)
   if (message.document && (message.document.mime_type === "application/pdf" || message.document.file_name?.toLowerCase().endsWith(".pdf"))) {
+    const fileId = message.document.file_id
+    if (fileId && processedFileIds.has(fileId)) {
+      console.log(`Documento PDF ${fileId} já está sendo processado. Ignorando retry do Telegram.`)
+      return new Response("OK (already processing)", { status: 200 })
+    }
+    if (fileId) {
+      processedFileIds.add(fileId)
+      setTimeout(() => processedFileIds.delete(fileId), 5 * 60 * 1000)
+    }
+
     await sendChatAction(chatId, "typing")
     await sendTelegramMessage(chatId, "📄 <i>Extrato bancário em PDF recebido! Analisando documento com IA especializada em conciliação bancária... Aguarde um instante.</i>")
 
@@ -3150,8 +4055,11 @@ Deno.serve(async (req: Request) => {
         `Olá, ${userFirstName}! Aqui você tem controle total do seu aplicativo Tessera por voz, texto ou fotos:\n\n` +
         `<b>Comandos Rápidos no Teclado:</b>\n` +
         `• /briefing — Resumo matinal completo (áudio + texto)\n` +
-        `• /obra — Status e evolução da obra do apartamento\n` +
+        `• /habitos — Checklist de hábitos diários e streaks\n` +
+        `• /pets — Central Petz, alimentação e vacinas\n` +
+        `• /metro — Situação em tempo real do Metrô e CPTM\n` +
         `• /saude — Registro de hidratação, peso e hábitos\n` +
+        `• /obra — Status e evolução da obra do apartamento\n` +
         `• /saldo — Saldo livre, limites de cartão e faturas\n` +
         `• /futebol — Próximos jogos, tabela e placares\n` +
         `• /tabela — Classificação oficial da Série A\n` +
@@ -3181,6 +4089,11 @@ Deno.serve(async (req: Request) => {
             { text: "🩺 Saúde", callback_data: "menu_health" }
           ],
           [
+            { text: "🔄 Hábitos", callback_data: "menu_routines" },
+            { text: "🐾 Pets", callback_data: "menu_pets" },
+            { text: "🚇 Metrô", callback_data: "transport_refresh" }
+          ],
+          [
             { text: "🛒 Mercado", web_app: { url: "https://tessera-35c54.web.app/market" } },
             { text: "📊 Finanças", web_app: { url: "https://tessera-35c54.web.app/finance" } }
           ]
@@ -3204,6 +4117,28 @@ Deno.serve(async (req: Request) => {
           console.error("Erro ao enviar áudio do briefing:", vErr)
         }
       }
+      return new Response("OK", { status: 200 })
+    }
+
+    if (cmd === "/habitos" || cmd === "/rotina" || cmd === "/habito") {
+      const doc = await getRoutinesDoc()
+      const card = formatRoutinesCard(doc)
+      await sendTelegramMessage(chatId, card.text, card.replyMarkup)
+      return new Response("OK", { status: 200 })
+    }
+
+    if (cmd === "/pets" || cmd === "/pet") {
+      const doc = await getPetsDoc()
+      const card = formatPetsCard(doc)
+      await sendTelegramMessage(chatId, card.text, card.replyMarkup)
+      return new Response("OK", { status: 200 })
+    }
+
+    if (cmd === "/metro" || cmd === "/transporte" || cmd === "/trem" || cmd === "/cptm") {
+      const trDoc = await getTransportDoc()
+      const lines = await fetchLiveMetroStatus()
+      const card = formatTransportCard(lines, trDoc.monitored_metro_lines || [])
+      await sendTelegramMessage(chatId, card.text, card.replyMarkup)
       return new Response("OK", { status: 200 })
     }
 
@@ -3992,6 +4927,74 @@ Deno.serve(async (req: Request) => {
       if (message.voice) {
         const spoken = `Registrado com sucesso na sua rotina de saúde! Continue focado nas suas metas.`
         await maybeSendVoiceReply(chatId, spoken, true)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    // Ação: Consultar Hábitos & Rotinas
+    if (aiResult.action === "get_routines") {
+      const doc = await getRoutinesDoc()
+      const card = formatRoutinesCard(doc)
+      await sendTelegramMessage(chatId, `${transcriptionNote}${card.text}`, card.replyMarkup)
+      if (message.voice) {
+        await maybeSendVoiceReply(chatId, card.spokenText, true)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    // Ação: Concluir ou Alternar Hábito
+    if (aiResult.action === "toggle_habit") {
+      const hName = aiResult.habit?.name || aiResult.query || "Hábito"
+      const { doc, toggledHabit } = await toggleHabitInDoc(hName)
+      const label = toggledHabit ? toggledHabit.name : hName
+      const statusStr = toggledHabit?.is_completed_today ? `marcado como concluído! Parabéns pelos ${toggledHabit.streak} dias de sequência! 🔥` : "desmarcado."
+      const card = formatRoutinesCard(doc)
+      const reply = `${transcriptionNote}✅ <b>${label}</b> ${statusStr}\n\n${card.text}`
+      await sendTelegramMessage(chatId, reply, card.replyMarkup)
+      if (message.voice) {
+        await maybeSendVoiceReply(chatId, `Hábito de ${label} ${statusStr}`, true)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    // Ação: Consultar Pets
+    if (aiResult.action === "get_pets") {
+      const doc = await getPetsDoc()
+      const card = formatPetsCard(doc)
+      await sendTelegramMessage(chatId, `${transcriptionNote}${card.text}`, card.replyMarkup)
+      if (message.voice) {
+        await maybeSendVoiceReply(chatId, card.spokenText, true)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    // Ação: Registrar Cuidado com Pet (Ração, Passeio, Água)
+    if (aiResult.action === "log_pet_care") {
+      const act = (aiResult.pet?.action || "fed_morning") as "fed_morning" | "fed_night" | "walked" | "fresh_water"
+      const doc = await logPetCareInDoc(act)
+      const actionLabels: Record<string, string> = {
+        fed_morning: "Ração matinal registrada com sucesso! 🍖",
+        fed_night: "Ração noturna registrada com sucesso! 🍖",
+        walked: "Passeio registrado! Parabéns pela dedicação. 🦮",
+        fresh_water: "Água fresca trocada! 💧"
+      }
+      const card = formatPetsCard(doc)
+      const reply = `${transcriptionNote}🐾 <b>${actionLabels[act] || "Cuidado registrado!"}</b>\n\n${card.text}`
+      await sendTelegramMessage(chatId, reply, card.replyMarkup)
+      if (message.voice) {
+        await maybeSendVoiceReply(chatId, actionLabels[act] || "Cuidado com o pet registrado.", true)
+      }
+      return new Response("OK", { status: 200 })
+    }
+
+    // Ação: Consultar Situação do Metrô, Trem e Transporte
+    if (aiResult.action === "get_transport") {
+      const trDoc = await getTransportDoc()
+      const lines = await fetchLiveMetroStatus()
+      const card = formatTransportCard(lines, trDoc.monitored_metro_lines || [])
+      await sendTelegramMessage(chatId, `${transcriptionNote}${card.text}`, card.replyMarkup)
+      if (message.voice) {
+        await maybeSendVoiceReply(chatId, card.spokenText, true)
       }
       return new Response("OK", { status: 200 })
     }

@@ -1,6 +1,7 @@
 package com.example
 
 import android.content.Context
+import android.widget.Toast
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,20 +26,27 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.supabase.SupabaseClientProvider
 import com.example.ui.components.OuraCircularProgress
 import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.theme.PrimaryTeal
 import com.example.ui.theme.SecondaryGold
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ApartmentScreen(onHomeClick: () -> Unit) {
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", Context.MODE_PRIVATE) }
+    val scope = rememberCoroutineScope()
     
-    var progress by remember { mutableStateOf(sharedPrefs.getFloat("apartment_progress", 0f)) }
+    var progress by remember { mutableStateOf(sharedPrefs.getFloat("apartment_progress", 0.75f)) }
     var isPlaying by remember { mutableStateOf(false) }
+    var isSyncing by remember { mutableStateOf(false) }
     
     var showDateDialog by remember { mutableStateOf(false) }
     var expectedDate by remember { mutableStateOf(sharedPrefs.getString("apartment_date", "Dez 2026") ?: "Dez 2026") }
@@ -46,12 +54,75 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
     
     val scrollState = rememberScrollState()
 
+    fun syncWithCloud(newProgress: Float, newDate: String) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                val payload = JSONObject().apply {
+                    put("action", "sync_apartment")
+                    put("progress", (newProgress * 100).toInt())
+                    put("expected_date", newDate)
+                }.toString()
+                SupabaseClientProvider.invokeFunction("telegram-bot", payload)
+            } catch (e: Exception) {
+                android.util.Log.w("ApartmentScreen", "Erro ao sincronizar com nuvem: ${e.message}")
+            }
+        }
+    }
+
+    fun refreshFromCloud(showToast: Boolean = true) {
+        scope.launch {
+            isSyncing = true
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    val payload = JSONObject().apply { put("action", "get_apartment") }.toString()
+                    SupabaseClientProvider.invokeFunction("telegram-bot", payload)
+                }
+                if (result.isSuccess) {
+                    val jsonStr = result.getOrNull() ?: ""
+                    val obj = JSONObject(jsonStr)
+                    if (obj.optBoolean("ok")) {
+                        val data = obj.optJSONObject("data")
+                        if (data != null) {
+                            val remoteProg = data.optInt("progress", (progress * 100).toInt()) / 100f
+                            val remoteDate = data.optString("expected_date", expectedDate)
+                            progress = remoteProg
+                            expectedDate = remoteDate
+                            tempDate = remoteDate
+                            sharedPrefs.edit()
+                                .putFloat("apartment_progress", remoteProg)
+                                .putString("apartment_date", remoteDate)
+                                .apply()
+                            if (showToast) {
+                                Toast.makeText(context, "Sincronizado com o Bot: ${(remoteProg * 100).toInt()}%!", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                } else if (showToast) {
+                    Toast.makeText(context, "Não foi possível conectar com o Bot", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                if (showToast) {
+                    Toast.makeText(context, "Erro na sincronização: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            } finally {
+                isSyncing = false
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        refreshFromCloud(showToast = false)
+    }
+
     LaunchedEffect(isPlaying) {
         while (isPlaying && progress < 1f) {
             delay(100)
             progress = (progress + 0.005f).coerceAtMost(1f)
             sharedPrefs.edit().putFloat("apartment_progress", progress).apply()
             if (progress >= 1f) isPlaying = false
+        }
+        if (!isPlaying) {
+            syncWithCloud(progress, expectedDate)
         }
     }
 
@@ -145,18 +216,28 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // Botão de Atualizar / Sincronizar com a Nuvem e Telegram Bot
                         IconButton(
-                            onClick = {
-                                progress = 0f
-                                sharedPrefs.edit().putFloat("apartment_progress", 0f).apply()
-                                isPlaying = false
-                            },
+                            onClick = { refreshFromCloud(showToast = true) },
+                            enabled = !isSyncing,
                             modifier = Modifier
                                 .size(56.dp)
                                 .clip(RoundedCornerShape(20.dp))
                                 .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                         ) {
-                            Icon(Icons.Outlined.Refresh, contentDescription = "Zerar", tint = MaterialTheme.colorScheme.onBackground)
+                            if (isSyncing) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(22.dp),
+                                    color = SecondaryGold,
+                                    strokeWidth = 2.5.dp
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Outlined.Refresh,
+                                    contentDescription = "Atualizar status da nuvem",
+                                    tint = MaterialTheme.colorScheme.onBackground
+                                )
+                            }
                         }
 
                         IconButton(
@@ -182,6 +263,9 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                         onValueChange = { newProgress ->
                             progress = newProgress
                             sharedPrefs.edit().putFloat("apartment_progress", newProgress).apply()
+                        },
+                        onValueChangeFinished = {
+                            syncWithCloud(progress, expectedDate)
                         },
                         modifier = Modifier.padding(horizontal = 16.dp),
                         colors = SliderDefaults.colors(
@@ -277,6 +361,7 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                             onClick = {
                                 expectedDate = tempDate
                                 sharedPrefs.edit().putString("apartment_date", tempDate).apply()
+                                syncWithCloud(progress, tempDate)
                                 showDateDialog = false
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = SecondaryGold, contentColor = Color.Black),

@@ -4,6 +4,19 @@ Bem-vindo ao **Tessera**, o seu assistente de estilo de vida completo e hub inte
 Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um único lugar.
 
 
+## 🚀 Novidades da Versão 2.0.66
+
+- **Sincronização em Nuvem e Telegram Bot para Saúde, Rotinas, Pets e Transporte:**
+  - **Módulo de Saúde (`shared_health_hub` & `SupabaseHealthSyncManager`):** Sincronização em tempo real de metas diárias de água (ml consumido vs meta), sono (horas dormidas vs meta) e passos. Comando `/saude` no Telegram com resumo visual completo.
+  - **Módulo de Rotinas & Hábitos (`shared_routines_hub` & `SupabaseRoutinesSyncManager`):** Acompanhamento de hábitos ativos, contagem de streaks, status de conclusão no dia e comando `/habitos` no bot com botões interativos para alternar/concluir hábitos diretamente pelo Telegram (`habit_toggle:`).
+  - **Módulo de Pets (`shared_pets_hub` & `SupabasePetsSyncManager`):** Sincronização dos eventos e cuidados com os pets (ração, remédios, passeios). Comando `/pets` no bot do Telegram com botões interativos para registrar alimentação e medicações em um toque (`pet_care:`).
+  - **Módulo de Transporte & Mobilidade (`shared_transport_hub` & `SupabaseTransportSyncManager`):** Status das linhas monitoradas (Metrô/CPTM), comando `/metro` no Telegram com botão de atualização dinâmica (`transport_refresh`) e inclusão no briefing matinal proativo.
+- **Leitor de Extratos Bancários com Detecção Determinística e IA (Itaú, Nubank e mais):**
+  - **Parser Regex Determinístico de Alta Velocidade:** Extração instantânea de transações Itaú (Pix, boletos, transferências, datas e valores) sem depender exclusivamente de LLM, com limpeza automática de títulos para o padrão nativo do app.
+  - **Fallback com IA Groq Llama 3.3 70B & Gemini Flash:** Processamento contextual resiliente e ultrarrápido de extratos em PDF e imagem com tratamento de falhas.
+- **Obra do Apê — Sincronização e Atualização Confiável:**
+  - Resolução do travamento no botão de atualizar e sincronização em tempo real garantida com a nuvem no Supabase.
+
 ## 🚀 Novidades da Versão 2.0.65
 
 - **Blindagem Anti-Duplicação e Idempotência (Telegram & Android):**
@@ -364,8 +377,8 @@ Acompanhe suas finanças, metas diárias, notícias, saúde e bem-estar em um ú
 ### 📥 Links para Download
 Os APKs desta versão encontram-se na pasta `.build-outputs/`:
 
-[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.65.apk)
-[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.65.apk)
+[![Baixar APK Debug](https://img.shields.io/badge/Download-APK_Debug-green?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-debug-2.0.66.apk)
+[![Baixar APK Release](https://img.shields.io/badge/Download-APK_Release-blue?style=for-the-badge&logo=android)](https://github.com/beyonder96/Tessera/raw/main/.build-outputs/app-release-2.0.66.apk)
 
 ---
 Tessera. Seu guia, em toda a linha do tempo.

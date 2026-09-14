@@ -64,6 +64,10 @@ class TesseraViewModel(
     val supabaseFinanceSync = com.example.data.supabase.SupabaseFinanceSyncManager(applicationContext, repository)
     val supabaseTasksSync = com.example.data.supabase.SupabaseTasksSyncManager(applicationContext)
     val supabaseWishesSync = com.example.data.supabase.SupabaseWishesSyncManager(applicationContext, repository)
+    val supabaseHealthSync = com.example.data.supabase.SupabaseHealthSyncManager(applicationContext, repository)
+    val supabaseRoutinesSync = com.example.data.supabase.SupabaseRoutinesSyncManager(applicationContext, repository)
+    val supabasePetsSync = com.example.data.supabase.SupabasePetsSyncManager(applicationContext, repository)
+    val supabaseTransportSync = com.example.data.supabase.SupabaseTransportSyncManager(applicationContext)
 
     private val marketSharedPrefs = applicationContext.getSharedPreferences("tessera_market_prefs", Context.MODE_PRIVATE)
     val marketListId = MutableStateFlow<String?>(marketSharedPrefs.getString("shared_list_id", null))
@@ -74,6 +78,10 @@ class TesseraViewModel(
         supabaseFinanceSync.startContinuousSync()
         supabaseTasksSync.startContinuousSync()
         supabaseWishesSync.startContinuousSync()
+        supabaseHealthSync.startContinuousSync()
+        supabaseRoutinesSync.startContinuousSync()
+        supabasePetsSync.startContinuousSync()
+        supabaseTransportSync.startContinuousSync()
 
         marketListId.value?.let { id ->
             syncManager.startSync(id)
@@ -2091,12 +2099,14 @@ class TesseraViewModel(
     fun togglePetEventCompleted(event: PetEvent) {
         viewModelScope.launch {
             repository.insertPetEvent(event.copy(isCompleted = !event.isCompleted))
+            supabasePetsSync.triggerSync()
         }
     }
 
     fun updatePetEvent(event: PetEvent) {
         viewModelScope.launch {
             repository.insertPetEvent(event)
+            supabasePetsSync.triggerSync()
         }
     }
     
@@ -2256,6 +2266,7 @@ class TesseraViewModel(
             val newCompleted = !habit.isCompleted
             val newStreak = if (newCompleted) habit.streak + 1 else maxOf(0, habit.streak - 1)
             repository.updateHabit(habit.copy(isCompleted = newCompleted, streak = newStreak))
+            supabaseRoutinesSync.triggerSync()
             refreshAIInsightsAndMetric()
         }
     }
@@ -2264,18 +2275,21 @@ class TesseraViewModel(
         viewModelScope.launch {
             val count = repository.allHabits.first().size
             repository.insertHabit(Habit(name = name, isCompleted = false, streak = 0, iconName = iconName, colorHex = colorHex, orderIndex = count))
+            supabaseRoutinesSync.triggerSync()
         }
     }
 
     fun updateHabit(habit: Habit) {
         viewModelScope.launch {
             repository.updateHabit(habit)
+            supabaseRoutinesSync.triggerSync()
         }
     }
 
     fun deleteHabit(habit: Habit) {
         viewModelScope.launch {
             repository.deleteHabit(habit)
+            supabaseRoutinesSync.triggerSync()
         }
     }
 
@@ -2457,18 +2471,21 @@ class TesseraViewModel(
                     date = date
                 )
             )
+            supabaseHealthSync.triggerSync()
         }
     }
 
     fun deleteWaterRecord(record: com.example.data.WaterRecord) {
         viewModelScope.launch {
             repository.deleteWaterRecord(record)
+            supabaseHealthSync.triggerSync()
         }
     }
 
     fun deleteWaterRecordById(id: Int) {
         viewModelScope.launch {
             repository.deleteWaterRecordById(id)
+            supabaseHealthSync.triggerSync()
         }
     }
 
@@ -2608,6 +2625,7 @@ class TesseraViewModel(
 
             repository.safeUpsertSleepRecords(sleeps)
             repository.safeUpsertStepsRecords(steps)
+            supabaseHealthSync.triggerSync()
         }
     }
 
