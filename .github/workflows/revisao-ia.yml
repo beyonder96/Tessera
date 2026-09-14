@@ -1,0 +1,27 @@
+name: Revisão de Código com IA Gratuita
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  issue_comment:
+    types: [created]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Checkout Código
+        uses: actions/checkout@v4
+
+      - name: Rodar Robin Review
+        uses: antongulin/robin@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Conecta ao OpenRouter usando o secret configurado no GitHub
+          llm-api-key: ${{ secrets.OPENROUTER_API_KEY || secrets.LLM_API_KEY }}
+          llm-base-url: "https://openrouter.ai/api/v1"
+          # Aqui escolhemos o modelo gratuito do Llama 3 no OpenRouter
+          model: "meta-llama/llama-3-8b-instruct:free"
