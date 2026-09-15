@@ -189,6 +189,15 @@ dependencies {
 
   // PDF Text Extraction for Bank Statements (PdfBox Android)
   implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+
+  // Koin Dependency Injection
+  implementation(platform(libs.koin.bom))
+  implementation(libs.koin.core)
+  implementation(libs.koin.android)
+  implementation(libs.koin.androidx.compose)
+  testImplementation(platform(libs.koin.bom))
+  testImplementation(libs.koin.test)
+  testImplementation(libs.koin.test.junit4)
 }
 
 abstract class CopyApkTask : org.gradle.api.DefaultTask() {
