@@ -47,4 +47,15 @@ class KoinModulesTest : KoinTest {
         assertNotNull(petViewModel)
         assertNotNull(chatViewModel)
     }
+
+    @Test
+    fun securityServices_areResolvedSuccessfully() {
+        val secureStorage: com.example.security.SecureStorage = get()
+        val apiKeyManager: com.example.security.ApiKeyManager = get()
+        val tesseraViewModel: com.example.viewmodel.TesseraViewModel = get()
+
+        assertNotNull(secureStorage)
+        assertNotNull(apiKeyManager)
+        assertNotNull(tesseraViewModel)
+    }
 }

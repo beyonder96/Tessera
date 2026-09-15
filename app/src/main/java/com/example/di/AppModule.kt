@@ -11,9 +11,23 @@ import com.example.viewmodel.FocusSoundPlayer
 import com.example.viewmodel.PetViewModel
 import com.example.viewmodel.PomodoroViewModel
 import com.example.viewmodel.TesseraViewModel
+import com.example.security.AndroidKeyStoreStorage
+import com.example.security.ApiKeyManager
+import com.example.security.SecureStorage
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
+
+val securityModule = module {
+    single<SecureStorage> { AndroidKeyStoreStorage(androidContext()) }
+    single {
+        ApiKeyManager(
+            secureStorage = get(),
+            legacyAppPrefs = get(),
+            legacySupabasePrefs = androidContext().getSharedPreferences("tessera_supabase_prefs", Context.MODE_PRIVATE)
+        )
+    }
+}
 
 val databaseModule = module {
     single { AppDatabase.getDatabase(androidContext()) }
@@ -38,10 +52,11 @@ val viewModelModule = module {
     viewModel { PomodoroViewModel(get()) }
     viewModel { PetViewModel(get()) }
     viewModel { ChatViewModel() }
-    viewModel { TesseraViewModel(get(), androidContext()) }
+    viewModel { TesseraViewModel(get(), androidContext(), get()) }
 }
 
 val allAppModules = listOf(
+    securityModule,
     databaseModule,
     networkModule,
     appModule,
