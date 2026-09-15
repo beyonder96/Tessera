@@ -71,6 +71,14 @@ jobs:
       - name: Dar permissão de execução ao gradlew
         run: chmod +x gradlew
 
+      - name: Preparar ambiente (.env) para compilação
+        run: |
+          if [ -f .env.example ]; then
+            cp .env.example .env
+          else
+            touch .env
+          fi
+
       - name: Executar Testes Unitários (testDebugUnitTest)
         run: ./gradlew testDebugUnitTest --continue
 
