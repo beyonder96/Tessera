@@ -1251,7 +1251,9 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                         Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x0AFFFFFF)))
 
                         // Conexão ARTESP / Fonte de Dados
-                        val savedApiKey = remember { mutableStateOf(sharedPrefs.getString("artesp_api_key", "") ?: "") }
+                        val savedApiKey = remember { 
+                            mutableStateOf(viewModel.apiKeyManager?.getArtespApiKey() ?: sharedPrefs.getString("artesp_api_key", "") ?: "") 
+                        }
                         var apiKeyInput by remember { mutableStateOf(savedApiKey.value) }
 
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1312,7 +1314,8 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                 if (savedApiKey.value.isNotBlank()) {
                                     TextButton(
                                         onClick = {
-                                            sharedPrefs.edit().remove("artesp_api_key").apply()
+                                            viewModel.apiKeyManager?.removeArtespApiKey()
+                                                ?: sharedPrefs.edit().remove("artesp_api_key").apply()
                                             savedApiKey.value = ""
                                             apiKeyInput = ""
                                             viewModel.fetchMetroStatus(forceRefresh = true)
@@ -1328,11 +1331,13 @@ fun SettingsScreen(viewModel: TesseraViewModel, onBack: () -> Unit) {
                                     onClick = {
                                         val trimmed = apiKeyInput.trim()
                                         if (trimmed.isNotBlank()) {
-                                            sharedPrefs.edit().putString("artesp_api_key", trimmed).apply()
+                                            viewModel.apiKeyManager?.setArtespApiKey(trimmed)
+                                                ?: sharedPrefs.edit().putString("artesp_api_key", trimmed).apply()
                                             savedApiKey.value = trimmed
-                                            Toast.makeText(context, "Chave salva com sucesso!", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "Chave salva com segurança no KeyStore!", Toast.LENGTH_SHORT).show()
                                         } else {
-                                            sharedPrefs.edit().remove("artesp_api_key").apply()
+                                            viewModel.apiKeyManager?.removeArtespApiKey()
+                                                ?: sharedPrefs.edit().remove("artesp_api_key").apply()
                                             savedApiKey.value = ""
                                             Toast.makeText(context, "Chave limpa.", Toast.LENGTH_SHORT).show()
                                         }

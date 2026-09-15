@@ -38,13 +38,14 @@ import com.example.ui.components.themedOverlayBackground
 import com.example.ui.theme.PrimaryTeal
 import com.example.viewmodel.FocusMode
 import com.example.viewmodel.PomodoroViewModel
+import org.koin.androidx.compose.koinViewModel
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 @Composable
 fun PomodoroScreen(
     scrollState: ScrollState = rememberScrollState(),
-    viewModel: PomodoroViewModel = viewModel()
+    viewModel: PomodoroViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

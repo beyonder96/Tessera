@@ -33,15 +33,13 @@ import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.theme.PrimaryTeal
 import com.example.ui.theme.SecondaryGold
 import com.example.viewmodel.ApartmentViewModel
-import com.example.viewmodel.ApartmentViewModelFactory
+import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ApartmentScreen(
     onHomeClick: () -> Unit,
-    viewModel: ApartmentViewModel = viewModel(
-        factory = ApartmentViewModelFactory(LocalContext.current)
-    )
+    viewModel: ApartmentViewModel = koinViewModel()
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()

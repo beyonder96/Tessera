@@ -56,7 +56,8 @@ import android.util.Log
 
 class TesseraViewModel(
     private val repository: TesseraRepository,
-    private val applicationContext: Context
+    private val applicationContext: Context,
+    val apiKeyManager: com.example.security.ApiKeyManager? = null
 ) : ViewModel() {
 
     val syncManager = com.example.data.MarketSyncManager(applicationContext, repository)
@@ -2753,8 +2754,9 @@ class TesseraViewModel(
             _isLoadingMetroStatus.value = true
             _metroError.value = null
             try {
-                val prefs = applicationContext.getSharedPreferences("tessera_prefs", Context.MODE_PRIVATE)
-                val apiKey = prefs.getString("artesp_api_key", null)?.trim()?.ifBlank { null }
+                val apiKey = apiKeyManager?.getArtespApiKey() 
+                    ?: applicationContext.getSharedPreferences("tessera_prefs", Context.MODE_PRIVATE)
+                        .getString("artesp_api_key", null)?.trim()?.ifBlank { null }
                 val liveStatus = com.example.data.MetroCptmApi.getLiveMetroAndTrainStatus(
                     apiKey = apiKey,
                     forceRefresh = forceRefresh

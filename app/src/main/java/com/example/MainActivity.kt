@@ -103,6 +103,7 @@ import com.example.viewmodel.TesseraViewModel
 import com.example.viewmodel.TesseraViewModelFactory
 import com.example.viewmodel.PetViewModel
 import com.example.viewmodel.PetViewModelFactory
+import org.koin.androidx.compose.koinViewModel
 import com.example.data.PetEntity
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -264,10 +265,8 @@ val GlassModifier = PremiumGlassModifier
 @Composable
 fun TesseraApp() {
     val context = LocalContext.current
-    val database = remember { AppDatabase.getDatabase(context) }
-    val repository = remember { TesseraRepository(database.tesseraDao()) }
-    val viewModel: TesseraViewModel = viewModel(factory = TesseraViewModelFactory(repository, context))
-    val petViewModel: PetViewModel = viewModel(factory = PetViewModelFactory(repository))
+    val viewModel: TesseraViewModel = koinViewModel()
+    val petViewModel: PetViewModel = koinViewModel()
 
     val appTheme by viewModel.appTheme.collectAsState()
     val currentGlassLevel by viewModel.glassmorphismLevel.collectAsState()
@@ -807,7 +806,7 @@ fun getDatabaseSizeInKB(context: android.content.Context): String {
 fun DailyScreen(viewModel: TesseraViewModel, onNavigate: (String) -> Unit, onScrollChange: (Int) -> Unit) {
     val context = LocalContext.current
     val mainViewModel = viewModel
-    val petViewModel: PetViewModel = viewModel(factory = com.example.viewmodel.PetViewModelFactory(com.example.data.TesseraRepository(com.example.data.AppDatabase.getDatabase(context).tesseraDao())))
+    val petViewModel: PetViewModel = koinViewModel()
     val petEvents by mainViewModel.allPetEvents.collectAsState(initial = emptyList())
     val stepsRecords by mainViewModel.allStepsRecords.collectAsState(initial = emptyList())
     val marketItems by mainViewModel.pendingMarketItems.collectAsState(initial = emptyList())
