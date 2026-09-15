@@ -7,10 +7,9 @@ import com.example.data.TesseraRepository
 import com.example.data.apifootball.NetworkModule
 import com.example.viewmodel.ApartmentViewModel
 import com.example.viewmodel.ChatViewModel
-import com.example.viewmodel.FocusSoundPlayer
 import com.example.viewmodel.PetViewModel
-import com.example.viewmodel.PomodoroViewModel
 import com.example.viewmodel.TesseraViewModel
+import com.example.feature.focus.di.focusModule
 import com.example.security.AndroidKeyStoreStorage
 import com.example.security.ApiKeyManager
 import com.example.security.SecureStorage
@@ -44,12 +43,10 @@ val appModule = module {
     single<SharedPreferences> {
         androidContext().getSharedPreferences("tessera_prefs", Context.MODE_PRIVATE)
     }
-    single { FocusSoundPlayer() }
 }
 
 val viewModelModule = module {
     viewModel { ApartmentViewModel(get()) }
-    viewModel { PomodoroViewModel(get()) }
     viewModel { PetViewModel(get()) }
     viewModel { ChatViewModel() }
     viewModel { TesseraViewModel(get(), androidContext(), get()) }
@@ -60,5 +57,6 @@ val allAppModules = listOf(
     databaseModule,
     networkModule,
     appModule,
-    viewModelModule
+    viewModelModule,
+    focusModule
 )

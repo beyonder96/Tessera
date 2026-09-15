@@ -7,7 +7,7 @@ import com.example.data.TesseraRepository
 import com.example.viewmodel.ApartmentViewModel
 import com.example.viewmodel.ChatViewModel
 import com.example.viewmodel.PetViewModel
-import com.example.viewmodel.PomodoroViewModel
+import com.example.feature.focus.PomodoroViewModel
 import org.junit.After
 import org.junit.Assert.assertNotNull
 import org.junit.Before

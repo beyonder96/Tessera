@@ -1,4 +1,4 @@
-package com.example.viewmodel
+package com.example.feature.focus
 
 import android.media.AudioFormat
 import android.media.AudioManager
@@ -58,15 +58,14 @@ open class FocusSoundPlayer {
                 var lastLeft = 0f
                 var lastRight = 0f
                 
-                var phaseLeft = 0f
-                var phaseRight = 0f
-                val sampleRateF = 44100f
-                
                 // Theta wave binaural difference: 100Hz in left ear, 104Hz in right ear -> 4Hz difference
                 val freqLeft = 100f
                 val freqRight = 104f
+                val sampleRateF = 44100f
                 val phaseIncLeft = 2f * Math.PI.toFloat() * freqLeft / sampleRateF
                 val phaseIncRight = 2f * Math.PI.toFloat() * freqRight / sampleRateF
+                var phaseLeft = 0f
+                var phaseRight = 0f
                 
                 var time = 0L
                 try {
