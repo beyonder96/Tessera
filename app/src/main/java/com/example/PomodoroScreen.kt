@@ -1,11 +1,5 @@
 package com.example
-import androidx.compose.material3.MaterialTheme
-import com.example.ui.components.*
 
-import android.content.Context
-import android.media.AudioFormat
-import android.media.AudioManager
-import android.media.AudioTrack
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -21,7 +15,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -29,177 +22,32 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import coil.compose.AsyncImage
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.components.PremiumGlassModifier
+import com.example.ui.components.themedCardBorder
+import com.example.ui.components.themedOverlayBackground
 import com.example.ui.theme.PrimaryTeal
+import com.example.viewmodel.FocusMode
+import com.example.viewmodel.PomodoroViewModel
 import kotlinx.coroutines.delay
-import java.util.Random
 import kotlin.math.roundToInt
 
-// Focus Mode Types
-enum class FocusMode(val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    FOCUS_TIMER("Focus Timer", Icons.Outlined.CenterFocusStrong),
-    QUICK_NAP("Quick Nap", Icons.Outlined.DoNotDisturbOn),
-    BREATHING("Breathing", Icons.Outlined.Eco)
-}
-
-// Binaural beats sound player (4Hz Theta wave for focus)
-class FocusSoundPlayer {
-    private var audioTrack: AudioTrack? = null
-    @Volatile
-    private var isPlaying = false
-
-    fun start() {
-        if (isPlaying) return
-        isPlaying = true
-        val sampleRate = 44100
-        val bufferSize = AudioTrack.getMinBufferSize(
-            sampleRate,
-            AudioFormat.CHANNEL_OUT_STEREO,
-            AudioFormat.ENCODING_PCM_16BIT
-        )
-        
-        try {
-            audioTrack = AudioTrack(
-                AudioManager.STREAM_MUSIC,
-                sampleRate,
-                AudioFormat.CHANNEL_OUT_STEREO,
-                AudioFormat.ENCODING_PCM_16BIT,
-                bufferSize,
-                AudioTrack.MODE_STREAM
-            )
-            audioTrack?.play()
-            
-            Thread {
-                val buffer = ShortArray(bufferSize)
-                val random = Random()
-                var lastLeft = 0f
-                var lastRight = 0f
-                
-                var phaseLeft = 0f
-                var phaseRight = 0f
-                val sampleRateF = 44100f
-                
-                // Theta wave binaural difference: 100Hz in left ear, 104Hz in right ear -> 4Hz difference
-                val freqLeft = 100f
-                val freqRight = 104f
-                val phaseIncLeft = 2f * Math.PI.toFloat() * freqLeft / sampleRateF
-                val phaseIncRight = 2f * Math.PI.toFloat() * freqRight / sampleRateF
-                
-                var time = 0L
-                try {
-                    while (isPlaying) {
-                        for (i in 0 until buffer.size step 2) {
-                            // Soft brown noise simulating serene ocean waves
-                            val whiteL = random.nextGaussian().toFloat() * 550f
-                            val whiteR = random.nextGaussian().toFloat() * 550f
-                            
-                            lastLeft = (lastLeft * 0.98f) + (whiteL * 0.05f)
-                            lastRight = (lastRight * 0.98f) + (whiteR * 0.05f)
-                            
-                            // Binaural sine hum with dynamic volume swells (6-second cycle)
-                            val swell = 0.5f + 0.3f * Math.sin(2.0 * Math.PI * time / (sampleRateF * 6f)).toFloat()
-                            val sineL = Math.sin(phaseLeft.toDouble()).toFloat() * 1100f * swell
-                            val sineR = Math.sin(phaseRight.toDouble()).toFloat() * 1100f * swell
-                            
-                            phaseLeft += phaseIncLeft
-                            if (phaseLeft > 2f * Math.PI.toFloat()) phaseLeft -= 2f * Math.PI.toFloat()
-                            
-                            phaseRight += phaseIncRight
-                            if (phaseRight > 2f * Math.PI.toFloat()) phaseRight -= 2f * Math.PI.toFloat()
-                            
-                            val mixedL = lastLeft + sineL
-                            val mixedR = lastRight + sineR
-                            
-                            if (i < buffer.size) {
-                                buffer[i] = mixedL.coerceIn(-32768f, 32767f).toInt().toShort()
-                            }
-                            if (i + 1 < buffer.size) {
-                                buffer[i + 1] = mixedR.coerceIn(-32768f, 32767f).toInt().toShort()
-                            }
-                            time++
-                        }
-                        if (isPlaying) {
-                            audioTrack?.write(buffer, 0, buffer.size)
-                        }
-                    }
-                } catch (e: Exception) {
-                    // Silently terminate audio loop on track release
-                }
-            }.start()
-        } catch (e: Exception) {
-            isPlaying = false
-        }
-    }
-
-    fun stop() {
-        isPlaying = false
-        try {
-            audioTrack?.pause()
-            audioTrack?.flush()
-            audioTrack?.stop()
-            audioTrack?.release()
-        } catch (e: Exception) {}
-        audioTrack = null
-    }
-}
-
 @Composable
-fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
-    var selectedMode by remember { mutableStateOf(FocusMode.FOCUS_TIMER) }
-    
-    // Duration ranges: Focus (1..120 min), Nap (5..60 min), Breathing (1..15 min)
-    val durationRange = when (selectedMode) {
-        FocusMode.FOCUS_TIMER -> 1f..120f
-        FocusMode.QUICK_NAP -> 5f..60f
-        FocusMode.BREATHING -> 1f..15f
-    }
-    
-    // Default durations
-    var focusDuration by remember { mutableStateOf(25) }
-    var napDuration by remember { mutableStateOf(20) }
-    var breathingDuration by remember { mutableStateOf(3) }
-    
-    val currentDuration = when (selectedMode) {
-        FocusMode.FOCUS_TIMER -> focusDuration
-        FocusMode.QUICK_NAP -> napDuration
-        FocusMode.BREATHING -> breathingDuration
-    }
-    
-    val updateDuration: (Int) -> Unit = { value ->
-        when (selectedMode) {
-            FocusMode.FOCUS_TIMER -> focusDuration = value
-            FocusMode.QUICK_NAP -> napDuration = value
-            FocusMode.BREATHING -> breathingDuration = value
-        }
-    }
-    
-    var isRunning by remember { mutableStateOf(false) }
-    var secondsLeft by remember { mutableStateOf(0) }
-    
-    var selectedSoundscape by remember { mutableStateOf("Ocean") }
-    var focusModeType by remember { mutableStateOf("Goal Timer") }
-    
-    var showSoundscapeDialog by remember { mutableStateOf(false) }
-    
-    val focusSoundPlayer = remember { FocusSoundPlayer() }
-    
-    DisposableEffect(Unit) {
-        onDispose {
-            focusSoundPlayer.stop()
-        }
-    }
- 
+fun PomodoroScreen(
+    scrollState: ScrollState = rememberScrollState(),
+    viewModel: PomodoroViewModel = viewModel()
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -261,7 +109,7 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 FocusMode.values().forEach { mode ->
-                    val isSelected = selectedMode == mode
+                    val isSelected = uiState.selectedMode == mode
                     Box(
                         modifier = Modifier
                             .width(135.dp)
@@ -274,8 +122,7 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
                                 shape = RoundedCornerShape(18.dp)
                             )
                             .clickable {
-                                selectedMode = mode
-                                isRunning = false
+                                viewModel.onSelectMode(mode)
                             }
                             .padding(12.dp),
                         contentAlignment = Alignment.CenterStart
@@ -304,7 +151,7 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
         // 3. Selection Minutes Text
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = "$currentDuration min",
+                text = "${uiState.currentDuration} min",
                 fontFamily = FontFamily.SansSerif,
                 fontWeight = FontWeight.Light,
                 fontSize = 44.sp,
@@ -315,16 +162,16 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
 
             // 4. TimeRuler Scale
             TimeRuler(
-                value = currentDuration,
-                onValueChange = updateDuration,
-                range = durationRange,
+                value = uiState.currentDuration,
+                onValueChange = { viewModel.onUpdateDuration(it) },
+                range = uiState.durationRange,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "${selectedMode.title.substringBefore(" ")} >",
+                text = "${uiState.selectedMode.title.substringBefore(" ")} >",
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                 fontWeight = FontWeight.Medium
@@ -353,7 +200,7 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
                 Row(
                     modifier = Modifier
                         .weight(1f)
-                        .clickable { showSoundscapeDialog = true }
+                        .clickable { viewModel.onShowSoundscapeDialog(true) }
                         .padding(horizontal = 20.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -373,7 +220,7 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
                     }
                     Column {
                         Text(
-                            text = selectedSoundscape,
+                            text = uiState.selectedSoundscape,
                             color = MaterialTheme.colorScheme.onBackground,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold
@@ -399,20 +246,20 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
                     modifier = Modifier
                         .weight(1f)
                         .clickable {
-                            focusModeType = if (focusModeType == "Goal Timer") "Stopwatch" else "Goal Timer"
+                            viewModel.onToggleFocusModeType()
                         }
                         .padding(horizontal = 20.dp),
                     horizontalAlignment = Alignment.Start,
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = if (selectedMode == FocusMode.BREATHING) "Deep Breath" else focusModeType,
+                        text = if (uiState.selectedMode == FocusMode.BREATHING) "Deep Breath" else uiState.focusModeType,
                         color = MaterialTheme.colorScheme.onBackground,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = if (selectedMode == FocusMode.BREATHING) "Breathing exercise" else "Focus mode",
+                        text = if (uiState.selectedMode == FocusMode.BREATHING) "Breathing exercise" else "Focus mode",
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                         fontSize = 11.sp
                     )
@@ -425,11 +272,7 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
         // 6. Start Button
         Button(
             onClick = {
-                secondsLeft = currentDuration * 60
-                isRunning = true
-                if (selectedSoundscape == "Ocean") {
-                    focusSoundPlayer.start()
-                }
+                viewModel.onStartTimer()
             },
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color(0xFFD0E1FD), // Light blue-purple
@@ -450,9 +293,9 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
     }
 
     // Soundscape Selector Dialog
-    if (showSoundscapeDialog) {
+    if (uiState.showSoundscapeDialog) {
         AlertDialog(
-            onDismissRequest = { showSoundscapeDialog = false },
+            onDismissRequest = { viewModel.onShowSoundscapeDialog(false) },
             containerColor = themedOverlayBackground(),
             title = { Text("Select Soundscape", color = MaterialTheme.colorScheme.onBackground) },
             text = {
@@ -462,17 +305,16 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(if (selectedSoundscape == sound) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f) else Color.Transparent)
+                                .background(if (uiState.selectedSoundscape == sound) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f) else Color.Transparent)
                                 .clickable {
-                                    selectedSoundscape = sound
-                                    showSoundscapeDialog = false
+                                    viewModel.onSelectSoundscape(sound)
                                 }
                                 .padding(16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(sound, color = MaterialTheme.colorScheme.onBackground, fontSize = 15.sp)
-                            if (selectedSoundscape == sound) {
+                            if (uiState.selectedSoundscape == sound) {
                                 Icon(Icons.Default.Check, contentDescription = null, tint = PrimaryTeal)
                             }
                         }
@@ -484,15 +326,14 @@ fun PomodoroScreen(scrollState: ScrollState = rememberScrollState()) {
     }
 
     // 7. Active Focus Mode Fullscreen Dialog
-    if (isRunning) {
+    if (uiState.isRunning) {
         ActiveFocusDialog(
-            mode = selectedMode,
-            secondsLeft = secondsLeft,
-            soundscape = selectedSoundscape,
-            onTick = { secondsLeft-- },
+            mode = uiState.selectedMode,
+            secondsLeft = uiState.secondsLeft,
+            soundscape = uiState.selectedSoundscape,
+            onTick = { viewModel.onTick() },
             onStop = {
-                isRunning = false
-                focusSoundPlayer.stop()
+                viewModel.onStopTimer()
             }
         )
     }
@@ -563,16 +404,6 @@ fun ActiveFocusDialog(
 ) {
     var isMinimalView by remember { mutableStateOf(false) }
     
-    // Countdown coroutine
-    LaunchedEffect(secondsLeft) {
-        if (secondsLeft > 0) {
-            delay(1000L)
-            onTick()
-        } else {
-            onStop()
-        }
-    }
-
     val minutes = secondsLeft / 60
     val seconds = secondsLeft % 60
     val timeString = String.format("%02d:%02d", minutes, seconds)
@@ -692,9 +523,9 @@ fun ActiveFocusDialog(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(110.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.2f))
+                                .size(110.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.2f))
                             )
                         }
                         Text(

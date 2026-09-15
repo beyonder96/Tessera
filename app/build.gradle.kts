@@ -269,6 +269,9 @@ tasks.configureEach {
 
 // Ensure BuildConfig is regenerated when .env changes
 tasks.withType<com.android.build.gradle.tasks.GenerateBuildConfig> {
-    inputs.file(rootProject.file(".env"))
+    val envFile = rootProject.file(".env")
+    if (envFile.exists()) {
+        inputs.file(envFile)
+    }
 }
 

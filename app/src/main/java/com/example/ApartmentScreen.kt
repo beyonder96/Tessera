@@ -26,103 +26,31 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.supabase.SupabaseClientProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.components.OuraCircularProgress
 import com.example.ui.components.PremiumGlassModifier
 import com.example.ui.theme.PrimaryTeal
 import com.example.ui.theme.SecondaryGold
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.json.JSONObject
+import com.example.viewmodel.ApartmentViewModel
+import com.example.viewmodel.ApartmentViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ApartmentScreen(onHomeClick: () -> Unit) {
+fun ApartmentScreen(
+    onHomeClick: () -> Unit,
+    viewModel: ApartmentViewModel = viewModel(
+        factory = ApartmentViewModelFactory(LocalContext.current)
+    )
+) {
     val context = LocalContext.current
-    val sharedPrefs = remember { context.getSharedPreferences("tessera_prefs", Context.MODE_PRIVATE) }
-    val scope = rememberCoroutineScope()
-    
-    var progress by remember { mutableStateOf(sharedPrefs.getFloat("apartment_progress", 0.75f)) }
-    var isPlaying by remember { mutableStateOf(false) }
-    var isSyncing by remember { mutableStateOf(false) }
-    
-    var showDateDialog by remember { mutableStateOf(false) }
-    var expectedDate by remember { mutableStateOf(sharedPrefs.getString("apartment_date", "Dez 2026") ?: "Dez 2026") }
-    var tempDate by remember { mutableStateOf(expectedDate) }
-    
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
 
-    fun syncWithCloud(newProgress: Float, newDate: String) {
-        scope.launch(Dispatchers.IO) {
-            try {
-                val payload = JSONObject().apply {
-                    put("action", "sync_apartment")
-                    put("progress", (newProgress * 100).toInt())
-                    put("expected_date", newDate)
-                }.toString()
-                SupabaseClientProvider.invokeFunction("telegram-bot", payload)
-            } catch (e: Exception) {
-                android.util.Log.w("ApartmentScreen", "Erro ao sincronizar com nuvem: ${e.message}")
-            }
-        }
-    }
-
-    fun refreshFromCloud(showToast: Boolean = true) {
-        scope.launch {
-            isSyncing = true
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    val payload = JSONObject().apply { put("action", "get_apartment") }.toString()
-                    SupabaseClientProvider.invokeFunction("telegram-bot", payload)
-                }
-                if (result.isSuccess) {
-                    val jsonStr = result.getOrNull() ?: ""
-                    val obj = JSONObject(jsonStr)
-                    if (obj.optBoolean("ok")) {
-                        val data = obj.optJSONObject("data")
-                        if (data != null) {
-                            val remoteProg = data.optInt("progress", (progress * 100).toInt()) / 100f
-                            val remoteDate = data.optString("expected_date", expectedDate)
-                            progress = remoteProg
-                            expectedDate = remoteDate
-                            tempDate = remoteDate
-                            sharedPrefs.edit()
-                                .putFloat("apartment_progress", remoteProg)
-                                .putString("apartment_date", remoteDate)
-                                .apply()
-                            if (showToast) {
-                                Toast.makeText(context, "Sincronizado com o Bot: ${(remoteProg * 100).toInt()}%!", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    }
-                } else if (showToast) {
-                    Toast.makeText(context, "Não foi possível conectar com o Bot", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                if (showToast) {
-                    Toast.makeText(context, "Erro na sincronização: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
-            } finally {
-                isSyncing = false
-            }
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        refreshFromCloud(showToast = false)
-    }
-
-    LaunchedEffect(isPlaying) {
-        while (isPlaying && progress < 1f) {
-            delay(100)
-            progress = (progress + 0.005f).coerceAtMost(1f)
-            sharedPrefs.edit().putFloat("apartment_progress", progress).apply()
-            if (progress >= 1f) isPlaying = false
-        }
-        if (!isPlaying) {
-            syncWithCloud(progress, expectedDate)
+    LaunchedEffect(uiState.userToastMessage) {
+        uiState.userToastMessage?.let { msg ->
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+            viewModel.clearUserToastMessage()
         }
     }
 
@@ -184,7 +112,7 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     OuraCircularProgress(
-                        progress = progress,
+                        progress = uiState.progress,
                         progressColor = SecondaryGold,
                         modifier = Modifier.size(240.dp),
                         strokeWidth = 12f
@@ -193,7 +121,7 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                             Icon(Icons.Outlined.Apartment, contentDescription = null, tint = SecondaryGold, modifier = Modifier.size(32.dp))
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "${(progress * 100).toInt()}%",
+                                text = "${(uiState.progress * 100).toInt()}%",
                                 fontSize = 48.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Serif,
@@ -218,14 +146,14 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                     ) {
                         // Botão de Atualizar / Sincronizar com a Nuvem e Telegram Bot
                         IconButton(
-                            onClick = { refreshFromCloud(showToast = true) },
-                            enabled = !isSyncing,
+                            onClick = { viewModel.refreshFromCloud(showFeedback = true) },
+                            enabled = !uiState.isSyncing,
                             modifier = Modifier
                                 .size(56.dp)
                                 .clip(RoundedCornerShape(20.dp))
                                 .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                         ) {
-                            if (isSyncing) {
+                            if (uiState.isSyncing) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(22.dp),
                                     color = SecondaryGold,
@@ -241,16 +169,16 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                         }
 
                         IconButton(
-                            onClick = { isPlaying = !isPlaying },
+                            onClick = { viewModel.onPlayPauseClicked() },
                             modifier = Modifier
                                 .size(64.dp)
                                 .clip(RoundedCornerShape(24.dp))
-                                .background(if (isPlaying) SecondaryGold.copy(alpha = 0.2f) else PrimaryTeal.copy(alpha = 0.2f))
+                                .background(if (uiState.isPlaying) SecondaryGold.copy(alpha = 0.2f) else PrimaryTeal.copy(alpha = 0.2f))
                         ) {
                             Icon(
-                                if (isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
+                                if (uiState.isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
                                 contentDescription = "Play/Pause",
-                                tint = if (isPlaying) SecondaryGold else PrimaryTeal,
+                                tint = if (uiState.isPlaying) SecondaryGold else PrimaryTeal,
                                 modifier = Modifier.size(32.dp)
                             )
                         }
@@ -259,14 +187,9 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                     Spacer(modifier = Modifier.height(24.dp))
                     
                     Slider(
-                        value = progress,
-                        onValueChange = { newProgress ->
-                            progress = newProgress
-                            sharedPrefs.edit().putFloat("apartment_progress", newProgress).apply()
-                        },
-                        onValueChangeFinished = {
-                            syncWithCloud(progress, expectedDate)
-                        },
+                        value = uiState.progress,
+                        onValueChange = { viewModel.onSliderProgressChanged(it) },
+                        onValueChangeFinished = { viewModel.onSliderProgressFinished() },
                         modifier = Modifier.padding(horizontal = 16.dp),
                         colors = SliderDefaults.colors(
                             thumbColor = SecondaryGold,
@@ -285,7 +208,7 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(24.dp))
                     .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.03f))
-                    .clickable { showDateDialog = true }
+                    .clickable { viewModel.onOpenDateDialog() }
                     .padding(24.dp)
             ) {
                 Row(
@@ -303,7 +226,7 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = expectedDate,
+                            text = uiState.expectedDate,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onBackground
@@ -319,9 +242,9 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
         }
     }
 
-    if (showDateDialog) {
+    if (uiState.showDateDialog) {
         ModalBottomSheet(
-            onDismissRequest = { showDateDialog = false },
+            onDismissRequest = { viewModel.onDismissDateDialog() },
             containerColor = MaterialTheme.colorScheme.surface,
             scrimColor = Color.Black.copy(alpha = 0.5f)
         ) {
@@ -341,8 +264,8 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                     )
 
                     OutlinedTextField(
-                        value = tempDate,
-                        onValueChange = { tempDate = it },
+                        value = uiState.tempDate,
+                        onValueChange = { viewModel.onTempDateChanged(it) },
                         label = { Text("Mês e Ano (ex: Dez 2026)") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
@@ -353,17 +276,12 @@ fun ApartmentScreen(onHomeClick: () -> Unit) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End
                     ) {
-                        TextButton(onClick = { showDateDialog = false }) {
+                        TextButton(onClick = { viewModel.onDismissDateDialog() }) {
                             Text("Cancelar", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Button(
-                            onClick = {
-                                expectedDate = tempDate
-                                sharedPrefs.edit().putString("apartment_date", tempDate).apply()
-                                syncWithCloud(progress, tempDate)
-                                showDateDialog = false
-                            },
+                            onClick = { viewModel.onSaveExpectedDate() },
                             colors = ButtonDefaults.buttonColors(containerColor = SecondaryGold, contentColor = Color.Black),
                             shape = RoundedCornerShape(14.dp)
                         ) {
