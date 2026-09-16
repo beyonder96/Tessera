@@ -1,4 +1,4 @@
-package com.example
+package com.example.feature.focus
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -31,15 +31,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.ui.components.PremiumGlassModifier
-import com.example.ui.components.themedCardBorder
-import com.example.ui.components.themedOverlayBackground
-import com.example.ui.theme.PrimaryTeal
-import com.example.viewmodel.FocusMode
-import com.example.viewmodel.PomodoroViewModel
+import com.example.feature.focus.theme.FocusTeal
+import com.example.feature.focus.theme.focusCardBorder
 import org.koin.androidx.compose.koinViewModel
-import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 @Composable
@@ -119,7 +113,7 @@ fun PomodoroScreen(
                             .background(if (isSelected) Color(0x3DFFFFFF) else Color(0x0CFFFFFF))
                             .border(
                                 width = if (isSelected) 1.5.dp else 1.dp,
-                                color = if (isSelected) Color(0xFF8AB4F8) else themedCardBorder(),
+                                color = if (isSelected) Color(0xFF8AB4F8) else focusCardBorder(),
                                 shape = RoundedCornerShape(18.dp)
                             )
                             .clickable {
@@ -186,7 +180,6 @@ fun PomodoroScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(24.dp))
-                .then(PremiumGlassModifier)
                 .background(Color(0x05FFFFFF))
                 .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(24.dp))
         ) {
@@ -276,7 +269,7 @@ fun PomodoroScreen(
                 viewModel.onStartTimer()
             },
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFD0E1FD), // Light blue-purple
+                containerColor = Color(0xFFD0E1FD),
                 contentColor = Color.Black
             ),
             shape = RoundedCornerShape(32.dp),
@@ -297,7 +290,7 @@ fun PomodoroScreen(
     if (uiState.showSoundscapeDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.onShowSoundscapeDialog(false) },
-            containerColor = themedOverlayBackground(),
+            containerColor = MaterialTheme.colorScheme.surface,
             title = { Text("Select Soundscape", color = MaterialTheme.colorScheme.onBackground) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -316,7 +309,7 @@ fun PomodoroScreen(
                         ) {
                             Text(sound, color = MaterialTheme.colorScheme.onBackground, fontSize = 15.sp)
                             if (uiState.selectedSoundscape == sound) {
-                                Icon(Icons.Default.Check, contentDescription = null, tint = PrimaryTeal)
+                                Icon(Icons.Default.Check, contentDescription = null, tint = FocusTeal)
                             }
                         }
                     }
@@ -451,8 +444,6 @@ fun ActiveFocusDialog(
             )
 
             if (!isMinimalView) {
-                // ACTIVE COMMON VIEW
-                
                 // Top Header Toolbar
                 Row(
                     modifier = Modifier
@@ -484,7 +475,7 @@ fun ActiveFocusDialog(
                     }
                 }
 
-                // Breathing mode guided circle animation (Middle of screen)
+                // Breathing mode guided circle animation
                 if (mode == FocusMode.BREATHING) {
                     val breathingAnim = rememberInfiniteTransition(label = "BreathingCycle")
                     val scale by breathingAnim.animateFloat(
@@ -497,7 +488,6 @@ fun ActiveFocusDialog(
                         label = "Scale"
                     )
                     
-                    // Guided Text based on scale size
                     val phaseText = when {
                         scale > 1.15f -> "Segure..."
                         scale < 0.85f -> "Segure..."
@@ -524,9 +514,9 @@ fun ActiveFocusDialog(
                         ) {
                             Box(
                                 modifier = Modifier
-                                .size(110.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.2f))
+                                    .size(110.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.2f))
                             )
                         }
                         Text(
@@ -584,7 +574,7 @@ fun ActiveFocusDialog(
                     )
                 }
             } else {
-                // IMMERSIVE MINIMALIST VIEW
+                // Minimalist view
                 Column(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally,

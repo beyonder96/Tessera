@@ -1,8 +1,5 @@
-package com.example
+package com.example.feature.focus
 
-import com.example.viewmodel.FocusMode
-import com.example.viewmodel.FocusSoundPlayer
-import com.example.viewmodel.PomodoroViewModel
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test

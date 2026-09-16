@@ -107,6 +107,7 @@ dependencies {
   implementation("androidx.browser:browser:1.8.0")
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))
+  implementation(project(":feature:focus"))
   implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)
   // implementation(libs.androidx.camera.camera2)
